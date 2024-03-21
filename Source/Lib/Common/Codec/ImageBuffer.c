@@ -141,6 +141,7 @@ PREFIX_API svt_jpeg_xs_frame_pool_t* svt_jpeg_xs_frame_pool_alloc(const svt_jpeg
 
     SVT_NO_THROW_MALLOC(frame_pool, sizeof(svt_jpeg_xs_frame_pool_t));
     if (frame_pool) {
+        svt_increase_component_count();
         frame_pool->pool_image_buffer_resource_ptr = NULL;
         frame_pool->pool_image_buffer_fifo_ptr = NULL;
         frame_pool->pool_bitstream_resource_ptr = NULL;
@@ -209,6 +210,7 @@ PREFIX_API void svt_jpeg_xs_frame_pool_free(svt_jpeg_xs_frame_pool_t* frame_pool
             SVT_DELETE(frame_pool->pool_bitstream_resource_ptr);
         }
         SVT_FREE(frame_pool);
+        svt_decrease_component_count();
     }
 }
 
