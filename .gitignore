@@ -1,0 +1,10 @@
+Bin/
+Build/linux/
+Build/windows/
+Build/eclipse/
+Build/coverage_linux
+*.yuv
+*.bin
+*.patch
+*.raw
+*.log

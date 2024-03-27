@@ -1,0 +1,50 @@
+From 7ba9cfdcf7a5dab279a6f04693b23b4946e7de45 Mon Sep 17 00:00:00 2001
+From: Tomasz Szumski <tomasz.szumski@intel.com>
+Date: Mon, 30 Oct 2023 06:49:02 +0100
+Subject: [PATCH 2/4] Allow JPEG XS to be stored in mp4/mkv container
+
+---
+ libavformat/isom.c      | 1 +
+ libavformat/isom_tags.c | 1 +
+ libavformat/movenc.c    | 1 +
+ 3 files changed, 3 insertions(+)
+
+diff --git a/libavformat/isom.c b/libavformat/isom.c
+index 6d019881e5..93838d71fd 100644
+--- a/libavformat/isom.c
++++ b/libavformat/isom.c
+@@ -54,6 +54,7 @@ const AVCodecTag ff_mp4_obj_type[] = {
+     { AV_CODEC_ID_MJPEG       , 0x6C }, /* 10918-1 */
+     { AV_CODEC_ID_PNG         , 0x6D },
+     { AV_CODEC_ID_JPEG2000    , 0x6E }, /* 15444-1 */
++    { AV_CODEC_ID_JPEGXS      , 0x6F }, /* ??? */
+     { AV_CODEC_ID_VC1         , 0xA3 },
+     { AV_CODEC_ID_DIRAC       , 0xA4 },
+     { AV_CODEC_ID_AC3         , 0xA5 },
+diff --git a/libavformat/isom_tags.c b/libavformat/isom_tags.c
+index a575b7c160..354ee86e65 100644
+--- a/libavformat/isom_tags.c
++++ b/libavformat/isom_tags.c
+@@ -205,6 +205,7 @@ const AVCodecTag ff_codec_movvideo_tags[] = {
+     { AV_CODEC_ID_MPEG2VIDEO, MKTAG('m', 'p', '2', 'v') }, /* FCP5 */
+ 
+     { AV_CODEC_ID_JPEG2000, MKTAG('m', 'j', 'p', '2') }, /* JPEG 2000 produced by FCP */
++    { AV_CODEC_ID_JPEGXS,   MKTAG('j', 'x', 's', ' ') }, /* JPEGXS */
+ 
+     { AV_CODEC_ID_TARGA, MKTAG('t', 'g', 'a', ' ') }, /* Truevision Targa */
+     { AV_CODEC_ID_TIFF,  MKTAG('t', 'i', 'f', 'f') }, /* TIFF embedded in MOV */
+diff --git a/libavformat/movenc.c b/libavformat/movenc.c
+index e39f1ac987..268eb005e3 100644
+--- a/libavformat/movenc.c
++++ b/libavformat/movenc.c
+@@ -7838,6 +7838,7 @@ static const AVCodecTag codec_mp4_tags[] = {
+     { AV_CODEC_ID_MJPEG,           MKTAG('m', 'p', '4', 'v') },
+     { AV_CODEC_ID_PNG,             MKTAG('m', 'p', '4', 'v') },
+     { AV_CODEC_ID_JPEG2000,        MKTAG('m', 'p', '4', 'v') },
++    { AV_CODEC_ID_JPEGXS,          MKTAG('j', 'x', 's', ' ') },
+     { AV_CODEC_ID_VC1,             MKTAG('v', 'c', '-', '1') },
+     { AV_CODEC_ID_DIRAC,           MKTAG('d', 'r', 'a', 'c') },
+     { AV_CODEC_ID_TSCC2,           MKTAG('m', 'p', '4', 'v') },
+-- 
+2.39.1.windows.1
+

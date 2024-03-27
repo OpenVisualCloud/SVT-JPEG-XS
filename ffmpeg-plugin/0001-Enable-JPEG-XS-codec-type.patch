@@ -1,0 +1,45 @@
+From a7d318a2b71147b6d7f8c8b58485165d9e53717d Mon Sep 17 00:00:00 2001
+From: Tomasz Szumski <tomasz.szumski@intel.com>
+Date: Thu, 7 Mar 2024 08:11:23 +0100
+Subject: [PATCH 1/4] Enable JPEG XS codec type
+
+---
+ libavcodec/codec_desc.c | 9 +++++++++
+ libavcodec/codec_id.h   | 1 +
+ 2 files changed, 10 insertions(+)
+
+diff --git a/libavcodec/codec_desc.c b/libavcodec/codec_desc.c
+index f556bb94d5..01ba4a11f2 100644
+--- a/libavcodec/codec_desc.c
++++ b/libavcodec/codec_desc.c
+@@ -1960,6 +1960,15 @@ static const AVCodecDescriptor codec_descriptors[] = {
+         .long_name = NULL_IF_CONFIG_SMALL("vMix Video"),
+         .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
+     },
++    {
++        .id        = AV_CODEC_ID_JPEGXS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "jpegxs",
++        .long_name = NULL_IF_CONFIG_SMALL("JPEG XS"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY |
++                     AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/jxs"),
++    },
+ 
+     /* various PCM "codecs" */
+     {
+diff --git a/libavcodec/codec_id.h b/libavcodec/codec_id.h
+index 29b410b8d3..4bb31c3d64 100644
+--- a/libavcodec/codec_id.h
++++ b/libavcodec/codec_id.h
+@@ -324,6 +324,7 @@ enum AVCodecID {
+     AV_CODEC_ID_EVC,
+     AV_CODEC_ID_RTV1,
+     AV_CODEC_ID_VMIX,
++    AV_CODEC_ID_JPEGXS,
+ 
+     /* various PCM "codecs" */
+     AV_CODEC_ID_FIRST_AUDIO = 0x10000,     ///< A dummy id pointing at the start of audio codecs
+-- 
+2.39.1.windows.1
+
