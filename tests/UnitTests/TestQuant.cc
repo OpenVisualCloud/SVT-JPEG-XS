@@ -8,6 +8,8 @@
 #include "Quant.h"
 #include "Quant_sse4_1.h"
 #include "Quant_avx2.h"
+#include "Quant_avx512.h"
+#include "encoder_dsp_rtcd.h"
 
 #define QUANT_MAX_SIZE 128
 #define GROUP_SIZE     4
@@ -206,6 +208,12 @@ TEST_P(QuantTest, corectness_test_sse41) {
 
 TEST_P(QuantTest, corectness_test_avx2) {
     run_correctness(quantization_avx2);
+}
+
+TEST_P(QuantTest, corectness_test_avx512) {
+    if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
+        run_correctness(quantization_avx512);
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(Quant, QuantTest, ::testing::Range(0, (int)RAND_SIZE));

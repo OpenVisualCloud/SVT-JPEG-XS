@@ -15,6 +15,7 @@
 #include "NltEnc.h"
 #include "Quant_sse4_1.h"
 #include "Quant_avx2.h"
+#include "Quant_avx512.h"
 #include "Quant.h"
 #include "PackPrecinct.h"
 #include "Pack_avx512.h"
@@ -130,7 +131,7 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
 
     SET_AVX2_AVX512(
         gc_precinct_stage_scalar, gc_precinct_stage_scalar_c, gc_precinct_stage_scalar_avx2, gc_precinct_stage_scalar_avx512);
-    SET_SSE41_AVX2(quantization, quantization_c, quantization_sse4_1, quantization_avx2);
+    SET_SSE41_AVX2_AVX512(quantization, quantization_c, quantization_sse4_1, quantization_avx2, quantization_avx512);
     SET_AVX2_AVX512(linear_input_scaling_line_8bit,
                     linear_input_scaling_line_8bit_c,
                     linear_input_scaling_line_8bit_avx2,
