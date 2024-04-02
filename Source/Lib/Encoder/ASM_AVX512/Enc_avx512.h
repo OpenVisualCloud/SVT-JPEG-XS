@@ -39,6 +39,7 @@ void convert_packed_to_planar_rgb_8bit_avx512(const void* in_rgb, void* out_comp
 void convert_packed_to_planar_rgb_16bit_avx512(const void* in_rgb, void* out_comp1, void* out_comp2, void* out_comp3,
                                                uint32_t line_width);
 
+void gc_precinct_stage_scalar_avx512(uint8_t* gcli_data_ptr, uint16_t* coeff_data_ptr_16bit, uint32_t group_size, uint32_t width);
 #ifdef __cplusplus
 }
 #endif

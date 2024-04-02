@@ -128,7 +128,8 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
                     transform_vertical_loop_lf_hf_hf_line_last_even_avx2,
                     transform_vertical_loop_lf_hf_hf_line_last_even_avx512);
 
-    SET_AVX2(gc_precinct_stage_scalar, gc_precinct_stage_scalar_c, gc_precinct_stage_scalar_avx2);
+    SET_AVX2_AVX512(
+        gc_precinct_stage_scalar, gc_precinct_stage_scalar_c, gc_precinct_stage_scalar_avx2, gc_precinct_stage_scalar_avx512);
     SET_SSE41_AVX2(quantization, quantization_c, quantization_sse4_1, quantization_avx2);
     SET_AVX2_AVX512(linear_input_scaling_line_8bit,
                     linear_input_scaling_line_8bit_c,
