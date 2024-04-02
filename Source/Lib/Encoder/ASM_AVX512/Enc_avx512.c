@@ -10,6 +10,7 @@
 #include <immintrin.h>
 #include "Dwt.h"
 #include "Codestream.h"
+#include "encoder_dsp_rtcd.h"
 
 static INLINE void loop_small_avx512(uint32_t len, uint32_t* id, const int32_t** tmp_in, int32_t** out_hf, int32_t** out_lf) {
     const __m128i two = _mm_set1_epi32(2);
@@ -626,5 +627,80 @@ void convert_packed_to_planar_rgb_16bit_avx512(const void* in_rgb, void* out_com
         out_c2++;
         out_c3++;
         in += 3;
+    }
+}
+
+void gc_precinct_stage_scalar_avx512(uint8_t* gcli_data_ptr, uint16_t* coeff_data_ptr_16bit, uint32_t group_size, uint32_t width) {
+    UNUSED(group_size);
+    assert(group_size == GROUP_SIZE);
+
+    const __m512i dup31 = _mm512_set1_epi32(31);
+    const __m256i perm = _mm256_setr_epi32(0, 4, 2, 6, 1, 5, 3, 7);
+    const __m256i one = _mm256_set1_epi16(1);
+
+    uint32_t full_group_256 = width / 64;
+    uint32_t leftover = width % 64;
+    for (uint32_t g = 0; g < full_group_256; g++) {
+        __m256i merge_or_0 = _mm256_loadu_si256((__m256i*)(coeff_data_ptr_16bit + 0));
+        __m256i merge_or_1 = _mm256_loadu_si256((__m256i*)(coeff_data_ptr_16bit + 16));
+        __m256i merge_or_2 = _mm256_loadu_si256((__m256i*)(coeff_data_ptr_16bit + 32));
+        __m256i merge_or_3 = _mm256_loadu_si256((__m256i*)(coeff_data_ptr_16bit + 48));
+
+        //transpose
+        __m256i a0 = _mm256_unpacklo_epi32(merge_or_0, merge_or_1);
+        __m256i a1 = _mm256_unpackhi_epi32(merge_or_0, merge_or_1);
+        __m256i a2 = _mm256_unpacklo_epi32(merge_or_2, merge_or_3);
+        __m256i a3 = _mm256_unpackhi_epi32(merge_or_2, merge_or_3);
+
+        __m256i tmp_0 = _mm256_unpacklo_epi16(a0, a1);
+        __m256i tmp_1 = _mm256_unpacklo_epi16(a2, a3);
+        __m256i tmp_2 = _mm256_unpackhi_epi16(a0, a1);
+        __m256i tmp_3 = _mm256_unpackhi_epi16(a2, a3);
+
+        a0 = _mm256_or_si256(tmp_0, tmp_2);
+        a1 = _mm256_or_si256(tmp_1, tmp_3);
+        a0 = _mm256_permutevar8x32_epi32(a0, perm);
+        a1 = _mm256_permutevar8x32_epi32(a1, perm);
+        merge_or_1 = _mm256_permute2x128_si256(a0, a1, 0x20);
+        merge_or_2 = _mm256_permute2x128_si256(a0, a1, 0x31);
+        __m256i merge_or = _mm256_or_si256(merge_or_1, merge_or_2);
+
+        //merge_or <<= 1; //Remove sign bit
+        merge_or = _mm256_slli_epi16(merge_or, 1);
+        merge_or = _mm256_or_si256(merge_or, one);
+
+        //BSR == (31 - LZCNT)
+        __m512i lzcnt_ = _mm512_lzcnt_epi32(_mm512_cvtepu16_epi32(merge_or));
+        lzcnt_ = _mm512_sub_epi32(dup31, lzcnt_);
+        _mm_storeu_si128((__m128i*)gcli_data_ptr, _mm512_cvtepi32_epi8(lzcnt_));
+
+        gcli_data_ptr += 16;
+        coeff_data_ptr_16bit += 64;
+    }
+
+    if (leftover) {
+        uint32_t line_groups_num = leftover / GROUP_SIZE;
+        uint32_t line_groups_leftover = leftover % GROUP_SIZE;
+
+        if (line_groups_num) {
+            gc_precinct_stage_scalar_loop(line_groups_num, coeff_data_ptr_16bit, gcli_data_ptr);
+        }
+
+        if (line_groups_leftover) {
+            coeff_data_ptr_16bit += line_groups_num * GROUP_SIZE;
+            gcli_data_ptr += line_groups_num;
+            uint16_t merge_or = 0;
+            for (uint32_t i = 0; i < line_groups_leftover; i++) {
+                merge_or |= coeff_data_ptr_16bit[i];
+            }
+            merge_or <<= 1; //Remove sign bit
+            if (merge_or) {
+                gcli_data_ptr[0] = svt_log2_32(merge_or); //MSB
+                assert(gcli_data_ptr[0] <= TRUNCATION_MAX);
+            }
+            else {
+                gcli_data_ptr[0] = 0;
+            }
+        }
     }
 }

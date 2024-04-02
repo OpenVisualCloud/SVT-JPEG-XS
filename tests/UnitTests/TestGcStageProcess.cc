@@ -16,7 +16,8 @@
 #include "group_coding_sse4_1.h"
 #include "RateControl_avx2.h"
 
-TEST(GcStage, gc_stage_scalar_c) {
+void test_gc_stage_scalar(void (*test_fn)(uint8_t* gcli_data_ptr, uint16_t* coeff_data_ptr_16bit, uint32_t group_size,
+                                          uint32_t width)) {
     /*Set pointers directly before calling the RTC function may cause an assert for Debug in other tests.*/
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
     setup_encoder_rtcd_internal(CPU_FLAGS_ALL);
@@ -66,7 +67,7 @@ TEST(GcStage, gc_stage_scalar_c) {
         }
 
         memset(gc_data_avx2_ptr, 0, gc_width * gc_height * sizeof(int8_t));
-        gc_precinct_stage_scalar_avx2(gc_data_avx2_ptr, coeff_data_ptr, group_size, width);
+        test_fn(gc_data_avx2_ptr, coeff_data_ptr, group_size, width);
         if (memcmp(out_compare_msb, gc_data_avx2_ptr, gc_width * sizeof(int8_t))) {
             ASSERT_FALSE(1);
         }
@@ -76,6 +77,16 @@ TEST(GcStage, gc_stage_scalar_c) {
     free(gc_data_c_ptr);
     free(gc_data_avx2_ptr);
     free(out_compare_msb);
+}
+
+TEST(GcStage, gc_stage_scalar_avx2) {
+    test_gc_stage_scalar(gc_precinct_stage_scalar_avx2);
+}
+
+TEST(GcStage, gc_stage_scalar_avx512) {
+    if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
+        test_gc_stage_scalar(gc_precinct_stage_scalar_avx512);
+    }
 }
 
 TEST(GcStage, gc_precinct_sigflags_max_sse41) {
