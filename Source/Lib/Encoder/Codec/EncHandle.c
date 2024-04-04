@@ -456,7 +456,9 @@ SvtJxsErrorType_t encoder_allocate_handle(svt_jpeg_xs_encoder_api_t* enc_api) {
         SVT_LOG("-------------------------------------------\n");
         SVT_LOG("SVT [version]:\tSVT-JPEGXS Encoder Lib v%i.%i\n", SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR);
 
-#if defined(_MSC_VER) && (_MSC_VER >= 1920)
+#if defined(_MSC_VER) && (_MSC_VER >= 1930)
+        SVT_LOG("SVT [build]  :\tVisual Studio 2022");
+#elif defined(_MSC_VER) && (_MSC_VER >= 1920)
         SVT_LOG("SVT [build]  :\tVisual Studio 2019");
 #elif defined(_MSC_VER) && (_MSC_VER >= 1910)
         SVT_LOG("SVT [build]  :\tVisual Studio 2017");
