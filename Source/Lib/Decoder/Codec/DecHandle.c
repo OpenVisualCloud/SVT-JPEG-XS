@@ -67,7 +67,9 @@ SvtJxsErrorType_t decoder_allocate_handle(svt_jpeg_xs_decoder_api_t* dec_api) {
         fprintf(stderr, "-------------------------------------------\n");
         fprintf(stderr, "SVT [version]:\tSVT-JPEGXS Decoder Lib v%i.%i\n", SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR);
 
-#if defined(_MSC_VER) && (_MSC_VER >= 1920)
+#if defined(_MSC_VER) && (_MSC_VER >= 1930)
+        fprintf(stderr, "SVT [build]  :\tVisual Studio 2022");
+#elif defined(_MSC_VER) && (_MSC_VER >= 1920)
         fprintf(stderr, "SVT [build]  :\tVisual Studio 2019");
 #elif defined(_MSC_VER) && (_MSC_VER >= 1910)
         fprintf(stderr, "SVT [build]  :\tVisual Studio 2017");
