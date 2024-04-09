@@ -15,7 +15,7 @@
 #define GROUP_SIZE     4
 #define GCLI_SIZE      (QUANT_MAX_SIZE + GROUP_SIZE - 1) / GROUP_SIZE
 
-enum RAND_TYPE { RAND_CUSTOM = 0, RAND_ONE, RAND_ZERO, RAND_FULL, RAND_SIZE };
+enum QUANT_RAND_TYPE { RAND_CUSTOM = 0, RAND_ONE, RAND_ZERO, RAND_FULL, RAND_SIZE };
 
 struct quantInput {
     uint32_t buf_len;
@@ -119,7 +119,7 @@ static quantInput quant_test_vector[5] = {
 class QuantTest : public ::testing::TestWithParam<int> {
   protected:
     static svt_jxs_test_tool::SVTRandom* rand;
-    RAND_TYPE rand_type;
+    QUANT_RAND_TYPE rand_type;
     uint32_t buffer_size;
     uint32_t gtli;
     QUANT_TYPE dq_type;
@@ -137,7 +137,7 @@ class QuantTest : public ::testing::TestWithParam<int> {
 
     void set_up_corectness() {
         buffer_size = 0;
-        rand_type = (enum RAND_TYPE)GetParam();
+        rand_type = (enum QUANT_RAND_TYPE)GetParam();
         //buf_ref is pointing to quant_test_vector[].expected_output
         buf_ref = NULL;
         buf_mod = (uint16_t*)malloc(sizeof(quant_input));

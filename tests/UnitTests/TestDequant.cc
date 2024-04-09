@@ -13,12 +13,12 @@
 #include "Dequant_SSE4.h"
 #include "Dequant_avx512.h"
 
-enum RAND_TYPE { RAND_CUSTOM = 0, RAND_ONE, RAND_ZERO, RAND_FULL, RAND_SIZE };
+enum DEQUANT_RAND_TYPE { RAND_CUSTOM = 0, RAND_ONE, RAND_ZERO, RAND_FULL, RAND_SIZE };
 
 class DequantFixture : public ::testing::TestWithParam<int> {
   protected:
     static svt_jxs_test_tool::SVTRandom* rnd;
-    RAND_TYPE rand_type;
+    DEQUANT_RAND_TYPE rand_type;
     size_t buffer_size;
     uint16_t* buf_c;
     uint16_t* buf_avx;
@@ -34,7 +34,7 @@ class DequantFixture : public ::testing::TestWithParam<int> {
     virtual void SetUp() {
         buffer_size = 4098;
 
-        rand_type = (enum RAND_TYPE)GetParam();
+        rand_type = (enum DEQUANT_RAND_TYPE)GetParam();
 
         buf_c = (uint16_t*)malloc(buffer_size * sizeof(uint16_t));
         buf_avx = (uint16_t*)malloc(buffer_size * sizeof(uint16_t));
@@ -47,7 +47,7 @@ class DequantFixture : public ::testing::TestWithParam<int> {
         free(buf_c);
     }
 
-    uint8_t SetRandData(RAND_TYPE type, int buf_len, int group_size) {
+    uint8_t SetRandData(DEQUANT_RAND_TYPE type, int buf_len, int group_size) {
         uint8_t gtli = rnd->random() % 15;
         for (int j = 0; j < ((buf_len + group_size - 1) / group_size); ++j) {
             gclis[j] = rnd->random() % 31;
