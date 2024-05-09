@@ -925,6 +925,7 @@ PREFIX_API void svt_jpeg_xs_encoder_close(svt_jpeg_xs_encoder_api_t* enc_api) {
         svt_shutdown_process(enc_api_prv->dwt_input_resource_ptr);
         svt_shutdown_process(enc_api_prv->pack_input_resource_ptr);
         svt_shutdown_process(enc_api_prv->pack_output_resource_ptr);
+        svt_shutdown_process(enc_api_prv->output_queue_resource_ptr);
         SVT_DELETE(enc_api_prv);
         enc_api->private_ptr = NULL;
         svt_decrease_component_count();
