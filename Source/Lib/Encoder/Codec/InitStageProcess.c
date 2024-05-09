@@ -154,8 +154,8 @@ void *init_stage_kernel(void *input_ptr) {
     svt_jpeg_xs_encoder_api_prv_t *enc_api_prv = context_ptr->enc_api_prv;
     CondVar *sync_output_ringbuffer_left = &enc_api_prv->sync_output_ringbuffer_left;
 
-    ObjectWrapper_t *pcs_wrapper_ptr;
-    ObjectWrapper_t *input_wrapper_ptr, *dwt_input_wrapper_ptr;
+    ObjectWrapper_t *pcs_wrapper_ptr = NULL;
+    ObjectWrapper_t *input_wrapper_ptr, *dwt_input_wrapper_ptr = NULL;
 
     /*Callback available space in Input Queue*/
     svt_jpeg_xs_encoder_api_t *callback_encoder_ctx = enc_api_prv->callback_encoder_ctx;
@@ -176,7 +176,10 @@ void *init_stage_kernel(void *input_ptr) {
         printf("01[%s:%i] frame: %03li\n", __func__, __LINE__, (size_t)input_item->frame_number);
 #endif
         // Get a New PCS where we will hold the new input_picture
-        svt_get_empty_object(context_ptr->picture_control_set_fifo_ptr, &pcs_wrapper_ptr);
+        SvtJxsErrorType_t ret = svt_get_empty_object(context_ptr->picture_control_set_fifo_ptr, &pcs_wrapper_ptr);
+        if (ret != SvtJxsErrorNone || pcs_wrapper_ptr == NULL) {
+            continue;
+        }
         PictureControlSet *pcs_ptr = (PictureControlSet *)pcs_wrapper_ptr->object_ptr;
         pi_t *pi = &pcs_ptr->enc_common->pi;
         pcs_ptr->slice_cnt = 0;
@@ -227,7 +230,10 @@ void *init_stage_kernel(void *input_ptr) {
 
             for (uint32_t i = 0; i < pi->comps_num; i++) {
                 if (pi->components[i].decom_v != 0) { //For CPU Profile and V = 0 ignore DWT thread.
-                    svt_get_empty_object(context_ptr->dwt_stage_input_fifo_ptr, &dwt_input_wrapper_ptr);
+                    ret = svt_get_empty_object(context_ptr->dwt_stage_input_fifo_ptr, &dwt_input_wrapper_ptr);
+                    if (ret != SvtJxsErrorNone || dwt_input_wrapper_ptr == NULL) {
+                        continue;
+                    }
 
 #ifdef FLAG_DEADLOCK_DETECT
                     printf("01[%s:%i] frame: %03li plane: %03d\n", __func__, __LINE__, (size_t)input_item->frame_number, i);

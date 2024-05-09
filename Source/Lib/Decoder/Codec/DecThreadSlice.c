@@ -121,8 +121,11 @@ void* thread_universal_stage_kernel(void* input_ptr) {
             }
         }
 
-        ObjectWrapper_t* universal_wrapper_ptr;
-        svt_get_empty_object(universal_ctx->final_producer_fifo_ptr, &universal_wrapper_ptr);
+        ObjectWrapper_t* universal_wrapper_ptr = NULL;
+        SvtJxsErrorType_t ret = svt_get_empty_object(universal_ctx->final_producer_fifo_ptr, &universal_wrapper_ptr);
+        if (ret != SvtJxsErrorNone || universal_wrapper_ptr == NULL) {
+            continue;
+        }
 
         TaskFinalSync* buffer_output = (TaskFinalSync*)universal_wrapper_ptr->object_ptr;
         buffer_output->wrapper_ptr_decoder_ctx = input_buffer_ptr->wrapper_ptr_decoder_ctx;

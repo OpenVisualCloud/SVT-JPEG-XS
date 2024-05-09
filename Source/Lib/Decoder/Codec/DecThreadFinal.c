@@ -136,8 +136,12 @@ void* thread_final_stage_kernel(void* input_ptr) {
             item->ready_to_send = 0;
             item->in_use = 0;
             svt_add_cond_var(sync_output_ringbuffer_left, 1); //Increment number of elements to use.
-            ObjectWrapper_t* final_wrapper_ptr;
-            svt_get_empty_object(dec_api_prv->output_producer_fifo_ptr, &final_wrapper_ptr);
+            ObjectWrapper_t* final_wrapper_ptr = NULL;
+
+            SvtJxsErrorType_t ret = svt_get_empty_object(dec_api_prv->output_producer_fifo_ptr, &final_wrapper_ptr);
+            if (ret != SvtJxsErrorNone || final_wrapper_ptr == NULL) {
+                break;
+            }
 
             TaskOutFrame* buffer_output = (TaskOutFrame*)final_wrapper_ptr->object_ptr;
             buffer_output->frame_num = item->frame_num;

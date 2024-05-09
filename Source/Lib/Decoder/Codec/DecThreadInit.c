@@ -147,8 +147,11 @@ static void send_slices_tasks(svt_jpeg_xs_decoder_api_prv_t* dec_api_prv, TaskIn
 
     for (uint32_t slice = 0; slice < pi->slice_num; slice++) {
         /*Get Wrapper output*/
-        ObjectWrapper_t* universal_wrapper_ptr;
-        svt_get_empty_object(dec_api_prv->universal_producer_fifo_ptr, &universal_wrapper_ptr);
+        ObjectWrapper_t* universal_wrapper_ptr = NULL;
+        SvtJxsErrorType_t err = svt_get_empty_object(dec_api_prv->universal_producer_fifo_ptr, &universal_wrapper_ptr);
+        if (err != SvtJxsErrorNone || universal_wrapper_ptr == NULL) {
+            return;
+        }
         TaskCalculateFrame* buffer_output = (TaskCalculateFrame*)universal_wrapper_ptr->object_ptr;
         buffer_output->wrapper_ptr_decoder_ctx = wrapper_ptr_decoder_ctx;
         buffer_output->image_buffer = *image_buffer;
@@ -257,12 +260,15 @@ void* thread_init_stage_kernel(void* input_ptr) {
             fprintf(stderr, "[%s] Before svt_get_empty_object(dec_api_prv->universal_producer_fifo_ptr\n", __FUNCTION__);
         }
 
-        ObjectWrapper_t* wrapper_ptr_decoder_ctx;
+        ObjectWrapper_t* wrapper_ptr_decoder_ctx = NULL;
 
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
             fprintf(stderr, "[%s] Before svt_get_empty_object(dec_api_prv->internal_pool_frame_context_fifo_ptr\n", __FUNCTION__);
         }
-        svt_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr, &wrapper_ptr_decoder_ctx);
+        SvtJxsErrorType_t err = svt_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr, &wrapper_ptr_decoder_ctx);
+        if (err != SvtJxsErrorNone || wrapper_ptr_decoder_ctx == NULL) {
+            continue;
+        }
 
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
             fprintf(stderr, "[%s] Send frame  %i from Init thread\n", __FUNCTION__, (int)frame_num);
@@ -304,8 +310,12 @@ void* thread_init_stage_kernel(void* input_ptr) {
                     fprintf(stderr, "[%s] Invalid Header frame: %i\n", __FUNCTION__, (int)dec_ctx->frame_num);
                 }
             }
-            ObjectWrapper_t* universal_wrapper_ptr;
-            svt_get_empty_object(dec_api_prv->universal_producer_fifo_ptr, &universal_wrapper_ptr);
+            ObjectWrapper_t* universal_wrapper_ptr = NULL;
+            err = svt_get_empty_object(dec_api_prv->universal_producer_fifo_ptr, &universal_wrapper_ptr);
+            if (err != SvtJxsErrorNone || universal_wrapper_ptr == NULL) {
+                continue;
+            }
+
             TaskCalculateFrame* buffer_output = (TaskCalculateFrame*)universal_wrapper_ptr->object_ptr;
             buffer_output->wrapper_ptr_decoder_ctx = wrapper_ptr_decoder_ctx;
             buffer_output->image_buffer = input_buffer_ptr->dec_input.image;
@@ -336,7 +346,10 @@ SvtJxsErrorType_t internal_svt_jpeg_xs_decoder_send_packet(svt_jpeg_xs_decoder_a
 
     //Get and initialize new frame context
     if (wrapper_ptr_decoder_ctx == NULL) {
-        svt_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr, &wrapper_ptr_decoder_ctx);
+        SvtJxsErrorType_t ret = svt_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr, &wrapper_ptr_decoder_ctx);
+        if (ret != SvtJxsErrorNone || wrapper_ptr_decoder_ctx == NULL) {
+            return ret;
+        }
         slice_scheduler_ctx->wrapper_ptr_decoder_ctx = wrapper_ptr_decoder_ctx;
 
         svt_jpeg_xs_decoder_instance_t* dec_ctx = wrapper_ptr_decoder_ctx->object_ptr;
@@ -411,8 +424,11 @@ SvtJxsErrorType_t internal_svt_jpeg_xs_decoder_send_packet(svt_jpeg_xs_decoder_a
             return SvtJxsErrorDecoderBitstreamTooShort;
         }
 
-        ObjectWrapper_t* universal_wrapper_ptr;
-        svt_get_empty_object(dec_api_prv->universal_producer_fifo_ptr, &universal_wrapper_ptr);
+        ObjectWrapper_t* universal_wrapper_ptr = NULL;
+        SvtJxsErrorType_t err = svt_get_empty_object(dec_api_prv->universal_producer_fifo_ptr, &universal_wrapper_ptr);
+        if (err != SvtJxsErrorNone || universal_wrapper_ptr == NULL) {
+            return err;
+        }
         TaskCalculateFrame* buffer_output = (TaskCalculateFrame*)universal_wrapper_ptr->object_ptr;
         buffer_output->wrapper_ptr_decoder_ctx = wrapper_ptr_decoder_ctx;
         buffer_output->image_buffer = dec_ctx->dec_input.image;
