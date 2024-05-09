@@ -46,7 +46,9 @@ static void svt_enc_handle_dctor(void_ptr p) {
         SVT_DELETE(enc_api_prv->dwt_input_resource_ptr);
         SVT_DELETE_PTR_ARRAY(enc_api_prv->dwt_stage_context_ptr_array, enc_api_prv->dwt_stage_threads_num);
     }
-
+    if (enc_api_prv->enc_common.slice_sizes) {
+        SVT_FREE(enc_api_prv->enc_common.slice_sizes);
+    }
     SVT_DELETE_PTR_ARRAY(enc_api_prv->pack_stage_context_ptr_array, enc_api_prv->pack_stage_threads_num);
     SVT_FREE(enc_api_prv->sync_output_ringbuffer);
     svt_free_cond_var(&enc_api_prv->sync_output_ringbuffer_left);
@@ -923,9 +925,6 @@ PREFIX_API void svt_jpeg_xs_encoder_close(svt_jpeg_xs_encoder_api_t* enc_api) {
         svt_shutdown_process(enc_api_prv->dwt_input_resource_ptr);
         svt_shutdown_process(enc_api_prv->pack_input_resource_ptr);
         svt_shutdown_process(enc_api_prv->pack_output_resource_ptr);
-        if (enc_api_prv->enc_common.slice_sizes) {
-            SVT_FREE(enc_api_prv->enc_common.slice_sizes);
-        }
         SVT_DELETE(enc_api_prv);
         enc_api->private_ptr = NULL;
         svt_decrease_component_count();
