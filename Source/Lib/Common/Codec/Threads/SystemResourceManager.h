@@ -52,9 +52,6 @@ typedef struct ObjectWrapper {
     // next_ptr - a pointer to a different ObjectWrapper_t.  Used
     //   only in the implementation of a single-linked Fifo.
     struct ObjectWrapper *next_ptr;
-#if SRM_REPORT
-    uint64_t pic_number;
-#endif
 } ObjectWrapper_t;
 
 /*********************************************************************
@@ -112,10 +109,6 @@ typedef struct MuxingQueue {
     CircularBuffer_t *process_queue;
     uint32_t process_total_count;
     Fifo_t **process_fifo_ptr_array;
-#if SRM_REPORT
-    uint32_t curr_count; //run time fullness
-    uint8_t log;         //if set monitor out the queue size
-#endif
 } MuxingQueue_t;
 
 /*********************************************************************
@@ -265,12 +258,7 @@ Fifo_t *svt_system_resource_get_consumer_fifo(const SystemResource_t *resource_p
 extern SvtJxsErrorType_t svt_get_empty_object(Fifo_t *empty_fifo_ptr, ObjectWrapper_t **wrapper_dbl_ptr);
 
 extern SvtJxsErrorType_t svt_get_empty_object_non_blocking(Fifo_t *empty_fifo_ptr, ObjectWrapper_t **wrapper_dbl_ptr);
-#if SRM_REPORT
-/*
-  dump pictures occupying the SRM
-*/
-SvtJxsErrorType_t dump_srm_content(SystemResource_t *resource_ptr, uint8_t log);
-#endif
+
 /*********************************************************************
      * SystemResource_tPostObject
      *   Queues a full ObjectWrapper_t to the SystemResource. This

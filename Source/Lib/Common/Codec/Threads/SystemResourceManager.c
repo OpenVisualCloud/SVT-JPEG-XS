@@ -15,9 +15,6 @@
 #include "SystemResourceManager.h"
 #include "Definitions.h"
 #include "SvtThreads.h"
-#if SRM_REPORT
-#include "SvtLog.h"
-#endif
 #include "SvtUtility.h"
 
 static void svt_fifo_dctor(void_ptr p) {
@@ -462,10 +459,6 @@ SvtJxsErrorType_t svt_system_resource_ctor(SystemResource_t *resource_ptr, uint3
                 object_creator,
                 object_init_data_ptr,
                 object_destroyer);
-
-#if SRM_REPORT
-        resource_ptr->wrapper_ptr_pool[wrapper_index]->pic_number = 99999999;
-#endif
     }
 
     // Initialize the Empty Queue
@@ -474,11 +467,7 @@ SvtJxsErrorType_t svt_system_resource_ctor(SystemResource_t *resource_ptr, uint3
     for (wrapper_index = 0; wrapper_index < resource_ptr->object_total_count; ++wrapper_index) {
         svt_muxing_queue_object_push_back(resource_ptr->empty_queue, resource_ptr->wrapper_ptr_pool[wrapper_index]);
     }
-#if SRM_REPORT
-    //at init time, the SRM is full
-    resource_ptr->empty_queue->curr_count = resource_ptr->object_total_count;
-    resource_ptr->empty_queue->log = 0;
-#endif
+
     // Initialize the Full Queue
     if (consumer_process_total_count) {
         SVT_NEW(resource_ptr->full_queue, svt_muxing_queue_ctor, resource_ptr->object_total_count, consumer_process_total_count);
@@ -587,15 +576,6 @@ SvtJxsErrorType_t svt_release_object(ObjectWrapper_t *object_ptr) {
         object_ptr->live_count = ObjectWrapperReleasedValue;
 
         svt_muxing_queue_object_push_front(object_ptr->system_resource_ptr->empty_queue, object_ptr);
-#if SRM_REPORT
-        object_ptr->pic_number = 99999999;
-        //increment the fullness
-        object_ptr->system_resource_ptr->empty_queue->curr_count++;
-        if (object_ptr->system_resource_ptr->empty_queue->log)
-            SVT_LOG("SRM fullness+: %i/%i\n",
-                    object_ptr->system_resource_ptr->empty_queue->curr_count,
-                    object_ptr->system_resource_ptr->object_total_count);
-#endif
     }
 
     svt_release_mutex(object_ptr->system_resource_ptr->empty_queue->lockout_mutex);
@@ -619,39 +599,12 @@ SvtJxsErrorType_t svt_release_dual_object(ObjectWrapper_t *object_ptr, ObjectWra
         object_ptr->live_count = ObjectWrapperReleasedValue;
 
         svt_muxing_queue_object_push_front(object_ptr->system_resource_ptr->empty_queue, object_ptr);
-
-#if SRM_REPORT
-
-        if (object_ptr->system_resource_ptr->empty_queue->log)
-            SVT_LOG("SRM RELEASE: %lld\n", object_ptr->pic_number);
-
-        object_ptr->pic_number = 99999999;
-        //increment the fullness
-        object_ptr->system_resource_ptr->empty_queue->curr_count++;
-        //  if (object_ptr->system_resource_ptr->empty_queue->log)
-        //      SVT_LOG("SRM fullness+: %i/%i\n", object_ptr->system_resource_ptr->empty_queue->curr_count, object_ptr->system_resource_ptr->object_total_count);
-#endif
     }
 
     svt_release_mutex(object_ptr->system_resource_ptr->empty_queue->lockout_mutex);
 
     return return_error;
 }
-#if SRM_REPORT
-/*
-  dump pictures occupying the SRM
-*/
-SvtJxsErrorType_t dump_srm_content(SystemResource_t *resource_ptr, uint8_t log) {
-    SvtJxsErrorType_t return_error = SvtJxsErrorNone;
-    if (log) {
-        SVT_LOG("SRM content:\n\n");
-        for (uint32_t wrapper_index = 0; wrapper_index < resource_ptr->object_total_count; ++wrapper_index) {
-            SVT_LOG("%lld ", resource_ptr->wrapper_ptr_pool[wrapper_index]->pic_number);
-        }
-    }
-    return return_error;
-}
-#endif
 
 /**************************************
 * svt_fifo_pop_front
@@ -692,15 +645,6 @@ SvtJxsErrorType_t svt_get_empty_object(Fifo_t *empty_fifo_ptr, ObjectWrapper_t *
         // Get the empty object
         svt_fifo_pop_front(empty_fifo_ptr, wrapper_dbl_ptr);
 
-#if SRM_REPORT
-        //decrement the fullness
-        empty_fifo_ptr->queue_ptr->curr_count--;
-        if (empty_fifo_ptr->queue_ptr->log)
-            printf("SRM fullness-: %i/%i\n",
-                   empty_fifo_ptr->queue_ptr->curr_count,
-                   (*wrapper_dbl_ptr)->system_resource_ptr->object_total_count);
-#endif
-
         assert_err((*wrapper_dbl_ptr)->live_count == 0 || (*wrapper_dbl_ptr)->live_count == ObjectWrapperReleasedValue,
                    "live_count should be 0 or ObjectWrapperReleasedValue when get");
 
@@ -738,15 +682,6 @@ SvtJxsErrorType_t svt_get_empty_object_non_blocking(Fifo_t *empty_fifo_ptr, Obje
 
         // Get the empty object
         svt_fifo_pop_front(empty_fifo_ptr, wrapper_dbl_ptr);
-
-#if SRM_REPORT
-        //decrement the fullness
-        empty_fifo_ptr->queue_ptr->curr_count--;
-        if (empty_fifo_ptr->queue_ptr->log)
-            printf("SRM fullness-: %i/%i\n",
-                   empty_fifo_ptr->queue_ptr->curr_count,
-                   (*wrapper_dbl_ptr)->system_resource_ptr->object_total_count);
-#endif
 
         assert_err((*wrapper_dbl_ptr)->live_count == 0 || (*wrapper_dbl_ptr)->live_count == ObjectWrapperReleasedValue,
                    "live_count should be 0 or ObjectWrapperReleasedValue when get");
