@@ -726,7 +726,10 @@ void* pack_stage_kernel(void* input_ptr) {
             write_tail(&bitstream);
         }
 
-        svt_get_empty_object(context_ptr->output_buffer_fifo_ptr, &output_wrapper_ptr);
+        SvtJxsErrorType_t err = svt_get_empty_object(context_ptr->output_buffer_fifo_ptr, &output_wrapper_ptr);
+        if (err != SvtJxsErrorNone || output_wrapper_ptr == NULL) {
+            continue;
+        }
 #ifdef FLAG_DEADLOCK_DETECT
         printf("07[%s:%i] frame: %03li slice: %03d\n", __func__, __LINE__, (size_t)pcs_ptr->frame_number, pack_input->slice_idx);
 #endif

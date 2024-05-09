@@ -150,8 +150,12 @@ void *final_stage_kernel(void *input_ptr) {
                        pcs_ring->slice_ready_to_release_arr[pcs_ring->slice_released_idx]) {
                     //Release picture header
                     if (pcs_ring->slice_released_idx == 0) {
-                        ObjectWrapper_t *output_item_wrapper_ptr;
-                        svt_get_empty_object(enc_api_prv->output_queue_producer_fifo_ptr, &output_item_wrapper_ptr);
+                        ObjectWrapper_t *output_item_wrapper_ptr = NULL;
+                        SvtJxsErrorType_t ret = svt_get_empty_object(enc_api_prv->output_queue_producer_fifo_ptr,
+                                                                     &output_item_wrapper_ptr);
+                        if (ret != SvtJxsErrorNone || output_item_wrapper_ptr == NULL) {
+                            break;
+                        }
                         EncoderOutputItem *output_item = (EncoderOutputItem *)output_item_wrapper_ptr->object_ptr;
                         output_item->enc_input = pcs_ring->enc_input; //Copy structure
                         output_item->enc_input.bitstream.used_size = pcs_ring->enc_common->frame_header_length_bytes;
@@ -171,8 +175,12 @@ void *final_stage_kernel(void *input_ptr) {
                         }
                     }
 
-                    ObjectWrapper_t *output_item_wrapper_ptr;
-                    svt_get_empty_object(enc_api_prv->output_queue_producer_fifo_ptr, &output_item_wrapper_ptr);
+                    ObjectWrapper_t *output_item_wrapper_ptr = NULL;
+                    SvtJxsErrorType_t ret = svt_get_empty_object(enc_api_prv->output_queue_producer_fifo_ptr,
+                                                                 &output_item_wrapper_ptr);
+                    if (ret != SvtJxsErrorNone || output_item_wrapper_ptr == NULL) {
+                        break;
+                    }
                     EncoderOutputItem *output_item = (EncoderOutputItem *)output_item_wrapper_ptr->object_ptr;
                     output_item->enc_input = pcs_ring->enc_input; //Copy structure
                     output_item->enc_input.bitstream.buffer += pcs_ring->bitstream_release_offset;
@@ -209,8 +217,12 @@ void *final_stage_kernel(void *input_ptr) {
 #ifdef FLAG_DEADLOCK_DETECT
                     printf("08[%s:%i] Return full frame: %llu\n", __func__, __LINE__, pcs_ring->frame_number);
 #endif
-                    ObjectWrapper_t *output_item_wrapper_ptr;
-                    svt_get_empty_object(enc_api_prv->output_queue_producer_fifo_ptr, &output_item_wrapper_ptr);
+                    ObjectWrapper_t *output_item_wrapper_ptr = NULL;
+                    SvtJxsErrorType_t ret = svt_get_empty_object(enc_api_prv->output_queue_producer_fifo_ptr,
+                                                                 &output_item_wrapper_ptr);
+                    if (ret != SvtJxsErrorNone || output_item_wrapper_ptr == NULL) {
+                        break;
+                    }
                     EncoderOutputItem *output_item = (EncoderOutputItem *)output_item_wrapper_ptr->object_ptr;
 
                     output_item->enc_input = pcs_ring->enc_input; //Copy structure

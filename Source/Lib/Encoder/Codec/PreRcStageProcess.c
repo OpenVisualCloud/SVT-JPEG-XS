@@ -33,7 +33,7 @@ PackInput_t* pre_rc_send_frame_to_pack_slices(PictureControlSet* pcs_ptr, Fifo_t
     UNUSED(frame_num); // Value only used when FLAG_DEADLOCK_DETECT is enabled
     svt_jpeg_xs_encoder_common_t* enc_common = pcs_ptr->enc_common;
     PackInput_t* first = NULL;
-    ObjectWrapper_t* output_wrapper_ptr;
+    ObjectWrapper_t* output_wrapper_ptr = NULL;
     ObjectWrapper_t* output_wrapper_ptr_next = NULL;
 
     /*Tested in svt_jpeg_xs_encoder_send_picture()*/
@@ -45,7 +45,10 @@ PackInput_t* pre_rc_send_frame_to_pack_slices(PictureControlSet* pcs_ptr, Fifo_t
 
     if (enc_common->cpu_profile == CPU_PROFILE_CPU) {
         //All tasks need pointer no next one in frame. Get first task.
-        svt_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr_next);
+        SvtJxsErrorType_t ret = svt_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr_next);
+        if (ret != SvtJxsErrorNone || output_wrapper_ptr_next == NULL) {
+            return NULL;
+        }
     }
 
     uint32_t output_bytes_begin = enc_common->frame_header_length_bytes;
@@ -64,7 +67,11 @@ PackInput_t* pre_rc_send_frame_to_pack_slices(PictureControlSet* pcs_ptr, Fifo_t
                 first = pack_input;
             }
             if (i + 1 < enc_common->pi.slice_num) {
-                svt_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr_next);
+                SvtJxsErrorType_t ret = svt_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr_next);
+                if (ret != SvtJxsErrorNone || output_wrapper_ptr_next == NULL) {
+                    return NULL;
+                }
+
                 pack_input->sync_dwt_list_next = (PackInput_t*)output_wrapper_ptr_next->object_ptr;
             }
             else {
@@ -73,7 +80,11 @@ PackInput_t* pre_rc_send_frame_to_pack_slices(PictureControlSet* pcs_ptr, Fifo_t
             }
         }
         else {
-            svt_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr);
+            SvtJxsErrorType_t ret = svt_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr);
+            if (ret != SvtJxsErrorNone || output_wrapper_ptr == NULL) {
+                return NULL;
+            }
+
             pack_input = (PackInput_t*)output_wrapper_ptr->object_ptr;
         }
 

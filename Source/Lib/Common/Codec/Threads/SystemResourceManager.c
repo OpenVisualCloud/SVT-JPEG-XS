@@ -500,7 +500,7 @@ Fifo_t *svt_system_resource_get_consumer_fifo(const SystemResource_t *resource_p
 
 SvtJxsErrorType_t svt_shutdown_process(const SystemResource_t *resource_ptr) {
     //not fully constructed
-    if (!resource_ptr || !resource_ptr->full_queue)
+    if (!resource_ptr || !resource_ptr->full_queue || !resource_ptr->empty_queue)
         return SvtJxsErrorNone;
 
     //notify all consumers we are shutting down
@@ -508,6 +508,13 @@ SvtJxsErrorType_t svt_shutdown_process(const SystemResource_t *resource_ptr) {
         Fifo_t *fifo_ptr = svt_system_resource_get_consumer_fifo(resource_ptr, i);
         svt_fifo_shutdown(fifo_ptr);
     }
+
+    //notify all producers we are shutting down
+    for (unsigned int i = 0; i < resource_ptr->empty_queue->process_total_count; i++) {
+        Fifo_t *fifo_ptr = svt_system_resource_get_producer_fifo(resource_ptr, i);
+        svt_fifo_shutdown(fifo_ptr);
+    }
+
     return SvtJxsErrorNone;
 }
 
@@ -681,26 +688,32 @@ SvtJxsErrorType_t svt_get_empty_object(Fifo_t *empty_fifo_ptr, ObjectWrapper_t *
     // Acquire lockout Mutex
     svt_block_on_mutex(empty_fifo_ptr->lockout_mutex);
 
-    // Get the empty object
-    svt_fifo_pop_front(empty_fifo_ptr, wrapper_dbl_ptr);
+    if (!empty_fifo_ptr->quit_signal) {
+        // Get the empty object
+        svt_fifo_pop_front(empty_fifo_ptr, wrapper_dbl_ptr);
 
 #if SRM_REPORT
-    //decrement the fullness
-    empty_fifo_ptr->queue_ptr->curr_count--;
-    if (empty_fifo_ptr->queue_ptr->log)
-        printf("SRM fullness-: %i/%i\n",
-               empty_fifo_ptr->queue_ptr->curr_count,
-               (*wrapper_dbl_ptr)->system_resource_ptr->object_total_count);
+        //decrement the fullness
+        empty_fifo_ptr->queue_ptr->curr_count--;
+        if (empty_fifo_ptr->queue_ptr->log)
+            printf("SRM fullness-: %i/%i\n",
+                   empty_fifo_ptr->queue_ptr->curr_count,
+                   (*wrapper_dbl_ptr)->system_resource_ptr->object_total_count);
 #endif
 
-    assert_err((*wrapper_dbl_ptr)->live_count == 0 || (*wrapper_dbl_ptr)->live_count == ObjectWrapperReleasedValue,
-               "live_count should be 0 or ObjectWrapperReleasedValue when get");
+        assert_err((*wrapper_dbl_ptr)->live_count == 0 || (*wrapper_dbl_ptr)->live_count == ObjectWrapperReleasedValue,
+                   "live_count should be 0 or ObjectWrapperReleasedValue when get");
 
-    // Reset the wrapper's live_count
-    (*wrapper_dbl_ptr)->live_count = 0;
+        // Reset the wrapper's live_count
+        (*wrapper_dbl_ptr)->live_count = 0;
 
-    // Object release enable
-    (*wrapper_dbl_ptr)->release_enable = 1;
+        // Object release enable
+        (*wrapper_dbl_ptr)->release_enable = 1;
+    }
+    else {
+        *wrapper_dbl_ptr = NULL;
+        return_error = SvtJxsErrorNoErrorFifoShutdown;
+    }
 
     // Release Mutex
     svt_release_mutex(empty_fifo_ptr->lockout_mutex);

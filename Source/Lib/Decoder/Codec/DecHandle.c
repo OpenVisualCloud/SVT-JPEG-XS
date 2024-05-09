@@ -439,7 +439,11 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
     if (dec_api_prv->packetization_mode) {
         ObjectWrapper_t* wrapper_ptr_decoder_ctx = NULL;
 
-        svt_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr, &wrapper_ptr_decoder_ctx);
+        SvtJxsErrorType_t ret = svt_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr, &wrapper_ptr_decoder_ctx);
+
+        if (ret != SvtJxsErrorNone || wrapper_ptr_decoder_ctx == NULL) {
+            return ret;
+        }
 
         svt_jpeg_xs_decoder_instance_t* dec_ctx = wrapper_ptr_decoder_ctx->object_ptr;
 
@@ -450,8 +454,12 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
             dec_api_prv->sync_output_ringbuffer_size;
         dec_api_prv->slice_scheduler_ctx.frame_num++;
 
-        ObjectWrapper_t* universal_wrapper_ptr;
-        svt_get_empty_object(dec_api_prv->universal_producer_fifo_ptr, &universal_wrapper_ptr);
+        ObjectWrapper_t* universal_wrapper_ptr = NULL;
+        ret = svt_get_empty_object(dec_api_prv->universal_producer_fifo_ptr, &universal_wrapper_ptr);
+        if (ret != SvtJxsErrorNone || universal_wrapper_ptr == NULL) {
+            return ret;
+        }
+
         TaskCalculateFrame* buffer_output = (TaskCalculateFrame*)universal_wrapper_ptr->object_ptr;
         buffer_output->wrapper_ptr_decoder_ctx = wrapper_ptr_decoder_ctx;
         //buffer_output->image_buffer = input_buffer_ptr->dec_input.image;
@@ -466,8 +474,11 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
         svt_post_full_object(universal_wrapper_ptr);
     }
     else {
-        ObjectWrapper_t* input_wrapper_ptr;
-        svt_get_empty_object(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
+        ObjectWrapper_t* input_wrapper_ptr = NULL;
+        SvtJxsErrorType_t ret = svt_get_empty_object(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
+        if (ret != SvtJxsErrorNone || input_wrapper_ptr == NULL) {
+            return ret;
+        }
 
         if (dec_api->verbose >= VERBOSE_INFO_MULTITHREADING) {
             fprintf(stderr, "\n[%s] Send EOC to Lib, Item: %p\n", __FUNCTION__, input_wrapper_ptr);
