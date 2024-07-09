@@ -16,7 +16,7 @@
 #define LOG_TAG "SvtMalloc"
 #include "SvtLog.h"
 
-void svt_print_alloc_fail_impl(const char* file, int line) {
+void svt_jxs_print_alloc_fail_impl(const char* file, int line) {
     SVT_FATAL("allocate memory failed, at %s:%d\n", file, line);
 }
 
@@ -26,11 +26,11 @@ static Handle_t g_malloc_mutex;
 
 static void malloc_mutex_cleanup(void) {
     if (g_malloc_mutex) {
-        svt_destroy_mutex(g_malloc_mutex);
+        svt_jxs_destroy_mutex(g_malloc_mutex);
     }
 }
 static void create_malloc_mutex(void) {
-    g_malloc_mutex = svt_create_mutex();
+    g_malloc_mutex = svt_jxs_create_mutex();
     atexit(malloc_mutex_cleanup);
 }
 
@@ -146,9 +146,9 @@ static uint8_t for_each_mem_entry(uint32_t start, Predicate pred, void* param) {
     if (m == NULL) {
         return 1;
     }
-    svt_block_on_mutex(m);
+    svt_jxs_block_on_mutex(m);
     ret = for_each_hash_entry(g_mem_entry, start, pred, param);
-    svt_release_mutex(m);
+    svt_jxs_release_mutex(m);
     return ret;
 }
 
@@ -243,11 +243,11 @@ static void print_top_10_locations_type(PointerType_t type) {
     if (m == NULL) {
         return;
     }
-    svt_block_on_mutex(m);
+    svt_jxs_block_on_mutex(m);
     g_profile_entry = calloc(MEM_ENTRY_SIZE, sizeof(*g_profile_entry));
     if (!g_profile_entry) {
         SVT_ERROR("not enough memory for memory profile");
-        svt_release_mutex(m);
+        svt_jxs_release_mutex(m);
         return;
     }
 
@@ -270,7 +270,7 @@ static void print_top_10_locations_type(PointerType_t type) {
         }
     }
     free(g_profile_entry);
-    svt_release_mutex(m);
+    svt_jxs_release_mutex(m);
 }
 
 static void print_top_10_locations() {
@@ -292,7 +292,7 @@ static uint8_t print_leak(MemoryEntry* e, void* param) {
     return 0;
 }
 
-void svt_print_memory_usage() {
+void svt_jxs_print_memory_usage() {
     MemSummary sum;
     double usage;
     char scale;
@@ -321,22 +321,22 @@ void svt_print_memory_usage() {
 #endif
 }
 
-void svt_increase_component_count() {
+void svt_jxs_increase_component_count() {
     Handle_t m = get_malloc_mutex();
     if (m == NULL) {
         return;
     }
-    svt_block_on_mutex(m);
+    svt_jxs_block_on_mutex(m);
     g_component_count++;
-    svt_release_mutex(m);
+    svt_jxs_release_mutex(m);
 }
 
-void svt_decrease_component_count() {
+void svt_jxs_decrease_component_count() {
     Handle_t m = get_malloc_mutex();
     if (m == NULL) {
         return;
     }
-    svt_block_on_mutex(m);
+    svt_jxs_block_on_mutex(m);
     g_component_count--;
     if (!g_component_count) {
         uint8_t leaked = 0;
@@ -344,10 +344,10 @@ void svt_decrease_component_count() {
         if (!leaked)
             SVT_INFO("you have no memory leak\n");
     }
-    svt_release_mutex(m);
+    svt_jxs_release_mutex(m);
 }
 
-void svt_add_mem_entry_impl(void* ptr, PointerType_t type, size_t count, const char* file, uint32_t line) {
+void svt_jxs_add_mem_entry_impl(void* ptr, PointerType_t type, size_t count, const char* file, uint32_t line) {
     if (for_each_mem_entry(
             hash(ptr), add_mem_entry, &(MemoryEntry){.ptr = ptr, .type = type, .count = count, .file = file, .line = line}))
         return;
@@ -359,7 +359,7 @@ void svt_add_mem_entry_impl(void* ptr, PointerType_t type, size_t count, const c
     }
 }
 
-void svt_remove_mem_entry(void* ptr, PointerType_t type) {
+void svt_jxs_remove_mem_entry(void* ptr, PointerType_t type) {
     if (!ptr)
         return;
     if (for_each_mem_entry(hash(ptr), remove_mem_entry, &(MemoryEntry){.ptr = ptr, .type = type}))

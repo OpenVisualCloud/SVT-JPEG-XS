@@ -138,58 +138,7 @@ typedef struct SystemResource {
 } SystemResource_t;
 
 /*********************************************************************
-     * svt_object_release_enable
-     *   Enables the release_enable member of ObjectWrapper_t.  Used by
-     *   certain objects (e.g. SequenceControlSet) to control whether
-     *   ObjectWrapper_ts are allowed to be released or not.
-     *
-     *   resource_ptr
-     *      pointer to the SystemResource that manages the ObjectWrapper_t.
-     *      The emptyFifo's lockout_mutex is used to write protect the
-     *      modification of the ObjectWrapper_t.
-     *
-     *   wrapper_ptr
-     *      pointer to the ObjectWrapper_t to be modified.
-     *********************************************************************/
-extern SvtJxsErrorType_t svt_object_release_enable(ObjectWrapper_t *wrapper_ptr);
-
-/*********************************************************************
-     * svt_object_release_disable
-     *   Disables the release_enable member of ObjectWrapper_t.  Used by
-     *   certain objects (e.g. SequenceControlSet) to control whether
-     *   ObjectWrapper_ts are allowed to be released or not.
-     *
-     *   resource_ptr
-     *      pointer to the SystemResource that manages the ObjectWrapper_t.
-     *      The emptyFifo's lockout_mutex is used to write protect the
-     *      modification of the ObjectWrapper_t.
-     *
-     *   wrapper_ptr
-     *      pointer to the ObjectWrapper_t to be modified.
-     *********************************************************************/
-extern SvtJxsErrorType_t svt_object_release_disable(ObjectWrapper_t *wrapper_ptr);
-
-/*********************************************************************
-     * svt_object_inc_live_count
-     *   Increments the live_count member of ObjectWrapper_t.  Used by
-     *   certain objects (e.g. SequenceControlSet) to count the number of active
-     *   pointers of a ObjectWrapper_t in pipeline at any point in time.
-     *
-     *   resource_ptr
-     *      pointer to the SystemResource that manages the ObjectWrapper_t.
-     *      The emptyFifo's lockout_mutex is used to write protect the
-     *      modification of the ObjectWrapper_t.
-     *
-     *   wrapper_ptr
-     *      pointer to the ObjectWrapper_t to be modified.
-     *
-     *   increment_number
-     *      The number to increment the live count by.
-     *********************************************************************/
-extern SvtJxsErrorType_t svt_object_inc_live_count(ObjectWrapper_t *wrapper_ptr, uint32_t increment_number);
-
-/*********************************************************************
-     * svt_system_resource_ctor
+     * svt_jxs_system_resource_ctor
      *   Constructor for SystemResource_t.  Fully constructs all members
      *   of SystemResource_t including the object with the passed
      *   object_ctor function.
@@ -210,13 +159,13 @@ extern SvtJxsErrorType_t svt_object_inc_live_count(ObjectWrapper_t *wrapper_ptr,
      *     the object. object_init_data_ptr is passed to object_ctor when
      *     object_ctor is called.
      *********************************************************************/
-extern SvtJxsErrorType_t svt_system_resource_ctor(SystemResource_t *resource_ptr, uint32_t object_total_count,
-                                                  uint32_t producer_process_total_count, uint32_t consumer_process_total_count,
-                                                  Creator_t object_ctor, void_ptr object_init_data_ptr,
-                                                  DctorCall object_destroyer);
+extern SvtJxsErrorType_t svt_jxs_system_resource_ctor(SystemResource_t *resource_ptr, uint32_t object_total_count,
+                                                      uint32_t producer_process_total_count,
+                                                      uint32_t consumer_process_total_count, Creator_t object_ctor,
+                                                      void_ptr object_init_data_ptr, DctorCall object_destroyer);
 
 /*********************************************************************
-     * svt_system_resource_get_producer_fifo
+     * svt_jxs_system_resource_get_producer_fifo
      *   get producer fifo
      *
      *   resource_ptr
@@ -225,10 +174,10 @@ extern SvtJxsErrorType_t svt_system_resource_ctor(SystemResource_t *resource_ptr
      *   index
      *     index to the producer fifo
      */
-Fifo_t *svt_system_resource_get_producer_fifo(const SystemResource_t *resource_ptr, uint32_t index);
+Fifo_t *svt_jxs_system_resource_get_producer_fifo(const SystemResource_t *resource_ptr, uint32_t index);
 
 /*********************************************************************
-     * svt_system_resource_get_consumer_fifo
+     * svt_jxs_system_resource_get_consumer_fifo
      *   get producer fifo
      *
      *   resource_ptr
@@ -237,7 +186,7 @@ Fifo_t *svt_system_resource_get_producer_fifo(const SystemResource_t *resource_p
      *   index
      *     index to the consumer fifo
      */
-Fifo_t *svt_system_resource_get_consumer_fifo(const SystemResource_t *resource_ptr, uint32_t index);
+Fifo_t *svt_jxs_system_resource_get_consumer_fifo(const SystemResource_t *resource_ptr, uint32_t index);
 
 /*********************************************************************
      * SystemResource_tGetEmptyObject
@@ -255,9 +204,9 @@ Fifo_t *svt_system_resource_get_consumer_fifo(const SystemResource_t *resource_p
      *      Double pointer used to pass the pointer to the empty
      *      ObjectWrapper_t pointer.
      *********************************************************************/
-extern SvtJxsErrorType_t svt_get_empty_object(Fifo_t *empty_fifo_ptr, ObjectWrapper_t **wrapper_dbl_ptr);
+extern SvtJxsErrorType_t svt_jxs_get_empty_object(Fifo_t *empty_fifo_ptr, ObjectWrapper_t **wrapper_dbl_ptr);
 
-extern SvtJxsErrorType_t svt_get_empty_object_non_blocking(Fifo_t *empty_fifo_ptr, ObjectWrapper_t **wrapper_dbl_ptr);
+extern SvtJxsErrorType_t svt_jxs_get_empty_object_non_blocking(Fifo_t *empty_fifo_ptr, ObjectWrapper_t **wrapper_dbl_ptr);
 
 /*********************************************************************
      * SystemResource_tPostObject
@@ -273,7 +222,7 @@ extern SvtJxsErrorType_t svt_get_empty_object_non_blocking(Fifo_t *empty_fifo_pt
      *   wrapper_ptr
      *      pointer to ObjectWrapper_t to be posted.
      *********************************************************************/
-extern SvtJxsErrorType_t svt_post_full_object(ObjectWrapper_t *object_ptr);
+extern SvtJxsErrorType_t svt_jxs_post_full_object(ObjectWrapper_t *object_ptr);
 
 /*********************************************************************
      * SystemResource_tGetFullObject
@@ -290,9 +239,9 @@ extern SvtJxsErrorType_t svt_post_full_object(ObjectWrapper_t *object_ptr);
      *      Double pointer used to pass the pointer to the full
      *      ObjectWrapper_t pointer.
      *********************************************************************/
-extern SvtJxsErrorType_t svt_get_full_object(Fifo_t *full_fifo_ptr, ObjectWrapper_t **wrapper_dbl_ptr);
+extern SvtJxsErrorType_t svt_jxs_get_full_object(Fifo_t *full_fifo_ptr, ObjectWrapper_t **wrapper_dbl_ptr);
 
-extern SvtJxsErrorType_t svt_get_full_object_non_blocking(Fifo_t *full_fifo_ptr, ObjectWrapper_t **wrapper_dbl_ptr);
+extern SvtJxsErrorType_t svt_jxs_get_full_object_non_blocking(Fifo_t *full_fifo_ptr, ObjectWrapper_t **wrapper_dbl_ptr);
 
 /*********************************************************************
      * SystemResource_tReleaseObject
@@ -304,21 +253,21 @@ extern SvtJxsErrorType_t svt_get_full_object_non_blocking(Fifo_t *full_fifo_ptr,
      *   object_ptr
      *      pointer to ObjectWrapper_t to be released.
      *********************************************************************/
-extern SvtJxsErrorType_t svt_release_object(ObjectWrapper_t *object_ptr);
+extern SvtJxsErrorType_t svt_jxs_release_object(ObjectWrapper_t *object_ptr);
 
 /*********************************************************************
-     * svt_shutdown_process
+     * svt_jxs_shutdown_process
      *   Notify shut down signal to consumer of SystemResource_t.
      *   So that the consumer process can break the loop and quit running.
      *
      *   resource_ptr
      *      pointer to the SystemResource.
      *********************************************************************/
-extern SvtJxsErrorType_t svt_shutdown_process(const SystemResource_t *resource_ptr);
+extern SvtJxsErrorType_t svt_jxs_shutdown_process(const SystemResource_t *resource_ptr);
 
 #define SVT_GET_FULL_OBJECT(full_fifo_ptr, wrapper_dbl_ptr)                          \
     do {                                                                             \
-        SvtJxsErrorType_t err = svt_get_full_object(full_fifo_ptr, wrapper_dbl_ptr); \
+        SvtJxsErrorType_t err = svt_jxs_get_full_object(full_fifo_ptr, wrapper_dbl_ptr); \
         if (err == SvtJxsErrorNoErrorFifoShutdown)                                   \
             return NULL;                                                             \
     } while (0)

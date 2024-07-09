@@ -73,14 +73,14 @@ typedef enum PointerType {
 
 #define SVT_CREATE_SEMAPHORE(pointer, initial_count, max_count)   \
     do {                                                          \
-        pointer = svt_create_semaphore(initial_count, max_count); \
+        pointer = svt_jxs_create_semaphore(initial_count, max_count); \
         SVT_ADD_MEM(pointer, 1, POINTER_TYPE_SEMAPHORE);          \
     } while (0)
 
 #define SVT_DESTROY_SEMAPHORE(pointer)                             \
     do {                                                           \
         if (pointer) {                                             \
-            svt_destroy_semaphore(pointer);                        \
+            svt_jxs_destroy_semaphore(pointer);                    \
             SVT_REMOVE_MEM_ENTRY(pointer, POINTER_TYPE_SEMAPHORE); \
             pointer = NULL;                                        \
         }                                                          \
@@ -88,14 +88,14 @@ typedef enum PointerType {
 
 #define SVT_CREATE_MUTEX(pointer)                    \
     do {                                             \
-        pointer = svt_create_mutex();                \
+        pointer = svt_jxs_create_mutex();            \
         SVT_ADD_MEM(pointer, 1, POINTER_TYPE_MUTEX); \
     } while (0)
 
 #define SVT_DESTROY_MUTEX(pointer)                             \
     do {                                                       \
         if (pointer) {                                         \
-            svt_destroy_mutex(pointer);                        \
+            svt_jxs_destroy_mutex(pointer);                    \
             SVT_REMOVE_MEM_ENTRY(pointer, POINTER_TYPE_MUTEX); \
             pointer = NULL;                                    \
         }                                                      \

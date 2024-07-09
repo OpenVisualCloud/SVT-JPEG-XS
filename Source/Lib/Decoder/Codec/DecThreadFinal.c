@@ -55,11 +55,11 @@ void* thread_final_stage_kernel(void* input_ptr) {
 
         //If Slice thread exited with error, release thread that is waiting for it to be done
         if (!dec_ctx->sync_slices_idwt) {
-            svt_set_cond_var(&dec_ctx->map_slices_decode_done[input_buffer_ptr->slice_id], SYNC_OK);
+            svt_jxs_set_cond_var(&dec_ctx->map_slices_decode_done[input_buffer_ptr->slice_id], SYNC_OK);
         }
         else {
             if (input_buffer_ptr->frame_error) {
-                svt_set_cond_var(&dec_ctx->map_slices_decode_done[input_buffer_ptr->slice_id], SYNC_ERROR);
+                svt_jxs_set_cond_var(&dec_ctx->map_slices_decode_done[input_buffer_ptr->slice_id], SYNC_ERROR);
             }
         }
 
@@ -121,7 +121,7 @@ void* thread_final_stage_kernel(void* input_ptr) {
                 item->image_buffer = NULL;
             }*/
             //Release Decoder Context
-            svt_release_object(wrapper_ptr_decoder_ctx);
+            svt_jxs_release_object(wrapper_ptr_decoder_ctx);
 
             if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
                 fprintf(stderr, "[%s] Get frame  %i Final thread\n", __FUNCTION__, (int)item->frame_num);
@@ -129,16 +129,16 @@ void* thread_final_stage_kernel(void* input_ptr) {
         }
 
         //Release actual input task
-        svt_release_object(input_wrapper_ptr);
+        svt_jxs_release_object(input_wrapper_ptr);
 
         while (sync_output_ringbuffer[buffer_begin_id].ready_to_send) {
             item = &sync_output_ringbuffer[buffer_begin_id];
             item->ready_to_send = 0;
             item->in_use = 0;
-            svt_add_cond_var(sync_output_ringbuffer_left, 1); //Increment number of elements to use.
+            svt_jxs_add_cond_var(sync_output_ringbuffer_left, 1); //Increment number of elements to use.
             ObjectWrapper_t* final_wrapper_ptr = NULL;
 
-            SvtJxsErrorType_t ret = svt_get_empty_object(dec_api_prv->output_producer_fifo_ptr, &final_wrapper_ptr);
+            SvtJxsErrorType_t ret = svt_jxs_get_empty_object(dec_api_prv->output_producer_fifo_ptr, &final_wrapper_ptr);
             if (ret != SvtJxsErrorNone || final_wrapper_ptr == NULL) {
                 break;
             }
@@ -154,7 +154,7 @@ void* thread_final_stage_kernel(void* input_ptr) {
                 fprintf(stderr, "[%s] Send frame  %i Final thread\n", __FUNCTION__, (int)item->frame_num);
             }
 
-            svt_post_full_object(final_wrapper_ptr);
+            svt_jxs_post_full_object(final_wrapper_ptr);
             /*Callback frame is ready to get.*/
             if (callback_get) {
                 callback_get(callback_decoder_ctx, callback_get_context);

@@ -188,11 +188,11 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
         }
         else {
             for (uint32_t slice_idx = 0; slice_idx < pi->slice_num; slice_idx++) {
-                ret = svt_create_cond_var(&ctx->map_slices_decode_done[slice_idx]);
+                ret = svt_jxs_create_cond_var(&ctx->map_slices_decode_done[slice_idx]);
                 if (ret) {
                     /*When any error, destroy all previous created Condition Variables*/
                     for (uint32_t i = 0; i < slice_idx; i++) {
-                        svt_free_cond_var(&ctx->map_slices_decode_done[slice_idx]);
+                        svt_jxs_free_cond_var(&ctx->map_slices_decode_done[slice_idx]);
                     }
                     SVT_FREE(ctx->map_slices_decode_done);
                     break;
@@ -226,7 +226,7 @@ void svt_jpeg_xs_dec_instance_free(svt_jpeg_xs_decoder_instance_t* ctx) {
 
     if (ctx->map_slices_decode_done) {
         for (uint32_t slice_idx = 0; slice_idx < ctx->dec_common->pi.slice_num; slice_idx++) {
-            svt_free_cond_var(&ctx->map_slices_decode_done[slice_idx]);
+            svt_jxs_free_cond_var(&ctx->map_slices_decode_done[slice_idx]);
         }
     }
     SVT_FREE(ctx->map_slices_decode_done);
@@ -572,7 +572,7 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_slice(svt_jpeg_xs_decoder_instance_t* ctx, 
 
         //when 2nd line is unpacked set flag to true
         if (ctx->sync_slices_idwt && line == 1) {
-            svt_set_cond_var(&ctx->map_slices_decode_done[slice], SYNC_OK);
+            svt_jxs_set_cond_var(&ctx->map_slices_decode_done[slice], SYNC_OK);
         }
 
         if (ctx->dec_common->picture_header_const.hdr_Cpih) {
@@ -630,7 +630,7 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_slice(svt_jpeg_xs_decoder_instance_t* ctx, 
     *out_slice_size = bitstream_reader_get_used_bytes(&bitstream);
 
     if (ctx->sync_slices_idwt && !is_last_slice && (lines_per_slice > 2)) {
-        svt_wait_cond_var(&ctx->map_slices_decode_done[slice + 1], SYNC_INIT);
+        svt_jxs_wait_cond_var(&ctx->map_slices_decode_done[slice + 1], SYNC_INIT);
         if (ctx->map_slices_decode_done[slice + 1].val == SYNC_ERROR) {
             return SvtJxsErrorDecoderInternal;
         }

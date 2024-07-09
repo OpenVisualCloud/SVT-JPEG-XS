@@ -28,37 +28,33 @@ extern "C" {
 /**************************************
      * Threads
      **************************************/
-extern Handle_t svt_create_thread(void *(*thread_function)(void *), void *thread_context);
+extern Handle_t svt_jxs_create_thread(void *(*thread_function)(void *), void *thread_context);
 
-extern SvtJxsErrorType_t svt_start_thread(Handle_t thread_handle);
-
-extern SvtJxsErrorType_t svt_stop_thread(Handle_t thread_handle);
-
-extern SvtJxsErrorType_t svt_destroy_thread(Handle_t thread_handle);
+extern SvtJxsErrorType_t svt_jxs_destroy_thread(Handle_t thread_handle);
 
 /**************************************
      * Semaphores
      **************************************/
-extern Handle_t svt_create_semaphore(uint32_t initial_count, uint32_t max_count);
+extern Handle_t svt_jxs_create_semaphore(uint32_t initial_count, uint32_t max_count);
 
-extern SvtJxsErrorType_t svt_post_semaphore(Handle_t semaphore_handle);
+extern SvtJxsErrorType_t svt_jxs_post_semaphore(Handle_t semaphore_handle);
 
-extern SvtJxsErrorType_t svt_block_on_semaphore(Handle_t semaphore_handle);
+extern SvtJxsErrorType_t svt_jxs_block_on_semaphore(Handle_t semaphore_handle);
 
-extern SvtJxsErrorType_t svt_destroy_semaphore(Handle_t semaphore_handle);
+extern SvtJxsErrorType_t svt_jxs_destroy_semaphore(Handle_t semaphore_handle);
 
 /**************************************
      * Mutex
      **************************************/
-extern Handle_t svt_create_mutex(void);
-extern SvtJxsErrorType_t svt_release_mutex(Handle_t mutex_handle);
-extern SvtJxsErrorType_t svt_block_on_mutex(Handle_t mutex_handle);
-extern SvtJxsErrorType_t svt_destroy_mutex(Handle_t mutex_handle);
+extern Handle_t svt_jxs_create_mutex(void);
+extern SvtJxsErrorType_t svt_jxs_release_mutex(Handle_t mutex_handle);
+extern SvtJxsErrorType_t svt_jxs_block_on_mutex(Handle_t mutex_handle);
+extern SvtJxsErrorType_t svt_jxs_destroy_mutex(Handle_t mutex_handle);
 #ifdef _WIN32
 
 #define SVT_CREATE_THREAD(pointer, thread_function, thread_context)   \
     do {                                                              \
-        pointer = svt_create_thread(thread_function, thread_context); \
+        pointer = svt_jxs_create_thread(thread_function, thread_context); \
         SVT_ADD_MEM(pointer, 1, POINTER_TYPE_THREAD);                 \
     } while (0)
 
@@ -74,13 +70,13 @@ extern SvtJxsErrorType_t svt_destroy_mutex(Handle_t mutex_handle);
 #if defined(__linux__)
 #define SVT_CREATE_THREAD(pointer, thread_function, thread_context)   \
     do {                                                              \
-        pointer = svt_create_thread(thread_function, thread_context); \
+        pointer = svt_jxs_create_thread(thread_function, thread_context); \
         SVT_ADD_MEM(pointer, 1, POINTER_TYPE_THREAD);                 \
     } while (0)
 #else
 #define SVT_CREATE_THREAD(pointer, thread_function, thread_context)   \
     do {                                                              \
-        pointer = svt_create_thread(thread_function, thread_context); \
+        pointer = svt_jxs_create_thread(thread_function, thread_context); \
         SVT_ADD_MEM(pointer, 1, POINTER_TYPE_THREAD);                 \
     } while (0)
 #endif
@@ -88,7 +84,7 @@ extern SvtJxsErrorType_t svt_destroy_mutex(Handle_t mutex_handle);
 #define SVT_DESTROY_THREAD(pointer)                             \
     do {                                                        \
         if (pointer) {                                          \
-            svt_destroy_thread(pointer);                        \
+            svt_jxs_destroy_thread(pointer);                    \
             SVT_REMOVE_MEM_ENTRY(pointer, POINTER_TYPE_THREAD); \
             pointer = NULL;                                     \
         }                                                       \
@@ -124,11 +120,11 @@ typedef struct CondVar {
 #endif
 } CondVar;
 
-SvtJxsErrorType_t svt_create_cond_var(CondVar *cond_var);
-SvtJxsErrorType_t svt_free_cond_var(CondVar *cond_var);
-SvtJxsErrorType_t svt_set_cond_var(CondVar *cond_var, int32_t new_value);
-SvtJxsErrorType_t svt_add_cond_var(CondVar *cond_var, int32_t add_value);
-SvtJxsErrorType_t svt_wait_cond_var(CondVar *cond_var, int32_t input);
+SvtJxsErrorType_t svt_jxs_create_cond_var(CondVar *cond_var);
+SvtJxsErrorType_t svt_jxs_free_cond_var(CondVar *cond_var);
+SvtJxsErrorType_t svt_jxs_set_cond_var(CondVar *cond_var, int32_t new_value);
+SvtJxsErrorType_t svt_jxs_add_cond_var(CondVar *cond_var, int32_t add_value);
+SvtJxsErrorType_t svt_jxs_wait_cond_var(CondVar *cond_var, int32_t input);
 
 #ifdef __cplusplus
 }

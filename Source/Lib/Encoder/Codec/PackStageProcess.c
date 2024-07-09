@@ -133,9 +133,9 @@ SvtJxsErrorType_t pack_stage_context_ctor(ThreadContext_t* thread_contxt_ptr, sv
     context_ptr->enc_common = enc_common;
     context_ptr->temp_precincts_in_slice = NULL;
 
-    context_ptr->input_buffer_fifo_ptr = svt_system_resource_get_consumer_fifo(enc_api_prv->pack_input_resource_ptr, idx);
+    context_ptr->input_buffer_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(enc_api_prv->pack_input_resource_ptr, idx);
 
-    context_ptr->output_buffer_fifo_ptr = svt_system_resource_get_producer_fifo(enc_api_prv->pack_output_resource_ptr, idx);
+    context_ptr->output_buffer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(enc_api_prv->pack_output_resource_ptr, idx);
 
     if (enc_common->rate_control_mode == RC_CBR_PER_PRECINCT ||
         enc_common->rate_control_mode == RC_CBR_PER_PRECINCT_MOVE_PADDING) {
@@ -726,7 +726,7 @@ void* pack_stage_kernel(void* input_ptr) {
             write_tail(&bitstream);
         }
 
-        SvtJxsErrorType_t err = svt_get_empty_object(context_ptr->output_buffer_fifo_ptr, &output_wrapper_ptr);
+        SvtJxsErrorType_t err = svt_jxs_get_empty_object(context_ptr->output_buffer_fifo_ptr, &output_wrapper_ptr);
         if (err != SvtJxsErrorNone || output_wrapper_ptr == NULL) {
             continue;
         }
@@ -740,9 +740,9 @@ void* pack_stage_kernel(void* input_ptr) {
 #ifdef FLAG_DEADLOCK_DETECT
         printf("07[%s:%i] frame: %03li slice: %03d\n", __func__, __LINE__, (size_t)pcs_ptr->frame_number, pack_out->slice_idx);
 #endif
-        svt_post_full_object(output_wrapper_ptr);
+        svt_jxs_post_full_object(output_wrapper_ptr);
 
-        svt_release_object(input_wrapper_ptr);
+        svt_jxs_release_object(input_wrapper_ptr);
     }
     return NULL;
 }

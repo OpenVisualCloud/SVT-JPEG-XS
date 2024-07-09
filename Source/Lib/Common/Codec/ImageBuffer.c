@@ -141,7 +141,7 @@ PREFIX_API svt_jpeg_xs_frame_pool_t* svt_jpeg_xs_frame_pool_alloc(const svt_jpeg
 
     SVT_NO_THROW_MALLOC(frame_pool, sizeof(svt_jpeg_xs_frame_pool_t));
     if (frame_pool) {
-        svt_increase_component_count();
+        svt_jxs_increase_component_count();
         frame_pool->pool_image_buffer_resource_ptr = NULL;
         frame_pool->pool_image_buffer_fifo_ptr = NULL;
         frame_pool->pool_bitstream_resource_ptr = NULL;
@@ -155,7 +155,7 @@ PREFIX_API svt_jpeg_xs_frame_pool_t* svt_jpeg_xs_frame_pool_alloc(const svt_jpeg
             frame_pool->image_config = *image_config; /*Copy structure with configuration.*/
 
             SVT_NO_THROW_NEW(frame_pool->pool_image_buffer_resource_ptr,
-                             svt_system_resource_ctor,
+                             svt_jxs_system_resource_ctor,
                              count,
                              1,
                              0,
@@ -163,7 +163,7 @@ PREFIX_API svt_jpeg_xs_frame_pool_t* svt_jpeg_xs_frame_pool_alloc(const svt_jpeg
                              frame_pool,
                              out_image_buffer_destroy_ctor);
             if (frame_pool->pool_image_buffer_resource_ptr) {
-                frame_pool->pool_image_buffer_fifo_ptr = svt_system_resource_get_producer_fifo(
+                frame_pool->pool_image_buffer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(
                     frame_pool->pool_image_buffer_resource_ptr, 0);
             }
             else {
@@ -180,7 +180,7 @@ PREFIX_API svt_jpeg_xs_frame_pool_t* svt_jpeg_xs_frame_pool_alloc(const svt_jpeg
                 frame_pool->use_bitstream = 1;
                 frame_pool->bitstream_size = bitstream_size;
                 SVT_NO_THROW_NEW(frame_pool->pool_bitstream_resource_ptr,
-                                 svt_system_resource_ctor,
+                                 svt_jxs_system_resource_ctor,
                                  count,
                                  1,
                                  0,
@@ -188,7 +188,7 @@ PREFIX_API svt_jpeg_xs_frame_pool_t* svt_jpeg_xs_frame_pool_alloc(const svt_jpeg
                                  frame_pool,
                                  out_bitstream_buffer_destroy_ctor);
                 if (frame_pool->pool_bitstream_resource_ptr) {
-                    frame_pool->pool_bitstream_fifo_ptr = svt_system_resource_get_producer_fifo(
+                    frame_pool->pool_bitstream_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(
                         frame_pool->pool_bitstream_resource_ptr, 0);
                 }
                 else {
@@ -210,7 +210,7 @@ PREFIX_API void svt_jpeg_xs_frame_pool_free(svt_jpeg_xs_frame_pool_t* frame_pool
             SVT_DELETE(frame_pool->pool_bitstream_resource_ptr);
         }
         SVT_FREE(frame_pool);
-        svt_decrease_component_count();
+        svt_jxs_decrease_component_count();
     }
 }
 
@@ -222,24 +222,24 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_frame_pool_get(svt_jpeg_xs_frame_pool_t
         ObjectWrapper_t* wrapper_ptr_bitstream_ctx = NULL;
         if (blocking_flag) {
             if (frame_pool->use_image_buffer) {
-                svt_get_empty_object(frame_pool->pool_image_buffer_fifo_ptr, &wrapper_ptr_image_ctx);
+                svt_jxs_get_empty_object(frame_pool->pool_image_buffer_fifo_ptr, &wrapper_ptr_image_ctx);
             }
             if (frame_pool->use_bitstream) {
-                svt_get_empty_object(frame_pool->pool_bitstream_fifo_ptr, &wrapper_ptr_bitstream_ctx);
+                svt_jxs_get_empty_object(frame_pool->pool_bitstream_fifo_ptr, &wrapper_ptr_bitstream_ctx);
             }
         }
         else {
             if (frame_pool->use_image_buffer) {
-                svt_get_empty_object_non_blocking(frame_pool->pool_image_buffer_fifo_ptr, &wrapper_ptr_image_ctx);
+                svt_jxs_get_empty_object_non_blocking(frame_pool->pool_image_buffer_fifo_ptr, &wrapper_ptr_image_ctx);
                 if (wrapper_ptr_image_ctx == NULL) {
                     return SvtJxsErrorNoErrorEmptyQueue;
                 }
             }
             if (frame_pool->use_bitstream) {
-                svt_get_empty_object_non_blocking(frame_pool->pool_bitstream_fifo_ptr, &wrapper_ptr_bitstream_ctx);
+                svt_jxs_get_empty_object_non_blocking(frame_pool->pool_bitstream_fifo_ptr, &wrapper_ptr_bitstream_ctx);
                 if (wrapper_ptr_bitstream_ctx == NULL) {
                     if (wrapper_ptr_image_ctx) {
-                        svt_release_object(wrapper_ptr_image_ctx);
+                        svt_jxs_release_object(wrapper_ptr_image_ctx);
                     }
                     return SvtJxsErrorNoErrorEmptyQueue;
                 }
@@ -262,11 +262,11 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_frame_pool_get(svt_jpeg_xs_frame_pool_t
 PREFIX_API void svt_jpeg_xs_frame_pool_release(svt_jpeg_xs_frame_pool_t* frame_pool, svt_jpeg_xs_frame_t* frame) {
     if (frame_pool && frame) {
         if (frame_pool->use_image_buffer && frame->image.release_ctx_ptr && frame->image.ready_to_release) {
-            svt_release_object(frame->image.release_ctx_ptr);
+            svt_jxs_release_object(frame->image.release_ctx_ptr);
             frame->image.release_ctx_ptr = NULL;
         }
         if (frame_pool->use_bitstream && frame->bitstream.release_ctx_ptr && frame->bitstream.ready_to_release) {
-            svt_release_object(frame->bitstream.release_ctx_ptr);
+            svt_jxs_release_object(frame->bitstream.release_ctx_ptr);
             frame->bitstream.release_ctx_ptr = NULL;
         }
     }

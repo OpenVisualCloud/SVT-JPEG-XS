@@ -65,15 +65,16 @@ SvtJxsErrorType_t init_stage_context_ctor(ThreadContext_t *thread_contxt_ptr, sv
     thread_contxt_ptr->dctor = init_stage_context_dctor;
 
     // InitStage works with ParentPCS
-    context_ptr->picture_control_set_fifo_ptr = svt_system_resource_get_producer_fifo(enc_api_prv->picture_control_set_pool_ptr,
-                                                                                      0);
+    context_ptr->picture_control_set_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(
+        enc_api_prv->picture_control_set_pool_ptr, 0);
 
     if (enc_common->cpu_profile == CPU_PROFILE_CPU) {
-        context_ptr->dwt_stage_input_fifo_ptr = svt_system_resource_get_producer_fifo(enc_api_prv->dwt_input_resource_ptr, 0);
+        context_ptr->dwt_stage_input_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(enc_api_prv->dwt_input_resource_ptr, 0);
     }
 
     if (enc_common->cpu_profile == CPU_PROFILE_LOW_LATENCY || enc_common->cpu_profile == CPU_PROFILE_CPU) {
-        context_ptr->pack_input_buffer_fifo_ptr = svt_system_resource_get_producer_fifo(enc_api_prv->pack_input_resource_ptr, 0);
+        context_ptr->pack_input_buffer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(enc_api_prv->pack_input_resource_ptr,
+                                                                                            0);
     }
 
     context_ptr->enc_api_prv = enc_api_prv;
@@ -176,7 +177,7 @@ void *init_stage_kernel(void *input_ptr) {
         printf("01[%s:%i] frame: %03li\n", __func__, __LINE__, (size_t)input_item->frame_number);
 #endif
         // Get a New PCS where we will hold the new input_picture
-        SvtJxsErrorType_t ret = svt_get_empty_object(context_ptr->picture_control_set_fifo_ptr, &pcs_wrapper_ptr);
+        SvtJxsErrorType_t ret = svt_jxs_get_empty_object(context_ptr->picture_control_set_fifo_ptr, &pcs_wrapper_ptr);
         if (ret != SvtJxsErrorNone || pcs_wrapper_ptr == NULL) {
             continue;
         }
@@ -208,8 +209,8 @@ void *init_stage_kernel(void *input_ptr) {
         }
 #endif
 
-        svt_wait_cond_var(sync_output_ringbuffer_left, 0); //Wait until will be free place in ring buffer
-        svt_add_cond_var(sync_output_ringbuffer_left, -1); //Decrement number of elements to use.
+        svt_jxs_wait_cond_var(sync_output_ringbuffer_left, 0); //Wait until will be free place in ring buffer
+        svt_jxs_add_cond_var(sync_output_ringbuffer_left, -1); //Decrement number of elements to use.
 
         SVT_DEBUG("%s, PCS out %lu\n", __func__, input_item->frame_number);
         if (pcs_ptr->enc_common->cpu_profile == CPU_PROFILE_CPU) {
@@ -230,7 +231,7 @@ void *init_stage_kernel(void *input_ptr) {
 
             for (uint32_t i = 0; i < pi->comps_num; i++) {
                 if (pi->components[i].decom_v != 0) { //For CPU Profile and V = 0 ignore DWT thread.
-                    ret = svt_get_empty_object(context_ptr->dwt_stage_input_fifo_ptr, &dwt_input_wrapper_ptr);
+                    ret = svt_jxs_get_empty_object(context_ptr->dwt_stage_input_fifo_ptr, &dwt_input_wrapper_ptr);
                     if (ret != SvtJxsErrorNone || dwt_input_wrapper_ptr == NULL) {
                         continue;
                     }
@@ -243,7 +244,7 @@ void *init_stage_kernel(void *input_ptr) {
                     dwt_input_ptr->component_id = i;
                     dwt_input_ptr->frame_num = input_item->frame_number;
                     dwt_input_ptr->list_slices = list_slices;
-                    svt_post_full_object(dwt_input_wrapper_ptr);
+                    svt_jxs_post_full_object(dwt_input_wrapper_ptr);
                 }
             }
         }
@@ -254,7 +255,7 @@ void *init_stage_kernel(void *input_ptr) {
                 pcs_ptr, context_ptr->pack_input_buffer_fifo_ptr, input_item->frame_number, pcs_wrapper_ptr);
         }
 
-        svt_release_object(input_wrapper_ptr);
+        svt_jxs_release_object(input_wrapper_ptr);
     }
 
     return NULL;

@@ -45,7 +45,7 @@ PackInput_t* pre_rc_send_frame_to_pack_slices(PictureControlSet* pcs_ptr, Fifo_t
 
     if (enc_common->cpu_profile == CPU_PROFILE_CPU) {
         //All tasks need pointer no next one in frame. Get first task.
-        SvtJxsErrorType_t ret = svt_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr_next);
+        SvtJxsErrorType_t ret = svt_jxs_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr_next);
         if (ret != SvtJxsErrorNone || output_wrapper_ptr_next == NULL) {
             return NULL;
         }
@@ -67,7 +67,7 @@ PackInput_t* pre_rc_send_frame_to_pack_slices(PictureControlSet* pcs_ptr, Fifo_t
                 first = pack_input;
             }
             if (i + 1 < enc_common->pi.slice_num) {
-                SvtJxsErrorType_t ret = svt_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr_next);
+                SvtJxsErrorType_t ret = svt_jxs_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr_next);
                 if (ret != SvtJxsErrorNone || output_wrapper_ptr_next == NULL) {
                     return NULL;
                 }
@@ -80,7 +80,7 @@ PackInput_t* pre_rc_send_frame_to_pack_slices(PictureControlSet* pcs_ptr, Fifo_t
             }
         }
         else {
-            SvtJxsErrorType_t ret = svt_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr);
+            SvtJxsErrorType_t ret = svt_jxs_get_empty_object(output_buffer_fifo_ptr, &output_wrapper_ptr);
             if (ret != SvtJxsErrorNone || output_wrapper_ptr == NULL) {
                 return NULL;
             }
@@ -110,7 +110,7 @@ PackInput_t* pre_rc_send_frame_to_pack_slices(PictureControlSet* pcs_ptr, Fifo_t
         printf("04[%s:%i] frame: %03li slice: %03d\n", __func__, __LINE__, (size_t)frame_num, pack_input->slice_idx);
 #endif
         //Send direct to PACK
-        svt_post_full_object(output_wrapper_ptr);
+        svt_jxs_post_full_object(output_wrapper_ptr);
     }
     return first;
 }
