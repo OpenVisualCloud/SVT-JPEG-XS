@@ -47,7 +47,7 @@ SvtJxsErrorType_t dwt_stage_context_ctor(ThreadContext_t* thread_context_ptr, sv
     thread_context_ptr->priv = context_ptr;
     thread_context_ptr->dctor = dwt_stage_context_dctor;
 
-    context_ptr->dwt_stage_input_fifo_ptr = svt_system_resource_get_consumer_fifo(enc_api_prv->dwt_input_resource_ptr, idx);
+    context_ptr->dwt_stage_input_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(enc_api_prv->dwt_input_resource_ptr, idx);
 
     context_ptr->process_idx = idx;
 
@@ -131,7 +131,7 @@ void* dwt_stage_kernel(void* input_ptr) {
         int decom_v = component->decom_v;
 
         // Release the Input Results
-        svt_release_object(input_wrapper);
+        svt_jxs_release_object(input_wrapper);
         assert(enc_common->cpu_profile == CPU_PROFILE_CPU);
 
         if (decom_v == 0) {
@@ -229,7 +229,7 @@ void* dwt_stage_kernel(void* input_ptr) {
                     Handle_t sync_dwt_semaphore = list_slice_next_old->sync_dwt_semaphore;
                     //After set flag list item can be not longer actual for last component. First get next item
                     list_slice_next_old->sync_dwt_component_done_flag[component_id] = 1;
-                    svt_post_semaphore(sync_dwt_semaphore);
+                    svt_jxs_post_semaphore(sync_dwt_semaphore);
                 }
             }
             //Send sync after finish last Slice
@@ -239,7 +239,7 @@ void* dwt_stage_kernel(void* input_ptr) {
                 Handle_t sync_dwt_semaphore = list_slice_next_old->sync_dwt_semaphore;
                 //After set flag list item can be not longer actual for last component. First get next item
                 list_slice_next_old->sync_dwt_component_done_flag[component_id] = 1;
-                svt_post_semaphore(sync_dwt_semaphore);
+                svt_jxs_post_semaphore(sync_dwt_semaphore);
             }
             assert(list_slice_next == NULL);
             continue;
@@ -348,7 +348,7 @@ void* dwt_stage_kernel(void* input_ptr) {
                 Handle_t sync_dwt_semaphore = list_slice_next_old->sync_dwt_semaphore;
                 //After set flag list item can be not longer actual for last component. First get next item
                 list_slice_next_old->sync_dwt_component_done_flag[component_id] = 1;
-                svt_post_semaphore(sync_dwt_semaphore);
+                svt_jxs_post_semaphore(sync_dwt_semaphore);
             }
         }
         //Send sync after finish last Slice
@@ -358,7 +358,7 @@ void* dwt_stage_kernel(void* input_ptr) {
             Handle_t sync_dwt_semaphore = list_slice_next_old->sync_dwt_semaphore;
             //After set flag list item can be not longer actual for last component. First get next item
             list_slice_next_old->sync_dwt_component_done_flag[component_id] = 1;
-            svt_post_semaphore(sync_dwt_semaphore);
+            svt_jxs_post_semaphore(sync_dwt_semaphore);
         }
         assert(list_slice_next == NULL);
     }

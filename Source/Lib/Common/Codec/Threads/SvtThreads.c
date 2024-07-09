@@ -61,9 +61,9 @@ void printfTime(const char *fmt, ...) {
 #endif
 
 /****************************************
- * svt_create_thread
+ * svt_jxs_create_thread
  ****************************************/
-Handle_t svt_create_thread(void *(*thread_function)(void *), void *thread_context) {
+Handle_t svt_jxs_create_thread(void *(*thread_function)(void *), void *thread_context) {
     Handle_t thread_handle = NULL;
 
 #ifdef _WIN32
@@ -138,57 +138,10 @@ Handle_t svt_create_thread(void *(*thread_function)(void *), void *thread_contex
     return thread_handle;
 }
 
-///****************************************
-// * svt_start_thread
-// ****************************************/
-//SvtJxsErrorType_t svt_start_thread(
-//    Handle_t thread_handle)
-//{
-//    SvtJxsErrorType_t error_return = SvtJxsErrorNone;
-//
-//    /* Note JMJ 9/6/2011
-//        The thread Pause/Resume functionality is being removed.  The main reason is that
-//        POSIX Threads (aka pthreads) does not support this functionality.  The destructor
-//        and deinit code is safe as along as when DestropyThread is called on a thread,
-//        the thread is immediately destroyed and its stack cleared.
-//
-//        The Encoder Start/Stop functionality, which previously used the thread Pause/Resume
-//        functions could be implemented with mutex checks either at the head of the pipeline,
-//        or throughout the code if a more responsive Pause is needed.
-//    */
-//
-//#ifdef _WIN32
-//    //error_return = ResumeThread((HANDLE) thread_handle) ? SvtJxsErrorThreadUnresponsive : SvtJxsErrorNone;
-//#else
-//#endif // _WIN32
-//
-//    error_return = (thread_handle) ? SvtJxsErrorNone : SvtJxsErrorNullThread;
-//
-//    return error_return;
-//}
-//
-///****************************************
-// * svt_stop_thread
-// ****************************************/
-//SvtJxsErrorType_t svt_stop_thread(
-//    Handle_t thread_handle)
-//{
-//    SvtJxsErrorType_t error_return = SvtJxsErrorNone;
-//
-//#ifdef _WIN32
-//    //error_return = SuspendThread((HANDLE) thread_handle) ? SvtJxsErrorThreadUnresponsive : SvtJxsErrorNone;
-//#else
-//#endif // _WIN32
-//
-//    error_return = (thread_handle) ? SvtJxsErrorNone : SvtJxsErrorNullThread;
-//
-//    return error_return;
-//}
-//
 /****************************************
- * svt_destroy_thread
+ * svt_jxs_destroy_thread
  ****************************************/
-SvtJxsErrorType_t svt_destroy_thread(Handle_t thread_handle) {
+SvtJxsErrorType_t svt_jxs_destroy_thread(Handle_t thread_handle) {
     SvtJxsErrorType_t error_return;
 
 #ifdef _WIN32
@@ -203,9 +156,9 @@ SvtJxsErrorType_t svt_destroy_thread(Handle_t thread_handle) {
 }
 
 /***************************************
- * svt_create_semaphore
+ * svt_jxs_create_semaphore
  ***************************************/
-Handle_t svt_create_semaphore(uint32_t initial_count, uint32_t max_count) {
+Handle_t svt_jxs_create_semaphore(uint32_t initial_count, uint32_t max_count) {
     Handle_t semaphore_handle;
 
 #if defined(_WIN32)
@@ -230,9 +183,9 @@ Handle_t svt_create_semaphore(uint32_t initial_count, uint32_t max_count) {
 }
 
 /***************************************
- * svt_post_semaphore
+ * svt_jxs_post_semaphore
  ***************************************/
-SvtJxsErrorType_t svt_post_semaphore(Handle_t semaphore_handle) {
+SvtJxsErrorType_t svt_jxs_post_semaphore(Handle_t semaphore_handle) {
     SvtJxsErrorType_t return_error;
 
 #ifdef _WIN32
@@ -252,9 +205,9 @@ SvtJxsErrorType_t svt_post_semaphore(Handle_t semaphore_handle) {
 }
 
 /***************************************
- * svt_block_on_semaphore
+ * svt_jxs_block_on_semaphore
  ***************************************/
-SvtJxsErrorType_t svt_block_on_semaphore(Handle_t semaphore_handle) {
+SvtJxsErrorType_t svt_jxs_block_on_semaphore(Handle_t semaphore_handle) {
     SvtJxsErrorType_t return_error;
 
 #ifdef _WIN32
@@ -275,9 +228,9 @@ SvtJxsErrorType_t svt_block_on_semaphore(Handle_t semaphore_handle) {
 }
 
 /***************************************
- * svt_destroy_semaphore
+ * svt_jxs_destroy_semaphore
  ***************************************/
-SvtJxsErrorType_t svt_destroy_semaphore(Handle_t semaphore_handle) {
+SvtJxsErrorType_t svt_jxs_destroy_semaphore(Handle_t semaphore_handle) {
     SvtJxsErrorType_t return_error;
 
 #ifdef _WIN32
@@ -293,9 +246,9 @@ SvtJxsErrorType_t svt_destroy_semaphore(Handle_t semaphore_handle) {
     return return_error;
 }
 /***************************************
- * svt_create_mutex
+ * svt_jxs_create_mutex
  ***************************************/
-Handle_t svt_create_mutex(void) {
+Handle_t svt_jxs_create_mutex(void) {
     Handle_t mutex_handle;
 
 #ifdef _WIN32
@@ -317,9 +270,9 @@ Handle_t svt_create_mutex(void) {
 }
 
 /***************************************
- * svt_release_mutex
+ * svt_jxs_release_mutex
  ***************************************/
-SvtJxsErrorType_t svt_release_mutex(Handle_t mutex_handle) {
+SvtJxsErrorType_t svt_jxs_release_mutex(Handle_t mutex_handle) {
     SvtJxsErrorType_t return_error;
 
 #ifdef _WIN32
@@ -332,9 +285,9 @@ SvtJxsErrorType_t svt_release_mutex(Handle_t mutex_handle) {
 }
 
 /***************************************
- * svt_block_on_mutex
+ * svt_jxs_block_on_mutex
  ***************************************/
-SvtJxsErrorType_t svt_block_on_mutex(Handle_t mutex_handle) {
+SvtJxsErrorType_t svt_jxs_block_on_mutex(Handle_t mutex_handle) {
     SvtJxsErrorType_t return_error;
 
 #ifdef _WIN32
@@ -347,9 +300,9 @@ SvtJxsErrorType_t svt_block_on_mutex(Handle_t mutex_handle) {
 }
 
 /***************************************
- * svt_destroy_mutex
+ * svt_jxs_destroy_mutex
  ***************************************/
-SvtJxsErrorType_t svt_destroy_mutex(Handle_t mutex_handle) {
+SvtJxsErrorType_t svt_jxs_destroy_mutex(Handle_t mutex_handle) {
     SvtJxsErrorType_t return_error;
 
 #ifdef _WIN32
@@ -371,7 +324,7 @@ SvtJxsErrorType_t svt_destroy_mutex(Handle_t mutex_handle) {
     a lock(mutex) and enter the sleeping state.
     it could be seen as a combined: wait and release mutex
 */
-SvtJxsErrorType_t svt_create_cond_var(CondVar *cond_var) {
+SvtJxsErrorType_t svt_jxs_create_cond_var(CondVar *cond_var) {
     SvtJxsErrorType_t return_error;
     cond_var->val = 0;
 #ifdef _WIN32
@@ -393,7 +346,7 @@ SvtJxsErrorType_t svt_create_cond_var(CondVar *cond_var) {
 /*
     free condition variable
 */
-SvtJxsErrorType_t svt_free_cond_var(CondVar *cond_var) {
+SvtJxsErrorType_t svt_jxs_free_cond_var(CondVar *cond_var) {
     SvtJxsErrorType_t return_error;
 #ifdef _WIN32
     DeleteCriticalSection(&cond_var->cs);
@@ -409,7 +362,7 @@ SvtJxsErrorType_t svt_free_cond_var(CondVar *cond_var) {
 /*
     set a  condition variable to the new value
 */
-SvtJxsErrorType_t svt_set_cond_var(CondVar *cond_var, int32_t new_value) {
+SvtJxsErrorType_t svt_jxs_set_cond_var(CondVar *cond_var, int32_t new_value) {
     SvtJxsErrorType_t return_error;
 #ifdef _WIN32
     EnterCriticalSection(&cond_var->cs);
@@ -431,7 +384,7 @@ SvtJxsErrorType_t svt_set_cond_var(CondVar *cond_var, int32_t new_value) {
 /*
     add to condition variable to the value
 */
-SvtJxsErrorType_t svt_add_cond_var(CondVar *cond_var, int32_t add_value) {
+SvtJxsErrorType_t svt_jxs_add_cond_var(CondVar *cond_var, int32_t add_value) {
     SvtJxsErrorType_t return_error;
 #ifdef _WIN32
     EnterCriticalSection(&cond_var->cs);
@@ -454,7 +407,7 @@ SvtJxsErrorType_t svt_add_cond_var(CondVar *cond_var, int32_t add_value) {
     wait until the cond variable changes to a value
     different than input
 */
-SvtJxsErrorType_t svt_wait_cond_var(CondVar *cond_var, int32_t input) {
+SvtJxsErrorType_t svt_jxs_wait_cond_var(CondVar *cond_var, int32_t input) {
     SvtJxsErrorType_t return_error = SvtJxsErrorNone;
 
 #ifdef _WIN32

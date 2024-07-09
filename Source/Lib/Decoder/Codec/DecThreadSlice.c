@@ -43,9 +43,9 @@ SvtJxsErrorType_t universal_thread_context_ctor(ThreadContext_t* thread_context_
     thread_context_ptr->priv = context_ptr;
     thread_context_ptr->dctor = universal_thread_context_dctor;
     context_ptr->dec_api_prv = (svt_jpeg_xs_decoder_api_prv_t*)dec_api_prv;
-    context_ptr->universal_consumer_fifo_ptr = svt_system_resource_get_consumer_fifo(
+    context_ptr->universal_consumer_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(
         context_ptr->dec_api_prv->universal_buffer_resource_ptr, idx);
-    context_ptr->final_producer_fifo_ptr = svt_system_resource_get_producer_fifo(
+    context_ptr->final_producer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(
         context_ptr->dec_api_prv->final_buffer_resource_ptr, idx);
     context_ptr->process_idx = idx;
     context_ptr->dec_thread_context = svt_jpeg_xs_dec_thread_context_alloc(&dec_api_prv->dec_common.pi);
@@ -122,7 +122,7 @@ void* thread_universal_stage_kernel(void* input_ptr) {
         }
 
         ObjectWrapper_t* universal_wrapper_ptr = NULL;
-        SvtJxsErrorType_t ret = svt_get_empty_object(universal_ctx->final_producer_fifo_ptr, &universal_wrapper_ptr);
+        SvtJxsErrorType_t ret = svt_jxs_get_empty_object(universal_ctx->final_producer_fifo_ptr, &universal_wrapper_ptr);
         if (ret != SvtJxsErrorNone || universal_wrapper_ptr == NULL) {
             continue;
         }
@@ -140,8 +140,8 @@ void* thread_universal_stage_kernel(void* input_ptr) {
                     (int)dec_ctx->frame_num);
         }
 
-        svt_post_full_object(universal_wrapper_ptr);
-        svt_release_object(input_wrapper_ptr);
+        svt_jxs_post_full_object(universal_wrapper_ptr);
+        svt_jxs_release_object(input_wrapper_ptr);
     }
 
     return NULL;

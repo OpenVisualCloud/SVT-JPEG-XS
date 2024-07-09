@@ -29,10 +29,10 @@ PREFIX_API void svt_jpeg_xs_decoder_close(svt_jpeg_xs_decoder_api_t* dec_api) {
     if (dec_api) {
         svt_jpeg_xs_decoder_api_prv_t* dec_api_prv = (svt_jpeg_xs_decoder_api_prv_t*)dec_api->private_ptr;
         if (dec_api_prv) {
-            svt_shutdown_process(dec_api_prv->input_buffer_resource_ptr);
-            svt_shutdown_process(dec_api_prv->universal_buffer_resource_ptr);
-            svt_shutdown_process(dec_api_prv->final_buffer_resource_ptr);
-            svt_shutdown_process(dec_api_prv->output_buffer_resource_ptr);
+            svt_jxs_shutdown_process(dec_api_prv->input_buffer_resource_ptr);
+            svt_jxs_shutdown_process(dec_api_prv->universal_buffer_resource_ptr);
+            svt_jxs_shutdown_process(dec_api_prv->final_buffer_resource_ptr);
+            svt_jxs_shutdown_process(dec_api_prv->output_buffer_resource_ptr);
 
             SVT_DESTROY_THREAD(dec_api_prv->input_stage_thread_handle);
             SVT_DESTROY_THREAD_ARRAY(dec_api_prv->universal_stage_thread_handle_array, dec_api_prv->universal_threads_num);
@@ -47,7 +47,7 @@ PREFIX_API void svt_jpeg_xs_decoder_close(svt_jpeg_xs_decoder_api_t* dec_api) {
             SVT_DELETE(dec_api_prv->internal_pool_decoder_instance_resource_ptr);
 
             SVT_FREE(dec_api_prv->sync_output_ringbuffer);
-            svt_free_cond_var(&dec_api_prv->sync_output_ringbuffer_left);
+            svt_jxs_free_cond_var(&dec_api_prv->sync_output_ringbuffer_left);
 
             for (uint32_t c = 0; c < MAX_COMPONENTS_NUM; c++) {
                 SVT_FREE(dec_api_prv->dec_common.buffer_tmp_cpih[c]);
@@ -55,7 +55,7 @@ PREFIX_API void svt_jpeg_xs_decoder_close(svt_jpeg_xs_decoder_api_t* dec_api) {
             SVT_FREE(dec_api->private_ptr);
         }
         dec_api->private_ptr = NULL;
-        svt_decrease_component_count();
+        svt_jxs_decrease_component_count();
     }
 }
 
@@ -110,7 +110,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         return ret;
     }
 
-    svt_increase_component_count();
+    svt_jxs_increase_component_count();
     svt_jpeg_xs_decoder_api_prv_t* dec_api_prv = (svt_jpeg_xs_decoder_api_prv_t*)dec_api->private_ptr;
     dec_api_prv->callback_decoder_ctx = dec_api;
     dec_api_prv->callback_send_data_available = dec_api->callback_send_data_available;
@@ -235,37 +235,39 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
     if (!dec_api_prv->packetization_mode) {
         //Allocate Input Queue:
         SVT_NEW(dec_api_prv->input_buffer_resource_ptr,
-                svt_system_resource_ctor,
+                svt_jxs_system_resource_ctor,
                 input_bitstream_queue_count,
                 1,
                 1,
                 input_bitstream_creator,
                 NULL,
                 input_bitstream_destroyer);
-        dec_api_prv->input_producer_fifo_ptr = svt_system_resource_get_producer_fifo(dec_api_prv->input_buffer_resource_ptr, 0);
-        dec_api_prv->input_consumer_fifo_ptr = svt_system_resource_get_consumer_fifo(dec_api_prv->input_buffer_resource_ptr, 0);
+        dec_api_prv->input_producer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(dec_api_prv->input_buffer_resource_ptr,
+                                                                                         0);
+        dec_api_prv->input_consumer_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(dec_api_prv->input_buffer_resource_ptr,
+                                                                                         0);
     }
 
     SVT_NEW(dec_api_prv->universal_buffer_resource_ptr,
-            svt_system_resource_ctor,
+            svt_jxs_system_resource_ctor,
             dec_api_prv->universal_threads_num,
             1,
             dec_api_prv->universal_threads_num,
             universal_frame_task_creator,
             NULL,
             universal_frame_task_creator_destroy);
-    dec_api_prv->universal_producer_fifo_ptr = svt_system_resource_get_producer_fifo(dec_api_prv->universal_buffer_resource_ptr,
-                                                                                     0);
+    dec_api_prv->universal_producer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(
+        dec_api_prv->universal_buffer_resource_ptr, 0);
 
     SVT_NEW(dec_api_prv->final_buffer_resource_ptr,
-            svt_system_resource_ctor,
+            svt_jxs_system_resource_ctor,
             output_bitsteram_queue_count,
             dec_api_prv->universal_threads_num,
             1,
             final_sync_creator,
             NULL,
             final_sync_destroyer);
-    dec_api_prv->final_consumer_fifo_ptr = svt_system_resource_get_consumer_fifo(dec_api_prv->final_buffer_resource_ptr, 0);
+    dec_api_prv->final_consumer_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(dec_api_prv->final_buffer_resource_ptr, 0);
 
     //Call after alloc Universal output queue
     SVT_ALLOC_PTR_ARRAY(dec_api_prv->universal_stage_context_ptr_array, dec_api_prv->universal_threads_num);
@@ -277,33 +279,33 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
     }
 
     SVT_MALLOC(dec_api_prv->sync_output_ringbuffer, dec_api_prv->sync_output_ringbuffer_size * sizeof(OutItem));
-    ret = svt_create_cond_var(&dec_api_prv->sync_output_ringbuffer_left);
+    ret = svt_jxs_create_cond_var(&dec_api_prv->sync_output_ringbuffer_left);
     if (ret) {
         svt_jpeg_xs_decoder_close(dec_api);
         return ret;
     }
-    svt_set_cond_var(&dec_api_prv->sync_output_ringbuffer_left, dec_api_prv->sync_output_ringbuffer_size);
+    svt_jxs_set_cond_var(&dec_api_prv->sync_output_ringbuffer_left, dec_api_prv->sync_output_ringbuffer_size);
 
     SVT_NEW(dec_api_prv->output_buffer_resource_ptr,
-            svt_system_resource_ctor,
+            svt_jxs_system_resource_ctor,
             output_bitsteram_queue_count,
             1,
             1,
             output_frame_creator,
             NULL,
             output_frame_destroyer);
-    dec_api_prv->output_producer_fifo_ptr = svt_system_resource_get_producer_fifo(dec_api_prv->output_buffer_resource_ptr, 0);
-    dec_api_prv->output_consumer_fifo_ptr = svt_system_resource_get_consumer_fifo(dec_api_prv->output_buffer_resource_ptr, 0);
+    dec_api_prv->output_producer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(dec_api_prv->output_buffer_resource_ptr, 0);
+    dec_api_prv->output_consumer_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(dec_api_prv->output_buffer_resource_ptr, 0);
 
     SVT_NEW(dec_api_prv->internal_pool_decoder_instance_resource_ptr,
-            svt_system_resource_ctor,
+            svt_jxs_system_resource_ctor,
             pool_decoders_instances_count,
             1,
             0,
             pool_decoder_instance_create_ctor,
             dec_api_prv,
             pool_decoder_instance_destroy_ctor);
-    dec_api_prv->internal_pool_decoder_instance_fifo_ptr = svt_system_resource_get_producer_fifo(
+    dec_api_prv->internal_pool_decoder_instance_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(
         dec_api_prv->internal_pool_decoder_instance_resource_ptr, 0);
 
     if (!dec_api_prv->packetization_mode) {
@@ -325,7 +327,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
     if (dec_api_prv->verbose >= VERBOSE_ERRORS) {
         fprintf(stderr, "-------------------------------------------\n");
         svt_log_init();
-        svt_print_memory_usage();
+        svt_jxs_print_memory_usage();
     }
 
     return SvtJxsErrorNone;
@@ -369,10 +371,10 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
 
     ObjectWrapper_t* input_wrapper_ptr;
     if (blocking_flag) {
-        svt_get_empty_object(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
+        svt_jxs_get_empty_object(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
     }
     else {
-        svt_get_empty_object_non_blocking(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
+        svt_jxs_get_empty_object_non_blocking(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
     }
 
     if (dec_api->verbose >= VERBOSE_INFO_MULTITHREADING) {
@@ -383,7 +385,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
         TaskInputBitstream* buffer_input = (TaskInputBitstream*)input_wrapper_ptr->object_ptr;
         buffer_input->dec_input = *dec_input; /*Copy output buffer structure.*/
         buffer_input->flags = 0;
-        svt_post_full_object(input_wrapper_ptr);
+        svt_jxs_post_full_object(input_wrapper_ptr);
         return SvtJxsErrorNone;
     }
     return SvtJxsErrorNoErrorEmptyQueue; //Queue is full, please try again later
@@ -407,10 +409,10 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_frame(svt_jpeg_xs_decoder_a
     svt_jpeg_xs_decoder_api_prv_t* dec_api_prv = (svt_jpeg_xs_decoder_api_prv_t*)dec_api->private_ptr;
     ObjectWrapper_t* wrapper_ptr = NULL;
     if (blocking_flag) {
-        svt_get_full_object(dec_api_prv->output_consumer_fifo_ptr, &wrapper_ptr);
+        svt_jxs_get_full_object(dec_api_prv->output_consumer_fifo_ptr, &wrapper_ptr);
     }
     else {
-        svt_get_full_object_non_blocking(dec_api_prv->output_consumer_fifo_ptr, &wrapper_ptr);
+        svt_jxs_get_full_object_non_blocking(dec_api_prv->output_consumer_fifo_ptr, &wrapper_ptr);
     }
 
     if (wrapper_ptr) {
@@ -420,7 +422,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_frame(svt_jpeg_xs_decoder_a
         SvtJxsErrorType_t frame_error = input_buffer_ptr->frame_error;
 
         //Release buffer back:
-        svt_release_object(wrapper_ptr);
+        svt_jxs_release_object(wrapper_ptr);
         return frame_error;
     }
     else {
@@ -439,7 +441,8 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
     if (dec_api_prv->packetization_mode) {
         ObjectWrapper_t* wrapper_ptr_decoder_ctx = NULL;
 
-        SvtJxsErrorType_t ret = svt_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr, &wrapper_ptr_decoder_ctx);
+        SvtJxsErrorType_t ret = svt_jxs_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr,
+                                                         &wrapper_ptr_decoder_ctx);
 
         if (ret != SvtJxsErrorNone || wrapper_ptr_decoder_ctx == NULL) {
             return ret;
@@ -455,7 +458,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
         dec_api_prv->slice_scheduler_ctx.frame_num++;
 
         ObjectWrapper_t* universal_wrapper_ptr = NULL;
-        ret = svt_get_empty_object(dec_api_prv->universal_producer_fifo_ptr, &universal_wrapper_ptr);
+        ret = svt_jxs_get_empty_object(dec_api_prv->universal_producer_fifo_ptr, &universal_wrapper_ptr);
         if (ret != SvtJxsErrorNone || universal_wrapper_ptr == NULL) {
             return ret;
         }
@@ -471,11 +474,11 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
         buffer_output->slice_id = 0;
         dec_ctx->sync_num_slices_to_receive = 1;
 
-        svt_post_full_object(universal_wrapper_ptr);
+        svt_jxs_post_full_object(universal_wrapper_ptr);
     }
     else {
         ObjectWrapper_t* input_wrapper_ptr = NULL;
-        SvtJxsErrorType_t ret = svt_get_empty_object(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
+        SvtJxsErrorType_t ret = svt_jxs_get_empty_object(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
         if (ret != SvtJxsErrorNone || input_wrapper_ptr == NULL) {
             return ret;
         }
@@ -488,7 +491,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
             TaskInputBitstream* buffer_input = (TaskInputBitstream*)input_wrapper_ptr->object_ptr;
             memset(&buffer_input->dec_input, 0, sizeof(buffer_input->dec_input));
             buffer_input->flags = SvtJxsDecoderEndOfCodestream;
-            svt_post_full_object(input_wrapper_ptr);
+            svt_jxs_post_full_object(input_wrapper_ptr);
             return SvtJxsErrorNone;
         }
     }
