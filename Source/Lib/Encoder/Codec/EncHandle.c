@@ -949,7 +949,15 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_send_picture(svt_jpeg_xs_encode
     uint8_t input_bit_depth = enc_api_prv->enc_common.bit_depth;
     uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     for (uint8_t c = 0; c < pi->comps_num; ++c) {
-        if (enc_input->image.alloc_size[c] < enc_input->image.stride[c] * pi->components[c].height * pixel_size) {
+        uint32_t min_size;
+        // The last row might be shorter than the stride, e.g. in case the application is encoding
+        // an interlaced image with fields interleaved row by row, but feeding each field individually
+        // to the encoder. In that case the stride would be double the usual stride so the encoder only
+        // encodes every second row, but the last row of the second field would only have a single row
+        // of data left in it (half the stride in that case).
+        min_size = enc_input->image.stride[c] * pixel_size * (pi->components[c].height - 1);
+        min_size += pi->components[c].width * pixel_size;
+        if (enc_input->image.alloc_size[c] < min_size) {
             return SvtJxsErrorBadParameter;
         }
     }
