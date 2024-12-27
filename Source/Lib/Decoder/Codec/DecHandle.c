@@ -349,7 +349,18 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
     uint8_t input_bit_depth = dec_api_prv->dec_common.picture_header_const.hdr_bit_depth[0];
     uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     for (uint8_t c = 0; c < pi->comps_num; ++c) {
-        if (dec_input->image.alloc_size[c] < pi->components[c].width * pi->components[c].height * pixel_size) {
+        uint32_t min_size;
+        // The last row might be shorter than the stride, e.g. in case the application is decoding
+        // an interlaced image (represented by two codestreams, one for each field) into an output
+        // image where the fields in memory are interleaved row by row. When feeding each field
+        // codestream individually to the decoder, the stride will be double the usual rowstride
+        // so that the decoder skips a row in the output image and only splats the field pixels
+        // into every second row. The last row of the second field which is the last row of the
+        // output image would only have a single row of data left in it then though (at most half
+        // the specified rowstride in that case).
+        min_size = dec_input->image.stride[c] * pixel_size * (pi->components[c].height - 1);
+        min_size += pi->components[c].width * pixel_size;
+        if (dec_input->image.alloc_size[c] < min_size) {
             return SvtJxsErrorBadParameter;
         }
     }
