@@ -30,10 +30,8 @@ cd ffmpeg
 ```
 ### c) apply jpeg-xs plugin patches:
   ```
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/0001-Enable-JPEG-XS-codec-type.patch
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/0002-Allow-JPEG-XS-to-be-stored-in-mp4-mkv-container.patch
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/0003-svt-jpegxs-encoder-support.patch
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/0004-svt-jpegxs-decoder-support.patch
+  cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
+  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/6.1/*.patch
   ```
 ### d) Configure:
 ```
@@ -44,6 +42,9 @@ cd ffmpeg
 make -j40
 make install
 ```
+
+Note, for ffmpeg 7.0 version, replace 6.1 with 7.0 for above example commands.
+
 ## 4. Test executable:
 Binary (executable) is located in main ffmpeg directory or ```$INSTALL_DIR/bin/```
 
@@ -94,10 +95,8 @@ cd ffmpeg
 ```
 ### c) apply plugin patches:
   ```
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/0001-Enable-JPEG-XS-codec-type.patch
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/0002-Allow-JPEG-XS-to-be-stored-in-mp4-mkv-container.patch
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/0003-svt-jpegxs-encoder-support.patch
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/0004-svt-jpegxs-decoder-support.patch
+  cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
+  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/6.1/*.patch
 ```
 ### d) Export path for svt-jpeg-xs installation directory:
 ```
@@ -125,6 +124,8 @@ install-dir
 ```
 make -j10
 ```
+
+Note, for ffmpeg 7.0 version, replace 6.1 with 7.0 for above example commands.
 
 # How to use ffmpeg with jpeg-xs
 
