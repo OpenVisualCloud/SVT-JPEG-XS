@@ -8,3 +8,5 @@ Build/coverage_linux
 *.patch
 *.raw
 *.log
+.vs
+SVT-JPEG-XS/.vs
