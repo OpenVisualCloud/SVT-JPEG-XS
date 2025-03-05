@@ -22,7 +22,7 @@ Unit Tests requirements (SvtJpegxsUnitTests):
 
 Supported OS versions:
 
- - Linux Ubuntu 20.04 and 22.04
+ - Linux Ubuntu 20.04, 22.04 and 24.04
  - Windows 10 and Windows 11
 
 ## Build and Install
@@ -44,6 +44,26 @@ Supported OS versions:
 
 - __Binaries and libraries Location__
   - Binaries can be found under `<repo dir>/Bin/Release` or `<repo dir>/Bin/Debug`, depending on whether `Debug` or `Release` were selected in the build mode.
+
+- __API headers location__
+  - API headers can be found under `Source/API`
+
+### Windows* MSYS2 Build Environment (64-bit)
+
+- __Build Requirements__
+  - [MSYS2](https://wwww.msys2.org), Software Distribution and Building Platform for Windows
+- __Build Instructions__
+  - Open a terminal for the UCRT64 environment,
+  - if not yet installed, install packages like in readme.md of the ffmpeg-plugin folder of this repo
+  ```
+  pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils
+  ```
+  - `git clone https://github.com/vasilich-tregub/SVT-JPEG-XS.git` (forked from https://github.com/OpenVisualCloud/SVT-JPEG-XS.git)
+  - `cd SVT-JPEG-XS` (change the directory name, if necessary)
+  - `Build/windows/build.bat clean`
+
+- __Binaries and libraries location__
+  - Binaries can be found under `Bin/Release`
 
 - __API headers location__
   - API headers can be found under `Source/API`

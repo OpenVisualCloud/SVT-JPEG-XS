@@ -51,32 +51,15 @@ Binary (executable) is located in main ffmpeg directory or ```$INSTALL_DIR/bin/`
 
 # Windows ffmpeg plugin
 
-## 1. Download and install binary/installer from: https://www.msys2.org/
-## 2. Open terminal MINGW64
-
-<installation_path>\msys64\mingw64.exe
-*If an error with lack of support for MSYS environment is encountered, please ensure MINGW64 is used. You can switch to it from any shell by
-```source shell mingw64```. Your selected shell is written after a machine name e.g. ```user@user-mobl MSYS ~```
-
-## 3.  Configure new environment for MINGW64:
-### a) Export proxy(optional, if required):
-```
-export ftp_proxy=<ftp>
-export http_proxy=<http>
-export https_proxy=<https>
-```
-### b) Install packages:
-```
-pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils
-```
-## 4. Create installation directory and export env variable:
+## 2. Open terminal UCRT64 of MSYS2 and create installation directory and export env variable:
 ```
 mkdir install-dir
 export INSTALL_DIR=$PWD/install-dir
 ```
-## 5. Compile and install svt-jpeg-xs libs(In main svt-jpegxs folder)
+## 3. You should have installed svt-jpeg-xs libs (in main svt-jpegxs folder) as per root README.md of this repo
 ### a) Configure:
 ```
+cd ~/SVT-JPEG-XS
 cmake -S . -B svtjpegxs-build -DBUILD_APPS=off -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR
 ```
 ### b) Build:
@@ -86,6 +69,7 @@ cmake --build svtjpegxs-build -j10 --config Release --target install
 ## 6. Download/Compile Ffmpeg:
 ### a) Clone repository
 ```
+cd ~
 git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
 cd ffmpeg
 ```
