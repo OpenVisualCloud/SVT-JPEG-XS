@@ -9,8 +9,8 @@
 ; PATENTS file, you can obtain it at https://www.aomedia.org/license/patent-license.
 ;
 
-%undef WIN64
-%undef UNIX64
+%define WIN64 0
+%define UNIX64 0
 %ifidn __OUTPUT_FORMAT__,win32
     %define WIN64  1
 %elifidn __OUTPUT_FORMAT__,win64
