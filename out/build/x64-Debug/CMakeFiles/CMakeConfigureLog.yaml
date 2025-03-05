@@ -109,8 +109,8 @@ events:
     checks:
       - "Detecting C compiler ABI info"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-2uqqzl"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-2uqqzl"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nd5t2j"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nd5t2j"
     cmakeVariables:
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS /W3"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -122,11 +122,11 @@ events:
       variable: "CMAKE_C_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-2uqqzl'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nd5t2j'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_84a1c
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo   /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_84a1c.dir\\CMakeCCompilerABI.c.obj /FdCMakeFiles\\cmTC_84a1c.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.30\\Modules\\CMakeCCompilerABI.c"
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_84a1c.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_84a1c.dir\\CMakeCCompilerABI.c.obj  /out:cmTC_84a1c.exe /implib:cmTC_84a1c.lib /pdb:cmTC_84a1c.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_b9ba3
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo   /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_b9ba3.dir\\CMakeCCompilerABI.c.obj /FdCMakeFiles\\cmTC_b9ba3.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.30\\Modules\\CMakeCCompilerABI.c"
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_b9ba3.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_b9ba3.dir\\CMakeCCompilerABI.c.obj  /out:cmTC_b9ba3.exe /implib:cmTC_b9ba3.lib /pdb:cmTC_b9ba3.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -166,8 +166,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-vo0yfq"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-vo0yfq"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-hbmjjo"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-hbmjjo"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /W3 /GR /EHsc"
       CMAKE_CXX_SCAN_FOR_MODULES: "OFF"
@@ -180,11 +180,11 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-vo0yfq'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-hbmjjo'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_72213
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_72213.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_72213.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.30\\Modules\\CMakeCXXCompilerABI.cpp"
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_72213.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_72213.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_72213.exe /implib:cmTC_72213.lib /pdb:cmTC_72213.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_ba43f
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_ba43f.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_ba43f.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.30\\Modules\\CMakeCXXCompilerABI.cpp"
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_ba43f.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_ba43f.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_ba43f.exe /implib:cmTC_ba43f.lib /pdb:cmTC_ba43f.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -480,8 +480,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "CMakeLists.txt:182 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-te75re"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-te75re"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-wnttkr"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-wnttkr"
     cmakeVariables:
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS /W3"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -494,12 +494,12 @@ events:
       variable: "C_FLAG_Wformat_security"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-te75re'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-wnttkr'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_5f561
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wformat_security  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wformat-security /showIncludes /FoCMakeFiles\\cmTC_5f561.dir\\src.c.obj /FdCMakeFiles\\cmTC_5f561.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-te75re\\src.c
-        FAILED: CMakeFiles/cmTC_5f561.dir/src.c.obj 
-        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wformat_security  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wformat-security /showIncludes /FoCMakeFiles\\cmTC_5f561.dir\\src.c.obj /FdCMakeFiles\\cmTC_5f561.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-te75re\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_9acbe
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wformat_security  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wformat-security /showIncludes /FoCMakeFiles\\cmTC_9acbe.dir\\src.c.obj /FdCMakeFiles\\cmTC_9acbe.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-wnttkr\\src.c
+        FAILED: CMakeFiles/cmTC_9acbe.dir/src.c.obj 
+        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wformat_security  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wformat-security /showIncludes /FoCMakeFiles\\cmTC_9acbe.dir\\src.c.obj /FdCMakeFiles\\cmTC_9acbe.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-wnttkr\\src.c
         cl : Command line error D8021 : invalid numeric argument '/Wformat-security'
         ninja: build stopped: subcommand failed.
         
@@ -515,8 +515,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "CMakeLists.txt:182 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-x1czfm"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-x1czfm"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fp5slu"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fp5slu"
     cmakeVariables:
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS /W3"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -529,12 +529,12 @@ events:
       variable: "C_FLAG_Wformat"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-x1czfm'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fp5slu'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_6ba95
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wformat  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wformat /showIncludes /FoCMakeFiles\\cmTC_6ba95.dir\\src.c.obj /FdCMakeFiles\\cmTC_6ba95.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-x1czfm\\src.c
-        FAILED: CMakeFiles/cmTC_6ba95.dir/src.c.obj 
-        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wformat  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wformat /showIncludes /FoCMakeFiles\\cmTC_6ba95.dir\\src.c.obj /FdCMakeFiles\\cmTC_6ba95.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-x1czfm\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_b8240
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wformat  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wformat /showIncludes /FoCMakeFiles\\cmTC_b8240.dir\\src.c.obj /FdCMakeFiles\\cmTC_b8240.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-fp5slu\\src.c
+        FAILED: CMakeFiles/cmTC_b8240.dir/src.c.obj 
+        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wformat  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wformat /showIncludes /FoCMakeFiles\\cmTC_b8240.dir\\src.c.obj /FdCMakeFiles\\cmTC_b8240.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-fp5slu\\src.c
         cl : Command line error D8021 : invalid numeric argument '/Wformat'
         ninja: build stopped: subcommand failed.
         
@@ -550,8 +550,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "CMakeLists.txt:182 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-krv4cw"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-krv4cw"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8abldv"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8abldv"
     cmakeVariables:
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS /W3"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -564,12 +564,12 @@ events:
       variable: "C_FLAG_Wextra"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-krv4cw'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8abldv'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_97238
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wextra  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wextra /showIncludes /FoCMakeFiles\\cmTC_97238.dir\\src.c.obj /FdCMakeFiles\\cmTC_97238.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-krv4cw\\src.c
-        FAILED: CMakeFiles/cmTC_97238.dir/src.c.obj 
-        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wextra  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wextra /showIncludes /FoCMakeFiles\\cmTC_97238.dir\\src.c.obj /FdCMakeFiles\\cmTC_97238.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-krv4cw\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_634b3
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wextra  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wextra /showIncludes /FoCMakeFiles\\cmTC_634b3.dir\\src.c.obj /FdCMakeFiles\\cmTC_634b3.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-8abldv\\src.c
+        FAILED: CMakeFiles/cmTC_634b3.dir/src.c.obj 
+        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wextra  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   -Wextra /showIncludes /FoCMakeFiles\\cmTC_634b3.dir\\src.c.obj /FdCMakeFiles\\cmTC_634b3.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-8abldv\\src.c
         cl : Command line error D8021 : invalid numeric argument '/Wextra'
         ninja: build stopped: subcommand failed.
         
@@ -585,8 +585,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "CMakeLists.txt:182 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-dh5h44"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-dh5h44"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-z8ddmu"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-z8ddmu"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /W3 /GR /EHsc"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -599,12 +599,12 @@ events:
       variable: "CXX_FLAG_Wformat_security"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-dh5h44'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-z8ddmu'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_56021
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wformat_security  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wformat-security /showIncludes /FoCMakeFiles\\cmTC_56021.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_56021.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-dh5h44\\src.cxx
-        FAILED: CMakeFiles/cmTC_56021.dir/src.cxx.obj 
-        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wformat_security  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wformat-security /showIncludes /FoCMakeFiles\\cmTC_56021.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_56021.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-dh5h44\\src.cxx
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_29b70
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wformat_security  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wformat-security /showIncludes /FoCMakeFiles\\cmTC_29b70.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_29b70.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-z8ddmu\\src.cxx
+        FAILED: CMakeFiles/cmTC_29b70.dir/src.cxx.obj 
+        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wformat_security  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wformat-security /showIncludes /FoCMakeFiles\\cmTC_29b70.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_29b70.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-z8ddmu\\src.cxx
         cl : Command line error D8021 : invalid numeric argument '/Wformat-security'
         ninja: build stopped: subcommand failed.
         
@@ -620,8 +620,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "CMakeLists.txt:182 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-jhtpxp"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-jhtpxp"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8vy916"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8vy916"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /W3 /GR /EHsc"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -634,12 +634,12 @@ events:
       variable: "CXX_FLAG_Wformat"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-jhtpxp'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8vy916'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_8368f
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wformat  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wformat /showIncludes /FoCMakeFiles\\cmTC_8368f.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_8368f.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-jhtpxp\\src.cxx
-        FAILED: CMakeFiles/cmTC_8368f.dir/src.cxx.obj 
-        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wformat  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wformat /showIncludes /FoCMakeFiles\\cmTC_8368f.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_8368f.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-jhtpxp\\src.cxx
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_5f74e
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wformat  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wformat /showIncludes /FoCMakeFiles\\cmTC_5f74e.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_5f74e.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-8vy916\\src.cxx
+        FAILED: CMakeFiles/cmTC_5f74e.dir/src.cxx.obj 
+        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wformat  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wformat /showIncludes /FoCMakeFiles\\cmTC_5f74e.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_5f74e.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-8vy916\\src.cxx
         cl : Command line error D8021 : invalid numeric argument '/Wformat'
         ninja: build stopped: subcommand failed.
         
@@ -655,8 +655,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "CMakeLists.txt:182 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-yo6c7b"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-yo6c7b"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ljr88s"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ljr88s"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /W3 /GR /EHsc"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -669,12 +669,12 @@ events:
       variable: "CXX_FLAG_Wextra"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-yo6c7b'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ljr88s'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_63124
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wextra  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wextra /showIncludes /FoCMakeFiles\\cmTC_63124.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_63124.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-yo6c7b\\src.cxx
-        FAILED: CMakeFiles/cmTC_63124.dir/src.cxx.obj 
-        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wextra  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wextra /showIncludes /FoCMakeFiles\\cmTC_63124.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_63124.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-yo6c7b\\src.cxx
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_a9748
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wextra  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wextra /showIncludes /FoCMakeFiles\\cmTC_a9748.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_a9748.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-ljr88s\\src.cxx
+        FAILED: CMakeFiles/cmTC_a9748.dir/src.cxx.obj 
+        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wextra  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   -Wextra /showIncludes /FoCMakeFiles\\cmTC_a9748.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_a9748.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-ljr88s\\src.cxx
         cl : Command line error D8021 : invalid numeric argument '/Wextra'
         ninja: build stopped: subcommand failed.
         
@@ -690,8 +690,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "CMakeLists.txt:185 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nr6p8i"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nr6p8i"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-bxtk6m"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-bxtk6m"
     cmakeVariables:
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS /W3"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -704,11 +704,11 @@ events:
       variable: "C_FLAG_W3"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nr6p8i'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-bxtk6m'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_173e0
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_W3  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   /W3 /showIncludes /FoCMakeFiles\\cmTC_173e0.dir\\src.c.obj /FdCMakeFiles\\cmTC_173e0.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-nr6p8i\\src.c
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_173e0.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_173e0.dir\\src.c.obj  /out:cmTC_173e0.exe /implib:cmTC_173e0.lib /pdb:cmTC_173e0.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_7f776
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_W3  /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   /W3 /showIncludes /FoCMakeFiles\\cmTC_7f776.dir\\src.c.obj /FdCMakeFiles\\cmTC_7f776.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-bxtk6m\\src.c
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_7f776.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_7f776.dir\\src.c.obj  /out:cmTC_7f776.exe /implib:cmTC_7f776.lib /pdb:cmTC_7f776.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -722,8 +722,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "CMakeLists.txt:185 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-519o64"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-519o64"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-apyjjq"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-apyjjq"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /W3 /GR /EHsc"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -736,11 +736,11 @@ events:
       variable: "CXX_FLAG_W3"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-519o64'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-apyjjq'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_4ef10
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_W3  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   /W3 /showIncludes /FoCMakeFiles\\cmTC_4ef10.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_4ef10.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-519o64\\src.cxx
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_4ef10.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_4ef10.dir\\src.cxx.obj  /out:cmTC_4ef10.exe /implib:cmTC_4ef10.lib /pdb:cmTC_4ef10.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_e48f2
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_W3  /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   /W3 /showIncludes /FoCMakeFiles\\cmTC_e48f2.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_e48f2.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-apyjjq\\src.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_e48f2.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_e48f2.dir\\src.cxx.obj  /out:cmTC_e48f2.exe /implib:cmTC_e48f2.lib /pdb:cmTC_e48f2.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -754,8 +754,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "CMakeLists.txt:186 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-6zhu6t"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-6zhu6t"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-qrdpm7"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-qrdpm7"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -768,11 +768,11 @@ events:
       variable: "C_FLAG_MP"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-6zhu6t'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-qrdpm7'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_49442
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_MP  /W3 /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   /MP /showIncludes /FoCMakeFiles\\cmTC_49442.dir\\src.c.obj /FdCMakeFiles\\cmTC_49442.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-6zhu6t\\src.c
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_49442.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_49442.dir\\src.c.obj  /out:cmTC_49442.exe /implib:cmTC_49442.lib /pdb:cmTC_49442.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_42bf2
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_MP  /W3 /DWIN32 /D_WINDOWS /W3  /MDd /Zi /Ob0 /Od /RTC1   /MP /showIncludes /FoCMakeFiles\\cmTC_42bf2.dir\\src.c.obj /FdCMakeFiles\\cmTC_42bf2.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-qrdpm7\\src.c
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_42bf2.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_42bf2.dir\\src.c.obj  /out:cmTC_42bf2.exe /implib:cmTC_42bf2.lib /pdb:cmTC_42bf2.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -786,8 +786,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "CMakeLists.txt:186 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-t88464"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-t88464"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-76y5h8"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-76y5h8"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -800,11 +800,11 @@ events:
       variable: "CXX_FLAG_MP"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-t88464'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-76y5h8'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_c392b
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_MP  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   /MP /showIncludes /FoCMakeFiles\\cmTC_c392b.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_c392b.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-t88464\\src.cxx
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_c392b.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_c392b.dir\\src.cxx.obj  /out:cmTC_c392b.exe /implib:cmTC_c392b.lib /pdb:cmTC_c392b.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_08ad9
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_MP  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /MDd /Zi /Ob0 /Od /RTC1   /MP /showIncludes /FoCMakeFiles\\cmTC_08ad9.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_08ad9.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-76y5h8\\src.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_08ad9.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_08ad9.dir\\src.cxx.obj  /out:cmTC_08ad9.exe /implib:cmTC_08ad9.lib /pdb:cmTC_08ad9.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -818,8 +818,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "CMakeLists.txt:187 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-zu49x9"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-zu49x9"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-2wymbl"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-2wymbl"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -832,11 +832,11 @@ events:
       variable: "C_FLAG_Od"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-zu49x9'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-2wymbl'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_1cde6
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Od  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   /Od /showIncludes /FoCMakeFiles\\cmTC_1cde6.dir\\src.c.obj /FdCMakeFiles\\cmTC_1cde6.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-zu49x9\\src.c
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_1cde6.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_1cde6.dir\\src.c.obj  /out:cmTC_1cde6.exe /implib:cmTC_1cde6.lib /pdb:cmTC_1cde6.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_67727
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Od  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   /Od /showIncludes /FoCMakeFiles\\cmTC_67727.dir\\src.c.obj /FdCMakeFiles\\cmTC_67727.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-2wymbl\\src.c
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_67727.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_67727.dir\\src.c.obj  /out:cmTC_67727.exe /implib:cmTC_67727.lib /pdb:cmTC_67727.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -850,8 +850,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "CMakeLists.txt:187 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-1zgwek"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-1zgwek"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-25e2nd"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-25e2nd"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -864,11 +864,11 @@ events:
       variable: "CXX_FLAG_Od"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-1zgwek'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-25e2nd'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_68735
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Od  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   /Od /showIncludes /FoCMakeFiles\\cmTC_68735.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_68735.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-1zgwek\\src.cxx
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_68735.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_68735.dir\\src.cxx.obj  /out:cmTC_68735.exe /implib:cmTC_68735.lib /pdb:cmTC_68735.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_c048b
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Od  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   /Od /showIncludes /FoCMakeFiles\\cmTC_c048b.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_c048b.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-25e2nd\\src.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_c048b.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_c048b.dir\\src.cxx.obj  /out:cmTC_c048b.exe /implib:cmTC_c048b.lib /pdb:cmTC_c048b.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -883,8 +883,8 @@ events:
     checks:
       - "Performing Test CMAKE_HAVE_LIBC_PTHREAD"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-i9pvbn"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-i9pvbn"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-lfljzk"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-lfljzk"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -897,13 +897,13 @@ events:
       variable: "CMAKE_HAVE_LIBC_PTHREAD"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-i9pvbn'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-lfljzk'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_d6db4
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCMAKE_HAVE_LIBC_PTHREAD  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_d6db4.dir\\src.c.obj /FdCMakeFiles\\cmTC_d6db4.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-i9pvbn\\src.c
-        FAILED: CMakeFiles/cmTC_d6db4.dir/src.c.obj 
-        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCMAKE_HAVE_LIBC_PTHREAD  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_d6db4.dir\\src.c.obj /FdCMakeFiles\\cmTC_d6db4.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-i9pvbn\\src.c
-        C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-i9pvbn\\src.c(1): fatal error C1083: Cannot open include file: 'pthread.h': No such file or directory
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_c34f7
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCMAKE_HAVE_LIBC_PTHREAD  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_c34f7.dir\\src.c.obj /FdCMakeFiles\\cmTC_c34f7.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-lfljzk\\src.c
+        FAILED: CMakeFiles/cmTC_c34f7.dir/src.c.obj 
+        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCMAKE_HAVE_LIBC_PTHREAD  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_c34f7.dir\\src.c.obj /FdCMakeFiles\\cmTC_c34f7.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-lfljzk\\src.c
+        C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-lfljzk\\src.c(1): fatal error C1083: Cannot open include file: 'pthread.h': No such file or directory
         ninja: build stopped: subcommand failed.
         
       exitCode: 1
@@ -918,8 +918,8 @@ events:
     checks:
       - "Looking for pthread_create in pthreads"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-0bv0sk"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-0bv0sk"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7knb7h"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7knb7h"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -932,14 +932,14 @@ events:
       variable: "CMAKE_HAVE_PTHREADS_CREATE"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-0bv0sk'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7knb7h'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_d67a1
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo   /W3 /DWIN32 /D_WINDOWS /W3 /MP -DCHECK_FUNCTION_EXISTS=pthread_create /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_d67a1.dir\\CheckFunctionExists.c.obj /FdCMakeFiles\\cmTC_d67a1.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-0bv0sk\\CheckFunctionExists.c
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_d67a1.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_d67a1.dir\\CheckFunctionExists.c.obj  /out:cmTC_d67a1.exe /implib:cmTC_d67a1.lib /pdb:cmTC_d67a1.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthreads.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
-        FAILED: cmTC_d67a1.exe 
-        C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_d67a1.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_d67a1.dir\\CheckFunctionExists.c.obj  /out:cmTC_d67a1.exe /implib:cmTC_d67a1.lib /pdb:cmTC_d67a1.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthreads.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
-        LINK Pass 1: command "C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_d67a1.dir\\CheckFunctionExists.c.obj /out:cmTC_d67a1.exe /implib:cmTC_d67a1.lib /pdb:cmTC_d67a1.pdb /version:0.0 /machine:x64 /debug /INCREMENTAL /subsystem:console pthreads.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTFILE:CMakeFiles\\cmTC_d67a1.dir/intermediate.manifest CMakeFiles\\cmTC_d67a1.dir/manifest.res" failed (exit code 1104) with the following output:
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_48ac9
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo   /W3 /DWIN32 /D_WINDOWS /W3 /MP -DCHECK_FUNCTION_EXISTS=pthread_create /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_48ac9.dir\\CheckFunctionExists.c.obj /FdCMakeFiles\\cmTC_48ac9.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-7knb7h\\CheckFunctionExists.c
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_48ac9.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_48ac9.dir\\CheckFunctionExists.c.obj  /out:cmTC_48ac9.exe /implib:cmTC_48ac9.lib /pdb:cmTC_48ac9.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthreads.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        FAILED: cmTC_48ac9.exe 
+        C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_48ac9.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_48ac9.dir\\CheckFunctionExists.c.obj  /out:cmTC_48ac9.exe /implib:cmTC_48ac9.lib /pdb:cmTC_48ac9.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthreads.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        LINK Pass 1: command "C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_48ac9.dir\\CheckFunctionExists.c.obj /out:cmTC_48ac9.exe /implib:cmTC_48ac9.lib /pdb:cmTC_48ac9.pdb /version:0.0 /machine:x64 /debug /INCREMENTAL /subsystem:console pthreads.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTFILE:CMakeFiles\\cmTC_48ac9.dir/intermediate.manifest CMakeFiles\\cmTC_48ac9.dir/manifest.res" failed (exit code 1104) with the following output:
         LINK : fatal error LNK1104: cannot open file 'pthreads.lib'\x0d
         ninja: build stopped: subcommand failed.
         
@@ -955,8 +955,8 @@ events:
     checks:
       - "Looking for pthread_create in pthread"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-j7g9o4"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-j7g9o4"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-m93pze"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-m93pze"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -969,14 +969,14 @@ events:
       variable: "CMAKE_HAVE_PTHREAD_CREATE"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-j7g9o4'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-m93pze'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_9d633
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo   /W3 /DWIN32 /D_WINDOWS /W3 /MP -DCHECK_FUNCTION_EXISTS=pthread_create /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_9d633.dir\\CheckFunctionExists.c.obj /FdCMakeFiles\\cmTC_9d633.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-j7g9o4\\CheckFunctionExists.c
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_9d633.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_9d633.dir\\CheckFunctionExists.c.obj  /out:cmTC_9d633.exe /implib:cmTC_9d633.lib /pdb:cmTC_9d633.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthread.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
-        FAILED: cmTC_9d633.exe 
-        C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_9d633.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_9d633.dir\\CheckFunctionExists.c.obj  /out:cmTC_9d633.exe /implib:cmTC_9d633.lib /pdb:cmTC_9d633.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthread.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
-        LINK Pass 1: command "C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_9d633.dir\\CheckFunctionExists.c.obj /out:cmTC_9d633.exe /implib:cmTC_9d633.lib /pdb:cmTC_9d633.pdb /version:0.0 /machine:x64 /debug /INCREMENTAL /subsystem:console pthread.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTFILE:CMakeFiles\\cmTC_9d633.dir/intermediate.manifest CMakeFiles\\cmTC_9d633.dir/manifest.res" failed (exit code 1104) with the following output:
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_16ffc
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo   /W3 /DWIN32 /D_WINDOWS /W3 /MP -DCHECK_FUNCTION_EXISTS=pthread_create /MDd /Zi /Ob0 /Od /RTC1 /showIncludes /FoCMakeFiles\\cmTC_16ffc.dir\\CheckFunctionExists.c.obj /FdCMakeFiles\\cmTC_16ffc.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-m93pze\\CheckFunctionExists.c
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_16ffc.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_16ffc.dir\\CheckFunctionExists.c.obj  /out:cmTC_16ffc.exe /implib:cmTC_16ffc.lib /pdb:cmTC_16ffc.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthread.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        FAILED: cmTC_16ffc.exe 
+        C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_16ffc.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_16ffc.dir\\CheckFunctionExists.c.obj  /out:cmTC_16ffc.exe /implib:cmTC_16ffc.lib /pdb:cmTC_16ffc.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthread.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        LINK Pass 1: command "C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_16ffc.dir\\CheckFunctionExists.c.obj /out:cmTC_16ffc.exe /implib:cmTC_16ffc.lib /pdb:cmTC_16ffc.pdb /version:0.0 /machine:x64 /debug /INCREMENTAL /subsystem:console pthread.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTFILE:CMakeFiles\\cmTC_16ffc.dir/intermediate.manifest CMakeFiles\\cmTC_16ffc.dir/manifest.res" failed (exit code 1104) with the following output:
         LINK : fatal error LNK1104: cannot open file 'pthread.lib'\x0d
         ninja: build stopped: subcommand failed.
         
@@ -992,8 +992,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "CMakeLists.txt:306 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-3gtlpt"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-3gtlpt"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-uigxc4"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-uigxc4"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1006,12 +1006,12 @@ events:
       variable: "C_FLAG_Wno_unused_parameter"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-3gtlpt'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-uigxc4'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_5cd4d
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wno_unused_parameter  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -Wno-unused-parameter /showIncludes /FoCMakeFiles\\cmTC_5cd4d.dir\\src.c.obj /FdCMakeFiles\\cmTC_5cd4d.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-3gtlpt\\src.c
-        FAILED: CMakeFiles/cmTC_5cd4d.dir/src.c.obj 
-        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wno_unused_parameter  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -Wno-unused-parameter /showIncludes /FoCMakeFiles\\cmTC_5cd4d.dir\\src.c.obj /FdCMakeFiles\\cmTC_5cd4d.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-3gtlpt\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_849c4
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wno_unused_parameter  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -Wno-unused-parameter /showIncludes /FoCMakeFiles\\cmTC_849c4.dir\\src.c.obj /FdCMakeFiles\\cmTC_849c4.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-uigxc4\\src.c
+        FAILED: CMakeFiles/cmTC_849c4.dir/src.c.obj 
+        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_Wno_unused_parameter  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -Wno-unused-parameter /showIncludes /FoCMakeFiles\\cmTC_849c4.dir\\src.c.obj /FdCMakeFiles\\cmTC_849c4.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-uigxc4\\src.c
         cl : Command line error D8021 : invalid numeric argument '/Wno-unused-parameter'
         ninja: build stopped: subcommand failed.
         
@@ -1027,8 +1027,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "CMakeLists.txt:306 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-y8lkbz"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-y8lkbz"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nwmy37"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nwmy37"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1041,12 +1041,12 @@ events:
       variable: "CXX_FLAG_Wno_unused_parameter"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-y8lkbz'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nwmy37'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_d0615
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wno_unused_parameter  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -Wno-unused-parameter /showIncludes /FoCMakeFiles\\cmTC_d0615.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_d0615.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-y8lkbz\\src.cxx
-        FAILED: CMakeFiles/cmTC_d0615.dir/src.cxx.obj 
-        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wno_unused_parameter  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -Wno-unused-parameter /showIncludes /FoCMakeFiles\\cmTC_d0615.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_d0615.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-y8lkbz\\src.cxx
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_4244a
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wno_unused_parameter  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -Wno-unused-parameter /showIncludes /FoCMakeFiles\\cmTC_4244a.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_4244a.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-nwmy37\\src.cxx
+        FAILED: CMakeFiles/cmTC_4244a.dir/src.cxx.obj 
+        C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_Wno_unused_parameter  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -Wno-unused-parameter /showIncludes /FoCMakeFiles\\cmTC_4244a.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_4244a.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-nwmy37\\src.cxx
         cl : Command line error D8021 : invalid numeric argument '/Wno-unused-parameter'
         ninja: build stopped: subcommand failed.
         
@@ -1062,8 +1062,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "Source/Lib/Common/ASM_SSE2/CMakeLists.txt:15 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-16yu8j"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-16yu8j"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7zmn2l"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7zmn2l"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1076,12 +1076,12 @@ events:
       variable: "C_FLAG_msse2"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-16yu8j'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7zmn2l'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_e5bab
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_msse2  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -msse2 /showIncludes /FoCMakeFiles\\cmTC_e5bab.dir\\src.c.obj /FdCMakeFiles\\cmTC_e5bab.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-16yu8j\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_9233a
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_msse2  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -msse2 /showIncludes /FoCMakeFiles\\cmTC_9233a.dir\\src.c.obj /FdCMakeFiles\\cmTC_9233a.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-7zmn2l\\src.c
         cl : Command line warning D9002 : ignoring unknown option '-msse2'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_e5bab.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_e5bab.dir\\src.c.obj  /out:cmTC_e5bab.exe /implib:cmTC_e5bab.lib /pdb:cmTC_e5bab.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_9233a.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_9233a.dir\\src.c.obj  /out:cmTC_9233a.exe /implib:cmTC_9233a.lib /pdb:cmTC_9233a.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1095,8 +1095,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "Source/Lib/Common/ASM_SSE2/CMakeLists.txt:15 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-4di5g3"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-4di5g3"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-0s0qxt"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-0s0qxt"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1109,12 +1109,12 @@ events:
       variable: "CXX_FLAG_msse2"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-4di5g3'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-0s0qxt'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_4c26e
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_msse2  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -msse2 /showIncludes /FoCMakeFiles\\cmTC_4c26e.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_4c26e.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-4di5g3\\src.cxx
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_9d521
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_msse2  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -msse2 /showIncludes /FoCMakeFiles\\cmTC_9d521.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_9d521.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-0s0qxt\\src.cxx
         cl : Command line warning D9002 : ignoring unknown option '-msse2'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_4c26e.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_4c26e.dir\\src.cxx.obj  /out:cmTC_4c26e.exe /implib:cmTC_4c26e.lib /pdb:cmTC_4c26e.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_9d521.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_9d521.dir\\src.cxx.obj  /out:cmTC_9d521.exe /implib:cmTC_9d521.lib /pdb:cmTC_9d521.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1128,8 +1128,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "Source/Lib/Common/ASM_AVX2/CMakeLists.txt:16 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7ql474"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7ql474"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-1ii6v4"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-1ii6v4"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1142,12 +1142,12 @@ events:
       variable: "C_FLAG_mavx2"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7ql474'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-1ii6v4'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_11acd
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_mavx2  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx2 /showIncludes /FoCMakeFiles\\cmTC_11acd.dir\\src.c.obj /FdCMakeFiles\\cmTC_11acd.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-7ql474\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_8c1f5
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_mavx2  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx2 /showIncludes /FoCMakeFiles\\cmTC_8c1f5.dir\\src.c.obj /FdCMakeFiles\\cmTC_8c1f5.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-1ii6v4\\src.c
         cl : Command line warning D9002 : ignoring unknown option '-mavx2'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_11acd.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_11acd.dir\\src.c.obj  /out:cmTC_11acd.exe /implib:cmTC_11acd.lib /pdb:cmTC_11acd.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_8c1f5.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_8c1f5.dir\\src.c.obj  /out:cmTC_8c1f5.exe /implib:cmTC_8c1f5.lib /pdb:cmTC_8c1f5.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1161,8 +1161,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "Source/Lib/Common/ASM_AVX2/CMakeLists.txt:16 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-0r81x9"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-0r81x9"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-52u6jm"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-52u6jm"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1175,12 +1175,12 @@ events:
       variable: "CXX_FLAG_mavx2"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-0r81x9'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-52u6jm'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_2b56d
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_mavx2  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx2 /showIncludes /FoCMakeFiles\\cmTC_2b56d.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_2b56d.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-0r81x9\\src.cxx
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_8ae87
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_mavx2  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx2 /showIncludes /FoCMakeFiles\\cmTC_8ae87.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_8ae87.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-52u6jm\\src.cxx
         cl : Command line warning D9002 : ignoring unknown option '-mavx2'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_2b56d.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_2b56d.dir\\src.cxx.obj  /out:cmTC_2b56d.exe /implib:cmTC_2b56d.lib /pdb:cmTC_2b56d.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_8ae87.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_8ae87.dir\\src.cxx.obj  /out:cmTC_8ae87.exe /implib:cmTC_8ae87.lib /pdb:cmTC_8ae87.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1194,8 +1194,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "Source/Lib/Common/ASM_AVX2/CMakeLists.txt:19 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fvm444"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fvm444"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-vgs8r2"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-vgs8r2"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1208,11 +1208,11 @@ events:
       variable: "C_FLAG_arch_AVX2"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fvm444'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-vgs8r2'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_0d15d
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_arch_AVX2  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   /arch:AVX2 /showIncludes /FoCMakeFiles\\cmTC_0d15d.dir\\src.c.obj /FdCMakeFiles\\cmTC_0d15d.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-fvm444\\src.c
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_0d15d.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_0d15d.dir\\src.c.obj  /out:cmTC_0d15d.exe /implib:cmTC_0d15d.lib /pdb:cmTC_0d15d.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_0d9f7
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_arch_AVX2  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   /arch:AVX2 /showIncludes /FoCMakeFiles\\cmTC_0d9f7.dir\\src.c.obj /FdCMakeFiles\\cmTC_0d9f7.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-vgs8r2\\src.c
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_0d9f7.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_0d9f7.dir\\src.c.obj  /out:cmTC_0d9f7.exe /implib:cmTC_0d9f7.lib /pdb:cmTC_0d9f7.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1226,8 +1226,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "Source/Lib/Common/ASM_AVX2/CMakeLists.txt:19 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8zokep"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8zokep"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-pghin5"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-pghin5"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1240,11 +1240,11 @@ events:
       variable: "CXX_FLAG_arch_AVX2"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8zokep'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-pghin5'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_332ad
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_arch_AVX2  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   /arch:AVX2 /showIncludes /FoCMakeFiles\\cmTC_332ad.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_332ad.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-8zokep\\src.cxx
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_332ad.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_332ad.dir\\src.cxx.obj  /out:cmTC_332ad.exe /implib:cmTC_332ad.lib /pdb:cmTC_332ad.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_0b23c
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_arch_AVX2  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   /arch:AVX2 /showIncludes /FoCMakeFiles\\cmTC_0b23c.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_0b23c.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-pghin5\\src.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_0b23c.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_0b23c.dir\\src.cxx.obj  /out:cmTC_0b23c.exe /implib:cmTC_0b23c.lib /pdb:cmTC_0b23c.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1258,8 +1258,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_SSE4_1/CMakeLists.txt:13 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-l2d3yy"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-l2d3yy"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ywg9l8"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ywg9l8"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1272,12 +1272,12 @@ events:
       variable: "C_FLAG_msse4_1"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-l2d3yy'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ywg9l8'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_d34c8
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_msse4_1  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -msse4.1 /showIncludes /FoCMakeFiles\\cmTC_d34c8.dir\\src.c.obj /FdCMakeFiles\\cmTC_d34c8.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-l2d3yy\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_669b4
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_msse4_1  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -msse4.1 /showIncludes /FoCMakeFiles\\cmTC_669b4.dir\\src.c.obj /FdCMakeFiles\\cmTC_669b4.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-ywg9l8\\src.c
         cl : Command line warning D9002 : ignoring unknown option '-msse4.1'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_d34c8.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_d34c8.dir\\src.c.obj  /out:cmTC_d34c8.exe /implib:cmTC_d34c8.lib /pdb:cmTC_d34c8.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_669b4.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_669b4.dir\\src.c.obj  /out:cmTC_669b4.exe /implib:cmTC_669b4.lib /pdb:cmTC_669b4.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1291,8 +1291,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_SSE4_1/CMakeLists.txt:13 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-g22mi0"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-g22mi0"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-rnlza7"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-rnlza7"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1305,12 +1305,12 @@ events:
       variable: "CXX_FLAG_msse4_1"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-g22mi0'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-rnlza7'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_39f72
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_msse4_1  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -msse4.1 /showIncludes /FoCMakeFiles\\cmTC_39f72.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_39f72.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-g22mi0\\src.cxx
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_22392
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_msse4_1  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -msse4.1 /showIncludes /FoCMakeFiles\\cmTC_22392.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_22392.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-rnlza7\\src.cxx
         cl : Command line warning D9002 : ignoring unknown option '-msse4.1'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_39f72.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_39f72.dir\\src.cxx.obj  /out:cmTC_39f72.exe /implib:cmTC_39f72.lib /pdb:cmTC_39f72.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_22392.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_22392.dir\\src.cxx.obj  /out:cmTC_22392.exe /implib:cmTC_22392.lib /pdb:cmTC_22392.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1324,8 +1324,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_AVX512/CMakeLists.txt:18 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-4zkvhp"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-4zkvhp"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8d32w7"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8d32w7"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1338,12 +1338,12 @@ events:
       variable: "C_FLAG_mavx512f"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-4zkvhp'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-8d32w7'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_19f5b
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_mavx512f  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512f /showIncludes /FoCMakeFiles\\cmTC_19f5b.dir\\src.c.obj /FdCMakeFiles\\cmTC_19f5b.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-4zkvhp\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_b325c
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_mavx512f  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512f /showIncludes /FoCMakeFiles\\cmTC_b325c.dir\\src.c.obj /FdCMakeFiles\\cmTC_b325c.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-8d32w7\\src.c
         cl : Command line warning D9002 : ignoring unknown option '-mavx512f'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_19f5b.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_19f5b.dir\\src.c.obj  /out:cmTC_19f5b.exe /implib:cmTC_19f5b.lib /pdb:cmTC_19f5b.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_b325c.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_b325c.dir\\src.c.obj  /out:cmTC_b325c.exe /implib:cmTC_b325c.lib /pdb:cmTC_b325c.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1357,8 +1357,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_AVX512/CMakeLists.txt:18 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ajoq53"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ajoq53"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-9dyjas"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-9dyjas"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1371,12 +1371,12 @@ events:
       variable: "C_FLAG_mavx512bw"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ajoq53'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-9dyjas'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_a1908
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_mavx512bw  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512bw /showIncludes /FoCMakeFiles\\cmTC_a1908.dir\\src.c.obj /FdCMakeFiles\\cmTC_a1908.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-ajoq53\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_ee9c1
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_mavx512bw  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512bw /showIncludes /FoCMakeFiles\\cmTC_ee9c1.dir\\src.c.obj /FdCMakeFiles\\cmTC_ee9c1.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-9dyjas\\src.c
         cl : Command line warning D9002 : ignoring unknown option '-mavx512bw'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_a1908.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_a1908.dir\\src.c.obj  /out:cmTC_a1908.exe /implib:cmTC_a1908.lib /pdb:cmTC_a1908.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_ee9c1.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_ee9c1.dir\\src.c.obj  /out:cmTC_ee9c1.exe /implib:cmTC_ee9c1.lib /pdb:cmTC_ee9c1.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1390,8 +1390,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_AVX512/CMakeLists.txt:18 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-gdock6"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-gdock6"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-zcpdsm"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-zcpdsm"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1404,12 +1404,12 @@ events:
       variable: "C_FLAG_mavx512dq"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-gdock6'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-zcpdsm'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_f5a52
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_mavx512dq  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512dq /showIncludes /FoCMakeFiles\\cmTC_f5a52.dir\\src.c.obj /FdCMakeFiles\\cmTC_f5a52.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-gdock6\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_2a1d3
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_mavx512dq  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512dq /showIncludes /FoCMakeFiles\\cmTC_2a1d3.dir\\src.c.obj /FdCMakeFiles\\cmTC_2a1d3.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-zcpdsm\\src.c
         cl : Command line warning D9002 : ignoring unknown option '-mavx512dq'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_f5a52.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_f5a52.dir\\src.c.obj  /out:cmTC_f5a52.exe /implib:cmTC_f5a52.lib /pdb:cmTC_f5a52.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_2a1d3.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_2a1d3.dir\\src.c.obj  /out:cmTC_2a1d3.exe /implib:cmTC_2a1d3.lib /pdb:cmTC_2a1d3.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1423,8 +1423,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_AVX512/CMakeLists.txt:18 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-tsqth9"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-tsqth9"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-uaztnp"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-uaztnp"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1437,12 +1437,12 @@ events:
       variable: "C_FLAG_mavx512vl"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-tsqth9'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-uaztnp'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_859f6
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_mavx512vl  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512vl /showIncludes /FoCMakeFiles\\cmTC_859f6.dir\\src.c.obj /FdCMakeFiles\\cmTC_859f6.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-tsqth9\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_a16bd
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_mavx512vl  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512vl /showIncludes /FoCMakeFiles\\cmTC_a16bd.dir\\src.c.obj /FdCMakeFiles\\cmTC_a16bd.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-uaztnp\\src.c
         cl : Command line warning D9002 : ignoring unknown option '-mavx512vl'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_859f6.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_859f6.dir\\src.c.obj  /out:cmTC_859f6.exe /implib:cmTC_859f6.lib /pdb:cmTC_859f6.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_a16bd.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_a16bd.dir\\src.c.obj  /out:cmTC_a16bd.exe /implib:cmTC_a16bd.lib /pdb:cmTC_a16bd.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1456,8 +1456,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_AVX512/CMakeLists.txt:18 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nmu5y4"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nmu5y4"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7hj4gg"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7hj4gg"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1470,12 +1470,12 @@ events:
       variable: "CXX_FLAG_mavx512f"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-nmu5y4'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-7hj4gg'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_6dbe2
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_mavx512f  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512f /showIncludes /FoCMakeFiles\\cmTC_6dbe2.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_6dbe2.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-nmu5y4\\src.cxx
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_ee6b2
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_mavx512f  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512f /showIncludes /FoCMakeFiles\\cmTC_ee6b2.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_ee6b2.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-7hj4gg\\src.cxx
         cl : Command line warning D9002 : ignoring unknown option '-mavx512f'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_6dbe2.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_6dbe2.dir\\src.cxx.obj  /out:cmTC_6dbe2.exe /implib:cmTC_6dbe2.lib /pdb:cmTC_6dbe2.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_ee6b2.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_ee6b2.dir\\src.cxx.obj  /out:cmTC_ee6b2.exe /implib:cmTC_ee6b2.lib /pdb:cmTC_ee6b2.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1489,8 +1489,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_AVX512/CMakeLists.txt:18 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fwltwj"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fwltwj"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-stdyrd"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-stdyrd"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1503,12 +1503,12 @@ events:
       variable: "CXX_FLAG_mavx512bw"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fwltwj'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-stdyrd'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_0acd0
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_mavx512bw  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512bw /showIncludes /FoCMakeFiles\\cmTC_0acd0.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_0acd0.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-fwltwj\\src.cxx
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_97e4f
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_mavx512bw  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512bw /showIncludes /FoCMakeFiles\\cmTC_97e4f.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_97e4f.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-stdyrd\\src.cxx
         cl : Command line warning D9002 : ignoring unknown option '-mavx512bw'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_0acd0.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_0acd0.dir\\src.cxx.obj  /out:cmTC_0acd0.exe /implib:cmTC_0acd0.lib /pdb:cmTC_0acd0.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_97e4f.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_97e4f.dir\\src.cxx.obj  /out:cmTC_97e4f.exe /implib:cmTC_97e4f.lib /pdb:cmTC_97e4f.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1522,8 +1522,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_AVX512/CMakeLists.txt:18 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-gnysbc"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-gnysbc"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-gcvile"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-gcvile"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1536,12 +1536,12 @@ events:
       variable: "CXX_FLAG_mavx512dq"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-gnysbc'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-gcvile'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_c6379
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_mavx512dq  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512dq /showIncludes /FoCMakeFiles\\cmTC_c6379.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_c6379.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-gnysbc\\src.cxx
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_a73b2
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_mavx512dq  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512dq /showIncludes /FoCMakeFiles\\cmTC_a73b2.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_a73b2.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-gcvile\\src.cxx
         cl : Command line warning D9002 : ignoring unknown option '-mavx512dq'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_c6379.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_c6379.dir\\src.cxx.obj  /out:cmTC_c6379.exe /implib:cmTC_c6379.lib /pdb:cmTC_c6379.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_a73b2.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_a73b2.dir\\src.cxx.obj  /out:cmTC_a73b2.exe /implib:cmTC_a73b2.lib /pdb:cmTC_a73b2.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1555,8 +1555,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_AVX512/CMakeLists.txt:18 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ltndmw"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ltndmw"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-avppz2"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-avppz2"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1569,12 +1569,12 @@ events:
       variable: "CXX_FLAG_mavx512vl"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ltndmw'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-avppz2'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_63735
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_mavx512vl  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512vl /showIncludes /FoCMakeFiles\\cmTC_63735.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_63735.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-ltndmw\\src.cxx
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_39127
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_mavx512vl  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   -mavx512vl /showIncludes /FoCMakeFiles\\cmTC_39127.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_39127.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-avppz2\\src.cxx
         cl : Command line warning D9002 : ignoring unknown option '-mavx512vl'
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_63735.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_63735.dir\\src.cxx.obj  /out:cmTC_63735.exe /implib:cmTC_63735.lib /pdb:cmTC_63735.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_39127.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_39127.dir\\src.cxx.obj  /out:cmTC_39127.exe /implib:cmTC_39127.lib /pdb:cmTC_39127.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1588,8 +1588,8 @@ events:
       - "CMakeLists.txt:178 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_AVX512/CMakeLists.txt:25 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-mn9vjx"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-mn9vjx"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ztv4it"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ztv4it"
     cmakeVariables:
       CMAKE_C_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1602,11 +1602,11 @@ events:
       variable: "C_FLAG_arch_AVX512"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-mn9vjx'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-ztv4it'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_658ae
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_arch_AVX512  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   /arch:AVX512 /showIncludes /FoCMakeFiles\\cmTC_658ae.dir\\src.c.obj /FdCMakeFiles\\cmTC_658ae.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-mn9vjx\\src.c
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_658ae.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_658ae.dir\\src.c.obj  /out:cmTC_658ae.exe /implib:cmTC_658ae.lib /pdb:cmTC_658ae.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_f6ddd
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo -DC_FLAG_arch_AVX512  /W3 /DWIN32 /D_WINDOWS /W3 /MP  /MDd /Zi /Ob0 /Od /RTC1   /arch:AVX512 /showIncludes /FoCMakeFiles\\cmTC_f6ddd.dir\\src.c.obj /FdCMakeFiles\\cmTC_f6ddd.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-ztv4it\\src.c
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_f6ddd.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_f6ddd.dir\\src.c.obj  /out:cmTC_f6ddd.exe /implib:cmTC_f6ddd.lib /pdb:cmTC_f6ddd.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1620,8 +1620,8 @@ events:
       - "CMakeLists.txt:179 (check_flags_add)"
       - "Source/Lib/Encoder/ASM_AVX512/CMakeLists.txt:25 (check_both_flags_add)"
     directories:
-      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-q4d1f8"
-      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-q4d1f8"
+      source: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fkvguh"
+      binary: "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fkvguh"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -1634,11 +1634,11 @@ events:
       variable: "CXX_FLAG_arch_AVX512"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-q4d1f8'
+        Change Dir: 'C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-fkvguh'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_7a585
-        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_arch_AVX512  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   /arch:AVX512 /showIncludes /FoCMakeFiles\\cmTC_7a585.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_7a585.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-q4d1f8\\src.cxx
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_7a585.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_7a585.dir\\src.cxx.obj  /out:cmTC_7a585.exe /implib:cmTC_7a585.lib /pdb:cmTC_7a585.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_5677c
+        [1/2] C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP -DCXX_FLAG_arch_AVX512  /W3 /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MP  /MDd /Zi /Ob0 /Od /RTC1   /arch:AVX512 /showIncludes /FoCMakeFiles\\cmTC_5677c.dir\\src.cxx.obj /FdCMakeFiles\\cmTC_5677c.dir\\ /FS -c C:\\Users\\User\\source\\CODECs\\SVT-JPEG-XS\\out\\build\\x64-Debug\\CMakeFiles\\CMakeScratch\\TryCompile-fkvguh\\src.cxx
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --intdir=CMakeFiles\\cmTC_5677c.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100226~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1443~1.348\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_5677c.dir\\src.cxx.obj  /out:cmTC_5677c.exe /implib:cmTC_5677c.lib /pdb:cmTC_5677c.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
 ...
