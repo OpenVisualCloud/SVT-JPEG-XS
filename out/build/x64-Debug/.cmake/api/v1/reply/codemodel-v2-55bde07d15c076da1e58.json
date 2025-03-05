@@ -1,0 +1,552 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1,
+						14,
+						15,
+						16,
+						17,
+						18
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-4fc7d0debb4da6a6f83d.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"projectIndex" : 0,
+					"source" : "."
+				},
+				{
+					"build" : "Source/Lib",
+					"childIndexes" : 
+					[
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8,
+						9,
+						10,
+						11,
+						12,
+						13
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-Source.Lib-Debug-e95d5ddfdac658cc9980.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "Source/Lib",
+					"targetIndexes" : 
+					[
+						14
+					]
+				},
+				{
+					"build" : "Source/Lib/Common/Codec",
+					"jsonFile" : "directory-Source.Lib.Common.Codec-Debug-a2ea5565ed40d90eaa94.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Common/Codec",
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"build" : "Source/Lib/Common/ASM_SSE2",
+					"jsonFile" : "directory-Source.Lib.Common.ASM_SSE2-Debug-282cfcb9071f2fc5a6f3.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Common/ASM_SSE2",
+					"targetIndexes" : 
+					[
+						1
+					]
+				},
+				{
+					"build" : "Source/Lib/Common/ASM_AVX2",
+					"jsonFile" : "directory-Source.Lib.Common.ASM_AVX2-Debug-dfe63ee2c57ce43101c8.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Common/ASM_AVX2",
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"build" : "Source/Lib/Encoder/Codec",
+					"jsonFile" : "directory-Source.Lib.Encoder.Codec-Debug-741fce911c19928ec364.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Encoder/Codec",
+					"targetIndexes" : 
+					[
+						11
+					]
+				},
+				{
+					"build" : "Source/Lib/Encoder/ASM_SSE2",
+					"jsonFile" : "directory-Source.Lib.Encoder.ASM_SSE2-Debug-978dcb5a33e36ed4b726.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Encoder/ASM_SSE2",
+					"targetIndexes" : 
+					[
+						9
+					]
+				},
+				{
+					"build" : "Source/Lib/Encoder/ASM_SSE4_1",
+					"jsonFile" : "directory-Source.Lib.Encoder.ASM_SSE4_1-Debug-aab0182eb16cb75ae929.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Encoder/ASM_SSE4_1",
+					"targetIndexes" : 
+					[
+						10
+					]
+				},
+				{
+					"build" : "Source/Lib/Encoder/ASM_AVX2",
+					"jsonFile" : "directory-Source.Lib.Encoder.ASM_AVX2-Debug-21c104fb5e424bd037c4.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Encoder/ASM_AVX2",
+					"targetIndexes" : 
+					[
+						7
+					]
+				},
+				{
+					"build" : "Source/Lib/Encoder/ASM_AVX512",
+					"jsonFile" : "directory-Source.Lib.Encoder.ASM_AVX512-Debug-4a35827907bd94d76037.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Encoder/ASM_AVX512",
+					"targetIndexes" : 
+					[
+						8
+					]
+				},
+				{
+					"build" : "Source/Lib/Decoder/Codec",
+					"jsonFile" : "directory-Source.Lib.Decoder.Codec-Debug-26f05b1b215f5491cbc9.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Decoder/Codec",
+					"targetIndexes" : 
+					[
+						6
+					]
+				},
+				{
+					"build" : "Source/Lib/Decoder/ASM_SSE4_1",
+					"jsonFile" : "directory-Source.Lib.Decoder.ASM_SSE4_1-Debug-c8aafd3e04641f5e0ea7.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Decoder/ASM_SSE4_1",
+					"targetIndexes" : 
+					[
+						5
+					]
+				},
+				{
+					"build" : "Source/Lib/Decoder/ASM_AVX2",
+					"jsonFile" : "directory-Source.Lib.Decoder.ASM_AVX2-Debug-c7afcf306d01b7e8383f.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Decoder/ASM_AVX2",
+					"targetIndexes" : 
+					[
+						3
+					]
+				},
+				{
+					"build" : "Source/Lib/Decoder/ASM_AVX512",
+					"jsonFile" : "directory-Source.Lib.Decoder.ASM_AVX512-Debug-7a22ded35dfea32647c4.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "Source/Lib/Decoder/ASM_AVX512",
+					"targetIndexes" : 
+					[
+						4
+					]
+				},
+				{
+					"build" : "Source/App/DecApp",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-Source.App.DecApp-Debug-d2e58edaac0fad569163.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "Source/App/DecApp",
+					"targetIndexes" : 
+					[
+						12
+					]
+				},
+				{
+					"build" : "Source/App/EncApp",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-Source.App.EncApp-Debug-f1fe2be47ed709dab811.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "Source/App/EncApp",
+					"targetIndexes" : 
+					[
+						13
+					]
+				},
+				{
+					"build" : "Source/App/SampleEncoder",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-Source.App.SampleEncoder-Debug-c4d341e6032f5a13ec02.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "Source/App/SampleEncoder",
+					"targetIndexes" : 
+					[
+						16
+					]
+				},
+				{
+					"build" : "Source/App/SampleDecoder",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-Source.App.SampleDecoder-Debug-d4a334db9940a677b605.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "Source/App/SampleDecoder",
+					"targetIndexes" : 
+					[
+						15
+					]
+				},
+				{
+					"build" : "third_party/cpuinfo",
+					"childIndexes" : 
+					[
+						19
+					],
+					"jsonFile" : "directory-third_party.cpuinfo-Debug-5c52ec298b35451185b2.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "2.8.12"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "third_party/cpuinfo",
+					"targetIndexes" : 
+					[
+						18
+					]
+				},
+				{
+					"build" : "third_party/cpuinfo/deps/clog",
+					"jsonFile" : "directory-third_party.cpuinfo.deps.clog-Debug-187587f923643aef300a.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.1"
+					},
+					"parentIndex" : 18,
+					"projectIndex" : 1,
+					"source" : "third_party/cpuinfo/deps/clog",
+					"targetIndexes" : 
+					[
+						17
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1
+					],
+					"directoryIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8,
+						9,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16,
+						17,
+						18
+					],
+					"name" : "svt-jpegxs",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8,
+						9,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16,
+						18
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						19
+					],
+					"name" : "clog",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						17
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 4,
+					"id" : "COMMON_ASM_AVX2::@c16db45c0174c4c391d6",
+					"jsonFile" : "target-COMMON_ASM_AVX2-Debug-5e7dd6dd8c15b08296c8.json",
+					"name" : "COMMON_ASM_AVX2",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 3,
+					"id" : "COMMON_ASM_SSE2::@bee6ef28e8d354e16027",
+					"jsonFile" : "target-COMMON_ASM_SSE2-Debug-db91bba19bc1f063844a.json",
+					"name" : "COMMON_ASM_SSE2",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "COMMON_CODEC::@5695526007266315b6f6",
+					"jsonFile" : "target-COMMON_CODEC-Debug-5e45cf05d6d8c52f94a7.json",
+					"name" : "COMMON_CODEC",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 12,
+					"id" : "DECODER_ASM_AVX2::@d35445a9a179905474c9",
+					"jsonFile" : "target-DECODER_ASM_AVX2-Debug-4a942e83857549d8ee32.json",
+					"name" : "DECODER_ASM_AVX2",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 13,
+					"id" : "DECODER_ASM_AVX512::@ee707c2a4a09739afe60",
+					"jsonFile" : "target-DECODER_ASM_AVX512-Debug-443764c22cfab1afeed6.json",
+					"name" : "DECODER_ASM_AVX512",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 11,
+					"id" : "DECODER_ASM_SSE4_1::@0ef03fa4872bfcd7da62",
+					"jsonFile" : "target-DECODER_ASM_SSE4_1-Debug-b7649572e01fdd7ff3d3.json",
+					"name" : "DECODER_ASM_SSE4_1",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 10,
+					"id" : "DECODER_CODEC::@ba02ff6d98fef7a744ad",
+					"jsonFile" : "target-DECODER_CODEC-Debug-7fc84822c5321c93bd8e.json",
+					"name" : "DECODER_CODEC",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 8,
+					"id" : "ENCODER_ASM_AVX2::@8b0fcf8b26bc663e29b8",
+					"jsonFile" : "target-ENCODER_ASM_AVX2-Debug-9dde8914d739a09f9b3e.json",
+					"name" : "ENCODER_ASM_AVX2",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 9,
+					"id" : "ENCODER_ASM_AVX512::@41abba87e81d680af866",
+					"jsonFile" : "target-ENCODER_ASM_AVX512-Debug-7b67a609b6440e7f6b07.json",
+					"name" : "ENCODER_ASM_AVX512",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 6,
+					"id" : "ENCODER_ASM_SSE2::@d88d3c464eb2cec2d6e1",
+					"jsonFile" : "target-ENCODER_ASM_SSE2-Debug-efd7e8a64eb99337ddc8.json",
+					"name" : "ENCODER_ASM_SSE2",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 7,
+					"id" : "ENCODER_ASM_SSE4_1::@e74814c5d04625ce5142",
+					"jsonFile" : "target-ENCODER_ASM_SSE4_1-Debug-e2dd0fc06a506320e402.json",
+					"name" : "ENCODER_ASM_SSE4_1",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 5,
+					"id" : "ENCODER_CODEC::@8a49bf7c63e8ac81f58c",
+					"jsonFile" : "target-ENCODER_CODEC-Debug-cde9638c6deafccd62d2.json",
+					"name" : "ENCODER_CODEC",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 14,
+					"id" : "SvtJpegxsDecApp::@be9e0369f9941e793836",
+					"jsonFile" : "target-SvtJpegxsDecApp-Debug-6bad7b8311c0f4fa95d2.json",
+					"name" : "SvtJpegxsDecApp",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 15,
+					"id" : "SvtJpegxsEncApp::@307efc71349022106243",
+					"jsonFile" : "target-SvtJpegxsEncApp-Debug-5073e1390bc000947300.json",
+					"name" : "SvtJpegxsEncApp",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "SvtJpegxsLib::@43cc66ca50e31b93b375",
+					"jsonFile" : "target-SvtJpegxsLib-Debug-0e4e303569e6c89b3948.json",
+					"name" : "SvtJpegxsLib",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 17,
+					"id" : "SvtJpegxsSampleDecoder::@3950f868feca6c1f41e0",
+					"jsonFile" : "target-SvtJpegxsSampleDecoder-Debug-8a3c380655a552adb720.json",
+					"name" : "SvtJpegxsSampleDecoder",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 16,
+					"id" : "SvtJpegxsSampleEncoder::@7395addb3aee0032e131",
+					"jsonFile" : "target-SvtJpegxsSampleEncoder-Debug-71b17802cbf3a6586999.json",
+					"name" : "SvtJpegxsSampleEncoder",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 19,
+					"id" : "clog::@58db7e0dacfad43fee08",
+					"jsonFile" : "target-clog-Debug-bdc35a682f91569fee90.json",
+					"name" : "clog",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 18,
+					"id" : "cpuinfo::@d70a06e1c8eb44487e4f",
+					"jsonFile" : "target-cpuinfo-Debug-0463ef2ccd45546c842d.json",
+					"name" : "cpuinfo",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/out/build/x64-Debug",
+		"source" : "C:/Users/User/source/CODECs/SVT-JPEG-XS"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 8
+	}
+}

@@ -1,0 +1,45 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install"
+		],
+		"files" : 
+		[
+			"Source/App/DecApp/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 37,
+				"parent" : 0
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "C:/Users/User/Source/CODECs/SVT-JPEG-XS/out/install/x64-Debug/bin",
+			"paths" : 
+			[
+				"C:/Users/User/source/CODECs/SVT-JPEG-XS/Bin/Debug/SvtJpegxsDecApp.exe"
+			],
+			"targetId" : "SvtJpegxsDecApp::@be9e0369f9941e793836",
+			"targetIndex" : 12,
+			"type" : "target"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "Source/App/DecApp",
+		"source" : "Source/App/DecApp"
+	}
+}

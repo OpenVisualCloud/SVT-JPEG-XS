@@ -1,0 +1,234 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "third_party/cpuinfo/CMakeFiles/cpuinfo.dir/./src/init.c.obj"
+		},
+		{
+			"path" : "third_party/cpuinfo/CMakeFiles/cpuinfo.dir/./src/api.c.obj"
+		},
+		{
+			"path" : "third_party/cpuinfo/CMakeFiles/cpuinfo.dir/./src/x86/x86_init.c.obj"
+		},
+		{
+			"path" : "third_party/cpuinfo/CMakeFiles/cpuinfo.dir/./src/x86/vendor.c.obj"
+		},
+		{
+			"path" : "third_party/cpuinfo/CMakeFiles/cpuinfo.dir/./src/x86/isa.c.obj"
+		},
+		{
+			"path" : "third_party/cpuinfo/CMakeFiles/cpuinfo.dir/./src/x86/windows/init.c.obj"
+		}
+	],
+	"backtrace" : 2,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"_add_library",
+			"ADD_LIBRARY",
+			"add_definitions",
+			"TARGET_COMPILE_DEFINITIONS",
+			"TARGET_INCLUDE_DIRECTORIES",
+			"INCLUDE_DIRECTORIES",
+			"SET_TARGET_PROPERTIES",
+			"CPUINFO_TARGET_ENABLE_C99"
+		],
+		"files" : 
+		[
+			"C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+			"third_party/cpuinfo/CMakeLists.txt",
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 109,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 639,
+				"parent" : 1
+			},
+			{
+				"file" : 2
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 52,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 1,
+				"line" : 127,
+				"parent" : 0
+			},
+			{
+				"command" : 3,
+				"file" : 1,
+				"line" : 120,
+				"parent" : 0
+			},
+			{
+				"command" : 4,
+				"file" : 1,
+				"line" : 124,
+				"parent" : 0
+			},
+			{
+				"command" : 4,
+				"file" : 1,
+				"line" : 123,
+				"parent" : 0
+			},
+			{
+				"command" : 5,
+				"file" : 1,
+				"line" : 113,
+				"parent" : 0
+			},
+			{
+				"command" : 7,
+				"file" : 1,
+				"line" : 111,
+				"parent" : 0
+			},
+			{
+				"command" : 6,
+				"file" : 1,
+				"line" : 21,
+				"parent" : 10
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "/W3 /DWIN32 /D_WINDOWS /W3 /MP /MDd /Zi /Ob0 /Od /RTC1 /Od"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 4,
+					"define" : "ARCH_X86_64=1"
+				},
+				{
+					"backtrace" : 5,
+					"define" : "CPUINFO_LOG_LEVEL=2"
+				},
+				{
+					"backtrace" : 6,
+					"define" : "_WIN32_WINNT=0x0601"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 7,
+					"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/third_party/cpuinfo/src"
+				},
+				{
+					"backtrace" : 8,
+					"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/third_party/cpuinfo/include"
+				},
+				{
+					"backtrace" : 9,
+					"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/third_party/cpuinfo/deps/clog/include"
+				}
+			],
+			"language" : "C",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					11
+				],
+				"standard" : "99"
+			},
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4,
+				5
+			]
+		}
+	],
+	"id" : "cpuinfo::@d70a06e1c8eb44487e4f",
+	"name" : "cpuinfo",
+	"paths" : 
+	{
+		"build" : "third_party/cpuinfo",
+		"source" : "third_party/cpuinfo"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4,
+				5
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "third_party/cpuinfo/src/init.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "third_party/cpuinfo/src/api.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "third_party/cpuinfo/src/x86/x86_init.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "third_party/cpuinfo/src/x86/vendor.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "third_party/cpuinfo/src/x86/isa.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "third_party/cpuinfo/src/x86/windows/init.c",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "OBJECT_LIBRARY"
+}

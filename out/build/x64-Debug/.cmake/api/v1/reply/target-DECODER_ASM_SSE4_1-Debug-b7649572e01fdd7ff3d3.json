@@ -1,0 +1,143 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "Source/Lib/Decoder/ASM_SSE4_1/CMakeFiles/DECODER_ASM_SSE4_1.dir/./Dequant_SSE4.c.obj"
+		}
+	],
+	"backtrace" : 2,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"_add_library",
+			"add_library",
+			"add_definitions",
+			"include_directories"
+		],
+		"files" : 
+		[
+			"C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+			"Source/Lib/Decoder/ASM_SSE4_1/CMakeLists.txt",
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 22,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 639,
+				"parent" : 1
+			},
+			{
+				"file" : 2
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 52,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 1,
+				"line" : 9,
+				"parent" : 0
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "/W3 /DWIN32 /D_WINDOWS /W3 /MP /MDd /Zi /Ob0 /Od /RTC1 /Od"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 4,
+					"define" : "ARCH_X86_64=1"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 5,
+					"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/Source/API"
+				},
+				{
+					"backtrace" : 5,
+					"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/Source/Lib/Decoder/Codec"
+				},
+				{
+					"backtrace" : 5,
+					"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/Source/Lib/Common/Codec"
+				}
+			],
+			"language" : "C",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					2
+				],
+				"standard" : "99"
+			},
+			"sourceIndexes" : 
+			[
+				0
+			]
+		}
+	],
+	"id" : "DECODER_ASM_SSE4_1::@0ef03fa4872bfcd7da62",
+	"name" : "DECODER_ASM_SSE4_1",
+	"paths" : 
+	{
+		"build" : "Source/Lib/Decoder/ASM_SSE4_1",
+		"source" : "Source/Lib/Decoder/ASM_SSE4_1"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "Header Files",
+			"sourceIndexes" : 
+			[
+				1
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "Source/Lib/Decoder/ASM_SSE4_1/Dequant_SSE4.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"path" : "Source/Lib/Decoder/ASM_SSE4_1/Dequant_SSE4.h",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "OBJECT_LIBRARY"
+}

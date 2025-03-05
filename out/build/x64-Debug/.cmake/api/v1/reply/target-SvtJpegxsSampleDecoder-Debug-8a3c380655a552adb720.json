@@ -1,0 +1,478 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/Bin/Debug/SvtJpegxsSampleDecoder.exe"
+		},
+		{
+			"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/Bin/Debug/SvtJpegxsSampleDecoder.pdb"
+		}
+	],
+	"backtrace" : 2,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"_add_executable",
+			"add_executable",
+			"install",
+			"target_link_libraries",
+			"add_dependencies",
+			"add_definitions",
+			"include_directories"
+		],
+		"files" : 
+		[
+			"C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+			"Source/App/SampleDecoder/CMakeLists.txt",
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 19,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 598,
+				"parent" : 1
+			},
+			{
+				"command" : 2,
+				"file" : 1,
+				"line" : 55,
+				"parent" : 0
+			},
+			{
+				"command" : 3,
+				"file" : 1,
+				"line" : 36,
+				"parent" : 0
+			},
+			{
+				"command" : 4,
+				"file" : 1,
+				"line" : 45,
+				"parent" : 0
+			},
+			{
+				"file" : 2
+			},
+			{
+				"command" : 5,
+				"file" : 2,
+				"line" : 52,
+				"parent" : 6
+			},
+			{
+				"command" : 6,
+				"file" : 1,
+				"line" : 9,
+				"parent" : 0
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "/W3 /DWIN32 /D_WINDOWS /W3 /MP /MDd /Zi /Ob0 /Od /RTC1 /Od"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 7,
+					"define" : "ARCH_X86_64=1"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 8,
+					"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/Source/API"
+				}
+			],
+			"language" : "C",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					2
+				],
+				"standard" : "99"
+			},
+			"sourceIndexes" : 
+			[
+				4
+			]
+		}
+	],
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 5,
+			"id" : "COMMON_ASM_SSE2::@bee6ef28e8d354e16027"
+		},
+		{
+			"backtrace" : 5,
+			"id" : "COMMON_ASM_AVX2::@c16db45c0174c4c391d6"
+		},
+		{
+			"backtrace" : 5,
+			"id" : "COMMON_CODEC::@5695526007266315b6f6"
+		},
+		{
+			"backtrace" : 5,
+			"id" : "DECODER_ASM_AVX2::@d35445a9a179905474c9"
+		},
+		{
+			"backtrace" : 5,
+			"id" : "DECODER_CODEC::@ba02ff6d98fef7a744ad"
+		},
+		{
+			"backtrace" : 5,
+			"id" : "DECODER_ASM_SSE4_1::@0ef03fa4872bfcd7da62"
+		},
+		{
+			"backtrace" : 5,
+			"id" : "DECODER_ASM_AVX512::@ee707c2a4a09739afe60"
+		},
+		{
+			"id" : "cpuinfo::@d70a06e1c8eb44487e4f"
+		},
+		{
+			"id" : "clog::@58db7e0dacfad43fee08"
+		}
+	],
+	"id" : "SvtJpegxsSampleDecoder::@3950f868feca6c1f41e0",
+	"install" : 
+	{
+		"destinations" : 
+		[
+			{
+				"backtrace" : 3,
+				"path" : "C:/Users/User/Source/CODECs/SVT-JPEG-XS/out/install/x64-Debug/bin"
+			}
+		],
+		"prefix" : 
+		{
+			"path" : "C:/Users/User/Source/CODECs/SVT-JPEG-XS/out/install/x64-Debug"
+		}
+	},
+	"link" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "/W3 /DWIN32 /D_WINDOWS /W3 /MP /MDd /Zi /Ob0 /Od /RTC1 /Od",
+				"role" : "flags"
+			},
+			{
+				"fragment" : "/machine:x64 /debug /INCREMENTAL /subsystem:console",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\Codec\\CMakeFiles\\COMMON_CODEC.dir\\.\\EncDec.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\Codec\\CMakeFiles\\COMMON_CODEC.dir\\.\\ImageBuffer.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\Codec\\CMakeFiles\\COMMON_CODEC.dir\\.\\Pi.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\Codec\\CMakeFiles\\COMMON_CODEC.dir\\.\\SvtLog.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\Codec\\CMakeFiles\\COMMON_CODEC.dir\\.\\SvtUtility.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\Codec\\CMakeFiles\\COMMON_CODEC.dir\\.\\Threads\\SvtMalloc.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\Codec\\CMakeFiles\\COMMON_CODEC.dir\\.\\Threads\\SvtThreads.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\Codec\\CMakeFiles\\COMMON_CODEC.dir\\.\\Threads\\SystemResourceManager.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\Codec\\CMakeFiles\\COMMON_CODEC.dir\\.\\common_dsp_rtcd.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\ASM_SSE2\\CMakeFiles\\COMMON_ASM_SSE2.dir\\.\\empty.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\ASM_SSE2\\CMakeFiles\\COMMON_ASM_SSE2.dir\\.\\PictureOperators_SSE2.asm.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Common\\ASM_AVX2\\CMakeFiles\\COMMON_ASM_AVX2.dir\\.\\empty.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\BitstreamReader.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\DecHandle.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\DecThreadFinal.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\DecThreadInit.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\DecThreadSlice.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\DecThreads.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\Decoder.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\Dequant.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\DwtDecoder.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\Idwt.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\Mct.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\NltDec.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\Packing.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\ParseHeader.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\Precinct.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\Codec\\CMakeFiles\\DECODER_CODEC.dir\\.\\decoder_dsp_rtcd.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\ASM_AVX512\\CMakeFiles\\DECODER_ASM_AVX512.dir\\.\\Dequant_avx512.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\ASM_AVX512\\CMakeFiles\\DECODER_ASM_AVX512.dir\\.\\NltDec_avx512.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\ASM_AVX512\\CMakeFiles\\DECODER_ASM_AVX512.dir\\.\\idwt-avx512.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\ASM_AVX2\\CMakeFiles\\DECODER_ASM_AVX2.dir\\.\\Dwt53Decoder_AVX2.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\ASM_AVX2\\CMakeFiles\\DECODER_ASM_AVX2.dir\\.\\NltDec_AVX2.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\ASM_AVX2\\CMakeFiles\\DECODER_ASM_AVX2.dir\\.\\UnPack_avx2.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "Source\\Lib\\Decoder\\ASM_SSE4_1\\CMakeFiles\\DECODER_ASM_SSE4_1.dir\\.\\Dequant_SSE4.c.obj",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib",
+				"role" : "libraries"
+			}
+		],
+		"language" : "C"
+	},
+	"name" : "SvtJpegxsSampleDecoder",
+	"nameOnDisk" : "SvtJpegxsSampleDecoder.exe",
+	"paths" : 
+	{
+		"build" : "Source/App/SampleDecoder",
+		"source" : "Source/App/SampleDecoder"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Header Files",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3
+			]
+		},
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				4
+			]
+		},
+		{
+			"name" : "Object Libraries",
+			"sourceIndexes" : 
+			[
+				5,
+				6,
+				7,
+				8,
+				9,
+				10,
+				11
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 2,
+			"path" : "Source/API/SvtJpegxs.h",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"path" : "Source/API/SvtJpegxsDec.h",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"path" : "Source/API/SvtJpegxsEnc.h",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"path" : "Source/API/SvtJpegxsImageBufferTools.h",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "Source/App/SampleDecoder/main.c",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 4,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/init.c.obj",
+			"sourceGroupIndex" : 2
+		},
+		{
+			"backtrace" : 4,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/api.c.obj",
+			"sourceGroupIndex" : 2
+		},
+		{
+			"backtrace" : 4,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/x86/x86_init.c.obj",
+			"sourceGroupIndex" : 2
+		},
+		{
+			"backtrace" : 4,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/x86/vendor.c.obj",
+			"sourceGroupIndex" : 2
+		},
+		{
+			"backtrace" : 4,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/x86/isa.c.obj",
+			"sourceGroupIndex" : 2
+		},
+		{
+			"backtrace" : 4,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/x86/windows/init.c.obj",
+			"sourceGroupIndex" : 2
+		},
+		{
+			"backtrace" : 4,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/deps/clog/CMakeFiles/clog.dir/src/clog.c.obj",
+			"sourceGroupIndex" : 2
+		}
+	],
+	"type" : "EXECUTABLE"
+}

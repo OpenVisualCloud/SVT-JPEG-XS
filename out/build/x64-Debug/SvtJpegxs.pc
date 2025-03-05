@@ -1,0 +1,12 @@
+prefix=C:/Users/User/Source/CODECs/SVT-JPEG-XS/out/install/x64-Debug
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${exec_prefix}/lib
+
+Name: SvtJpegxs
+Description: SVT (Scalable Video Technology) for JPEG XS library
+Version: 0.9.0
+Libs: -L${libdir} -lSvtJpegxs
+Libs.private: 
+Cflags: -I${includedir}/svt-jpegxs
+Cflags.private: -UEB_DLL

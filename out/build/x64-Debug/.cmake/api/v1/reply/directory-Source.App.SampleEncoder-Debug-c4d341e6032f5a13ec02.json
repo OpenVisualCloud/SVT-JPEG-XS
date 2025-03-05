@@ -1,0 +1,45 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install"
+		],
+		"files" : 
+		[
+			"Source/App/SampleEncoder/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 57,
+				"parent" : 0
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "C:/Users/User/Source/CODECs/SVT-JPEG-XS/out/install/x64-Debug/bin",
+			"paths" : 
+			[
+				"C:/Users/User/source/CODECs/SVT-JPEG-XS/Bin/Debug/SvtJpegxsSampleEncoder.exe"
+			],
+			"targetId" : "SvtJpegxsSampleEncoder::@7395addb3aee0032e131",
+			"targetIndex" : 16,
+			"type" : "target"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "Source/App/SampleEncoder",
+		"source" : "Source/App/SampleEncoder"
+	}
+}

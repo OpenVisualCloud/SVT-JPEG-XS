@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "Source/Lib/Common/ASM_AVX2",
+		"source" : "Source/Lib/Common/ASM_AVX2"
+	}
+}

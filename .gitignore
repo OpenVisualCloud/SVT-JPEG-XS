@@ -3,6 +3,7 @@ Build/linux/
 Build/windows/
 Build/eclipse/
 Build/coverage_linux
+out/
 *.yuv
 *.bin
 *.patch

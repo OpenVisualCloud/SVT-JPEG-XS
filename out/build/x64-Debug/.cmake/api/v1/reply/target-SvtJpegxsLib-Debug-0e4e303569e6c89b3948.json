@@ -1,0 +1,709 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/Bin/Debug/SvtJpegxs.dll"
+		},
+		{
+			"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/Bin/Debug/SvtJpegxs.lib"
+		},
+		{
+			"path" : "C:/Users/User/source/CODECs/SVT-JPEG-XS/Bin/Debug/SvtJpegxs.pdb"
+		}
+	],
+	"backtrace" : 2,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"_add_library",
+			"add_library",
+			"install",
+			"add_definitions",
+			"target_compile_definitions",
+			"target_link_libraries"
+		],
+		"files" : 
+		[
+			"C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+			"Source/Lib/CMakeLists.txt",
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 61,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 639,
+				"parent" : 1
+			},
+			{
+				"command" : 2,
+				"file" : 1,
+				"line" : 91,
+				"parent" : 0
+			},
+			{
+				"file" : 2
+			},
+			{
+				"command" : 3,
+				"file" : 2,
+				"line" : 52,
+				"parent" : 4
+			},
+			{
+				"command" : 4,
+				"file" : 1,
+				"line" : 85,
+				"parent" : 0
+			},
+			{
+				"command" : 5,
+				"file" : 1,
+				"line" : 81,
+				"parent" : 0
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"id" : "COMMON_ASM_SSE2::@bee6ef28e8d354e16027"
+		},
+		{
+			"id" : "COMMON_ASM_AVX2::@c16db45c0174c4c391d6"
+		},
+		{
+			"id" : "COMMON_CODEC::@5695526007266315b6f6"
+		},
+		{
+			"id" : "ENCODER_CODEC::@8a49bf7c63e8ac81f58c"
+		},
+		{
+			"id" : "ENCODER_ASM_SSE2::@d88d3c464eb2cec2d6e1"
+		},
+		{
+			"id" : "ENCODER_ASM_SSE4_1::@e74814c5d04625ce5142"
+		},
+		{
+			"id" : "ENCODER_ASM_AVX2::@8b0fcf8b26bc663e29b8"
+		},
+		{
+			"id" : "DECODER_ASM_AVX2::@d35445a9a179905474c9"
+		},
+		{
+			"id" : "DECODER_CODEC::@ba02ff6d98fef7a744ad"
+		},
+		{
+			"id" : "DECODER_ASM_SSE4_1::@0ef03fa4872bfcd7da62"
+		},
+		{
+			"id" : "ENCODER_ASM_AVX512::@41abba87e81d680af866"
+		},
+		{
+			"id" : "DECODER_ASM_AVX512::@ee707c2a4a09739afe60"
+		},
+		{
+			"id" : "cpuinfo::@d70a06e1c8eb44487e4f"
+		},
+		{
+			"id" : "clog::@58db7e0dacfad43fee08"
+		}
+	],
+	"id" : "SvtJpegxsLib::@43cc66ca50e31b93b375",
+	"install" : 
+	{
+		"destinations" : 
+		[
+			{
+				"backtrace" : 3,
+				"path" : "lib"
+			},
+			{
+				"backtrace" : 3,
+				"path" : "lib"
+			}
+		],
+		"prefix" : 
+		{
+			"path" : "C:/Users/User/Source/CODECs/SVT-JPEG-XS/out/install/x64-Debug"
+		}
+	},
+	"link" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "/machine:x64 /debug /INCREMENTAL",
+				"role" : "flags"
+			},
+			{
+				"fragment" : "kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib",
+				"role" : "libraries"
+			}
+		],
+		"language" : "C"
+	},
+	"name" : "SvtJpegxsLib",
+	"nameOnDisk" : "SvtJpegxs.dll",
+	"paths" : 
+	{
+		"build" : "Source/Lib",
+		"source" : "Source/Lib"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Object Libraries",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10,
+				11,
+				12,
+				13,
+				14,
+				15,
+				16,
+				17,
+				18,
+				19,
+				20,
+				21,
+				22,
+				23,
+				24,
+				25,
+				26,
+				27,
+				28,
+				29,
+				30,
+				31,
+				32,
+				33,
+				34,
+				35,
+				36,
+				37,
+				38,
+				39,
+				40,
+				41,
+				42,
+				43,
+				44,
+				45,
+				46,
+				47,
+				48,
+				49,
+				50,
+				51,
+				52,
+				53,
+				54,
+				55,
+				56,
+				57,
+				58,
+				59,
+				60,
+				61,
+				62,
+				63,
+				64,
+				65,
+				66,
+				67,
+				68,
+				69,
+				70,
+				71,
+				72,
+				73,
+				74,
+				75
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/Codec/CMakeFiles/COMMON_CODEC.dir/EncDec.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/Codec/CMakeFiles/COMMON_CODEC.dir/ImageBuffer.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/Codec/CMakeFiles/COMMON_CODEC.dir/Pi.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/Codec/CMakeFiles/COMMON_CODEC.dir/SvtLog.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/Codec/CMakeFiles/COMMON_CODEC.dir/SvtUtility.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/Codec/CMakeFiles/COMMON_CODEC.dir/Threads/SvtMalloc.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/Codec/CMakeFiles/COMMON_CODEC.dir/Threads/SvtThreads.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/Codec/CMakeFiles/COMMON_CODEC.dir/Threads/SystemResourceManager.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/Codec/CMakeFiles/COMMON_CODEC.dir/common_dsp_rtcd.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/ASM_AVX2/CMakeFiles/COMMON_ASM_AVX2.dir/empty.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/ASM_SSE2/CMakeFiles/COMMON_ASM_SSE2.dir/empty.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Common/ASM_SSE2/CMakeFiles/COMMON_ASM_SSE2.dir/PictureOperators_SSE2.asm.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/BinarySearch.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/BitstreamWriter.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/Dwt.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/DwtInput.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/DwtStageProcess.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/EncHandle.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/FinalStageProcess.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/GcStageProcess.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/InitStageProcess.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/NltEnc.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/PackHeaders.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/PackIn.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/PackOut.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/PackPrecinct.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/PackStageProcess.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/PiEnc.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/PictureControlSet.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/PreRcStageProcess.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/PrecinctEnc.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/Quant.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/QuantStageProcess.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/RateControl.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/WeightTable.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/Codec/CMakeFiles/ENCODER_CODEC.dir/encoder_dsp_rtcd.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/ASM_SSE2/CMakeFiles/ENCODER_ASM_SSE2.dir/empty.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/ASM_SSE2/CMakeFiles/ENCODER_ASM_SSE2.dir/ASM_SSE2.asm.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/ASM_SSE4_1/CMakeFiles/ENCODER_ASM_SSE4_1.dir/Quant_sse4_1.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/ASM_SSE4_1/CMakeFiles/ENCODER_ASM_SSE4_1.dir/group_coding_sse4_1.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/ASM_AVX2/CMakeFiles/ENCODER_ASM_AVX2.dir/Dwt_AVX2.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/ASM_AVX2/CMakeFiles/ENCODER_ASM_AVX2.dir/NltEnc_avx2.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/ASM_AVX2/CMakeFiles/ENCODER_ASM_AVX2.dir/Quant_avx2.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/ASM_AVX2/CMakeFiles/ENCODER_ASM_AVX2.dir/RateControl_avx2.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/ASM_AVX512/CMakeFiles/ENCODER_ASM_AVX512.dir/Enc_avx512.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Encoder/ASM_AVX512/CMakeFiles/ENCODER_ASM_AVX512.dir/Pack_avx512.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/BitstreamReader.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/DecHandle.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/DecThreadFinal.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/DecThreadInit.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/DecThreadSlice.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/DecThreads.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/Decoder.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/Dequant.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/DwtDecoder.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/Idwt.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/Mct.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/NltDec.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/Packing.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/ParseHeader.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/Precinct.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/Codec/CMakeFiles/DECODER_CODEC.dir/decoder_dsp_rtcd.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/ASM_AVX512/CMakeFiles/DECODER_ASM_AVX512.dir/Dequant_avx512.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/ASM_AVX512/CMakeFiles/DECODER_ASM_AVX512.dir/NltDec_avx512.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/ASM_AVX512/CMakeFiles/DECODER_ASM_AVX512.dir/idwt-avx512.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/ASM_AVX2/CMakeFiles/DECODER_ASM_AVX2.dir/Dwt53Decoder_AVX2.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/ASM_AVX2/CMakeFiles/DECODER_ASM_AVX2.dir/NltDec_AVX2.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/ASM_AVX2/CMakeFiles/DECODER_ASM_AVX2.dir/UnPack_avx2.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/Source/Lib/Decoder/ASM_SSE4_1/CMakeFiles/DECODER_ASM_SSE4_1.dir/Dequant_SSE4.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 7,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/init.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 7,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/api.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 7,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/x86/x86_init.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 7,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/x86/vendor.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 7,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/x86/isa.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 7,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/CMakeFiles/cpuinfo.dir/src/x86/windows/init.c.obj",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 7,
+			"isGenerated" : true,
+			"path" : "out/build/x64-Debug/third_party/cpuinfo/deps/clog/CMakeFiles/clog.dir/src/clog.c.obj",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "SHARED_LIBRARY"
+}

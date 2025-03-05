@@ -1,0 +1,45 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install"
+		],
+		"files" : 
+		[
+			"Source/App/EncApp/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 38,
+				"parent" : 0
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "C:/Users/User/Source/CODECs/SVT-JPEG-XS/out/install/x64-Debug/bin",
+			"paths" : 
+			[
+				"C:/Users/User/source/CODECs/SVT-JPEG-XS/Bin/Debug/SvtJpegxsEncApp.exe"
+			],
+			"targetId" : "SvtJpegxsEncApp::@307efc71349022106243",
+			"targetIndex" : 13,
+			"type" : "target"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "Source/App/EncApp",
+		"source" : "Source/App/EncApp"
+	}
+}
