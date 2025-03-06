@@ -40,7 +40,8 @@ Supported OS versions:
 - __Build Instructions__
   - Build the project by following the steps below
     - using terminal, cd into `<repo dir>\Build\windows`
-    - run `build.bat <2022|2019>`, which will generate the Solution files (`*.sln`) and build the project
+    - run `build.bat <2022|2019>`, which will generate the Solution files (`*.sln`) and build the project,
+    - OR you can build this CMake project as is in Visual Studio 
 
 - __Binaries and libraries Location__
   - Binaries can be found under `<repo dir>/Bin/Release` or `<repo dir>/Bin/Debug`, depending on whether `Debug` or `Release` were selected in the build mode.
@@ -54,7 +55,7 @@ Supported OS versions:
   - [MSYS2](https://wwww.msys2.org), Software Distribution and Building Platform for Windows
 - __Build Instructions__
   - Open a terminal for the UCRT64 environment,
-  - if not yet installed, install packages like in readme.md of the ffmpeg-plugin folder of this repo
+  - if not yet installed, install packages like those specified in readme.md of the ffmpeg-plugin folder of this repo
   ```
   pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils
   ```

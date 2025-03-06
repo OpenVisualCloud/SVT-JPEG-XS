@@ -9,8 +9,8 @@
 ; PATENTS file, you can obtain it at https://www.aomedia.org/license/patent-license.
 ;
 
-;%undef WIN64
-;%undef UNIX64
+;%define WIN64 0
+;%define UNIX64 0
 ;%ifidn __OUTPUT_FORMAT__,win32
 ;    %define WIN64  1
 ;%elifidn __OUTPUT_FORMAT__,win64
@@ -21,7 +21,7 @@
 ;    %define UNIX64 1
 ;%endif
 
-%undef FORMAT_ELF
+%define FORMAT_ELF 0
 %ifidn __OUTPUT_FORMAT__,elf
     %define FORMAT_ELF 1
 %elifidn __OUTPUT_FORMAT__,elf32
@@ -30,14 +30,14 @@
     %define FORMAT_ELF 1
 %endif
 
-%undef FORMAT_MACHO
+%define FORMAT_MACHO 0
 %ifidn __OUTPUT_FORMAT__,macho32
      %define FORMAT_MACHO 1
 %elifidn __OUTPUT_FORMAT__,macho64
      %define FORMAT_MACHO 1
 %endif
 
-%ifdef FORMAT_ELF
+%if FORMAT_ELF
     %undef PREFIX
 %elif WIN64
     %undef PREFIX
@@ -89,7 +89,7 @@
 
 bits 64
 
-%ifdef WIN64
+%if WIN64
 
     %define num_arg_in_reg 4
     %define num_volatile_reg 7
@@ -114,7 +114,7 @@ bits 64
     DECLARE_PARAM 5, 4, arg5
     DECLARE_PARAM 6, 5, arg6
 
-%elifdef UNIX64
+%elif UNIX64
 
     %define num_arg_in_reg   6
     %define num_volatile_reg 7
@@ -320,7 +320,7 @@ bits 64
 %endmacro
 
 %macro XMM_SAVE 0
-  %ifdef WIN64
+  %if WIN64
     SUB_RSP 16
     movdqu          [rsp],      xmm6
     SUB_RSP 16
@@ -344,7 +344,7 @@ bits 64
   %endif
 %endmacro
 %macro XMM_RESTORE 0
-  %ifdef WIN64
+  %if WIN64
     movdqu          xmm15,      [rsp]
     ADD_RSP 16
     movdqu          xmm14,      [rsp]
