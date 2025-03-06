@@ -9,17 +9,17 @@
 ; PATENTS file, you can obtain it at https://www.aomedia.org/license/patent-license.
 ;
 
-%define WIN64 0
-%define UNIX64 0
-%ifidn __OUTPUT_FORMAT__,win32
-    %define WIN64  1
-%elifidn __OUTPUT_FORMAT__,win64
-    %define WIN64  1
-%elifidn __OUTPUT_FORMAT__,x64
-    %define WIN64  1
-%else
-    %define UNIX64 1
-%endif
+;%undef WIN64
+;%undef UNIX64
+;%ifidn __OUTPUT_FORMAT__,win32
+;    %define WIN64  1
+;%elifidn __OUTPUT_FORMAT__,win64
+;    %define WIN64  1
+;%elifidn __OUTPUT_FORMAT__,x64
+;    %define WIN64  1
+;%else
+;    %define UNIX64 1
+;%endif
 
 %undef FORMAT_ELF
 %ifidn __OUTPUT_FORMAT__,elf
