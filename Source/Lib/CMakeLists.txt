@@ -24,7 +24,7 @@ add_subdirectory(Decoder/ASM_SSE4_1)
 add_subdirectory(Decoder/ASM_AVX2)
 add_subdirectory(Decoder/ASM_AVX512)
 
-if(UNIX)
+if(UNIX AND NOT MSYS)
     if(NOT APPLE)
         find_library(M_LIB NAMES m)
         if(M_LIB)
