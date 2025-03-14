@@ -59,12 +59,16 @@ Supported OS versions:
   ```
   pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils
   ```
-  - `git clone https://github.com/vasilich-tregub/SVT-JPEG-XS.git` (forked from https://github.com/OpenVisualCloud/SVT-JPEG-XS.git)
+  - `git clone https://github.com/vasilich-tregub/SVT-JPEG-XS.git` (which is forked from https://github.com/OpenVisualCloud/SVT-JPEG-XS.git and has edited project files and READMEs)
   - `cd SVT-JPEG-XS` (change the directory name, if necessary)
-  - `Build/windows/build.bat clean`
+  - `cmake -S . -B builddir -DCMAKE_BUILD_TYPE=Debug` OR
+  - `cmake -S . -B builddir -DCMAKE_BUILD_TYPE=Release` OR
+  - add any relevant cmake keys you may find necessary for your project
+  - `cd builddir`
+  - `make -jN`, where N is a number of jobs allowed at once (no N for infinite jobs)
 
 - __Binaries and libraries location__
-  - Binaries can be found under `Bin/Release`
+  - Binaries can be found under `Bin/Debug` OR `Bin/Release`
 
 - __API headers location__
   - API headers can be found under `Source/API`
@@ -77,11 +81,16 @@ Supported OS versions:
   - YASM Assembler version 1.2.0 or later
 
 - __Build Instructions__
-  - `cd Build/linux`
-  - `./build.sh <release | debug>`
+  - `git clone https://github.com/vasilich-tregub/SVT-JPEG-XS.git` (which is forked from https://github.com/OpenVisualCloud/SVT-JPEG-XS.git and has edited project files and READMEs)
+  - `cd SVT-JPEG-XS` (change the directory name, if necessary)
+  - `cmake -S . -B builddir -DCMAKE_BUILD_TYPE=Debug` OR
+  - `cmake -S . -B builddir -DCMAKE_BUILD_TYPE=Release` OR
+  - add any relevant cmake keys you may find necessary for your project
+  - `cd builddir`
+  - `make -jN`, where N is a number of jobs allowed at once (no N for infinite jobs)
 
 - __Binaries and libraries location__
-  - Binaries can be found under `Bin/Release` and/or `Bin/Debug`
+  - Binaries can be found under `Bin/Debug` OR `Bin/Release`
 
 - __API headers location__
   - API headers can be found under `Source/API`
