@@ -39,9 +39,10 @@ Supported OS versions:
 
 - __Build Instructions__
   - Build the project by following the steps below
+    - you can build this CMake project as is in Visual Studio
+    - OR
     - using terminal, cd into `<repo dir>\Build\windows`
     - run `build.bat <2022|2019>`, which will generate the Solution files (`*.sln`) and build the project,
-    - OR you can build this CMake project as is in Visual Studio 
 
 - __Binaries and libraries Location__
   - Binaries can be found under `<repo dir>/Bin/Release` or `<repo dir>/Bin/Debug`, depending on whether `Debug` or `Release` were selected in the build mode.
@@ -52,20 +53,55 @@ Supported OS versions:
 ### Windows* MSYS2 Build Environment (64-bit)
 
 - __Build Requirements__
-  - [MSYS2](https://wwww.msys2.org), Software Distribution and Building Platform for Windows
+  - [MSYS2](https://wwww.msys2.org), Software Distribution and Building Platform for Windows.
+    Recommendations assume that you start with a fresh installation of MSYS
+    - Install MSYS from the installer downloaded as MSYS2 website recommends
+    - In the MSYS2 (UCRT) terminal, run `pacman -Suy`. In case of errors, consult issue in https://github.com/msys2/MSYS2-packages/issues/2397.
+      Please be careful that the MSYS2 (UCRT) terminal is open! If not, close the terminal 
+      console and open the MSYS2 (UCRT) terminal.
+    - Install build tools
+    ```
+    pacman -S make gcc cmake yasm pacman diffutils
+    ```
+    - Install git
+    ```
+    pacman -S git
+    ```
+    - update
+    ```
+    pacman -Suy
+    ```
 - __Build Instructions__
-  - Open a terminal for the UCRT64 environment,
-  - if not yet installed, install packages like those specified in readme.md of the ffmpeg-plugin folder of this repo
+  - Please be careful to work with the MSYS2 (UCRT) terminal. This guide is written for 
+    the MSYS2 (UCRT) terminal.
+  - In the MSYS (UCRT) terminal, git clone the SVT-JPEG-XS project
+    ```
+    git clone https://github.com/vasilich-tregub/SVT-JPEG-XS.git
+    ```
+    (the repo is forked from https://github.com/OpenVisualCloud/SVT-JPEG-XS.git, 
+    some project files and READMEs are edited)
+  - Specify the SVT-JPEG-XS root directory as the current working directory 
+    ```
+    cd SVT-JPEG-XS
+    ```
+  - Specify a source directory (`builddebug`) to generate a build system for the Debug configuration
+    ```
+    cmake -S . -B builddebug -DCMAKE_BUILD_TYPE=Debug 
+    ```
+  - OR .. specify (`buildrelease`) for the Release configuration
+    ```
+    cmake -S . -B buildrelease -DCMAKE_BUILD_TYPE=Release
+    ```
+  - also you can add any relevant cmake keys you may find necessary for your project
+  - build the Debug or Release configuration or both
+  - make -j4 --directory=builddebug
+  - OR
+  - make -j4 --directory=buildrelease
+
+- To test the build, you can run a newly built program, for example
   ```
-  pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils
+  Bin/Release/SvtJpegxsSampleDecoder <filename.jxs>
   ```
-  - `git clone https://github.com/vasilich-tregub/SVT-JPEG-XS.git` (which is forked from https://github.com/OpenVisualCloud/SVT-JPEG-XS.git and has edited project files and READMEs)
-  - `cd SVT-JPEG-XS` (change the directory name, if necessary)
-  - `cmake -S . -B builddir -DCMAKE_BUILD_TYPE=Debug` OR
-  - `cmake -S . -B builddir -DCMAKE_BUILD_TYPE=Release` OR
-  - add any relevant cmake keys you may find necessary for your project
-  - `cd builddir`
-  - `make -jN`, where N is a number of jobs allowed at once (no N for infinite jobs)
 
 - __Binaries and libraries location__
   - Binaries can be found under `Bin/Debug` OR `Bin/Release`
@@ -81,7 +117,9 @@ Supported OS versions:
   - YASM Assembler version 1.2.0 or later
 
 - __Build Instructions__
-  - `git clone https://github.com/vasilich-tregub/SVT-JPEG-XS.git` (which is forked from https://github.com/OpenVisualCloud/SVT-JPEG-XS.git and has edited project files and READMEs)
+  - `git clone https://github.com/vasilich-tregub/SVT-JPEG-XS.git` 
+    (the repo is forked from https://github.com/OpenVisualCloud/SVT-JPEG-XS.git,
+    some project files and READMEs are edited)
   - `cd SVT-JPEG-XS` (change the directory name, if necessary)
   - `cmake -S . -B builddir -DCMAKE_BUILD_TYPE=Debug` OR
   - `cmake -S . -B builddir -DCMAKE_BUILD_TYPE=Release` OR
