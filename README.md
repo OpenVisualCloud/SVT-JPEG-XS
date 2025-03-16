@@ -39,10 +39,10 @@ Supported OS versions:
 
 - __Build Instructions__
   - Build the project by following the steps below
-    - you can build this CMake project as is in Visual Studio
-    - OR
-    - using terminal, cd into `<repo dir>\Build\windows`
-    - run `build.bat <2022|2019>`, which will generate the Solution files (`*.sln`) and build the project,
+    - you can build this CMake project 'as is' in Visual Studio
+    - OR, *for users who are more comfortable with msbuild solution projects,*
+      - using terminal, cd into `<repo dir>\Build\windows`
+      - run `build.bat <2022|2019>`, which will generate the Solution files (`*.sln`) and build the project,
 
 - __Binaries and libraries Location__
   - Binaries can be found under `<repo dir>/Bin/Release` or `<repo dir>/Bin/Debug`, depending on whether `Debug` or `Release` were selected in the build mode.
@@ -84,23 +84,25 @@ Supported OS versions:
     ```
     cd SVT-JPEG-XS
     ```
-  - Specify a source directory (`builddebug`) to generate a build system for the Debug configuration
+  - Run cmake command, specify a source directory (`builddebug`) to generate a build system for the Debug configuration
     ```
     cmake -S . -B builddebug -DCMAKE_BUILD_TYPE=Debug 
     ```
-  - OR .. specify (`buildrelease`) for the Release configuration
+  - OR specify a source directory (`buildrelease`) for the Release configuration
     ```
     cmake -S . -B buildrelease -DCMAKE_BUILD_TYPE=Release
     ```
-  - also you can add any relevant cmake keys you may find necessary for your project
-  - build the Debug or Release configuration or both
-  - make -j4 --directory=builddebug
+  - with the above two cmake commands, you can include any relevant 
+    additional cmake keys you may find necessary for your project.
+  - Build the Debug or Release configuration or both
+  - `make -j4 --directory=builddebug`
   - OR
-  - make -j4 --directory=buildrelease
+  - `make -j4 --directory=buildrelease`
 
 - To test the build, you can run a newly built program, for example
   ```
-  Bin/Release/SvtJpegxsSampleDecoder <filename.jxs>
+        UCRT ~/SVT-JPEG-XS
+  $ Bin/Release/SvtJpegxsSampleDecoder <path/filename.jxs>
   ```
 
 - __Binaries and libraries location__
@@ -117,15 +119,53 @@ Supported OS versions:
   - YASM Assembler version 1.2.0 or later
 
 - __Build Instructions__
+  - As SVT-JPEG-XS is a regular CMake-build C/ASM package, the guide here targets
+    a first-time Linux developers and assumes you have a Windows computer with a fresh
+    installation of Windows Subsystem for Linux (WSL2).
+  - __Ubuntu distro installation__:
+    If you have an Ubuntu menu item in your start menu, you can proceed to the next item. 
+    If not, run 
+    ```
+    wsl --install
+    ```
+    in command prompt or powershell.
+  - Open the Start menu, search for ‘Ubuntu’, and select the terminal from the result.
+    Run the commands:
+    ```
+    sudo apt update
+    ```
+    then
+    ```
+    sudo apt upgrade
+    ```
+  - Install build essentials:
+  ```
+  sudo apt install build-essential
+  ```
+  - Install yasm compiler
+  ```
+  sudo apt install yasm
+  ```
+  - Install a software build system CMake
+  ```
+  sudo apt install cmake
+  ```
+    *optionally, you can install the newest version of CMake with*
+    `sudo snap install cmake --classic`
+  - __You are ready to build the SVT-JPEG-XS package__
   - `git clone https://github.com/vasilich-tregub/SVT-JPEG-XS.git` 
     (the repo is forked from https://github.com/OpenVisualCloud/SVT-JPEG-XS.git,
     some project files and READMEs are edited)
-  - `cd SVT-JPEG-XS` (change the directory name, if necessary)
-  - `cmake -S . -B builddir -DCMAKE_BUILD_TYPE=Debug` OR
-  - `cmake -S . -B builddir -DCMAKE_BUILD_TYPE=Release` OR
-  - add any relevant cmake keys you may find necessary for your project
-  - `cd builddir`
-  - `make -jN`, where N is a number of jobs allowed at once (no N for infinite jobs)
+  - `cd SVT-JPEG-XS`
+  - `cmake -S . -B builddebug -DCMAKE_BUILD_TYPE=Debug` OR
+  - `cmake -S . -B buildrelease -DCMAKE_BUILD_TYPE=Release` OR
+  - add any relevant cmake keys you may find necessary for your project to the above cmake commands,
+  - finally, make the binaries with
+  - `make -jN --directory=builddebug` OR `make -jN --directory=buildrelease`, where N is a number of jobs allowed at once (no N for infinite jobs)
+- To test the build, you can run a newly built program, for example
+  ```
+  ~/SVT-JPEG-XS$ Bin/Release/SvtJpegxsSampleDecoder jxs-text-files/200.jxs
+  ```
 
 - __Binaries and libraries location__
   - Binaries can be found under `Bin/Debug` OR `Bin/Release`
