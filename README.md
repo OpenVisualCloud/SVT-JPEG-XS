@@ -76,10 +76,8 @@ Supported OS versions:
     the MSYS2 (UCRT) terminal.
   - In the MSYS (UCRT) terminal, git clone the SVT-JPEG-XS project
     ```
-    git clone https://github.com/vasilich-tregub/SVT-JPEG-XS.git
+    git clone https://github.com/OpenVisualCloud/SVT-JPEG-XS.git
     ```
-    (the repo is forked from https://github.com/OpenVisualCloud/SVT-JPEG-XS.git, 
-    some project files and READMEs are edited)
   - Specify the SVT-JPEG-XS root directory as the current working directory 
     ```
     cd SVT-JPEG-XS
@@ -153,9 +151,7 @@ Supported OS versions:
     *optionally, you can install the newest version of CMake with*
     `sudo snap install cmake --classic`
   - __You are ready to build the SVT-JPEG-XS package__
-  - `git clone https://github.com/vasilich-tregub/SVT-JPEG-XS.git` 
-    (the repo is forked from https://github.com/OpenVisualCloud/SVT-JPEG-XS.git,
-    some project files and READMEs are edited)
+  - `git clone https://github.com/OpenVisualCloud/SVT-JPEG-XS.git` 
   - `cd SVT-JPEG-XS`
   - `cmake -S . -B builddebug -DCMAKE_BUILD_TYPE=Debug` OR
   - `cmake -S . -B buildrelease -DCMAKE_BUILD_TYPE=Release` OR
