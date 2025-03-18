@@ -153,11 +153,7 @@ Supported OS versions:
   - __You are ready to build the SVT-JPEG-XS package__
   - `git clone https://github.com/OpenVisualCloud/SVT-JPEG-XS.git` 
   - `cd SVT-JPEG-XS`
-  - `cmake -S . -B builddebug -DCMAKE_BUILD_TYPE=Debug` OR
-  - `cmake -S . -B buildrelease -DCMAKE_BUILD_TYPE=Release` OR
-  - add any relevant cmake keys you may find necessary for your project to the above cmake commands,
-  - finally, make the binaries with
-  - `make -jN --directory=builddebug` OR `make -jN --directory=buildrelease`, where N is a number of jobs allowed at once (no N for infinite jobs)
+  - `cd Build/linux/build.sh <release | debug>`
 - To test the build, you can run a newly built program, for example
   ```
   ~/SVT-JPEG-XS$ Bin/Release/SvtJpegxsSampleDecoder <path/filename.jxs>
