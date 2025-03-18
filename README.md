@@ -160,7 +160,7 @@ Supported OS versions:
   - `make -jN --directory=builddebug` OR `make -jN --directory=buildrelease`, where N is a number of jobs allowed at once (no N for infinite jobs)
 - To test the build, you can run a newly built program, for example
   ```
-  ~/SVT-JPEG-XS$ Bin/Release/SvtJpegxsSampleDecoder jxs-text-files/200.jxs
+  ~/SVT-JPEG-XS$ Bin/Release/SvtJpegxsSampleDecoder <path/filename.jxs>
   ```
 
 - __Binaries and libraries location__
