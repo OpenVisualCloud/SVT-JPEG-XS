@@ -117,43 +117,47 @@ Supported OS versions:
   - YASM Assembler version 1.2.0 or later
 
 - __Build Instructions__
-  - As SVT-JPEG-XS is a regular CMake-build C/ASM package, the guide here targets
-    a first-time Linux developers and assumes you have a Windows computer with a fresh
-    installation of Windows Subsystem for Linux (WSL2).
-  - __Ubuntu distro installation__:
-    If you have an Ubuntu menu item in your start menu, you can proceed to the next item. 
-    If not, run 
-    ```
-    wsl --install
-    ```
-    in command prompt or powershell.
-  - Open the Start menu, search for ‘Ubuntu’, and select the terminal from the result.
-    Run the commands:
-    ```
-    sudo apt update
-    ```
-    then
-    ```
-    sudo apt upgrade
-    ```
-  - Install build essentials:
-  ```
-  sudo apt install build-essential
-  ```
-  - Install yasm compiler
-  ```
-  sudo apt install yasm
-  ```
-  - Install a software build system CMake
-  ```
-  sudo apt install cmake
-  ```
-    *optionally, you can install the newest version of CMake with*
-    `sudo snap install cmake --classic`
-  - __You are ready to build the SVT-JPEG-XS package__
+  - As SVT-JPEG-XS is a regular CMake-build C/ASM package, the guide steps within the
+    brackets \<OPTIONAL, ONLY FOR WSL USERS>...\</OPTIONAL, ONLY FOR WSL USERS> target
+    a first-time Linux developers and assumes the user have a Windows computer with 
+    a fresh installation of Windows Subsystem for Linux (WSL2). Pure linux users can
+    safely ignore these instructions.
+  - \<__OPTIONAL, ONLY FOR WSL USERS__>
+    - __Ubuntu distro installation__:
+      If you have an Ubuntu menu item in your start menu, you can proceed to the next item. 
+      If not, run 
+      ```
+      wsl --install
+      ```
+      in command prompt or powershell.
+    - Open the Start menu, search for ‘Ubuntu’, and select the terminal from the result.
+      Run the commands:
+      ```
+      sudo apt update
+      ```
+      then
+      ```
+      sudo apt upgrade
+      ```
+    - Install build essentials:
+      ```
+      sudo apt install build-essential
+      ```
+    - Install yasm compiler
+      ```
+      sudo apt install yasm
+      ```
+    - Install a software build system CMake
+      ```
+      sudo apt install cmake
+      ```
+      *optionally, you can install the newest version of CMake with*
+      `sudo snap install cmake --classic`
+    - __You are ready to build the SVT-JPEG-XS package__
+  - end of \</__OPTIONAL, ONLY FOR WSL USERS__>
   - `git clone https://github.com/OpenVisualCloud/SVT-JPEG-XS.git` 
   - `cd SVT-JPEG-XS`
-  - `cd Build/linux/build.sh <release | debug>`
+  - `cd Build/linux/ && build.sh <release | debug>`
 - To test the build, you can run a newly built program, for example
   ```
   ~/SVT-JPEG-XS$ Bin/Release/SvtJpegxsSampleDecoder <path/filename.jxs>
