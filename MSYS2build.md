@@ -1,81 +1,55 @@
-# Intel&reg; JPEG-XS Library
+# Building SVT-JPEG-XS with MSYS2 
 
-## License
+We recommend to begin with a fresh installation of MSYS2.
 
-Scalable Video Technology is licensed under the OSI-approved BSD+Patent license. See [LICENSE](LICENSE.md) for details.
+1. Download an installer from the front page of [MSYS2](https://www.msys2.org), run the 
+   installer.
+2. When done, click Finish __without__ the `Run MSYS2 now` control selected (there can be
+   issues when the application is started immediately after installation), or do `$ exit`
+   from the first run of the terminal, if `Run MSYS2 now` was selected when you finished.
+3. Run MSYS2 UCRT64 terminal. All MSYS2 commands of this guide must be run in the 
+   __MSYS2 UCRT64__ terminal only!
+4. Update the installation with the command `pacman -Suy`
+5. Many packages installed in this guide have long names, like 
+   `mingw-w64-ucrt-x86_64-ninja`. You can avoid writing long package names while using `pacboy`
+   command, see [Package Naming](https://www.msys2.org/docs/package-naming/):
+   - Install the pactoys packet group, in which pacboy belongs: `pacman -S pactoys`
+6. Install the packet group __mingw-w64-ucrt-x86_64-toolchain__, the packets __yasm__ and __cmake__:
+   - Install toolchain: `pacboy -S toolchain:u`
+     If you are not sure about which packets you have to choose from this group, use the 
+     default option `select all`. 
+   - Install yasm (`pacboy -S yasm:u`) and cmake (`pacboy -S cmake:u`).
+     See all the packages installed: `pacman -Q`.
+7. Using pacman, install git (`pacman -S git`). __Notice that this operation uses 
+   pacman, not pacboy command__!
+8. Git clone the SVT-JPEG-XS repository to your computer and generate debug/release 
+   configuration of your choise:
+    ```
+    git clone https://github.com/OpenVisualCloud/SVT-JPEG-XS.git
+    ```
+   - Change the current working directory: 
+    ```
+    cd ~/SVT-JPEG-XS
+    ```
+   - Run cmake command, specify a source directory (`builddebug`) to generate a build system for the Debug configuration
+    ```
+    cmake -S . -B builddebug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=$HOME/install-dir
+    ```
+   - OR specify a source directory (`buildrelease`) for the Release configuration
+    ```
+    cmake -S . -B buildrelease -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=$HOME/install-dir
+    ```
+   - with the above two cmake commands, you can include any relevant cmake keys 
+     you may find necessary for your project.
+   - Build Debug or Release configuration
+   - `cmake -j4 --build builddebug --config Debug --target install`
+   - OR
+   - `cmake -j4 --build buildrelease --config Release --target install`
 
-## Notice
-
-You are solely responsible for determining if your use of jpeg-xs requires any additional licenses. Intel is not responsible for obtaining any such licenses, nor liable for any licensing fees due, in connection with your use of jpeg-xs.
-
-## Overview
-
-This library is implementation of ISO/IEC 21122 protocol.
-
-## Environment and Requirements
-
-Encoder/Decoder sample app and libraries requirements:
- - Any CPU that support x86-64 instruction set
-
-Unit Tests requirements (SvtJpegxsUnitTests):
- -  Any CPU that support x86-64 and AVX2 instruction set
-
-Supported OS versions:
-
- - Linux Ubuntu 20.04 and 22.04
- - Windows 10 and Windows 11
-
-## Build and Install
-
-### Windows* Operating Systems (64-bit)
-
-- __Build Requirements__
-  - Visual Studio* 2022 or 2019 (older version were not tested)
-  - CMake 3.16 or later
-  - YASM Assembler version 1.2.0 or later
-    - Download the yasm executable from the following [link](https://yasm.tortall.net/Download.html)
-    - Rename `yasm-*-win64.exe` to `yasm.exe`
-    - Copy `yasm.exe` into a location that is in the `PATH` environment variable (for example: `%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\`)
-
-- __Build Instructions__
-  - Build the project by following the steps below
-    - using terminal, cd into `<repo dir>\Build\windows`
-    - run `build.bat <2022|2019>`, which will generate the Solution files (`*.sln`) and build the project
-
-- __Binaries and libraries Location__
-  - Binaries can be found under `<repo dir>/Bin/Release` or `<repo dir>/Bin/Debug`, depending on whether `Debug` or `Release` were selected in the build mode.
-
-- __API headers location__
-  - API headers can be found under `Source/API`
-
-### Linux* Operating Systems (64-bit)
-
-- __Build Requirements__
-  - GCC 9.4.0 or later
-  - CMake 3.16 or later
-  - YASM Assembler version 1.2.0 or later
-
-- __Build Instructions__
-  - `cd Build/linux`
-  - `./build.sh <release | debug>`
-
-- __Binaries and libraries location__
-  - Binaries can be found under `Bin/Release` and/or `Bin/Debug`
-
-- __API headers location__
-  - API headers can be found under `Source/API`
-
-### Windows Services for Linux
-  As of March 2025, ISO/IEC 21122 protocol is in the development phase. WSL2 with 
-  Ubuntu 24.04 distro is a convenient platform for developing experimental 
-  implementations. Use Linux OS (64-bit) build instructions to build SVT-JPEG-XS
-  in WSL2.
-
-### MSYS2, Software Distribution and Building Platform for Windows
-  README.md in the ffmpeg-plugin folder of this repository requires that FFMPEG is 
-  build with [MSYS2](https://www.msys2.org). For a seamless integration you have to 
-  build SVT-JPEG-XS with MSYS2. The guide for building SVT-JPEG-XS with MSYS2 is given 
-  in MSYS2build.md.
+- To test the build, you can run a newly installed program, for example
+  ```
+  $ /home/User/install-dir/bin/SvtJpegxsSampleDecoder <path/filename.jxs>
+  ```
 
 ## Encoder
 

@@ -18,8 +18,6 @@ cd <jpeg-xs-repo>/Build/linux
 export LD_LIBRARY_PATH="$INSTALL_DIR/lib:${LD_LIBRARY_PATH}"
 export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
 ```
-You may want to save these exports to your (bash) profile
-
 ## 3. Download/Compile Ffmpeg:
 ### a) Clone repository:
 ```
@@ -53,43 +51,58 @@ Binary (executable) is located in main ffmpeg directory or ```$INSTALL_DIR/bin/`
 
 # Windows ffmpeg plugin
 
-### 1. Open terminal UCRT64 of MSYS2 and create installation directory and export env variable:
+## 1. Download and install binary/installer from: https://www.msys2.org/
+## 2. Open terminal MINGW64
+
+<installation_path>\msys64\mingw64.exe
+*If an error with lack of support for MSYS environment is encountered, please ensure MINGW64 is used. You can switch to it from any shell by
+```source shell mingw64```. Your selected shell is written after a machine name e.g. ```user@user-mobl MSYS ~```
+
+## 3.  Configure new environment for MINGW64:
+### a) Export proxy(optional, if required):
+```
+export ftp_proxy=<ftp>
+export http_proxy=<http>
+export https_proxy=<https>
+```
+### b) Install packages:
+```
+pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils
+```
+## 4. Create installation directory and export env variable:
 ```
 mkdir install-dir
 export INSTALL_DIR=$PWD/install-dir
 ```
-### 2. You should have installed svt-jpeg-xs libs 
-(in main svt-jpegxs folder), see root README.md of this repo
-#### a) Configure:
+## 5. Compile and install svt-jpeg-xs libs(In main svt-jpegxs folder)
+### a) Configure:
 ```
-cd ~/SVT-JPEG-XS
 cmake -S . -B svtjpegxs-build -DBUILD_APPS=off -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR
 ```
-#### b) Build:
+### b) Build:
 ```
 cmake --build svtjpegxs-build -j10 --config Release --target install
 ```
-### 6. Download/Compile Ffmpeg:
-#### a) Clone repository
+## 6. Download/Compile Ffmpeg:
+### a) Clone repository
 ```
-cd ~
 git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
 cd ffmpeg
 ```
-#### b) checkout to branch/tag 6.1:
+### b) checkout to branch/tag 6.1:
  ```
  git checkout release/6.1
 ```
-#### c) apply plugin patches:
+### c) apply plugin patches:
   ```
   cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
   git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/6.1/*.patch
 ```
-#### d) Export path for svt-jpeg-xs installation directory:
+### d) Export path for svt-jpeg-xs installation directory:
 ```
 export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
 ```
-#### e) Configure Release Build:
+### e) Configure Release Build:
 ```
 ./configure --enable-libsvtjpegxs --prefix=$INSTALL_DIR --enable-static --disable-shared
 ```
@@ -107,7 +120,7 @@ install-dir
         pkgconfig
             SvtJpegxs.pc
 ```
-#### f) build:
+### f) build:
 ```
 make -j10
 ```

@@ -94,7 +94,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 # BUILD_SHARED_LIBS is a standard CMake variable, but we declare it here to
 # make it prominent in the GUI.
-option(BUILD_SHARED_LIBS "Build shared libraries (DLLs)." ON)
+option(BUILD_SHARED_LIBS "Build shared libraries (DLLs)." OFF)
 message(STATUS "BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
 
 #option(BUILD_TESTING "Build SvtLcevcUnitTests, SvtLcevcApiTests, and SvtLcevcE2ETests unit tests")
