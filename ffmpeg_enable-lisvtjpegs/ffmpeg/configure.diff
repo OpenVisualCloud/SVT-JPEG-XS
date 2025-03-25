@@ -1,0 +1,37 @@
+diff --git a/configure b/configure.in
+index a1bd92a..f76f946 100755
+--- a/configure
++++ b/configure.in
+@@ -337,7 +337,6 @@ External library support:
+   --enable-vapoursynth     enable VapourSynth demuxer [no]
+   --disable-xlib           disable xlib [autodetect]
+   --disable-zlib           disable zlib [autodetect]
+-  --enable-libsvtjpegxs    enable JPEGXS encoding/decoding via SVT [no]
+ 
+   The following libraries provide various hardware acceleration features:
+   --disable-amf            disable AMF video encoding code [autodetect]
+@@ -1990,7 +1989,6 @@ EXTERNAL_LIBRARY_LIST="
+     pocketsphinx
+     vapoursynth
+     vulkan_static
+-    libsvtjpegxs
+ "
+ 
+ HWACCEL_AUTODETECT_LIBRARY_LIST="
+@@ -3631,8 +3629,6 @@ vapoursynth_demuxer_deps="vapoursynth"
+ videotoolbox_suggest="coreservices"
+ videotoolbox_deps="corefoundation coremedia corevideo"
+ videotoolbox_encoder_deps="videotoolbox VTCompressionSessionPrepareToEncodeFrames"
+-libsvtjpegxs_encoder_deps="libsvtjpegxs"
+-libsvtjpegxs_decoder_deps="libsvtjpegxs"
+ 
+ # demuxers / muxers
+ ac3_demuxer_select="ac3_parser"
+@@ -7058,7 +7054,6 @@ enabled libvmaf           && check_pkg_config libvmaf_cuda "libvmaf >= 2.0.0" li
+ enabled libvo_amrwbenc    && require libvo_amrwbenc vo-amrwbenc/enc_if.h E_IF_init -lvo-amrwbenc
+ enabled libvorbis         && require_pkg_config libvorbis vorbis vorbis/codec.h vorbis_info_init &&
+                              require_pkg_config libvorbisenc vorbisenc vorbis/vorbisenc.h vorbis_encode_init
+-enabled libsvtjpegxs      && require_pkg_config libsvtjpegxs "SvtJpegxs >= 0.9.0" SvtJpegxsEnc.h svt_jpeg_xs_encoder_init
+ 
+ enabled libvpx            && {
+     enabled libvpx_vp8_decoder && {

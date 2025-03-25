@@ -1,0 +1,13 @@
+diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c.in
+index 1df6592..3be33f5 100644
+--- a/libavcodec/allcodecs.c
++++ b/libavcodec/allcodecs.c.in
+@@ -822,8 +822,6 @@ extern const FFCodec ff_libxavs_encoder;
+ extern const FFCodec ff_libxavs2_encoder;
+ extern const FFCodec ff_libxvid_encoder;
+ extern const FFCodec ff_libzvbi_teletext_decoder;
+-extern const FFCodec ff_libsvtjpegxs_encoder;
+-extern const FFCodec ff_libsvtjpegxs_decoder;
+ 
+ /* text */
+ extern const FFCodec ff_bintext_decoder;
