@@ -75,7 +75,7 @@ Supported OS versions:
   README.md in the ffmpeg-plugin folder of this repository requires that FFMPEG is 
   build with [MSYS2](https://www.msys2.org). For a seamless integration you have to 
   build SVT-JPEG-XS with MSYS2. The guide for building SVT-JPEG-XS with MSYS2 is given 
-  in MSYS2build.md.
+  in MSYS2build.md. 
 
 ## Encoder
 
