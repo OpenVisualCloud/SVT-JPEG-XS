@@ -54,7 +54,7 @@ Binary (executable) is located in main ffmpeg directory or ```$INSTALL_DIR/bin/`
 # Windows ffmpeg plugin
 
 For particulars on how to build the plugin with universal C runtime in the 
-MSYS2 environment (MSYS2 UCRT64 terminal), see ws2msys.md of this folder.
+MSYS2 environment (MSYS2 UCRT64 terminal), see wsl2msys.md of this folder.
 
 ## 1. Download and install binary/installer from: https://www.msys2.org/
 ## 2. Open terminal MINGW64
