@@ -1,5 +1,9 @@
 # Building SVT-JPEG-XS with MSYS2 
 
+## License
+
+Scalable Video Technology is licensed under the OSI-approved BSD+Patent license. See [LICENSE](LICENSE.md) for details.
+
 We recommend to begin with a fresh installation of MSYS2.
 
 1. Download an installer from the front page of [MSYS2](https://www.msys2.org), run the 
