@@ -127,6 +127,16 @@ make -j10
 
 Note, for ffmpeg 7.0 version, replace 6.1 with 7.0 for above example commands.
 
+# WSL2 ffmpeg plugin
+
+While you can build ffmpeg plugin in WSL2 environment following the guide in general 
+__Linux ffmpeg plugin__ section, wsl2msys2.md gives additional instructions that help 
+decrease compile time.
+
+# MSYS2 ffmpeg plugin
+
+See document wsl2msys2.md in this folder.
+
 # How to use ffmpeg with jpeg-xs
 
 ## libsvtjpegxs encoder available params:

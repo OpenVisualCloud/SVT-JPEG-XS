@@ -1,11 +1,21 @@
 # ffmpeg: enable jpegxs codec
 
-This section explains how libSvtJpegxs can be added to FFMPEG as an external codec.
+This section explains how libSvtJpegxs can be added to FFMPEG as an external codec
+for use in WSL2 / MSYS2 development environments.
+
 Experiments with the JPEG-XS codec may require a lot of FFMPEG rebuilds, so this
 guide gives an option of compiling FFMPEG with only a subset of components to
 decrease compilation time to minimum.
 
 ## Linux(WSL2) ffmpeg plugin
+
+### Notice
+FFmpeg is an open source project licensed under LGPL and GPL. See 
+https://www.ffmpeg.org/legal.html. You are solely responsible for determining if your 
+use of FFmpeg requires any additional licenses. Intel is not responsible for obtaining 
+any such licenses, nor liable for any licensing fees due, in connection with your use 
+of FFmpeg.
+
 The narrative is for a fresh installation of Ubuntu 24.04 (Noble Numbat) distribution 
 into WSL2, but the section on the FFMPEG configuration can be used by 'pure Linux 
 developers' who may be dealing with necessity to build FFMPEG many times a day.
@@ -66,50 +76,24 @@ is accessible:
 sudo apt install pkgconf
 pkg-config --path SvtAv1Enc
 ```
-### 6. What files need to be updated/added to the project
-
-You have to edit these files which you find in the libavcodec folder of the FFmpeg 
-repo:
-```
-libavcodec/
-	codec_desc.c
-	codec_id.h
-	allcodecs.c
-	Makefile
-```
-and the files in the libavformat folder:
-```
-libavformat/
-	isom.c
-	isom_tags.c
-	movenc.c
-```
-and the file in the root (ffmpeg) folder:
-```
-configure
-```
-In subfolders of `ffmpeg_enable-libjpegxs` you see three type files: for example, 
-1) `codec_desc.c` (updated source file), 
-2) `codec_desc.c.in` (codec\_desc.c was copied to the file of the same name with 
-    a suffix `.in` added), 
-3) `codec_desc_c.diff` (the output of 
-`$git diff codec_desc.c codec_desc.c.in`). These \*.diff files are used to automate
-applying of patches; __you can read their content and have to manually edit the 
-sources__. 
-
-NOTE: Do not replace the files in the repo with type-1 files directly! FFmpeg 
-sources change often and the type-3 files should be used to find the position in 
-the file of the current repository where the lines for 'jpegxs enabling' should be 
-inserted. This is why the standard procedure includes checkout to fixed version.
-
-But the 'continuous development' of FFmpeg is also the reason why the experiments
-with a novel experimental feature have better be done with the actual FFMPEG 
-distribution.
-
-**DO NOT FORGET**
-You have to add two extra files to the `libavcodec` folder, libsvtjpegxs(dec,enc).c.
-These two files can be found in the `ffmpeg_enable-libjpegxs` folder of SVT-JPEG-XS 
-repo.
+### 6. Checkout to branch 6.1 or 7.0 and apply patches:
+  #### a) Checkout to branch/tag 6.1 and apply patches:
+  ```
+    git checkout release/6.1
+  ```
+  ```
+    cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
+    git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/6.1/*.patch
+  ```
+#### OR
+  #### b) Checkout to branch/tag 7.0 and apply patches:
+  ```
+    git checkout release/7.0
+  ```
+  ```
+    cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
+    git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/7.0/*.patch
+  ```
 
 ### 7. FFmpeg configure
 To shrink the compilation size, we use the key --disable-everything and add only 
@@ -141,7 +125,7 @@ open/write files, and playback streams with ffplay.
 make -j10
 make install
 ```
-and enhanced FFmpeg is ready to be used!
+You can use a newly build FFMPEG with libsvtjpegxs encoder.
 
 ### 8 Demonstration
 Let us transcode a video file \<videofilename>.mp4 using jpegxs encoder for output. In this
@@ -167,6 +151,15 @@ $ ./ffmpeg -ss 00:00:01 -i <videofilename>_jxs.mkv -frames:v 1 -c:v jpegxs -bpp 
 jxs\_decoder or viewed with a dedicated jpegxs viewer of your choice.
 
 ## Windows (MSYS2) ffmpeg plugin
+
+### Notice
+FFmpeg is an open source project licensed under LGPL and GPL. See 
+https://www.ffmpeg.org/legal.html. You are solely responsible for determining 
+if your use of FFmpeg requires any additional licenses. Intel is not responsible 
+for obtaining any such licenses, nor liable for any licensing fees due, in connection 
+with your use of FFmpeg.
+
+### Preliminary
 First, install MSYS2 and build SVT-JPEG-XS, as described in MSYS2build.md of the 
 root folder.
 
@@ -189,7 +182,7 @@ pacboy -S SDL2:u
 pkg-config is already installed (with pacboy -S toolchain:u), so you can verify 
 `pkg-config --libs SvtAv1Enc`.
 
-### 2 What files need to be updated/added to the project
+### 2 Checkout to branch 6.1 or 7.0 and apply patches
 Exactly as in the subsection __6. What files need to be updated/added to the project__ 
 of the __Linux(WSL2) ffmpeg plugin__ section this document.
 ### 3 FFmpeg configure
@@ -222,4 +215,4 @@ So, mingw32 -- in this context -- is a marker of (fictitious?) operating system!
 mingw32-make -j10
 mingw32-make install
 ```
-and enhanced FFmpeg is ready to be used!
+You can use a newly build FFMPEG with libsvtjpegxs encoder.
