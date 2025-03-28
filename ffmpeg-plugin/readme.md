@@ -3,6 +3,8 @@
 ## Notice
 FFmpeg is an open source project licensed under LGPL and GPL. See https://www.ffmpeg.org/legal.html. You are solely responsible for determining if your use of FFmpeg requires any additional licenses. Intel is not responsible for obtaining any such licenses, nor liable for any licensing fees due, in connection with your use of FFmpeg.
 
+For particulars on how to build the plugin in WSL2 environment, see ws2msys.md of this folder.
+
 ## 0. Create installation directory and export env variable:
 ```
 mkdir install-dir
@@ -50,6 +52,9 @@ Binary (executable) is located in main ffmpeg directory or ```$INSTALL_DIR/bin/`
 
 
 # Windows ffmpeg plugin
+
+For particulars on how to build the plugin with universal C runtime in the 
+MSYS2 environment (MSYS2 UCRT64 terminal), see ws2msys.md of this folder.
 
 ## 1. Download and install binary/installer from: https://www.msys2.org/
 ## 2. Open terminal MINGW64
