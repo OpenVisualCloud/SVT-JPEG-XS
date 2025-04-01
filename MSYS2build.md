@@ -37,18 +37,18 @@ We recommend to begin with a fresh installation of MSYS2.
     ```
    - Run cmake command, specify a source directory (`builddebug`) to generate a build system for the Debug configuration
     ```
-    cmake -S . -B builddebug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=$HOME/install-dir
+    cmake -S . -B builddebug -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=$HOME/install-dir
     ```
    - OR specify a source directory (`buildrelease`) for the Release configuration
     ```
-    cmake -S . -B buildrelease -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=$HOME/install-dir
+    cmake -S . -B buildrelease -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=$HOME/install-dir
     ```
    - with the above two cmake commands, you can include any relevant cmake keys 
      you may find necessary for your project.
    - Build Debug or Release configuration
-   - `cmake -j4 --build builddebug --config Debug --target install`
+   - `cmake --build builddebug -j4 --config Debug --target install`
    - OR
-   - `cmake -j4 --build buildrelease --config Release --target install`
+   - `cmake --build buildrelease -j4 --config Release --target install`
 
 - To test the build, you can run a newly installed program, for example
   ```

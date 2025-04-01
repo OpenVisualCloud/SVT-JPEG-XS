@@ -82,6 +82,7 @@ pkg-config --path SvtAv1Enc
 ### 6. Checkout to branch 6.1 or 7.0 and apply patches:
   #### a) Checkout to branch/tag 6.1 and apply patches:
   ```
+    cd ffmpeg
     git checkout release/6.1
   ```
   ```
@@ -91,6 +92,7 @@ pkg-config --path SvtAv1Enc
 #### OR
   #### b) Checkout to branch/tag 7.0 and apply patches:
   ```
+    cd ffmpeg
     git checkout release/7.0
   ```
   ```
@@ -109,11 +111,11 @@ components necessary for routine tasks. For example, these components can be
   - SDL2 output device
   - two protocols
 ```
-./configure --prefix=/home/User/install-dir --bindir=/home/User/bin \
+./configure --prefix=~/install-dir --bindir=~/bin \
 --disable-doc --disable-everything --disable-network \
---enable-libsvtav1 --enable-libdav1d --enable-libsvtjpegxs \
+--enable-libdav1d --enable-libsvtjpegxs \
 --enable-decoder='aac,ac3,h264,hevc,libdav1d,libsvtjpegxs' \
---enable-encoder='aac,ac3,libsvtav1,wrapped_avframe,libsvtjpegxs' 
+--enable-encoder='aac,ac3,wrapped_avframe,libsvtjpegxs' 
 --enable-filter='scale,aresample' \
 --enable-demuxer='mov,mp4,matroska,m4v,ivf,yuv4mpegpipe' \
 --enable-muxer='avif,mov,matroska,m4v,yuv4mpegpipe' \
@@ -193,9 +195,9 @@ of the __Linux(WSL2) ffmpeg plugin__ section this document.
 ```
 ./configure --prefix=/home/user/install-dir --bindir=/home/user/bin \
 --disable-doc --disable-everything --disable-network \
---enable-libsvtav1 --enable-libdav1d --enable-libsvtjpegxs \
+--enable-libdav1d --enable-libsvtjpegxs \
 --enable-decoder='aac,ac3,h264,hevc,libdav1d,libsvtjpegxs' \
---enable-encoder='aac,ac3,libsvtav1,wrapped_avframe,libsvtjpegxs' 
+--enable-encoder='aac,ac3,wrapped_avframe,libsvtjpegxs' 
 --enable-filter='scale,aresample' \
 --enable-demuxer='mov,mp4,matroska,m4v,ivf,yuv4mpegpipe' \
 --enable-muxer='avif,mov,matroska,m4v,yuv4mpegpipe' \
