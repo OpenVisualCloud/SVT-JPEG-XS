@@ -32,12 +32,12 @@ sudo apt install yasm
 ```
 ### 2. Git clone SVT-JPEG-XS
 ```
-cd ~/
+cd $HOME/
 git clone https://github.com/OpenVisualCloud/SVT-JPEG-XS.git
 ```
 ### 3. Export installation location:
 ```
-mkdir -p ~/install-dir
+mkdir -p $HOME/install-dir
 export INSTALL_DIR="$HOME/install-dir"
 export LD_LIBRARY_PATH="$INSTALL_DIR/lib:${LD_LIBRARY_PATH}"
 export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
@@ -46,7 +46,7 @@ export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
 make this exports with each new login.)
 ### 4. Build SVT-JPEG-XS
 ```
-cd ~/SVT-JPEG-XS
+cd $HOME/SVT-JPEG-XS
 cmake -B buildrelease -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR && \
 cmake --build buildrelease -j10 --config Release --target install
 ```
@@ -57,7 +57,7 @@ sudo apt install nasm
 ```
 Git clone FFMPEG:
 ```
-cd ~/
+cd $HOME/
 git clone https://git.ffmpeg.org/ffmpeg.git
 ```
 With Ubuntu 24.04 distros, many external libraries can now be apt installed:
@@ -65,24 +65,11 @@ With Ubuntu 24.04 distros, many external libraries can now be apt installed:
 sudo apt install dav1d
 sudo apt install libsdl2-dev
 ```
-The library libsvtav1 can also be apt installed, only you have to install two
-packages: 
-```
-sudo apt install libsvtav1-dev libsvtav1enc-dev
-```
-FFmpeg calls SvtAv1Enc from libsvtav1enc, but the latter requires libsvtav1
-to be installed. The trick is borrowed from ref.
-[SvtAv1Enc >= 0.9.0 not found using pkg-config](https://github.com/markus-perl/ffmpeg-build-script/issues/186).
-If you like, you can immediately (from the console) verify that a symbol SvtAv1Enc 
-is accessible:
-```
-sudo apt install pkgconf
-pkg-config --path SvtAv1Enc
-```
+
 ### 6. Checkout to branch 6.1 or 7.0 and apply patches:
   #### a) Checkout to branch/tag 6.1 and apply patches:
   ```
-    cd ffmpeg
+    cd $HOME/ffmpeg
     git checkout release/6.1
   ```
   ```
@@ -92,7 +79,7 @@ pkg-config --path SvtAv1Enc
 #### OR
   #### b) Checkout to branch/tag 7.0 and apply patches:
   ```
-    cd ffmpeg
+    cd $HOME/ffmpeg
     git checkout release/7.0
   ```
   ```
@@ -111,7 +98,7 @@ components necessary for routine tasks. For example, these components can be
   - SDL2 output device
   - two protocols
 ```
-./configure --prefix=~/install-dir --bindir=~/bin \
+./configure --prefix=$HOME/install-dir --bindir=$HOME/bin \
 --disable-doc --disable-everything --disable-network \
 --enable-libdav1d --enable-libsvtjpegxs \
 --enable-decoder='aac,ac3,h264,hevc,libdav1d,libsvtjpegxs' \
@@ -136,6 +123,7 @@ You can use a newly build FFMPEG with libsvtjpegxs encoder.
 Let us transcode a video file \<videofilename>.mp4 using jpegxs encoder for output. In this
 example, we also change the container but you can stay with the original container, if you like:
 ```
+cd $HOME/bin
 $ ./ffmpeg -i \<videofilename>.mp4 -c:v jpegxs -bpp 1 \<videofilename>_jxs.mkv
 ```
 The console output confirms that we re-encode the video stream with a `jpegxs` encoder. For example:
@@ -168,6 +156,16 @@ with your use of FFmpeg.
 First, install MSYS2 and build SVT-JPEG-XS, as described in MSYS2build.md of the 
 root folder.
 
+Export installation location:
+```
+mkdir -p $HOME/install-dir
+export INSTALL_DIR="$HOME/install-dir"
+export LD_LIBRARY_PATH="$INSTALL_DIR/lib:${LD_LIBRARY_PATH}"
+export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
+```
+(Do not forget to save these env vars to your profile, otherwise you have to 
+make this exports with each new login.)
+
 ### 1. Prepare FFmpeg build
 Some components of FFmpeg require, besides yasm, also NASM compiler:
 ```
@@ -175,13 +173,12 @@ pacboy -S nasm:u
 ```
 Git clone FFMPEG:
 ```
-cd ~/
+cd $HOME/
 git clone https://git.ffmpeg.org/ffmpeg.git
 ```
 External libraries can be pacboy-installed:
 ```
 pacboy -S dav1d:u
-pacboy -S svt-av1:u
 pacboy -S SDL2:u
 ```
 pkg-config is already installed (with pacboy -S toolchain:u), so you can verify 
@@ -193,7 +190,7 @@ of the __Linux(WSL2) ffmpeg plugin__ section this document.
 ### 3 FFmpeg configure
 
 ```
-./configure --prefix=/home/user/install-dir --bindir=/home/user/bin \
+./configure --prefix=$HOME/install-dir --bindir=$HOME/bin \
 --disable-doc --disable-everything --disable-network \
 --enable-libdav1d --enable-libsvtjpegxs \
 --enable-decoder='aac,ac3,h264,hevc,libdav1d,libsvtjpegxs' \

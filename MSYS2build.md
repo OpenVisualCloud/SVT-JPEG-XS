@@ -52,7 +52,7 @@ We recommend to begin with a fresh installation of MSYS2.
 
 - To test the build, you can run a newly installed program, for example
   ```
-  $ /home/User/install-dir/bin/SvtJpegxsSampleDecoder <path/filename.jxs>
+  $ ~/install-dir/bin/SvtJpegxsSampleDecoder <path/filename.jxs>
   ```
 
 ## Encoder
