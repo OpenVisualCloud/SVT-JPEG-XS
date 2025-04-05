@@ -62,7 +62,7 @@ git clone https://git.ffmpeg.org/ffmpeg.git
 ```
 With Ubuntu 24.04 distros, many external libraries can now be apt installed:
 ```
-sudo apt install dav1d
+sudo apt install libdav1d-dev
 sudo apt install libsdl2-dev
 ```
 
@@ -102,7 +102,7 @@ components necessary for routine tasks. For example, these components can be
 --disable-doc --disable-everything --disable-network \
 --enable-libdav1d --enable-libsvtjpegxs \
 --enable-decoder='aac,ac3,h264,hevc,libdav1d,libsvtjpegxs' \
---enable-encoder='aac,ac3,wrapped_avframe,libsvtjpegxs' 
+--enable-encoder='aac,ac3,wrapped_avframe,libsvtjpegxs' \
 --enable-filter='scale,aresample' \
 --enable-demuxer='mov,mp4,matroska,m4v,ivf,yuv4mpegpipe' \
 --enable-muxer='avif,mov,matroska,m4v,yuv4mpegpipe' \
