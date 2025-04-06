@@ -202,11 +202,13 @@ External libraries can be pacboy-installed:
 pacboy -S dav1d:u
 pacboy -S SDL2:u
 ```
-The library svt-av1 can also be apt installed: 
+The libraries svt-av1 and vmaf can also be apt installed:
 ```
 pacboy -S svt-av1:u
+pacboy -S vmaf:u
 ```
-You may need the libsvtav1 codec only if you plan to checkout ffmpeg to `release/7.1`.
+You may need the libsvtav1 codec only if you plan to checkout ffmpeg to `release/7.1`. 
+Netflix's vmaf is used to assess perceptual visual quality of video.
 
 pkg-config is already installed (with pacboy -S toolchain:u), so you can verify 
 `pkg-config --libs SvtAv1Enc`.
