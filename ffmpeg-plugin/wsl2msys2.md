@@ -65,8 +65,14 @@ With Ubuntu 24.04 distros, many external libraries can now be apt installed:
 sudo apt install libdav1d-dev
 sudo apt install libsdl2-dev
 ```
+The library libsvtav1 can also be apt installed, only you have to install two
+packages: 
+```
+sudo apt install libsvtav1-dev libsvtav1enc-dev
+```
+You only may need the libsvtav1 codec if you plan to checkout ffmpeg to `release/7.1`.
 
-### 6. Checkout to branch 6.1 or 7.0 and apply patches:
+### 6. Checkout to branch 6.1 or 7.0 or 7.1 and apply patches:
   #### a) Checkout to branch/tag 6.1 and apply patches:
   ```
     cd $HOME/ffmpeg
@@ -86,6 +92,18 @@ sudo apt install libsdl2-dev
     cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
     git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/7.0/*.patch
   ```
+#### OR
+  #### c) Checkout to branch/tag 7.1 and apply a patch:
+  ```
+    cd $HOME/ffmpeg
+    git checkout release/7.1
+  ```
+  ```
+    git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/0001-commit-to-enable-libsvtjpegxs.patch
+  ```
+  When using `0001-commit-to-enable-libsvtjpegxs.patch`, you should not copy 
+  `libsvtjpegxs(dec,enc).c` files to `libavcodec/` manually. These files are included 
+  with the patch.
 
 ### 7. FFmpeg configure
 To shrink the compilation size, we use the key --disable-everything and add only 
@@ -111,6 +129,9 @@ components necessary for routine tasks. For example, these components can be
 ```
 and the 'routine tasks' are typical operations with multimedia streams, as transcode, 
 open/write files, and playback streams with ffplay.
+
+You can add the flag `--enable-libsvtav1` and the encoder `libsvtav1` to this `configure`
+only when having done checkout to `release/7.1`.
 
 ### 8. make, make install
 ```
@@ -181,11 +202,17 @@ External libraries can be pacboy-installed:
 pacboy -S dav1d:u
 pacboy -S SDL2:u
 ```
+The library svt-av1 can also be apt installed: 
+```
+pacboy -S svt-av1:u
+```
+You may need the libsvtav1 codec only if you plan to checkout ffmpeg to `release/7.1`.
+
 pkg-config is already installed (with pacboy -S toolchain:u), so you can verify 
 `pkg-config --libs SvtAv1Enc`.
 
-### 2 Checkout to branch 6.1 or 7.0 and apply patches
-Exactly as in the subsection __6. What files need to be updated/added to the project__ 
+### 2 Checkout to branch 6.1 or 7.0 or 7.1 and apply patches
+Exactly as in the subsection __6. Checkout to branch 6.1 or 7.0 or 7.1 and apply patches__ 
 of the __Linux(WSL2) ffmpeg plugin__ section this document.
 ### 3 FFmpeg configure
 
@@ -203,6 +230,9 @@ of the __Linux(WSL2) ffmpeg plugin__ section this document.
 ```
 and the 'routine tasks' are typical operations with multimedia streams, as transcode, 
 open/write files, and playback streams with ffplay.
+
+You can add the flag `--enable-libsvtav1` and the encoder `libsvtav1` to this `configure`
+only when having done checkout to `release/7.1`.
 
 ### 3. make, make install
 The only eyebrow-raising detail of the following operations is the `make` tool name 
