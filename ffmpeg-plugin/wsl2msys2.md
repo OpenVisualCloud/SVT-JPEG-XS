@@ -99,11 +99,10 @@ You only may need the libsvtav1 codec if you plan to checkout ffmpeg to `release
     git checkout release/7.1
   ```
   ```
-    git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/0001-commit-to-enable-libsvtjpegxs.patch
+    git apply <jpeg-xs-repo>/ffmpeg-plugin/enable-libsvtjpegxs.patch
   ```
-  When using `0001-commit-to-enable-libsvtjpegxs.patch`, you should not copy 
-  `libsvtjpegxs(dec,enc).c` files to `libavcodec/` manually. These files are included 
-  with the patch.
+  When using `enable-libsvtjpegxs.patch`, you should not copy `libsvtjpegxs(dec,enc).c` 
+  files to `libavcodec/` manually. These files are included with the patch.
 
 ### 7. FFmpeg configure
 To shrink the compilation size, we use the key --disable-everything and add only 
@@ -215,7 +214,7 @@ pkg-config is already installed (with pacboy -S toolchain:u), so you can verify
 
 ### 2 Checkout to branch 6.1 or 7.0 or 7.1 and apply patches
 Exactly as in the subsection __6. Checkout to branch 6.1 or 7.0 or 7.1 and apply patches__ 
-of the __Linux(WSL2) ffmpeg plugin__ section this document.
+of the __Linux(WSL2) ffmpeg plugin__ section of this document.
 ### 3 FFmpeg configure
 
 ```

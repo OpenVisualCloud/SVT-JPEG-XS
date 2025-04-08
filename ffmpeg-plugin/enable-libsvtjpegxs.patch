@@ -1,23 +1,3 @@
-From 8237f58b6e4a755c544f85255f0db5749ef7af74 Mon Sep 17 00:00:00 2001
-From: "V.V.T." <vasilich.tregub@gmail.com>
-Date: Sun, 6 Apr 2025 18:09:16 +0700
-Subject: [PATCH] commit to enable-libsvtjpegxs
-
----
- configure                    |   5 +
- libavcodec/Makefile          |   2 +
- libavcodec/allcodecs.c       |   2 +
- libavcodec/codec_desc.c      |   9 +
- libavcodec/codec_id.h        |   1 +
- libavcodec/libsvtjpegxsdec.c | 261 +++++++++++++++++++++++++++++
- libavcodec/libsvtjpegxsenc.c | 310 +++++++++++++++++++++++++++++++++++
- libavformat/isom.c           |   1 +
- libavformat/isom_tags.c      |   1 +
- libavformat/movenc.c         |   1 +
- 10 files changed, 593 insertions(+)
- create mode 100644 libavcodec/libsvtjpegxsdec.c
- create mode 100644 libavcodec/libsvtjpegxsenc.c
-
 diff --git a/configure b/configure
 index d77a55b653..b4d380ccd8 100755
 --- a/configure
@@ -732,6 +712,3 @@ index d20e45cf81..f933f3715f 100644
      { AV_CODEC_ID_VC1,             MKTAG('v', 'c', '-', '1') },
      { AV_CODEC_ID_DIRAC,           MKTAG('d', 'r', 'a', 'c') },
      { AV_CODEC_ID_TSCC2,           MKTAG('m', 'p', '4', 'v') },
--- 
-2.44.1.windows.1
-
