@@ -18,6 +18,9 @@ $unittest = "OFF"
 $vs = ""
 $cmake_eflags = ""
 
+# Set ASM_NASM environment variable to C:\Yasm\yasm.exe
+$env:ASM_NASM = "C:\Yasm\yasm.exe"
+Write-Host "ASM_NASM set to $($env:ASM_NASM)"
 function Show-Help {
     Write-Host "PowerShell script to build SVT-AV1 on Windows"
     Write-Host "Usage: build.ps1 [2022|2019|2017|2015|clean] [release|debug] [nobuild] [test] [shared|static] [c-only]"
