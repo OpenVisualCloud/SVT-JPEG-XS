@@ -512,7 +512,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_load_default_parameters(uint64_
     enc_api->cpu_profile = 0;
     enc_api->print_bands_info = 0;
     enc_api->verbose = VERBOSE_SYSTEM_INFO;
-    enc_api->rate_control_mode = 0;
+    enc_api->rate_control_mode = RC_CBR_PER_PRECINCT_MOVE_PADDING;
     enc_api->coding_signs_handling = 0;
     enc_api->coding_significance = 1;
     enc_api->coding_vertical_prediction_mode = 0;

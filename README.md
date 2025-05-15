@@ -184,7 +184,7 @@ Coding features used during Rate Calculation (quality/speed tradeoff):
                             CBR: budget per precinct with padding movement: 1,
                             CBR: budget per slice: 2,
                             CBR: budget per slice with nax size RATE: 3,
-                            default 0)
+                            default 1)
 ```
 
 Threading, performance:
