@@ -48,6 +48,16 @@ function Install-VisualStudio2022 {
   Start-Process -FilePath "$installDir\vs_community.exe" -ArgumentList $installArgs -NoNewWindow -Wait
 
   Write-Host "Visual Studio 2022 installation completed."
+
+  Write-Host "Installing Microsoft Visual C++ 2010 Service Pack 1 Redistributable..."
+  $vc2010Url = "https://download.microsoft.com/download/1/5/6/156F8A0B-1D7C-4D7A-8C5E-6B7A1F6C1B7C/vc_redist.x64.exe"
+  $vc2010Installer = "$installDir\vc_redist.x64.exe"
+
+  Invoke-WebRequest -Uri $vc2010Url -OutFile $vc2010Installer
+
+  Start-Process -FilePath $vc2010Installer -ArgumentList "/quiet", "/norestart" -NoNewWindow -Wait
+
+  Write-Host "Microsoft Visual C++ 2010 Service Pack 1 Redistributable installation completed."
 }
 Install-Yasm
 Install-VisualStudio2022

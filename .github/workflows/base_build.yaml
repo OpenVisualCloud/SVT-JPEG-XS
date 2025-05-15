@@ -63,4 +63,4 @@ jobs:
       shell: cmd
       run: |
 
-        call .\build.bat 2022 release & set PATH=%YASM_PATH%;%PATH% & C:/Yasm/yasm.exe -o "ASM_SSE2.obj" -fwin64 -I"D:\a\SVT-JPEG-XS\SVT-JPEG-XS\Source\Lib\Common\ASM_SSE2\\" -D"WIN64" -D"WIN32" -D"_WINDOWS" -D"NDEBUG" -D"ARCH_X86_64=1" -D"CMAKE_INTDIR="Release""  "D:\a\SVT-JPEG-XS\SVT-JPEG-XS\Source\Lib\Encoder\ASM_SSE2\ASM_SSE2.asm"
+        call .\build.bat 2022 release 
