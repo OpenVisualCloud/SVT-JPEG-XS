@@ -9,7 +9,7 @@ setlocal
 cd /d "%~dp0"
 
 
-
+set "ASM_NASM=C:\Yasm\yasm.exe"
 setx ASM_NASM "C:\Yasm\yasm.exe" >nul
 
 :: Set defaults to prevent inheriting
