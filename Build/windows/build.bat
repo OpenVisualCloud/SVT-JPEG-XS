@@ -10,7 +10,7 @@ cd /d "%~dp0"
 
 
 set "ASM_NASM=%YASM_PATH%"
-setx ASM_NASM "%YASM_PATH%" >nul
+setx ASM_NASM %YASM_PATH% >nul
 
 :: Set defaults to prevent inheriting
 set "build=y"
