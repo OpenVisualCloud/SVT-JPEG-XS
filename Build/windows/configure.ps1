@@ -22,7 +22,9 @@ function Install-Yasm {
   } else {
     Write-Host "Yasm installation directory already exists in system PATH."
   }
-
+  # Set ASM_NASM environment variable to the full path of yasm.exe
+  [System.Environment]::SetEnvironmentVariable("ASM_NASM", "$installDir\yasm.exe", [System.EnvironmentVariableTarget]::Machine)
+  Write-Host "ASM_NASM environment variable set to $installDir\yasm.exe."
   Write-Host "Yasm installation completed."
 }
 
