@@ -54,11 +54,11 @@ jobs:
     - name: 'Install dependencies'
       working-directory: Build/windows
       shell: pwsh
-      run: configure.ps1
+      run: .\configure.ps1
 
     - name: 'Build'
       working-directory: Build/windows
       shell: cmd
       run: |
-        call build.bat 2022 test
-        call build.bat 2022 test release
+        call .\build.bat 2022 test
+        call .\build.bat 2022 test release
