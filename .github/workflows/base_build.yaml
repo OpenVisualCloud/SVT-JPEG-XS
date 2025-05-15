@@ -43,7 +43,7 @@ jobs:
     runs-on: 'windows-2022'
     timeout-minutes: 120
     env: 
-      YASM_PATH: C:/Yasm/yasm.exe
+      YASM_PATH: C:/Yasm
     steps:
     - name: 'Harden Runner'
       uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
@@ -62,5 +62,7 @@ jobs:
       working-directory: Build/windows
       shell: cmd
       run: |
+
         call .\build.bat 2022 
+        set PATH=%YASM_PATH%;%PATH%
         C:/Yasm/yasm.exe -o "ASM_SSE2.obj" -fwin64 -I"D:\a\SVT-JPEG-XS\SVT-JPEG-XS\Source\Lib\Common\ASM_SSE2\\" -D"WIN64" -D"WIN32" -D"_WINDOWS" -D"NDEBUG" -D"ARCH_X86_64=1" -D"CMAKE_INTDIR="Release""  "D:\a\SVT-JPEG-XS\SVT-JPEG-XS\Source\Lib\Encoder\ASM_SSE2\ASM_SSE2.asm""
