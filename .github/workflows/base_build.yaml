@@ -32,10 +32,12 @@ jobs:
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
     - name: 'Install dependencies'
-      run: sudo Build/linux/configure.sh linux 
+      working-directory: Build/linux
+      run: sudo ./configure.sh linux 
 
     - name: 'Build and install'
-      run: Build/linux/build.sh
+      working-directory: Build/linux
+      run: ./build.sh
 
   build-windows:
     runs-on: 'windows-2022'
@@ -50,7 +52,9 @@ jobs:
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
     - name: 'Install dependencies'
-      run: powershell.exe -File Build/windows/configure.ps1
+      working-directory: Build/windows
+      run: powershell.exe -File configure.ps1
 
     - name: 'Build and install'
+      working-directory: Build/windows
       run: powershell.exe -File build.ps1 2022 test && powershell.exe -File build.ps1 2022 test release
