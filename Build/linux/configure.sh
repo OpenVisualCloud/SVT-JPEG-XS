@@ -5,16 +5,15 @@
 #
 
 
-  echo "*************************  setting up linux enviroment...  *************************"
-  if [ "$EUID" -ne 0 ]; then
-    echo "Please run as root"
-    exit 1
-  fi
-
+ 
+if [ "$EUID" -eq 0 ]; then
+   echo "*************************  setting up linux enviroment...  *************************"
   lscpu
   apt-get update
   apt-get -y install nasm
   echo "*************************  linux enviroment setup complete  *************************"
 
-
-
+else
+  echo "Please run as root"
+  exit 1
+fi
