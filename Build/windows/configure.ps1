@@ -1,0 +1,45 @@
+function Install-Yasm {
+  Write-Host "installing Yasm..."
+  $yasmUrl = "https://www.tortall.net/projects/yasm/releases/yasm-1.3.0-win64.exe"
+  $installDir = "C:\Yasm"
+
+  if (-Not (Test-Path -Path $installDir)) {
+    New-Item -ItemType Directory -Path $installDir | Out-Null
+  }
+
+  Write-Host "Downloading Yasm..."
+  Invoke-WebRequest -Uri $yasmUrl -OutFile "$installDir\yasm.exe"
+
+  $envPath = [System.Environment]::GetEnvironmentVariable("Path", [System.EnvironmentVariableTarget]::Machine)
+  if (-Not $envPath.Contains($installDir)) {
+    [System.Environment]::SetEnvironmentVariable("Path", "$envPath;$installDir", [System.EnvironmentVariableTarget]::Machine)
+    Write-Host "Yasm installation directory added to system PATH."
+  } else {
+    Write-Host "Yasm installation directory already exists in system PATH."
+  }
+
+  Write-Host "Yasm installation completed."
+}
+
+function Install-VisualStudio2022 {
+  Write-Host "installing Visual Studio 2022..."
+  $vsUrl = "https://aka.ms/vs/17/release/vs_community.exe"
+  $installDir = "C:\VisualStudio2022"
+
+  if (-Not (Test-Path -Path $installDir)) {
+    New-Item -ItemType Directory -Path $installDir | Out-Null
+  }
+
+  Write-Host "Downloading Visual Studio bootstrapper..."
+  Invoke-WebRequest -Uri $vsUrl -OutFile "$installDir\vs_community.exe"
+
+  $installArgs = "--quiet --wait --norestart --installPath $installDir --add Microsoft.VisualStudio.Workload.CoreEditor"
+
+  Write-Host "Installing Visual Studio 2022..."
+  Start-Process -FilePath "$installDir\vs_community.exe" -ArgumentList $installArgs -NoNewWindow -Wait
+
+  Write-Host "Visual Studio 2022 installation completed."
+}
+Install-Yasm
+Install-VisualStudio2022
+
