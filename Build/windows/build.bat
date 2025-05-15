@@ -8,6 +8,10 @@
 setlocal
 cd /d "%~dp0"
 
+
+
+setx ASM_NASM "C:\Yasm\yasm.exe" >nul
+
 :: Set defaults to prevent inheriting
 set "build=y"
 :: Default is debug
