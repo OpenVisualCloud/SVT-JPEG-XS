@@ -9,8 +9,8 @@ setlocal
 cd /d "%~dp0"
 
 
-set "ASM_NASM=C:\Yasm\yasm.exe"
-setx ASM_NASM "C:\Yasm\yasm.exe" >nul
+set "ASM_NASM=%YASM_PATH%"
+setx ASM_NASM "%YASM_PATH%" >nul
 
 :: Set defaults to prevent inheriting
 set "build=y"

@@ -6,7 +6,10 @@
 function Install-Yasm {
   Write-Host "installing Yasm..."
   $yasmUrl = "https://www.tortall.net/projects/yasm/releases/yasm-1.3.0-win64.exe"
-  $installDir = "C:\Yasm"
+  $installDir = $env:YASM_PATH
+  if (-not $installDir) {
+    $installDir = "C:\Yasm"
+  }
   if (-Not (Test-Path -Path $installDir)) {
     New-Item -ItemType Directory -Path $installDir | Out-Null
   }
