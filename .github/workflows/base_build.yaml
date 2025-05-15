@@ -55,6 +55,6 @@ jobs:
       working-directory: Build/windows
       run: powershell.exe -File configure.ps1
 
-    - name: 'Build and install'
+    - name: 'Build'
       working-directory: Build/windows
       run: powershell.exe -File build.ps1 2022 test && powershell.exe -File build.ps1 2022 test release
