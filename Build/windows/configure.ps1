@@ -1,3 +1,8 @@
+<#
+ Copyright(c) 2024 Intel Corporation
+ SPDX-License-Identifier: BSD-2-Clause-Patent
+#>
+
 function Install-Yasm {
   Write-Host "installing Yasm..."
   $yasmUrl = "https://www.tortall.net/projects/yasm/releases/yasm-1.3.0-win64.exe"

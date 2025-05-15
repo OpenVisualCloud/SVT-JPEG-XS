@@ -53,4 +53,4 @@ jobs:
       run: powershell.exe -File Build/windows/configure.ps1
 
     - name: 'Build and install'
-      run: build.bat 2022 test && build.bat 2022 test release
+      run: powershell.exe -File build.ps1 2022 test && powershell.exe -File build.ps1 2022 test release
