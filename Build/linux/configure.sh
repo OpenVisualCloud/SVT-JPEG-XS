@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Copyright(c) 2024 Intel Corporation
 # SPDX - License - Identifier: BSD - 2 - Clause - Patent
