@@ -45,6 +45,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: linux-binaries
+        errors-ignore: false
         path: |
           Bin/Release/SvtJpegxsEncApp
           Bin/Release/SvtJpegxsDecApp
@@ -82,6 +83,7 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: linux-binaries
+        errors-ignore: false
         path: |
           Bin/Release/SvtJpegxsEncApp.exe
           Bin/Release/SvtJpegxsDecApp.exe
