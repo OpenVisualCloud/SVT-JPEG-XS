@@ -1,0 +1,91 @@
+name: Base Build
+
+on:
+  push:
+    branches: ["main"]
+  release:
+    types: ["published"]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: 'ubuntu-22.04'
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    - name: 'Install dependencies'
+      working-directory: Build/linux
+      run: | 
+           sudo apt-get update
+           sudo apt-get -y install nasm
+
+    - name: 'Build Debug and Release versions'
+      working-directory: Build/linux
+      run: ./build.sh --all --test
+
+    - name: upload artifacts
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      with:
+        errors-ignore: false
+        path: |
+          Bin/Release/SvtJpegxsEncApp
+          Bin/Release/SvtJpegxsDecApp
+          Bin/Debug/SvtJpegxsEncApp
+          Bin/Debug/SvtJpegxsDecApp
+
+  windows:
+    runs-on: 'windows-2022'
+    timeout-minutes: 120
+    env: 
+      YASM_PATH: C:\Yasm
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    - name: 'Install dependencies'
+      working-directory: "${{ github.workspace }}"
+      shell: pwsh
+      run: .\.github\scripts\configure.ps1
+
+    - name: 'Build'
+      working-directory: Build/windows
+      shell: cmd
+      env:
+        ASM_NASM: ${{ env.YASM_PATH }}\yasm.exe
+      run: |
+        call .\build.bat 2022 release test
+        call .\build.bat 2022 debug  test
+    - name: upload artifacts
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      with:
+        name: windows-binaries
+        path: |
+          Bin/Release/SvtJpegxsEncApp.exe
+          Bin/Release/SvtJpegxsDecApp.exe
+          Bin/Debug/SvtJpegxsEncApp.exe
+          Bin/Debug/SvtJpegxsDecApp.exe
