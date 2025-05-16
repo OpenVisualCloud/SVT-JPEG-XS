@@ -2,10 +2,12 @@ name: Base Build
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
+  release:
+    types: ["published"]
   pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
+  workflow_call:
 
 defaults:
   run:
