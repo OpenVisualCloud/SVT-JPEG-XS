@@ -56,4 +56,3 @@ function Install-VisualStudio2022 {
 }
 Install-Yasm
 Install-VisualStudio2022
-
