@@ -42,7 +42,7 @@ jobs:
       run: ./build.sh --all --test
 
     - name: upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
         name: linux-binaries
         errors-ignore: false
@@ -80,9 +80,10 @@ jobs:
         call .\build.bat 2022 release test
         call .\build.bat 2022 debug  test
         - name: upload artifacts
-    - uses: actions/upload-artifact@v3
+    - name: upload artifacts
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
-        name: linux-binaries
+        name: windows-binaries
         errors-ignore: false
         path: |
           Bin/Release/SvtJpegxsEncApp.exe
