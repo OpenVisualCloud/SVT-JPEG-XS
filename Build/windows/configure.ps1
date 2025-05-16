@@ -49,7 +49,7 @@ function Install-VisualStudio2022 {
 
   Write-Host "Visual Studio 2022 installation completed."
 
-  Write-Host "Installing Microsoft Visual C++ 2010 Service Pack 1 Redistributable  via chocolatey"
+  Write-Host "Installing Microsoft Visual C++ 2010 Service Pack 1 Redistributable via chocolatey"
   Start-Process -FilePath "choco" -ArgumentList "install vcredist2010 -y" -NoNewWindow -Wait
 
   Write-Host "Microsoft Visual C++ 2010 Service Pack 1 Redistributable installation completed."

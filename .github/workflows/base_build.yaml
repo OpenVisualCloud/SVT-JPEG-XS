@@ -35,9 +35,9 @@ jobs:
       working-directory: Build/linux
       run: sudo ./configure.sh
 
-    - name: 'Build and install'
+    - name: 'Build Debug and Release versions'
       working-directory: Build/linux
-      run: ./build.sh
+      run: ./build.sh --all --test
 
   windows:
     runs-on: 'windows-2022'
@@ -62,5 +62,5 @@ jobs:
       working-directory: Build/windows
       shell: cmd
       run: |
-
-        call .\build.bat 2022 release 
+        call .\build.bat 2022 release test
+        call .\build.bat 2022 debug  test
