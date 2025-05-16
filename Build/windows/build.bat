@@ -8,10 +8,6 @@
 setlocal
 cd /d "%~dp0"
 
-
-set "ASM_NASM=%YASM_PATH%\yasm.exe"
-setx ASM_NASM "%YASM_PATH%\yasm.exe" >nul
-
 :: Set defaults to prevent inheriting
 set "build=y"
 :: Default is debug

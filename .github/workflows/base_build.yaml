@@ -56,13 +56,15 @@ jobs:
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
     - name: 'Install dependencies'
-      working-directory: Build/windows
+      working-directory: "${{ github.workspace }}"
       shell: pwsh
       run: .\.github\scripts\configure.ps1
 
     - name: 'Build'
       working-directory: Build/windows
       shell: cmd
+      env:
+        ASM_NASM: ${{ env.YASM_PATH }}\yasm.exe
       run: |
         call .\build.bat 2022 release test
         call .\build.bat 2022 debug  test
