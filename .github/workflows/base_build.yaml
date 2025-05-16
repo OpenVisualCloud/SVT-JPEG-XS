@@ -41,6 +41,16 @@ jobs:
       working-directory: Build/linux
       run: ./build.sh --all --test
 
+    - name: upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: linux-binaries
+        path: |
+          Bin/Release/SvtJpegxsEncApp
+          Bin/Release/SvtJpegxsDecApp
+          Bin/Debug/SvtJpegxsEncApp
+          Bin/Debug/SvtJpegxsDecApp
+
   windows:
     runs-on: 'windows-2022'
     timeout-minutes: 120
@@ -68,3 +78,12 @@ jobs:
       run: |
         call .\build.bat 2022 release test
         call .\build.bat 2022 debug  test
+        - name: upload artifacts
+    - uses: actions/upload-artifact@v3
+      with:
+        name: linux-binaries
+        path: |
+          Bin/Release/SvtJpegxsEncApp.exe
+          Bin/Release/SvtJpegxsDecApp.exe
+          Bin/Debug/SvtJpegxsEncApp.exe
+          Bin/Debug/SvtJpegxsDecApp.exe
