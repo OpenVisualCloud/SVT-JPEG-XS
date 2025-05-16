@@ -712,13 +712,22 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
 
         subpkt_len_bytes = bitstream_reader_get_used_bytes(bitstream) - len_before_subpkt_bytes;
         if (subpkt_len_bytes != (pkt_header.gcli_len)) {
-            if (verbose >= VERBOSE_ERRORS) {
-                fprintf(stderr,
-                        "Error: (GCLI) corruption detected - unpacked=%d , expected=%d\n",
-                        subpkt_len_bytes,
-                        pkt_header.gcli_len);
+            int32_t leftover = (int32_t)pkt_header.gcli_len - subpkt_len_bytes;
+            if (leftover > 0) {
+                if (verbose >= VERBOSE_WARNINGS) {
+                    fprintf(stderr, "WARNING: (GCLI) skipped=%d\n", leftover);
+                }
+                bitstream_reader_add_padding(bitstream, leftover);
             }
-            return SvtJxsErrorDecoderInvalidBitstream;
+            else {
+                if (verbose >= VERBOSE_ERRORS) {
+                    fprintf(stderr,
+                            "Error: (GCLI) corruption detected - unpacked=%d , expected=%d\n",
+                            subpkt_len_bytes,
+                            pkt_header.gcli_len);
+                }
+                return SvtJxsErrorDecoderInvalidBitstream;
+            }
         }
 
         len_before_subpkt_bytes = (int)bitstream_reader_get_used_bytes(bitstream);
@@ -758,13 +767,22 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
 
         subpkt_len_bytes = bitstream_reader_get_used_bytes(bitstream) - len_before_subpkt_bytes;
         if (subpkt_len_bytes != (pkt_header.data_len)) {
-            if (verbose >= VERBOSE_ERRORS) {
-                fprintf(stderr,
-                        "Error: (DATA) corruption detected - unpacked=%d , expected=%d\n",
-                        subpkt_len_bytes,
-                        pkt_header.data_len);
+            int32_t leftover = (int32_t)pkt_header.data_len - subpkt_len_bytes;
+            if (leftover > 0) {
+                if (verbose >= VERBOSE_WARNINGS) {
+                    fprintf(stderr, "WARNING: (DATA) skipped=%d\n", leftover);
+                }
+                bitstream_reader_add_padding(bitstream, leftover);
             }
-            return SvtJxsErrorDecoderInvalidBitstream;
+            else {
+                if (verbose >= VERBOSE_ERRORS) {
+                    fprintf(stderr,
+                            "Error: (DATA) corruption detected - unpacked=%d , expected=%d\n",
+                            subpkt_len_bytes,
+                            pkt_header.data_len);
+                }
+                return SvtJxsErrorDecoderInvalidBitstream;
+            }
         }
 
         /*************Sign sub-packet BEGIN****************************/
@@ -797,13 +815,22 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
         /*************Sign sub-packet END****************************/
             subpkt_len_bytes = bitstream_reader_get_used_bytes(bitstream) - len_before_subpkt_bytes;
             if (subpkt_len_bytes != ((uint32_t)pkt_header.sign_len)) {
-                if (verbose >= VERBOSE_ERRORS) {
-                    fprintf(stderr,
-                            "Error: (SIGN) corruption detected - unpacked=%d , expected=%d\n",
-                            subpkt_len_bytes,
-                            pkt_header.sign_len);
+                int32_t leftover = (int32_t)pkt_header.sign_len - subpkt_len_bytes;
+                if (leftover > 0) {
+                    if (verbose >= VERBOSE_WARNINGS) {
+                        fprintf(stderr, "WARNING: (SIGN) skipped=%d\n", leftover);
+                    }
+                    bitstream_reader_add_padding(bitstream, leftover);
                 }
-                return SvtJxsErrorDecoderInvalidBitstream;
+                else {
+                    if (verbose >= VERBOSE_ERRORS) {
+                        fprintf(stderr,
+                                "Error: (SIGN) corruption detected - unpacked=%d , expected=%d\n",
+                                subpkt_len_bytes,
+                                pkt_header.sign_len);
+                    }
+                    return SvtJxsErrorDecoderInvalidBitstream;
+                }
             }
         }
     }
