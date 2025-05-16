@@ -33,7 +33,8 @@ jobs:
 
     - name: 'Install dependencies'
       working-directory: Build/linux
-      run: sudo apt-get update
+      run: | 
+           sudo apt-get update
            sudo apt-get -y install nasm
 
     - name: 'Build Debug and Release versions'
@@ -57,7 +58,7 @@ jobs:
     - name: 'Install dependencies'
       working-directory: Build/windows
       shell: pwsh
-      run: .\.github/scripts/configure.ps1
+      run: .\.github\scripts\configure.ps1
 
     - name: 'Build'
       working-directory: Build/windows
