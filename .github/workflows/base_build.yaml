@@ -43,10 +43,7 @@ jobs:
       working-directory: Build/linux
       run: ./build.sh --all --test
 
-    - name: 'Unit tests: Release'
-      run: ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests $NPROC | tee release_UT.log
-      env:
-        NPROC: 4
+
 
     - name: 'Unit tests: Release with valgrind'
       run: | 
@@ -55,14 +52,42 @@ jobs:
 
     - name: "Archive: upload artifacts"
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      name: linux-binaries
+      retention-days: 30
       with:
         path: |
           Bin/Release/SvtJpegxsEncApp
           Bin/Release/SvtJpegxsDecApp
           Bin/Debug/SvtJpegxsEncApp
           Bin/Debug/SvtJpegxsDecApp
-          release_UT.log
-          release_valgrind_ut.log
+          Bin/Release/SvtJpegxsUnitTests
+
+  linux-unit-tests:
+    needs: linux
+    runs-on: 'ubuntu-22.04'
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - name: 'Setup:  Install dependencies'
+      working-directory: Build/linux
+      run: | 
+           sudo apt-get update
+           sudo apt-get -y install nasm valgrind
+
+    - name: download build artifacts
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: linux-binaries
+
+    - name: 'Unit tests: Release'
+      run: ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests $NPROC | tee release_UT.log
+      env:
+        NPROC: 4
   windows:
     runs-on: 'windows-2022'
     timeout-minutes: 120
