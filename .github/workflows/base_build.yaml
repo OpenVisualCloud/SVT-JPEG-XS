@@ -80,6 +80,7 @@ jobs:
       run: |
         ls -l
         NPROC=4
+        sudo chmod +x ./Bin/Release/SvtJpegxsUnitTests
         ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
 
   # linux-unit-tests-valgrind:
