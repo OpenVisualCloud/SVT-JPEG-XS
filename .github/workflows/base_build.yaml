@@ -37,22 +37,28 @@ jobs:
       working-directory: Build/linux
       run: | 
            sudo apt-get update
-           sudo apt-get -y install nasm
+           sudo apt-get -y install nasm valgrind
 
     - name: 'Build Debug and Release versions'
       working-directory: Build/linux
       run: ./build.sh --all --test
 
+    - name: 'release unit test'
+      working-directory: Build/linux/Release
+      run: ./SvtJpegxsUnitTests
+
+    - name: 'Release unit test with valgrind'
+      working-directory: Build/linux/Release
+      run: valgrind ./SvtJpegxsUnitTests
+
     - name: upload artifacts
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
-        errors-ignore: false
         path: |
           Bin/Release/SvtJpegxsEncApp
           Bin/Release/SvtJpegxsDecApp
           Bin/Debug/SvtJpegxsEncApp
           Bin/Debug/SvtJpegxsDecApp
-
   windows:
     runs-on: 'windows-2022'
     timeout-minutes: 120
