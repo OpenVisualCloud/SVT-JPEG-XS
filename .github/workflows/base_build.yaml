@@ -75,7 +75,7 @@ jobs:
         cmd: |
           ls -l
           NPROC=4
-          tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
+          ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
 
   # linux-unit-tests-valgrind:
   #   needs: linux
