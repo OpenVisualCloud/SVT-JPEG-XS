@@ -9,9 +9,6 @@ on:
         description: 'Branch to run scans on'
         default: 'main'
         type: string
-  pull_request:
-    branches: 
-      - main
 
 env:
   DEBIAN_FRONTEND: noninteractive
