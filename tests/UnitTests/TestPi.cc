@@ -94,7 +94,6 @@ static const  struct TestTopology TestSizes[] = {
 static const size_t TestSizesNum = sizeof(TestSizes) / sizeof(TestSizes[0]);
 
 TEST(TestPi, Topology_Tests_resolutions) {
-    ASSERT_EQ(1, 2);
     for (size_t test_id = 0; test_id < TestSizesNum; ++test_id) {
         const struct TestTopology* const test = &TestSizes[test_id];
         uint32_t sx[MAX_COMPONENTS_NUM];

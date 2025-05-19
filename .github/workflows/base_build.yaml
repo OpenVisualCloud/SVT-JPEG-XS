@@ -53,6 +53,18 @@ jobs:
         sudo chmod +x ./Bin/Release/SvtJpegxsUnitTests
         ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
 
+
+
+    - name: "Tests: Release unit tests"
+      run: |
+        NPROC=100
+        ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
+
+    - name: "Tests: Release unit tests valgrind"
+      run: |
+        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+        ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC} valgrind
+
     - name: "Archive: upload artifacts"
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
@@ -63,17 +75,6 @@ jobs:
           Bin/Release/SvtJpegxsDecApp
           Bin/Debug/SvtJpegxsEncApp
           Bin/Debug/SvtJpegxsDecApp
-
-    - name: Release unit tests
-      run: |
-        NPROC=100
-        ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
-
-    - name: Release unit tests valgrind
-      run: |
-        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
-        ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC} valgrind
-
   windows:
     runs-on: 'windows-2022'
     timeout-minutes: 120
