@@ -44,12 +44,16 @@ jobs:
       run: ./build.sh --all --test
 
     - name: 'release unit test'
-      working-directory: Build/linux/Release
-      run: ./SvtJpegxsUnitTests
+      run: ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests $NPROC $VALGRIND
+      env:
+        NPROC: 4
+        VALGRIND: ""
 
     - name: 'Release unit test with valgrind'
-      working-directory: Build/linux/Release
-      run: valgrind ./SvtJpegxsUnitTests
+      run: ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests $NPROC $VALGRIND
+      env:
+        NPROC: 4
+        VALGRIND: "valgrind"
 
     - name: upload artifacts
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
