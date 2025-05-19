@@ -64,53 +64,44 @@ jobs:
     runs-on: 'ubuntu-22.04'
     timeout-minutes: 120
     steps:
-    - name: 'Harden Runner'
-      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+  
+    - name: Release unit tests
+      uses: ./.github/actions/unit-test
       with:
-        egress-policy: audit
+        linux-artifacts: "${{ env.LINUX_ARTIFACTS }}"
+        shell: 'bash'
+        cmd: |
+          ls -l
+          NPROC=4
+          tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
 
-    - name: 'Setup:  Install dependencies'
-      working-directory: Build/linux
-      run: | 
-           sudo apt-get update
-           sudo apt-get -y install nasm valgrind
+  # linux-unit-tests-valgrind:
+  #   needs: linux
+  #   runs-on: 'ubuntu-22.04'
+  #   timeout-minutes: 120
+  #   steps:
+  #   - name: 'Harden Runner'
+  #     uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+  #     with:
+  #       egress-policy: audit
 
-    - name: download build artifacts
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-      with:
-        name: "${{ env.LINUX_ARTIFACTS }}"
+  #   - name: 'Setup: Install dependencies'
+  #     run: | 
+  #          sudo apt-get update
+  #          sudo apt-get -y install nasm valgrind
 
-    - name: 'Unit tests: Release'
-      run: | 
-        ls -l
-        NPROC=4
-        tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
+  #   - name: download build artifacts
+  #     uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+  #     with:
+  #       name: "${{ env.LINUX_ARTIFACTS }}"
 
-  linux-unit-tests-valgrind:
-    needs: linux
-    runs-on: 'ubuntu-22.04'
-    timeout-minutes: 120
-    steps:
-    - name: 'Harden Runner'
-      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
-      with:
-        egress-policy: audit
-
-    - name: 'Setup: Install dependencies'
-      run: | 
-           sudo apt-get update
-           sudo apt-get -y install nasm valgrind
-
-    - name: download build artifacts
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-      with:
-        name: "${{ env.LINUX_ARTIFACTS }}"
-
-    - name: 'Unit tests: Release with valgrind'
-      run: | 
-        ls -l
-        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
-        tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC} valgrind 
+  #   - name: 'Unit tests: Release with valgrind'
+  #     run: | 
+  #       ls -l
+  #       NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+  #       tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC} valgrind 
 
   windows:
     runs-on: 'windows-2022'
