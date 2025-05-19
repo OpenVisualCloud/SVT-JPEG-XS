@@ -3,11 +3,8 @@ name: Base Build
 on:
   push:
     branches: ["main"]
-  release:
-    types: ["published"]
   pull_request:
   workflow_dispatch:
-  workflow_call:
 
 defaults:
   run:
@@ -46,14 +43,14 @@ jobs:
       working-directory: Build/linux
       run: ./build.sh --all --test
 
-    - name: "Tests: Release unit tests"
+    - name: "Test: Release unit tests"
       run: |
-        NPROC=100
+        NPROC=10
         ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
 
-    - name: "Tests: Release unit tests valgrind"
+    - name: "Test: Release unit tests with valgrind"
       run: |
-        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+        NPROC=10
         ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC} valgrind
 
     - name: "Archive: upload artifacts"
