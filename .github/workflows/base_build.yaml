@@ -70,7 +70,7 @@ jobs:
     - name: Release unit tests
       uses: ./.github/actions/unit-test
       with:
-        linux-artifacts: "${{ env.LINUX_ARTIFACTS }}"
+        artifacts-name: "${{ env.LINUX_ARTIFACTS }}"
         shell: 'bash'
         cmd: |
           ls -l
