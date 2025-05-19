@@ -75,7 +75,7 @@ jobs:
     - name: download build artifacts
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
       with:
-        name: linux-binaries-${{ github.ref_name }}-${{ github.commit.sha }}
+        name: linux-build-${{ github.run_number }}
     - name: 'Unit tests: Release'
       run: | 
         NPROC=4
@@ -101,7 +101,7 @@ jobs:
     - name: download build artifacts
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
       with:
-        name: linux-binaries-${{ github.ref_name }}-${{ github.commit.sha }}
+        name: linux-build-${{ github.run_number }}
 
     - name: 'Unit tests: Release with valgrind'
       run: | 
