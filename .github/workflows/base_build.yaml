@@ -82,6 +82,7 @@ jobs:
         name: "${{ env.LINUX_ARTIFACTS }}"
     - name: 'Unit tests: Release'
       run: | 
+        ls -la
         NPROC=4
         ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
 
