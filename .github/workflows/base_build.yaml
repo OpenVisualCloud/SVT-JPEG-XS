@@ -52,7 +52,7 @@ jobs:
     - name: 'Unit tests: Release with valgrind'
       run: ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests $NPROC $VALGRIND | tee release_valgrind_ut.log
       env:
-        NPROC: 10
+        NPROC: 4
         VALGRIND: "valgrind"
 
     - name: "Archive: upload artifacts"
