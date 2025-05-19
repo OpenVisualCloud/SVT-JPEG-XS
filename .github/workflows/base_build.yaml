@@ -57,6 +57,7 @@ jobs:
           Bin/Debug/SvtJpegxsEncApp
           Bin/Debug/SvtJpegxsDecApp
           Bin/Release/SvtJpegxsUnitTests
+          tests/scripts/parrallelUT.sh
 
   linux-unit-tests:
     needs: linux
@@ -80,11 +81,12 @@ jobs:
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
       with:
         name: "${{ env.LINUX_ARTIFACTS }}"
+
     - name: 'Unit tests: Release'
       run: | 
-        ls -la
+        ls -l
         NPROC=4
-        ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
+        ./parrallelUT.sh Release/SvtJpegxsUnitTests ${NPROC}
 
   linux-unit-tests-valgrind:
     needs: linux
@@ -95,10 +97,11 @@ jobs:
       uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
       with:
         egress-policy: audit
+
     - name: 'Checkout repository'
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
     - name: 'Setup:  Install dependencies'
-      working-directory: Build/linux
       run: | 
            sudo apt-get update
            sudo apt-get -y install nasm valgrind
@@ -110,8 +113,10 @@ jobs:
 
     - name: 'Unit tests: Release with valgrind'
       run: | 
+        ls -l
         NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
-        ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC} valgrind 
+        ./parrallelUT.sh Release/SvtJpegxsUnitTests ${NPROC} valgrind 
+
   windows:
     runs-on: 'windows-2022'
     timeout-minutes: 120
