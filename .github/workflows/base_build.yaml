@@ -52,10 +52,9 @@ jobs:
 
     - name: "Archive: upload artifacts"
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-      
-      retention-days: 30
       with:
         name: linux-binaries-${{ github.ref_name }}-${{ github.commit.sha }}
+        retention-days: 30
         path: |
           Bin/Release/SvtJpegxsEncApp
           Bin/Release/SvtJpegxsDecApp
