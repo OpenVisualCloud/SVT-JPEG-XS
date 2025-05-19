@@ -66,16 +66,21 @@ jobs:
     steps:
     - name: 'Checkout repository'
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-  
-    - name: Release unit tests
-      uses: ./.github/actions/unit-test
+
+    - name: 'Setup:  Install dependencies'
+      run: | 
+        sudo apt-get update
+        sudo apt-get -y install nasm valgrind
+
+    - name: download build artifacts
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
       with:
-        artifacts-name: "${{ env.LINUX_ARTIFACTS }}"
-        shell: 'bash'
-        cmd: |
-          ls -l
-          NPROC=4
-          ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
+        name: "${{ env.LINUX_ARTIFACTS }}"      
+    - name: Release unit tests
+      run: |
+        ls -l
+        NPROC=4
+        ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
 
   # linux-unit-tests-valgrind:
   #   needs: linux
