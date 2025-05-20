@@ -27,7 +27,7 @@ export GTEST_TOTAL_SHARDS=$nproc
 for index in $(seq 0 $(($nproc-1))); do
 export GTEST_SHARD_INDEX=$index
     ${cmd} > $tmp_dir/out_$index.txt 2>&1 & pid_id=$!
-    pid_array+=($pid_id)
+    pid_array+=("${pid_id}")
     echo "Run: $index/$nproc PID: $pid_id"
 done
 
