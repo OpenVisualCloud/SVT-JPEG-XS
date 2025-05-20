@@ -156,6 +156,7 @@ jobs:
           tests/scripts/parrallelUT.sh
 
   windows-unit-tests:
+    needs: windows
       runs-on: 'windows-2022'
       timeout-minutes: 120
       steps:
