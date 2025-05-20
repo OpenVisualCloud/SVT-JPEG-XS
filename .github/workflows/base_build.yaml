@@ -78,6 +78,7 @@ jobs:
         cd Bin/Release/
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
+        sudo chmod +x ${{ github.workspace }}/Bin/Release/*
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
 
   linux-unit-tests-valgrind:
@@ -107,6 +108,7 @@ jobs:
         cd Bin/Release/
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
+        sudo chmod +x ${{ github.workspace }}/Bin/Release/*
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC} 
 
   windows:
