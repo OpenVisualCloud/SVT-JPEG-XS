@@ -168,6 +168,7 @@ jobs:
         ls
         NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
         echo "Number of processors: ${NPROC}"
+        chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
+        chmod +x ${{ github.workspace }}/Bin/Release/*
         cd Bin/Release/
-        ls -l
-        ../../tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
