@@ -78,7 +78,8 @@ jobs:
         cd Bin/Release/
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
-        ${{ github.workspace }}/tests/scripts/parrallelUT.sh SvtJpegxsUnitTests ${NPROC}
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
+
   linux-unit-tests-valgrind:
     needs: linux
     runs-on: 'ubuntu-22.04'
@@ -106,7 +107,7 @@ jobs:
         cd Bin/Release/
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
-        ${{ github.workspace }}/tests/scripts/parrallelUT.sh SvtJpegxsUnitTests ${NPROC} 
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC} 
 
   windows:
     runs-on: 'windows-2022'
