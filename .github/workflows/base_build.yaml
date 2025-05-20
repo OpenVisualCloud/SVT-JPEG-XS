@@ -102,7 +102,7 @@ jobs:
     - name: upload artifacts
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
-        name: ${{ WINDOWS_ARTIFACTS }}
+        name: ${{ env.WINDOWS_ARTIFACTS }}
         path: |
           Bin/Release/SvtJpegxsEncApp.exe
           Bin/Release/SvtJpegxsDecApp.exe
