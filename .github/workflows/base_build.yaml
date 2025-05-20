@@ -168,7 +168,7 @@ jobs:
         ls
         NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
         echo "Number of processors: ${NPROC}"
-        chmod +x tests/scripts/parrallelUT.sh
+        mv tests/scripts/parrallelUT.sh Bin/Release
         chmod +x Bin/Release/*
         cd Bin/Release/
-        ../../../tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
+        ./parrallelUT.sh ./SvtJpegxsUnitTests.exe ${NPROC}
