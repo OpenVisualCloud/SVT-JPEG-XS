@@ -43,26 +43,68 @@ jobs:
       working-directory: Build/linux
       run: ./build.sh --all --test
 
-    - name: "Test: Release unit tests"
-      run: |
-        NPROC=10
-        ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
-
-    - name: "Test: Release unit tests with valgrind"
-      run: |
-        NPROC=10
-        ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC} valgrind
-
     - name: "Archive: upload artifacts"
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
         name: "${{ env.LINUX_ARTIFACTS }}"
         retention-days: 30
         path: |
-          Bin/Release/SvtJpegxsEncApp
-          Bin/Release/SvtJpegxsDecApp
-          Bin/Debug/SvtJpegxsEncApp
-          Bin/Debug/SvtJpegxsDecApp
+          Bin/
+          tests/scripts/parrallelUT.sh
+
+  linux-unit-tests:
+    needs: linux
+    runs-on: 'ubuntu-22.04'
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Setup:  Install dependencies'
+      working-directory: Build/linux
+      run: | 
+           sudo apt-get update
+           sudo apt-get -y install nasm valgrind
+    - name: download build artifacts
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: "${{ env.LINUX_ARTIFACTS }}"
+
+    - name: 'Unit tests: Release'
+      run: |
+        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+        echo "Number of processors: ${NPROC}"
+        cd Bin/Release/
+        ls -l
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh SvtJpegxsUnitTests ${NPROC}
+  linux-unit-tests-valgrind:
+    needs: linux
+    runs-on: 'ubuntu-22.04'
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Setup: Install dependencies'
+      run: | 
+           sudo apt-get update
+           sudo apt-get -y install nasm valgrind
+    - name: download build artifacts
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: "${{ env.LINUX_ARTIFACTS }}"
+
+    - name: 'Unit tests: Release with valgrind'
+      run: | 
+        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+        echo "Number of processors: ${NPROC}"
+        cd Bin/Release/
+        ls -l
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh SvtJpegxsUnitTests ${NPROC} 
 
   windows:
     runs-on: 'windows-2022'
