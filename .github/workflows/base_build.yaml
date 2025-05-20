@@ -19,7 +19,7 @@ concurrency:
 
 env:
   LINUX_ARTIFACTS: linux-build-${{ github.run_number }}
-  WINDIWS_ARTIFACTS: win-build-${{ github.run_number }}
+  WINDOWS_ARTIFACTS: win-build-${{ github.run_number }}
 jobs:
   linux:
     runs-on: 'ubuntu-22.04'
@@ -63,7 +63,7 @@ jobs:
           Bin/Release/SvtJpegxsDecApp
           Bin/Debug/SvtJpegxsEncApp
           Bin/Debug/SvtJpegxsDecApp
-  
+
   windows:
     runs-on: 'windows-2022'
     timeout-minutes: 120
@@ -91,12 +91,21 @@ jobs:
       run: |
         call .\build.bat 2022 release test
         call .\build.bat 2022 debug  test
+
+    - name: "Test: Release unit tests"
+      retention-days: 30
+      shell: bash
+      run: |
+        NPROC=10
+        ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
+
     - name: upload artifacts
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
-        name: windows-binaries
+        name: ${{ WINDOWS_ARTIFACTS }}
         path: |
           Bin/Release/SvtJpegxsEncApp.exe
           Bin/Release/SvtJpegxsDecApp.exe
           Bin/Debug/SvtJpegxsEncApp.exe
           Bin/Debug/SvtJpegxsDecApp.exe
+
