@@ -157,25 +157,25 @@ jobs:
 
   windows-unit-tests:
     needs: windows
-      runs-on: 'windows-2022'
-      timeout-minutes: 120
-      steps:
-      - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
-        with:
-          egress-policy: audit
+    runs-on: 'windows-2022'
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
 
-      - name: download build artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: ${{ env.WINDOWS_ARTIFACTS }}
+    - name: download build artifacts
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: ${{ env.WINDOWS_ARTIFACTS }}
 
-      - name: 'Unit tests: Release'
-        run: |
-          NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
-          echo "Number of processors: ${NPROC}"
-          cd Bin/Release/
-          ls -l
-          sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
-          sudo chmod +x ${{ github.workspace }}/Bin/Release/*
-          ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
+    - name: 'Unit tests: Release'
+      run: |
+        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+        echo "Number of processors: ${NPROC}"
+        cd Bin/Release/
+        ls -l
+        sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
+        sudo chmod +x ${{ github.workspace }}/Bin/Release/*
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
