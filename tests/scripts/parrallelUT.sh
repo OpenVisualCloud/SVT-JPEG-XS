@@ -5,7 +5,7 @@ param=$3
 valgrind=""
 tmp_dir="tmp_ut_parallel"
 
-echo "Example:"$0" UT_exe [parallel_number] [valgrind]"
+echo "Example: ${0} UT_exe [parallel_number] [valgrind]"
 
 [[ -z "$nproc" ]] && nproc=1
 
