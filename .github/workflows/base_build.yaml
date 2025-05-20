@@ -63,7 +63,6 @@ jobs:
         egress-policy: audit
 
     - name: 'Setup:  Install dependencies'
-      working-directory: Build/linux
       run: | 
            sudo apt-get update
            sudo apt-get -y install nasm valgrind
@@ -78,6 +77,7 @@ jobs:
         echo "Number of processors: ${NPROC}"
         cd Bin/Release/
         ls -l
+        sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh SvtJpegxsUnitTests ${NPROC}
   linux-unit-tests-valgrind:
     needs: linux
@@ -93,6 +93,7 @@ jobs:
       run: | 
            sudo apt-get update
            sudo apt-get -y install nasm valgrind
+
     - name: download build artifacts
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
       with:
@@ -104,6 +105,7 @@ jobs:
         echo "Number of processors: ${NPROC}"
         cd Bin/Release/
         ls -l
+        sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh SvtJpegxsUnitTests ${NPROC} 
 
   windows:
