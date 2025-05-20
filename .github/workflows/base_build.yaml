@@ -21,7 +21,7 @@ env:
   LINUX_ARTIFACTS: linux-build-${{ github.run_number }}
   WINDOWS_ARTIFACTS: win-build-${{ github.run_number }}
 jobs:
-  linux:
+  linux-build:
     runs-on: 'ubuntu-22.04'
     timeout-minutes: 120
     steps:
@@ -53,7 +53,7 @@ jobs:
           tests/scripts/parrallelUT.sh
 
   linux-unit-tests:
-    needs: linux
+    needs: linux-build
     runs-on: 'ubuntu-22.04'
     timeout-minutes: 120
     steps:
@@ -82,7 +82,7 @@ jobs:
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
 
   linux-unit-tests-valgrind:
-    needs: linux
+    needs: linux-build
     runs-on: 'ubuntu-22.04'
     timeout-minutes: 120
     steps:
@@ -111,7 +111,7 @@ jobs:
         sudo chmod +x ${{ github.workspace }}/Bin/Release/*
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC} valgrind
 
-  windows:
+  windows-build:
     runs-on: 'windows-2022'
     timeout-minutes: 120
     env: 
@@ -139,13 +139,6 @@ jobs:
         call .\build.bat 2022 release test
         call .\build.bat 2022 debug  test
 
-    - name: "Test: Release unit tests"
-
-      shell: bash
-      run: |
-        NPROC=10
-        ./tests/scripts/parrallelUT.sh Bin/Release/SvtJpegxsUnitTests ${NPROC}
-
     - name: upload artifacts
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:      
@@ -156,7 +149,7 @@ jobs:
           tests/scripts/parrallelUT.sh
 
   windows-unit-tests:
-    needs: windows
+    needs: windows-build
     runs-on: 'windows-2022'
     timeout-minutes: 120
     steps:
@@ -172,8 +165,9 @@ jobs:
 
     - name: 'Unit tests: Release'
       run: |
+        ls
         NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
         echo "Number of processors: ${NPROC}"
         cd Bin/Release/
         ls -l
-        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
+        ../../tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
