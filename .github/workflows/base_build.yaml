@@ -176,6 +176,4 @@ jobs:
         echo "Number of processors: ${NPROC}"
         cd Bin/Release/
         ls -l
-        sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
-        sudo chmod +x ${{ github.workspace }}/Bin/Release/*
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
