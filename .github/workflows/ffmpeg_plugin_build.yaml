@@ -96,10 +96,17 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/configure.ps1
 
+      - name: 'install msys2 shell'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: git mingw-w64-ucrt-x86_64-gcc
+
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
-        shell: cmd
-        run: ./.github/scripts/build_ffmpeg_plugin.bat 6.1 n
+        shell: msys2 {0}
+        run: ./.github/scripts/build_ffmpeg_plugin_msys.sh 6.1 
   
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -128,10 +135,16 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/configure.ps1
 
+      - name: 'install msys2 shell'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: git mingw-w64-ucrt-x86_64-gcc
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
-        shell: cmd
-        run: ./.github/scripts/build_ffmpeg_plugin.bat 7.0 n
+        shell: msys2 {0}
+        run: ./.github/scripts/build_ffmpeg_plugin_msys.sh 7.0
   
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
