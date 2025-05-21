@@ -101,7 +101,7 @@ jobs:
         with:
           msystem: UCRT64
           update: true
-          install: git mingw-w64-ucrt-x86_64-gcc
+          install: git mingw-w64-ucrt-x86_64-gcc cmake
 
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
@@ -140,7 +140,7 @@ jobs:
         with:
           msystem: UCRT64
           update: true
-          install: git mingw-w64-ucrt-x86_64-gcc
+          install: git mingw-w64-ucrt-x86_64-gcc cmake
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}
