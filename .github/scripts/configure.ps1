@@ -57,7 +57,8 @@ function Install-VisualStudio2022 {
 
 function Install-Pacman {
   Write-Host "Installing pacman via Chocolatey..."
-  $msys2Path = "${env:ProgramFiles}\MSYS2\usr\bin"
+
+  $msys2Path = "C:\tools\msys64\usr\bin"  <# windows-server 2022#>
   Start-Process -FilePath "choco" -ArgumentList "install msys2" -NoNewWindow -Wait
   Write-Host "MSYS2 installation completed."
 
