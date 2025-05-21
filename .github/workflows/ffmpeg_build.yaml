@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       
       - name: 'install ffmpeg plugin'
-        run: ./github/scripts/build_ffmpeg_plugin.sh 6.1 n
+        run: .github/scripts/build_ffmpeg_plugin.sh 6.1 n
 
   ffmpeg-7-0-build:
       runs-on: 'ubuntu-22.04'
@@ -47,4 +47,4 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       
       - name: 'install ffmpeg plugin'
-        run: ./github/scripts/build_ffmpeg_plugin.sh 7.0 n
+        run: .github/scripts/build_ffmpeg_plugin.sh 7.0 n
