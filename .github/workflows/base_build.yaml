@@ -3,11 +3,8 @@ name: Base Build
 on:
   push:
     branches: ["main"]
-  release:
-    types: ["published"]
   pull_request:
   workflow_dispatch:
-  workflow_call:
 
 defaults:
   run:
@@ -20,8 +17,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
+env:
+  LINUX_ARTIFACTS: linux-build-${{ github.run_number }}
+  WINDOWS_ARTIFACTS: win-build-${{ github.run_number }}
 jobs:
-  linux:
+  linux-build:
     runs-on: 'ubuntu-22.04'
     timeout-minutes: 120
     steps:
@@ -33,27 +33,85 @@ jobs:
     - name: 'Checkout repository'
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
-    - name: 'Install dependencies'
+    - name: 'Setup:  Install dependencies'
       working-directory: Build/linux
       run: | 
            sudo apt-get update
-           sudo apt-get -y install nasm
+           sudo apt-get -y install nasm valgrind
 
-    - name: 'Build Debug and Release versions'
+    - name: 'Build:  Debug and Release versions'
       working-directory: Build/linux
       run: ./build.sh --all --test
 
-    - name: upload artifacts
+    - name: "Archive: upload artifacts"
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
-        errors-ignore: false
+        name: "${{ env.LINUX_ARTIFACTS }}"
+        retention-days: 30
         path: |
-          Bin/Release/SvtJpegxsEncApp
-          Bin/Release/SvtJpegxsDecApp
-          Bin/Debug/SvtJpegxsEncApp
-          Bin/Debug/SvtJpegxsDecApp
+          Bin/
+          tests/scripts/parrallelUT.sh
 
-  windows:
+  linux-unit-tests:
+    needs: linux-build
+    runs-on: 'ubuntu-22.04'
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Setup:  Install dependencies'
+      run: | 
+           sudo apt-get update
+           sudo apt-get -y install nasm
+    - name: download build artifacts
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: "${{ env.LINUX_ARTIFACTS }}"
+
+    - name: 'Unit tests: Release'
+      run: |
+        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+        echo "Number of processors: ${NPROC}"
+        cd Bin/Release/
+        ls -l
+        sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
+        sudo chmod +x ${{ github.workspace }}/Bin/Release/*
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
+
+  linux-unit-tests-valgrind:
+    needs: linux-build
+    runs-on: 'ubuntu-22.04'
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Setup: Install dependencies'
+      run: | 
+           sudo apt-get update
+           sudo apt-get -y install nasm valgrind
+
+    - name: download build artifacts
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: "${{ env.LINUX_ARTIFACTS }}"
+
+    - name: 'Unit tests: Release with valgrind'
+      run: | 
+        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+        echo "Number of processors: ${NPROC}"
+        cd Bin/Release/
+        ls -l
+        sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
+        sudo chmod +x ${{ github.workspace }}/Bin/Release/*
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC} valgrind
+
+  windows-build:
     runs-on: 'windows-2022'
     timeout-minutes: 120
     env: 
@@ -80,12 +138,37 @@ jobs:
       run: |
         call .\build.bat 2022 release test
         call .\build.bat 2022 debug  test
+
     - name: upload artifacts
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-      with:
-        name: windows-binaries
+      with:      
+        retention-days: 30
+        name: ${{ env.WINDOWS_ARTIFACTS }}
         path: |
-          Bin/Release/SvtJpegxsEncApp.exe
-          Bin/Release/SvtJpegxsDecApp.exe
-          Bin/Debug/SvtJpegxsEncApp.exe
-          Bin/Debug/SvtJpegxsDecApp.exe
+          Bin/
+          tests/scripts/parrallelUT.sh
+
+  windows-unit-tests:
+    needs: windows-build
+    runs-on: 'windows-2022'
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: download build artifacts
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: ${{ env.WINDOWS_ARTIFACTS }}
+
+    - name: 'Unit tests: Release'
+      run: |
+        ls
+        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+        echo "Number of processors: ${NPROC}"
+        mv tests/scripts/parrallelUT.sh Bin/Release
+        chmod +x Bin/Release/*
+        cd Bin/Release/
+        ./parrallelUT.sh ./SvtJpegxsUnitTests.exe ${NPROC}
