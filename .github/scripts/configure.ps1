@@ -58,18 +58,8 @@ function Install-VisualStudio2022 {
 function Install-Pacman {
   Write-Host "Installing pacman via Chocolatey..."
   $msys2Path = "${env:ProgramFiles}\MSYS2\usr\bin"
-  Start-Process -FilePath "choco" -ArgumentList "install msys2 -y --params `"`"/InstallDir:$msys2Path`"`"" -NoNewWindow -Wait
-
-  if (-Not (Test-Path -Path $msys2Path)) {
-    $msys2Path = "${env:ProgramFiles(x86)}\MSYS2\usr\bin"
-  }
-  if (-Not (Test-Path -Path $msys2Path)) {
-    Write-Error "MSYS2 installation not found."
-    return
-  }
-
-  $env:Path += ";$msys2Path"
-  [System.Environment]::SetEnvironmentVariable("Path", $env:Path, [System.EnvironmentVariableTarget]::Machine)
+  Start-Process -FilePath "choco" -ArgumentList "install msys2" -NoNewWindow -Wait
+  Write-Host "MSYS2 installation completed."
 
   Write-Host "Running pacman to install required packages..."
   & "$msys2Path\pacman.exe" -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils
