@@ -3,8 +3,11 @@ Build/linux/
 Build/windows/
 Build/eclipse/
 Build/coverage_linux
+out/
 *.yuv
 *.bin
 *.patch
 *.raw
 *.log
+.vs
+SVT-JPEG-XS/.vs
