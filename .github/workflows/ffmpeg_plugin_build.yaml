@@ -16,7 +16,9 @@ permissions:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
-
+env:
+  LINUX_ARTIFACTS_6_1: linux-ffmpeg-6-1-build-${{ github.run_number }}
+  LINUX_ARTIFACTS_7_0: linux-ffmpeg-7-0-build-${{ github.run_number }}
 
 jobs:
   ffmpeg-6-1-build:
@@ -38,6 +40,14 @@ jobs:
       - name: 'install ffmpeg plugin'
         run: .github/scripts/build_ffmpeg_plugin.sh 6.1 n
 
+      - name: "Archive: upload artifacts"
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: "${{ env.LINUX_ARTIFACTS_6_1 }}"
+          retention-days: 30
+          path: |
+            install-dir/bin/
+
   ffmpeg-7-0-build:
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
@@ -57,3 +67,11 @@ jobs:
       
       - name: 'install ffmpeg plugin'
         run: .github/scripts/build_ffmpeg_plugin.sh 7.0 n
+
+      - name: "Archive: upload artifacts"
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: "${{ env.LINUX_ARTIFACTS_7_0 }}"
+          retention-days: 30
+          path: |
+            install-dir/bin/
