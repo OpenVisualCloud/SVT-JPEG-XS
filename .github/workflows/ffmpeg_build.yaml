@@ -1,0 +1,50 @@
+name: ffmpeg Plugin Build
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+
+jobs:
+ffmpeg-6-1-build:
+    runs-on: 'ubuntu-22.04'
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    
+    - name: 'install ffmpeg plugin'
+      run: ./github/scripts/build_ffmpeg_plugin.sh 6.1 n
+
+ffmpeg-7-0-build:
+    runs-on: 'ubuntu-22.04'
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    
+    - name: 'install ffmpeg plugin'
+      run: ./github/scripts/build_ffmpeg_plugin.sh 7.0 n
