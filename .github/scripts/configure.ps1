@@ -54,5 +54,28 @@ function Install-VisualStudio2022 {
 
   Write-Host "Microsoft Visual C++ 2010 Service Pack 1 Redistributable installation completed."
 }
+
+function Install-Pacman {
+  Write-Host "Installing pacman via Chocolatey..."
+  Start-Process -FilePath "choco" -ArgumentList "install msys2 -y" -NoNewWindow -Wait
+
+  $msys2Path = "${env:ProgramFiles}\MSYS2\usr\bin"
+  if (-Not (Test-Path -Path $msys2Path)) {
+    $msys2Path = "${env:ProgramFiles(x86)}\MSYS2\usr\bin"
+  }
+  if (-Not (Test-Path -Path $msys2Path)) {
+    Write-Error "MSYS2 installation not found."
+    return
+  }
+
+  $env:Path += ";$msys2Path"
+  [System.Environment]::SetEnvironmentVariable("Path", $env:Path, [System.EnvironmentVariableTarget]::Machine)
+
+  Write-Host "Running pacman to install required packages..."
+  & "$msys2Path\pacman.exe" -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils
+  Write-Host "Pacman and required packages installation completed."
+}
+
 Install-Yasm
 Install-VisualStudio2022
+Install-Pacman

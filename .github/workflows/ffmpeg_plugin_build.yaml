@@ -19,9 +19,10 @@ concurrency:
 env:
   LINUX_ARTIFACTS_6_1: linux-ffmpeg-6-1-build-${{ github.run_number }}
   LINUX_ARTIFACTS_7_0: linux-ffmpeg-7-0-build-${{ github.run_number }}
-
+  WINDOWS_ARTIFACTS_6_1: linux-ffmpeg-6-1-build-${{ github.run_number }}
+  WINDOWS_ARTIFACTS_7_0: linux-ffmpeg-7-0-build-${{ github.run_number }}
 jobs:
-  ffmpeg-6-1-build:
+  ffmpeg-6-1-linux-build:
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
@@ -48,7 +49,7 @@ jobs:
           path: |
             install-dir/bin/
 
-  ffmpeg-7-0-build:
+  ffmpeg-7-0-linux-build:
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
@@ -75,3 +76,66 @@ jobs:
           retention-days: 30
           path: |
             install-dir/bin/
+
+  ffmpeg-6-1_windows-build:
+      runs-on: 'windows-2022'
+        timeout-minutes: 120
+        env: 
+          YASM_PATH: C:\Yasm
+        steps:
+        - name: 'Harden Runner'
+          uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+          with:
+            egress-policy: audit
+
+        - name: 'Checkout repository'
+          uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+        - name: 'Install dependencies'
+          working-directory: "${{ github.workspace }}"
+          shell: pwsh
+          run: ./.github/scripts/configure.ps1
+
+        - name: 'install ffmpeg plugin'
+          working-directory: "${{ github.workspace }}"
+          shell: cmd
+          run: ./.github/scripts/build_ffmpeg_plugin.bat 6.1 n
+    
+        - name: "Archive: upload artifacts"
+          uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+          with:      
+            name: "${{ env.WINDOWS_ARTIFACTS_6_1 }}"
+            retention-days: 30
+            path: |
+              install-dir/bin/
+  ffmpeg-6-1_windows-build:
+      runs-on: 'windows-2022'
+        timeout-minutes: 120
+        env: 
+          YASM_PATH: C:\Yasm
+        steps:
+        - name: 'Harden Runner'
+          uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+          with:
+            egress-policy: audit
+
+        - name: 'Checkout repository'
+          uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+        - name: 'Install dependencies'
+          working-directory: "${{ github.workspace }}"
+          shell: pwsh
+          run: ./.github/scripts/configure.ps1
+
+        - name: 'install ffmpeg plugin'
+          working-directory: "${{ github.workspace }}"
+          shell: cmd
+          run: ./.github/scripts/build_ffmpeg_plugin.bat 7.0 n
+    
+        - name: "Archive: upload artifacts"
+          uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+          with:      
+            name: "${{ env.WINDOWS_ARTIFACTS_7_0 }}"
+            retention-days: 30
+            path: |
+              install-dir/bin/
