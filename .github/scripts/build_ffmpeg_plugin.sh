@@ -41,6 +41,8 @@ cd ffmpeg-$FFMPEG_VERSION
 git checkout "release/$FFMPEG_VERSION"
 
 echo "=== 4. Apply jpeg-xs plugin patches ==="
+git config --global user.email "runner@github.com"
+git config --global user.name "action-runner"
 cp "$JPEGXS_REPO/ffmpeg-plugin/libsvtjpegxs"* libavcodec/
 git am --whitespace=fix "$JPEGXS_REPO/ffmpeg-plugin/$FFMPEG_VERSION/"*.patch
 
