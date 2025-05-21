@@ -77,7 +77,7 @@ jobs:
           path: |
             install-dir/bin/
 
-  ffmpeg-6-1_windows-build:
+  ffmpeg-6-1-windows-build:
       runs-on: 'windows-2022'
       timeout-minutes: 120
       env: 
@@ -108,7 +108,7 @@ jobs:
           retention-days: 30
           path: |
             install-dir/bin/
-  ffmpeg-6-1_windows-build:
+  ffmpeg-6-1-windows-build:
       runs-on: 'windows-2022'
       timeout-minutes: 120
       env: 
