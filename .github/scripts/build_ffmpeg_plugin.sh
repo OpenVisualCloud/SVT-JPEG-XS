@@ -7,19 +7,18 @@
 
 set -e
 
-# Usage: ./build_ffmpeg_svtjpegxs.sh <jpeg-xs-repo-path> <ffmpeg-version: 6.1|7.0>
-JPEGXS_REPO=${1:-$(pwd)}
+# Usage: ./build_ffmpeg_svtjpegxs.sh <ffmpeg-version: 6.1|7.0>
+JPEGXS_REPO=$(pwd)
 FFMPEG_VERSION=${2:-6.1}
 INSTALL_FMPEG=${3:-"n"}
 
 
 
 if [[ "$FFMPEG_VERSION" != "6.1" && "$FFMPEG_VERSION" != "7.0" ]]; then
-    echo "Usage: $0 <jpeg-xs-repo-path> <ffmpeg-version:> <install-ffmpeg>"
+    echo "Usage: $0  <ffmpeg-version> <install-ffmpeg>"
     echo "ffmpeg-version: 6.1|7.0"
     echo "install-ffmpeg: y|n (default: n)"
-    echo "jpeg-xs-repo-path: path to the jpeg-xs repo (default: current directory)"
-    echo "Example: $0 /path/to/jpeg-xs 6.1 y"
+    echo "Example: $0 6.1 y"
     exit 1
 fi
 echo "=== 0. Create installation directory and export env variable ==="
