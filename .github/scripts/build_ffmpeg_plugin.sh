@@ -9,8 +9,8 @@ set -e
 
 # Usage: ./build_ffmpeg_svtjpegxs.sh <ffmpeg-version: 6.1|7.0>
 JPEGXS_REPO=$(pwd)
-FFMPEG_VERSION=${2:-6.1}
-INSTALL_FMPEG=${3:-"n"}
+FFMPEG_VERSION=${1:-6.1}
+INSTALL_FMPEG=${2:-"n"}
 
 
 
