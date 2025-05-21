@@ -4,9 +4,9 @@ REM filepath: /home/labrat/lgrab/SVT-JPEG-XS/ffmpeg-plugin/build_ffmpeg_svtjpegx
 REM Usage: build_ffmpeg_svtjpegxs.bat <jpeg-xs-repo-path> <ffmpeg-version: 6.1|7.0>
 setlocal
 
-set "JPEGXS_REPO=%~1"
-if "%JPEGXS_REPO%"=="" set "JPEGXS_REPO=%CD%"
-set "FFMPEG_VERSION=%~2"
+
+set "JPEGXS_REPO=%CD%"
+set "FFMPEG_VERSION=%~1"
 if "%FFMPEG_VERSION%"=="" set "FFMPEG_VERSION=6.1"
 
 if /I not "%FFMPEG_VERSION%"=="6.1" if /I not "%FFMPEG_VERSION%"=="7.0" (
