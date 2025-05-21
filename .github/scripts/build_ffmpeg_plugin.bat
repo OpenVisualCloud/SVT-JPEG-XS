@@ -27,6 +27,9 @@ set "PKG_CONFIG_PATH=%INSTALL_DIR%\lib\pkgconfig;%PKG_CONFIG_PATH%"
 
 REM 3. Download/Compile FFmpeg
 cd /d "%CD%"
+git config --global user.email "runner@github.com"
+git config --global user.name "action-runner"
+
 git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg-%FFMPEG_VERSION%
 cd ffmpeg-%FFMPEG_VERSION%
 git checkout release/%FFMPEG_VERSION%
