@@ -80,7 +80,7 @@ jobs:
   ffmpeg-6-1-windows-build:
       runs-on: 'windows-2022'
       timeout-minutes: 120
-      env: 
+      env:
         ASM_NASM: C:\Yasm\yasm.exe
       steps:
       - name: 'Harden Runner'
@@ -120,8 +120,8 @@ jobs:
   ffmpeg-7-0-windows-build:
       runs-on: 'windows-2022'
       timeout-minutes: 120
-      env: 
-        YASM_PATH: C:\Yasm
+      env:
+        ASM_NASM: C:\Yasm\yasm.exe
       steps:
       - name: 'Harden Runner'
         uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
