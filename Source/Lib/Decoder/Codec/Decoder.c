@@ -106,6 +106,10 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
     /*TODO: Dump PI in Verbose mode
     pi_dump(&ctx->pi);
     */
+    ret = pi_update_proxy_mode(&dec_common->pi, proxy_mode, verbose);
+    if (ret) {
+        return ret;
+    }
 
     if (dec_common->picture_header_const.hdr_Cpih) {
         for (uint32_t c = 0; c < dec_common->pi.comps_num; c++) {

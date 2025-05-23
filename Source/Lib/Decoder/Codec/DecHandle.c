@@ -210,6 +210,12 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
                 "SVT [config]: Stream Resolution [width x height]     \t: %d x %d\n",
                 dec_api_prv->dec_common.picture_header_const.hdr_width,
                 dec_api_prv->dec_common.picture_header_const.hdr_height);
+        if (dec_api_prv->proxy_mode != proxy_mode_full) {
+            fprintf(stderr,
+                    "SVT [config]: Decoding Resolution [width x height]     \t: %d x %d\n",
+                    out_image_config->width,
+                    out_image_config->height);
+        }
         fprintf(stderr,
                 "SVT [config]: DecoderBitDepth / DecoderColorFormat\t: %d / %s\n",
                 dec_api_prv->dec_common.picture_header_const.hdr_bit_depth[0],

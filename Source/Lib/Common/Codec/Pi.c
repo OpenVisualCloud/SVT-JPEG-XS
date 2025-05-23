@@ -563,3 +563,59 @@ SvtJxsErrorType_t format_get_sampling_factory(ColourFormat_t format, uint32_t* o
     }
     return SvtJxsErrorNone;
 }
+
+SvtJxsErrorType_t pi_update_proxy_mode(pi_t* pi, proxy_mode_t proxy_mode, uint32_t verbose) {
+    if (proxy_mode == proxy_mode_full) {
+        return SvtJxsErrorNone;
+    }
+
+    if (proxy_mode >= proxy_mode_max) {
+        return SvtJxsErrorBadParameter;
+    }
+
+    uint8_t proxy_subsampling = 0;
+
+    if (proxy_mode == proxy_mode_half) {
+        proxy_subsampling = 1;
+        pi->packets_num = 4;
+    }
+    if (proxy_mode == proxy_mode_quarter) {
+        proxy_subsampling = 2;
+        pi->packets_num = 1;
+    }
+
+    if (proxy_subsampling > pi->decom_v || proxy_subsampling > pi->decom_h) {
+        if (verbose >= VERBOSE_ERRORS) {
+            fprintf(stderr,
+                    "Cannot use proxy-mode=%d for stream with decomp_v=%d decomp_h=%d\n",
+                    proxy_mode,
+                    pi->decom_v,
+                    pi->decom_h);
+        }
+        return SvtJxsErrorBadParameter;
+    }
+
+    pi->decom_v -= proxy_subsampling;
+    pi->decom_h -= proxy_subsampling;
+    pi->width = DIV_ROUND_UP(pi->width, 1 << proxy_subsampling);
+    pi->height = DIV_ROUND_UP(pi->height, 1 << proxy_subsampling);
+
+    for (uint32_t c = 0; c < pi->comps_num; c++) {
+        if (proxy_subsampling > pi->components[c].decom_v || proxy_subsampling > pi->components[c].decom_h) {
+            if (verbose >= VERBOSE_ERRORS) {
+                fprintf(
+                    stderr, "Cannot use proxy-mode=%d for component=%d decomp_v=%d\n", proxy_mode, c, pi->components[c].decom_v);
+            }
+            return SvtJxsErrorBadParameter;
+        }
+
+        pi->components[c].width = DIV_ROUND_UP(pi->components[c].width, 1 << proxy_subsampling);
+        pi->components[c].height = DIV_ROUND_UP(pi->components[c].height, 1 << proxy_subsampling);
+        pi->components[c].precinct_height >>= proxy_subsampling;
+        pi->components[c].decom_v -= proxy_subsampling;
+        pi->components[c].decom_h -= proxy_subsampling;
+        pi->components[c].bands_num = 2 * pi->components[c].decom_v + pi->components[c].decom_h + 1;
+    }
+
+    return SvtJxsErrorNone;
+}
