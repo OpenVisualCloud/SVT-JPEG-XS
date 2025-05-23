@@ -42,7 +42,7 @@ index 20d4e4b615..2a8c893e58 100755
  enabled libvo_amrwbenc    && require libvo_amrwbenc vo-amrwbenc/enc_if.h E_IF_init -lvo-amrwbenc
  enabled libvorbis         && require_pkg_config libvorbis vorbis vorbis/codec.h vorbis_info_init &&
                               require_pkg_config libvorbisenc vorbisenc vorbis/vorbisenc.h vorbis_encode_init
-+enabled libsvtjpegxs      && require_pkg_config libsvtjpegxs "SvtJpegxs >= 0.9.0" SvtJpegxsEnc.h svt_jpeg_xs_encoder_init
++enabled libsvtjpegxs      && require_pkg_config libsvtjpegxs "SvtJpegxs >= 0.10.0" SvtJpegxsEnc.h svt_jpeg_xs_encoder_init
  
  enabled libvpx            && {
      enabled libvpx_vp8_decoder && {

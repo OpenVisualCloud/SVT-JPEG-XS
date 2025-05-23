@@ -283,6 +283,6 @@ Please see [Decoder snippet](documentation/decoder/DecoderSnippets.md) for decod
 
 ## Notes
 
-The information in this document was compiled at <mark>v0.9</mark> may not
+The information in this document was compiled at <mark>v0.10</mark> may not
 reflect the latest status of the design. For the most up-to-date
 settings and implementation, it's recommended to visit the section of the code.
