@@ -55,18 +55,5 @@ function Install-VisualStudio2022 {
   Write-Host "Microsoft Visual C++ 2010 Service Pack 1 Redistributable installation completed."
 }
 
-function Install-Pacman {
-  Write-Host "Installing pacman via Chocolatey..."
-
-  $msys2Path = "C:\tools\msys64\usr\bin"  <# windows-server 2022#>
-  Start-Process -FilePath "choco" -ArgumentList "install msys2" -NoNewWindow -Wait
-  Write-Host "MSYS2 installation completed."
-
-  Write-Host "Running pacman to install required packages..."
-  & "$msys2Path\pacman.exe" -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils
-  Write-Host "Pacman and required packages installation completed."
-}
-
 Install-Yasm
 Install-VisualStudio2022
-Install-Pacman
