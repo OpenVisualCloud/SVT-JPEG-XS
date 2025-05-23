@@ -139,6 +139,6 @@ This stage uses intermediate picture sample values from MCT or IDWT (if MCT is n
 
 ## Notes
 
-The information in this document was compiled at <mark>v0.9</mark> may not
+The information in this document was compiled at <mark>v0.10</mark> may not
 reflect the latest status of the design. For the most up-to-date
 settings and implementation, it's recommended to visit the section of the code.
