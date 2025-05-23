@@ -249,6 +249,7 @@ Input Options:
                             (disabled: 0, enabled [1-240])
 [--packetization-mode]     Specify how bitstream is passed to decoder
                             (multiple packets per frame:1, single packet per frame:0, default:0)
+[--proxy-mode]             Resolution scaling mode(disabled: 0, scale 1/2: 1, scale 1/4: 2, default: 0)
 ```
 
 Output Options:
@@ -267,6 +268,16 @@ Threading, performance:
                             created and thus lower latency and/or higher FPS can be achieved
                             (default: 0, which means lowest possible number of threads is created)
 ```
+
+Decoder Proxy-mode limitation:
+
+|   sampling    | decomp_v | proxy-mode 1/2 support | proxy-mode 1/4 support |
+|       --      |    --    |           --           |           --           |
+| YUV444/YUV422 |    2     |           Y            |           Y            |
+| YUV444/YUV422 |    1     |           Y            |           N            |
+| YUV444/YUV422 |    0     |           N            |           N            |
+|    YUV420     |    2     |           Y            |           N            |
+|    YUV420     |    1     |           N            |           N            |
 
 ## Encoder and Decoder design
 
