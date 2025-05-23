@@ -91,7 +91,7 @@ static void* thread_send(void* arg) {
 
     do {
         uint32_t frame_size = 0;
-        SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_get_single_frame_size(bitstream_ptr, bitstream_size, NULL, &frame_size, 1);
+        SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_get_single_frame_size(bitstream_ptr, bitstream_size, NULL, &frame_size, 1, config_dec->decoder.proxy_mode);
         if (ret != SvtJxsErrorNone) {
             break;
         }
@@ -352,7 +352,8 @@ int32_t main(int32_t argc, char* argv[]) {
                                                     config_dec.bitstream_buf_size - config_dec.bitstream_offset,
                                                     &config_dec.image_config,
                                                     &frame_size,
-                                                    1);
+                                                    1,
+                                                    config_dec.decoder.proxy_mode);
     if (ret != SvtJxsErrorNone) {
         fprintf(stderr, "Unable to get first frame size, input codestream (%s)\n", config_dec.in_filename);
         return_error = DEC_INVALID_BITSTREAM;

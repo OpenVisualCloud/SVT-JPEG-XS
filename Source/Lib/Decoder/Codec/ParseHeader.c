@@ -628,9 +628,12 @@ static uint32_t get_32_bits(const uint8_t* mem) {
 
 SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, size_t bitstream_buf_size,
                                                svt_jpeg_xs_image_config_t* out_image_config, uint32_t* frame_size,
-                                               uint32_t fast_search) {
+                                               uint32_t fast_search, proxy_mode_t proxy_mode) {
     if (frame_size == NULL) {
         return SvtJxsErrorDecoderInvalidPointer;
+    }
+    if (proxy_mode >= proxy_mode_max) {
+        return SvtJxsErrorBadParameter;
     }
     *frame_size = 0;
 
