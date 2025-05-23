@@ -264,6 +264,7 @@ int32_t main(int32_t argc, char* argv[]) {
     config_dec.decoder.verbose = VERBOSE_SYSTEM_INFO;
     config_dec.decoder.use_cpu_flags = CPU_FLAGS_ALL;
     config_dec.decoder.packetization_mode = 0;
+    config_dec.decoder.proxy_mode = 0;
 
     PerformanceContext_t performance_context;
     performance_context.total_latency_ms = .0;
