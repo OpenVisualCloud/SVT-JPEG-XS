@@ -28,6 +28,8 @@ typedef struct svt_jpeg_xs_decoder_api {
     */
     uint8_t packetization_mode;
 
+    proxy_mode_t proxy_mode;
+
     /* Callback: Call when available place in queue to send data.
      * Call when finish init decoder.
      * Call every time when the next element from the input queue is taken.

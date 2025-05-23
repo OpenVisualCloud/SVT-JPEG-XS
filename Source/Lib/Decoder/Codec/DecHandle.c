@@ -8,7 +8,6 @@
 #include "Definitions.h"
 #include "common_dsp_rtcd.h"
 #include "decoder_dsp_rtcd.h"
-#include "SvtJpegxsDec.h"
 #include "ParseHeader.h"
 #include "DecThreadInit.h"
 #include "DecThreadSlice.h"
@@ -127,6 +126,14 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         return SvtJxsErrorBadParameter;
     }
 
+    if (dec_api->proxy_mode >= proxy_mode_max) {
+        if (dec_api->verbose >= VERBOSE_ERRORS) {
+            fprintf(stderr, "Unrecognized proxy mode\n");
+        }
+        return SvtJxsErrorBadParameter;
+    }
+    dec_api_prv->proxy_mode = dec_api->proxy_mode;
+
     const CPU_FLAGS cpu_flags = get_cpu_flags();
     dec_api->use_cpu_flags &= cpu_flags;
     if (dec_api_prv->verbose >= VERBOSE_SYSTEM_INFO) {
@@ -199,7 +206,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         const char* color_format_name = svt_jpeg_xs_get_format_name(format);
         fprintf(stderr, "-------------------------------------------\n");
         fprintf(stderr,
-                "SVT [config]: Resolution [width x height]         \t: %d x %d\n",
+                "SVT [config]: Stream Resolution [width x height]     \t: %d x %d\n",
                 dec_api_prv->dec_common.picture_header_const.hdr_width,
                 dec_api_prv->dec_common.picture_header_const.hdr_height);
         fprintf(stderr,
