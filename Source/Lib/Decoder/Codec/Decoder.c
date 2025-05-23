@@ -78,7 +78,8 @@ ColourFormat_t svt_jpeg_xs_get_format_from_params(uint32_t comps_num, uint32_t s
 }
 
 SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_common,
-                                              svt_jpeg_xs_image_config_t* out_image_config) {
+                                              svt_jpeg_xs_image_config_t* out_image_config, proxy_mode_t proxy_mode,
+                                              uint32_t verbose) {
     SvtJxsErrorType_t ret = pi_compute(
         &dec_common->pi, //TODO: Update if required
         0 /*Init decoder*/,

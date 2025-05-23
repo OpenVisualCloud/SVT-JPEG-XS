@@ -50,7 +50,7 @@ SvtJxsErrorType_t decoder_simple_alloc(DecoderSimple_t* decoder, const uint8_t* 
         return ret;
     }
 
-    ret = svt_jpeg_xs_dec_init_common(&decoder->dec_common, &decoder->image_config);
+    ret = svt_jpeg_xs_dec_init_common(&decoder->dec_common, &decoder->image_config, proxy_mode_full, decoder->verbose);
     if (ret) {
         return ret;
     }
