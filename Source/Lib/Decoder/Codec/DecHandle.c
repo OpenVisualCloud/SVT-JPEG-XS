@@ -194,7 +194,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         dec_api_prv->dec_common.max_frame_bitstream_size = header_dynamic.hdr_Lcod;
     }
 
-    ret = svt_jpeg_xs_dec_init_common(&dec_api_prv->dec_common, out_image_config);
+    ret = svt_jpeg_xs_dec_init_common(&dec_api_prv->dec_common, out_image_config, dec_api_prv->proxy_mode, dec_api_prv->verbose);
     if (ret) {
         svt_jpeg_xs_decoder_close(dec_api);
         return ret;
