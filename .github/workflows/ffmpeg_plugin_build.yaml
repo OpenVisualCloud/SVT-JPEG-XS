@@ -82,6 +82,7 @@ jobs:
       timeout-minutes: 120
       env: 
         YASM_PATH: C:\Yasm
+        ASM_NASM: ${{ env.YASM_PATH }}\yasm.exe
       steps:
       - name: 'Harden Runner'
         uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
@@ -106,7 +107,8 @@ jobs:
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}
-        run: ./.github/scripts/build_ffmpeg_plugin_msys.sh 6.1 
+        run: ./.github/scripts/build_ffmpeg_plugin_msys.sh 6.1
+          
   
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
