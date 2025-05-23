@@ -13,6 +13,13 @@ extern "C" {
 #include <stddef.h>
 #include "SvtJpegxs.h"
 
+typedef enum {
+    proxy_mode_full = 0,    //0 - Off, decode the stream to Full resolution
+    proxy_mode_half = 1,    //1 - Proxy-Mode 1/2, decode the stream to half the Width and Height
+    proxy_mode_quarter = 2, //2 - Proxy-Mode 1/4, decode the stream to quarter the Width and Height
+    proxy_mode_max
+} proxy_mode_t;
+
 typedef struct svt_jpeg_xs_decoder_api {
     uint64_t use_cpu_flags;
     uint32_t verbose; //VerboseMessages
@@ -27,6 +34,8 @@ typedef struct svt_jpeg_xs_decoder_api {
     *       This mode requires the use of the svt_jpeg_xs_decoder_send_packet() API function.
     */
     uint8_t packetization_mode;
+
+    proxy_mode_t proxy_mode;
 
     /* Callback: Call when available place in queue to send data.
      * Call when finish init decoder.
@@ -70,7 +79,8 @@ PREFIX_API void svt_jpeg_xs_decoder_close(svt_jpeg_xs_decoder_api_t* dec_api);
   **/
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_single_frame_size(const uint8_t* bitstream_buf, size_t bitstream_buf_size,
                                                                        svt_jpeg_xs_image_config_t* out_image_config,
-                                                                       uint32_t* frame_size, uint32_t fast_search);
+                                                                       uint32_t* frame_size, uint32_t fast_search,
+                                                                       proxy_mode_t proxy_mode);
 
 /*Start decode bitstream
   * Parameters:

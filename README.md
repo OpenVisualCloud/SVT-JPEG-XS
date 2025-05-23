@@ -249,6 +249,7 @@ Input Options:
                             (disabled: 0, enabled [1-240])
 [--packetization-mode]     Specify how bitstream is passed to decoder
                             (multiple packets per frame:1, single packet per frame:0, default:0)
+[--proxy-mode]             Resolution scaling mode(disabled: 0, scale 1/2: 1, scale 1/4: 2, default: 0)
 ```
 
 Output Options:
@@ -283,6 +284,6 @@ Please see [Decoder snippet](documentation/decoder/DecoderSnippets.md) for decod
 
 ## Notes
 
-The information in this document was compiled at <mark>v0.9</mark> may not
+The information in this document was compiled at <mark>v0.10</mark> may not
 reflect the latest status of the design. For the most up-to-date
 settings and implementation, it's recommended to visit the section of the code.

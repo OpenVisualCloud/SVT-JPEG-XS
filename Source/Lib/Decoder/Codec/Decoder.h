@@ -114,7 +114,8 @@ ColourFormat_t svt_jpeg_xs_get_format_from_params(uint32_t comps_num, uint32_t s
                                                   uint32_t sy[MAX_COMPONENTS_NUM]);
 
 SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_common,
-                                              svt_jpeg_xs_image_config_t* out_image_config);
+                                              svt_jpeg_xs_image_config_t* out_image_config, proxy_mode_t proxy_mode,
+                                              uint32_t verbose);
 
 svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decoder_common_t* dec_common);
 void svt_jpeg_xs_dec_instance_free(svt_jpeg_xs_decoder_instance_t* ctx);

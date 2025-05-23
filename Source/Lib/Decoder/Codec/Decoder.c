@@ -77,8 +77,71 @@ ColourFormat_t svt_jpeg_xs_get_format_from_params(uint32_t comps_num, uint32_t s
     return format;
 }
 
+SvtJxsErrorType_t svt_jpeg_xs_dec_init_proxy_mode(svt_jpeg_xs_decoder_common_t* dec_common, proxy_mode_t proxy_mode,
+                                                  uint32_t verbose) {
+    if (proxy_mode == proxy_mode_full) {
+        return SvtJxsErrorNone;
+    }
+
+    if (proxy_mode >= proxy_mode_max) {
+        return SvtJxsErrorBadParameter;
+    }
+
+    uint8_t proxy_subsampling = 0;
+
+    if (proxy_mode == proxy_mode_half) {
+        proxy_subsampling = 1;
+        dec_common->pi.packets_num = 4;
+    }
+    if (proxy_mode == proxy_mode_quarter) {
+        proxy_subsampling = 2;
+        dec_common->pi.packets_num = 1;
+    }
+
+    if (proxy_subsampling > dec_common->pi.decom_v || proxy_subsampling > dec_common->pi.decom_h) {
+        if (verbose >= VERBOSE_ERRORS) {
+            fprintf(stderr,
+                    "Cannot use proxy-mode=%d for stream with decomp_v=%d decomp_h=%d\n",
+                    proxy_mode,
+                    dec_common->pi.decom_v,
+                    dec_common->pi.decom_h);
+        }
+        return SvtJxsErrorBadParameter;
+    }
+
+    dec_common->pi.decom_v -= proxy_subsampling;
+    dec_common->pi.decom_h -= proxy_subsampling;
+    dec_common->pi.width = DIV_ROUND_UP(dec_common->pi.width , 1 << proxy_subsampling);
+    dec_common->pi.height = DIV_ROUND_UP(dec_common->pi.height, 1 << proxy_subsampling);
+
+    for (uint32_t c = 0; c < dec_common->pi.comps_num; c++) {
+        if (proxy_subsampling > dec_common->pi.components[c].decom_v ||
+            proxy_subsampling > dec_common->pi.components[c].decom_h) {
+            if (verbose >= VERBOSE_ERRORS) {
+                fprintf(stderr,
+                        "Cannot use proxy-mode=%d for component=%d decomp_v=%d\n",
+                        proxy_mode,
+                        c,
+                        dec_common->pi.components[c].decom_v);
+            }
+            return SvtJxsErrorBadParameter;
+        }
+
+        dec_common->pi.components[c].width = DIV_ROUND_UP(dec_common->pi.components[c].width , 1 << proxy_subsampling);
+        dec_common->pi.components[c].height = DIV_ROUND_UP(dec_common->pi.components[c].height, 1 << proxy_subsampling);
+        dec_common->pi.components[c].precinct_height >>= proxy_subsampling;
+        dec_common->pi.components[c].decom_v -= proxy_subsampling;
+        dec_common->pi.components[c].decom_h -= proxy_subsampling;
+        dec_common->pi.components[c].bands_num = 2 * dec_common->pi.components[c].decom_v + dec_common->pi.components[c].decom_h +
+            1;
+    }
+
+    return SvtJxsErrorNone;
+}
+
 SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_common,
-                                              svt_jpeg_xs_image_config_t* out_image_config) {
+                                              svt_jpeg_xs_image_config_t* out_image_config, proxy_mode_t proxy_mode,
+                                              uint32_t verbose) {
     SvtJxsErrorType_t ret = pi_compute(
         &dec_common->pi, //TODO: Update if required
         0 /*Init decoder*/,
@@ -105,6 +168,10 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
     /*TODO: Dump PI in Verbose mode
     pi_dump(&ctx->pi);
     */
+    ret = svt_jpeg_xs_dec_init_proxy_mode(dec_common, proxy_mode, verbose);
+    if (ret) {
+        return ret;
+    }
 
     if (dec_common->picture_header_const.hdr_Cpih) {
         for (uint32_t c = 0; c < dec_common->pi.comps_num; c++) {

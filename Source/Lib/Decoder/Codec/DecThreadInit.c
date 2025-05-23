@@ -245,7 +245,8 @@ void* thread_init_stage_kernel(void* input_ptr) {
                                                                               input_buffer_ptr->dec_input.bitstream.used_size,
                                                                               NULL,
                                                                               &read_size,
-                                                                              0);
+                                                                              0,
+                                                                              dec_api_prv->proxy_mode);
             if ((ret != SvtJxsErrorNone) && input_buffer_ptr->dec_input.bitstream.used_size != read_size) {
                 //TODO: Hard to test this case and in future this problem should be removed
                 fprintf(stderr,

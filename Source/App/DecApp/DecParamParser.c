@@ -29,6 +29,7 @@
 #define FORCE_DECODE_TOKEN           "--force-decode"
 #define LIMIT_FPS_TOKEN              "--limit-fps"
 #define PACKETIZATION_MODE           "--packetization-mode"
+#define PROXY_MODE                   "--proxy-mode"
 #define MAX_NUM_TOKENS               200
 
 static void strncpy_local(char* dest, const char* src, size_t count) {
@@ -127,6 +128,22 @@ static void set_packetization_mode(const char* value, DecoderConfig_t* cfg) {
     cfg->decoder.packetization_mode = (uint8_t)strtoul(value, NULL, 0);
 };
 
+static void set_proxy_mode(const char* value, DecoderConfig_t* cfg) {
+    uint8_t proxy_mode = (uint8_t)strtoul(value, NULL, 0);
+    if (proxy_mode == 0) {
+        cfg->decoder.proxy_mode = proxy_mode_full;
+    }
+    else if (proxy_mode == 1) {
+        cfg->decoder.proxy_mode = proxy_mode_half;
+    }
+    else if (proxy_mode == 2) {
+        cfg->decoder.proxy_mode = proxy_mode_quarter;
+    }
+    else {
+        cfg->decoder.proxy_mode = proxy_mode_max;
+    }
+}
+
 /**********************************
  * Config Entry Struct
  **********************************/
@@ -157,6 +174,7 @@ ConfigEntry config_entry[] = {
     {INPUT_OPTIONS, LIMIT_FPS_TOKEN,             "Limit number of frames per second (disabled: 0, enabled [1-240])", 0, 1, set_limit_fps},
     {INPUT_OPTIONS, PACKETIZATION_MODE,          "Specify how bitstream is passed to decoder(multiple packets per frame:1, single packet per frame:0, default:0)", 0, 1, set_packetization_mode},
     {OUTPUT_OPTIONS, OUTPUT_FILE_TOKEN,         "Output Filename", 0, 1, set_cfg_output_file},
+    {OUTPUT_OPTIONS, PROXY_MODE,                "Resolution scaling mode(disabled: 0, scale 1/2: 1, scale 1/4: 2, default: 0)", 0, 1, set_proxy_mode},
     {THREAD_PERF_OPTIONS, ASM_TYPE_TOKEN,       "Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2, sse3, "
                                                 "ssse3, sse4_1, sse4_2,"
                                                 " avx, avx2, avx512, max], by default highest level supported by CPU", 0, 1,

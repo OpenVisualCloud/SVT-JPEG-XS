@@ -32,7 +32,7 @@ void get_packet_header(bitstream_reader_t* bitstream, int32_t use_long_header, p
 
 SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, size_t bitstream_buf_size,
                                                svt_jpeg_xs_image_config_t* out_image_config, uint32_t* frame_size,
-                                               uint32_t fast_search);
+                                               uint32_t fast_search, proxy_mode_t proxy_mode);
 
 #ifdef __cplusplus
 }
