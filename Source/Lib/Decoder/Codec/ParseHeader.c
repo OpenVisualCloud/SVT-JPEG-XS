@@ -787,28 +787,38 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
                 }
 
                 if (out_image_config) {
-                    uint8_t proxy_subsampling = 0;
-                    if (proxy_mode == proxy_mode_half) {
-                        proxy_subsampling = 1;
-                    }
-                    if (proxy_mode == proxy_mode_quarter) {
-                        proxy_subsampling = 2;
-                    }
-
-                    out_image_config->width = width >> proxy_subsampling;
-                    out_image_config->height = height >> proxy_subsampling;
+                    out_image_config->width = width;
+                    out_image_config->height = height;
                     out_image_config->bit_depth = bit_depth;
                     out_image_config->components_num = comps_num;
                     out_image_config->format = svt_jpeg_xs_get_format_from_params(comps_num, Sx, Sy);
                     int32_t c = 0;
                     for (; c < comps_num - Sd; c++) {
-                        out_image_config->components[c].width = width >> (proxy_subsampling + Sx[c] - 1);
-                        out_image_config->components[c].height = height >> (proxy_subsampling + Sy[c] - 1);
+                        out_image_config->components[c].width = width >> (Sx[c] - 1);
+                        out_image_config->components[c].height = height >> (Sy[c] - 1);
                     }
                     for (; c < comps_num; c++) {
                         out_image_config->components[c].width = width;
                         out_image_config->components[c].height = height;
                     }
+
+                    if (proxy_mode != proxy_mode_full) {
+                        uint8_t ss = 0;
+                        if (proxy_mode == proxy_mode_half) {
+                            ss = 1;
+                        }
+                        if (proxy_mode == proxy_mode_quarter) {
+                            ss = 2;
+                        }
+
+                        out_image_config->width = (width + (1 << ss) - 1) >> ss;
+                        out_image_config->height = (height + (1 << ss) - 1) >> ss;
+                        for (c = 0; c < comps_num; c++) {
+                            out_image_config->components[c].width = (out_image_config->components[c].width + (1 << ss) - 1) >> ss;
+                            out_image_config->components[c].height = (out_image_config->components[c].height + (1 << ss) - 1) >> ss;
+                        }
+                    }
+
                     for (c = 0; c < comps_num; c++) {
                         uint32_t pixel_size = out_image_config->bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
                         out_image_config->components[c].byte_size = out_image_config->components[c].width *

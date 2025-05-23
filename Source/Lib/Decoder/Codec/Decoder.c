@@ -111,8 +111,8 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_proxy_mode(svt_jpeg_xs_decoder_common_t* 
 
     dec_common->pi.decom_v -= proxy_subsampling;
     dec_common->pi.decom_h -= proxy_subsampling;
-    dec_common->pi.width >>= proxy_subsampling;
-    dec_common->pi.height >>= proxy_subsampling;
+    dec_common->pi.width = DIV_ROUND_UP(dec_common->pi.width , 1 << proxy_subsampling);
+    dec_common->pi.height = DIV_ROUND_UP(dec_common->pi.height, 1 << proxy_subsampling);
 
     for (uint32_t c = 0; c < dec_common->pi.comps_num; c++) {
         if (proxy_subsampling > dec_common->pi.components[c].decom_v ||
@@ -127,8 +127,8 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_proxy_mode(svt_jpeg_xs_decoder_common_t* 
             return SvtJxsErrorBadParameter;
         }
 
-        dec_common->pi.components[c].width >>= proxy_subsampling;
-        dec_common->pi.components[c].height >>= proxy_subsampling;
+        dec_common->pi.components[c].width = DIV_ROUND_UP(dec_common->pi.components[c].width , 1 << proxy_subsampling);
+        dec_common->pi.components[c].height = DIV_ROUND_UP(dec_common->pi.components[c].height, 1 << proxy_subsampling);
         dec_common->pi.components[c].precinct_height >>= proxy_subsampling;
         dec_common->pi.components[c].decom_v -= proxy_subsampling;
         dec_common->pi.components[c].decom_h -= proxy_subsampling;
