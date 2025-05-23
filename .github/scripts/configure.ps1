@@ -54,5 +54,6 @@ function Install-VisualStudio2022 {
 
   Write-Host "Microsoft Visual C++ 2010 Service Pack 1 Redistributable installation completed."
 }
+
 Install-Yasm
 Install-VisualStudio2022
