@@ -138,7 +138,7 @@ jobs:
         with:
           msystem: UCRT64
           update: true
-          install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm mingw-w64-ucrt-x86_64-winpthreads-git mingw-w64-x86_64-boost
+          install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}

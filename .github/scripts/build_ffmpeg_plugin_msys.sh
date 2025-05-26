@@ -9,7 +9,7 @@ if [[ "$FFMPEG_VERSION" != "6.1" && "$FFMPEG_VERSION" != "7.0" ]]; then
     echo "Usage: $0  <ffmpeg-version: 6.1|7.0>"
     exit 1
 fi
-pacman -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils
+pacman -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils mingw-w64-x86_64-winpthreads
 INSTALL_DIR="$PWD/install-dir"
 mkdir -p "$INSTALL_DIR"
 
