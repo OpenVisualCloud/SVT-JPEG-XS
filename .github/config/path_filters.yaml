@@ -9,4 +9,3 @@ base_build: &base_build
 ffmpeg_plugin_build: &ffmpeg_plugin_build
   - 'ffmpeg-plugin/**'
   - '.github/scripts/build_ffmpeg_plugin*'
-

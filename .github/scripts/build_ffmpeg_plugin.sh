@@ -1,7 +1,5 @@
 #!/bin/bash
 
-
-
 #!/bin/bash
 # filepath: /home/labrat/lgrab/SVT-JPEG-XS/ffmpeg-plugin/build_ffmpeg_svtjpegxs.sh
 
@@ -11,8 +9,6 @@ set -e
 JPEGXS_REPO=$(pwd)
 FFMPEG_VERSION=${1:-6.1}
 INSTALL_FMPEG=${2:-"n"}
-
-
 
 if [[ "$FFMPEG_VERSION" != "6.1" && "$FFMPEG_VERSION" != "7.0" ]]; then
     echo "Usage: $0  <ffmpeg-version> <install-ffmpeg>"
@@ -24,7 +20,6 @@ fi
 echo "=== 0. Create installation directory and export env variable ==="
 export INSTALL_DIR="$PWD/install-dir"
 mkdir -p "$INSTALL_DIR"
-
 
 echo "=== 1. Compile and install svt-jpegxs ==="
 cd "$JPEGXS_REPO/Build/linux"
