@@ -11,7 +11,7 @@ INSTALL_FMPEG=${2:-"n"}
 
 if [[ "$FFMPEG_VERSION" != "6.1" && "$FFMPEG_VERSION" != "7.0" ]]; then
     echo "Usage: $0  <ffmpeg-version> <install-ffmpeg>"
-    echo "ffmpeg-version: 6.1|7.0"
+    echo "ffmpeg-version: 6.1|7.0" (default: 6.1)
     echo "install-ffmpeg: y|n (default: n)"
     echo "Example: $0 6.1 y"
     exit 1
