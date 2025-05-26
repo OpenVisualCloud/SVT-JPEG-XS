@@ -97,7 +97,7 @@ jobs:
       - name: 'install msys2 shell'
         uses: msys2/setup-msys2@v2
         with:
-          msystem: UCRT64
+          msystem: mingw64
           update: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
 
@@ -136,7 +136,7 @@ jobs:
       - name: 'install msys2 shell'
         uses: msys2/setup-msys2@v2
         with:
-          msystem: UCRT64
+          msystem: mingw64
           update: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
       - name: 'install ffmpeg plugin'
