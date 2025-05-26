@@ -19,8 +19,8 @@ concurrency:
 env:
   LINUX_ARTIFACTS_6_1: linux-ffmpeg-6-1-build-${{ github.run_number }}
   LINUX_ARTIFACTS_7_0: linux-ffmpeg-7-0-build-${{ github.run_number }}
-  WINDOWS_ARTIFACTS_6_1: linux-ffmpeg-6-1-build-${{ github.run_number }}
-  WINDOWS_ARTIFACTS_7_0: linux-ffmpeg-7-0-build-${{ github.run_number }}
+  WINDOWS_ARTIFACTS_6_1: windiws-ffmpeg-6-1-build-${{ github.run_number }}
+  WINDOWS_ARTIFACTS_7_0: windows-ffmpeg-7-0-build-${{ github.run_number }}
 jobs:
   changes:
     runs-on: ubuntu-latest
