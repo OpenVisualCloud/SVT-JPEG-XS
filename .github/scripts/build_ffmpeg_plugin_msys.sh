@@ -6,7 +6,7 @@ JPEGXS_REPO="${PWD}"
 FFMPEG_VERSION="${1:-6.1}"
 
 if [[ "$FFMPEG_VERSION" != "6.1" && "$FFMPEG_VERSION" != "7.0" ]]; then
-    echo "Usage: $0  <ffmpeg-version: 6.1|7.0>"
+    echo "Usage: $0  <ffmpeg-version: 6.1|7.0> (default: 6.1)"
     exit 1
 fi
 pacman -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils mingw-w64-x86_64-winpthreads mingw-w64-x86_64-toolchain
