@@ -1,6 +1,5 @@
 #!/bin/bash
 
-#!/bin/bash
 # filepath: /home/labrat/lgrab/SVT-JPEG-XS/ffmpeg-plugin/build_ffmpeg_svtjpegxs.sh
 
 set -e
