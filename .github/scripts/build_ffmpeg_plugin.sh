@@ -48,7 +48,7 @@ git am --whitespace=fix "$JPEGXS_REPO/ffmpeg-plugin/$FFMPEG_VERSION/"*.patch
 
 echo "=== 5. Configure FFmpeg ==="
 ./configure --enable-libsvtjpegxs --prefix="$INSTALL_DIR" --enable-shared
-
+export LDFLAGS='-DBUILD_SHARED_LIBS=ON'
 echo "=== 6. Build and install FFmpeg ==="
 make -j"$(nproc)"
 if [[ "$INSTALL_FMPEG" == "y" ]]; then
