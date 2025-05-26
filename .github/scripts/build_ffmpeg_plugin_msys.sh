@@ -19,7 +19,8 @@ cmake -S . -B svtjpegxs-build -DBUILD_APPS=off -DCMAKE_BUILD_TYPE=Release -DBUIL
 cmake --build svtjpegxs-build -j10 --config Release --target install
 
 # 2. Set PKG_CONFIG_PATH
-export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+export LD_LIBRARY_PATH="$INSTALL_DIR/lib:${LD_LIBRARY_PATH}"
+export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
 
 # 3. Download/Compile FFmpeg
 cd "$PWD"
