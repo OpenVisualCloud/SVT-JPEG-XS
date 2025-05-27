@@ -83,7 +83,7 @@ jobs:
 
   linux-unit-tests-valgrind:
     needs: linux-build
-    runs-on: 'ubuntu-22.04'
+    runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
