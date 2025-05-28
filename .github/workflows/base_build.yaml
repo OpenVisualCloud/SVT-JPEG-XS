@@ -93,7 +93,6 @@ jobs:
 
     - name: 'Setup: Cleanup workspace'
       run: |
-        ls -la ./
         rm -rf ./* || true
         rm -rf ./.??* || true
         ls -la ./
