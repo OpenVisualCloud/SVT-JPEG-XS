@@ -97,8 +97,8 @@ jobs:
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
 
   linux-unit-tests-valgrind:
-    needs: linux-build
-    runs-on: 'ubuntu-22.04'
+    needs: [linux-build, linux-unit-tests]
+    runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
@@ -106,12 +106,18 @@ jobs:
       with:
         egress-policy: audit
 
+    - name: 'Setup: Cleanup workspace'
+      run: |
+        rm -rf ./* || true
+        rm -rf ./.??* || true
+        ls -la ./
+
     - name: 'Setup: Install dependencies'
       run: | 
            sudo apt-get update
            sudo apt-get -y install nasm valgrind
 
-    - name: download build artifacts
+    - name: 'Setup: Download build artifacts'
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
       with:
         name: "${{ env.LINUX_ARTIFACTS }}"
@@ -124,6 +130,7 @@ jobs:
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
         sudo chmod +x ${{ github.workspace }}/Bin/Release/*
+        export LD_LIBRARY_PATH=$(pwd)
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC} valgrind
 
   windows-build:
