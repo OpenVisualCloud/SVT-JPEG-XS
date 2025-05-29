@@ -76,7 +76,7 @@ NUM_JOBS=$(check_vcpus)
 if [ ! -d ${INPUT_FILES_PATH} ]; then
     echo " "
     echo "******************* no INPUT_FILES_PATH provided exiting. *******************"
-    exit(1)
+    exit 1
 fi
 
 # Allow sourcing of the script.
