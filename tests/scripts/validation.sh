@@ -75,8 +75,8 @@ NUM_JOBS=$(check_vcpus)
 
 if [ ! -d ${INPUT_FILES_PATH} ]; then
     echo " "
-    echo "******************* preparing tests images *******************"
-    download_recursively $ARTIFACTORY_FOLDER $INPUT_FILES_PATH
+    echo "******************* no INPUT_FILES_PATH provided exiting. *******************"
+    exit(1)
 fi
 
 # Allow sourcing of the script.
