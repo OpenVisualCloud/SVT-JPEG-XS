@@ -52,7 +52,7 @@ jobs:
       working-directory: Build/linux
       run: | 
            sudo apt-get update
-           sudo apt-get -y install cmake=3.6* nasm
+           sudo apt-get -y install cmake=3.1* nasm
 
     - name: 'Build:  Debug and Release versions'
       working-directory: Build/linux
@@ -165,11 +165,10 @@ jobs:
       working-directory: ${{ github.workspace }}/tests/scripts
       run: | 
         export NUM_JOBS=$(cat /proc/cpuinfo | grep processor | wc -l)
-        . validation.sh
-        ./ParallelAllTests.sh NUM_JOBS "${INPUT_FILES_PATH}" ${DEC_BIN_DIR}      
+        ./ParallelAllTests.sh ${NUM_JOBS}  ${INPUT_FILES_PATH} ${DEC_BIN_DIR}/SvtJpegxsDecApp      
       env:
         DEC_BIN_DIR: ${{ github.workspace }}/Bin/Release
-        INPUT_FILES_PATH: /opt/svt-jpegxs/Samples
+        INPUT_FILES_PATH: /opt/samples/Samples/ConformanceTestDecoder/
 
   # windows-build:
   #   needs: changes
