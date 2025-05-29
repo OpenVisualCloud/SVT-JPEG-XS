@@ -43,7 +43,7 @@ int32_t main(int32_t argc, char* argv[]) {
     fseek(input_file, 0, SEEK_SET);
 
     uint32_t frame_size = 0;
-    SvtJxsErrorType_t err = svt_jpeg_xs_decoder_get_single_frame_size(
+    SvtJxsErrorType_t err = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
         (uint8_t*)bitstream.buffer, (uint32_t)read_size, NULL, &frame_size, 1, dec.proxy_mode);
     if (err) {
         return err;

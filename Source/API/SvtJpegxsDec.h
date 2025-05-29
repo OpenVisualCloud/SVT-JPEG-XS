@@ -47,6 +47,13 @@ typedef struct svt_jpeg_xs_decoder_api {
     void* callback_get_data_available_context;
 
     void* private_ptr;
+
+    /* This padding is used to avoid changing the size of the public configuration struct
+     * when new parameters are added in the future please follow these steps:
+     * 1. Insert the new parameter as a member of this structure before the padding array.
+     * 2. Decrease the size of the padding array by the size of the new parameter to keep the struct size unchanged.
+     */
+    uint8_t padding[64];
 } svt_jpeg_xs_decoder_api_t;
 
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major, uint64_t version_api_minor,
@@ -69,11 +76,17 @@ PREFIX_API void svt_jpeg_xs_decoder_close(svt_jpeg_xs_decoder_api_t* dec_api);
   * SvtJxsErrorDecoderInvalidPointer - when bitstream_buf or frame_size are null,
   * SvtJxsErrorDecoderBitstreamTooShort - when bitstream is to short, please call again with more bytes in buffer.
   * SvtJxsErrorDecoderInvalidBitstream   - when bitstream is invalid and can not be analyzed
+  * svt_jpeg_xs_decoder_get_single_frame_size() stays for compatibility with 0.9 version of API
+  * svt_jpeg_xs_decoder_get_single_frame_size_with_proxy() shall be used instead, as it allows to specify proxy mode.
   **/
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_single_frame_size(const uint8_t* bitstream_buf, size_t bitstream_buf_size,
                                                                        svt_jpeg_xs_image_config_t* out_image_config,
-                                                                       uint32_t* frame_size, uint32_t fast_search,
-                                                                       proxy_mode_t proxy_mode);
+                                                                       uint32_t* frame_size, uint32_t fast_search);
+PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(const uint8_t* bitstream_buf,
+                                                                                  size_t bitstream_buf_size,
+                                                                                  svt_jpeg_xs_image_config_t* out_image_config,
+                                                                                  uint32_t* frame_size, uint32_t fast_search,
+                                                                                  proxy_mode_t proxy_mode);
 
 /*Start decode bitstream
   * Parameters:

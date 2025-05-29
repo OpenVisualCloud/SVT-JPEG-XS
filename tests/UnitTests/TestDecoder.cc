@@ -147,7 +147,7 @@ static int32_t test_bitstream_simple(const uint8_t* frame_valid, size_t frame_va
 
     /*Test size for corrupted bitstream. Valgrind should handle possible errors. */
     uint32_t frame_size = 0;
-    SvtJxsErrorType_t frame_size_ret = svt_jpeg_xs_decoder_get_single_frame_size(
+    SvtJxsErrorType_t frame_size_ret = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
         frame_corrupted, frame_corrupted_size, &image_config, &frame_size, 0, proxy_mode_full);
 
     /*Test direct corrupted frame*/
@@ -188,7 +188,7 @@ static int32_t test_bitstream_full(uint64_t use_cpu_flags, const uint8_t* frame_
 
     /*Test size for corrupted bitstream. Valgrind should handle possible errors. */
     uint32_t frame_size = 0;
-    SvtJxsErrorType_t frame_size_ret = svt_jpeg_xs_decoder_get_single_frame_size(
+    SvtJxsErrorType_t frame_size_ret = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
         frame_corrupted, frame_corrupted_size, &image_config, &frame_size, 0, proxy_mode_full);
 
     /*Test direct corrupted frame*/
@@ -250,7 +250,7 @@ static void Test_Bitstream_NULL_valgrind(uint64_t use_cpu_flags) {
     int32_t ret = test_bitstream_full(use_cpu_flags, NULL, Frame_Sample_1_16x16_8bit_422_bitstream_size, NULL, 0);
     ASSERT_EQ(ret, SvtJxsErrorDecoderInvalidPointer);
     uint32_t frame_size = 0;
-    SvtJxsErrorType_t ret2 = svt_jpeg_xs_decoder_get_single_frame_size(
+    SvtJxsErrorType_t ret2 = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
         NULL, Frame_Sample_1_16x16_8bit_422_bitstream_size, &image_config, &frame_size, 0, proxy_mode_full);
     ASSERT_EQ(ret2, SvtJxsErrorDecoderInvalidPointer);
 }
@@ -278,7 +278,8 @@ static void Test_Bitstream_ZeroAlloc_valgrind(uint64_t use_cpu_flags) {
     int32_t ret = test_bitstream_full(use_cpu_flags, &zero_alloc, 0, NULL, 0);
     ASSERT_EQ(ret, SvtJxsErrorDecoderInvalidPointer);
     uint32_t frame_size = 0;
-    SvtJxsErrorType_t ret2 = svt_jpeg_xs_decoder_get_single_frame_size(&zero_alloc, 0, &image_config, &frame_size, 0, proxy_mode_full);
+    SvtJxsErrorType_t ret2 = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
+        &zero_alloc, 0, &image_config, &frame_size, 0, proxy_mode_full);
     ASSERT_EQ(ret2, SvtJxsErrorDecoderInvalidPointer);
 }
 
@@ -308,7 +309,7 @@ static void Test_Bitstream_1_Correct_valgrind(uint64_t use_cpu_flags) {
                                       Frame_Sample_1_16x16_8bit_422_bitstream_size);
     ASSERT_EQ(ret, SvtJxsErrorNone);
     uint32_t frame_size = 0;
-    SvtJxsErrorType_t ret2 = svt_jpeg_xs_decoder_get_single_frame_size(
+    SvtJxsErrorType_t ret2 = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
         Frame_Sample_1_16x16_8bit_422_bitstream, Frame_Sample_1_16x16_8bit_422_bitstream_size, &image_config, &frame_size, 0, proxy_mode_full);
     ASSERT_EQ(ret2, SvtJxsErrorNone);
     ASSERT_EQ(frame_size, Frame_Sample_1_16x16_8bit_422_bitstream_size);
@@ -438,7 +439,8 @@ static void Test_Bitstream_1_TruncationBufferCut_valgrind(uint64_t use_cpu_flags
         uint8_t* buffer = (uint8_t*)malloc(size);
         memcpy(buffer, Frame_Sample_1_16x16_8bit_422_bitstream, size);
         uint32_t frame_size = 0;
-        SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_get_single_frame_size(buffer, size, &image_config, &frame_size, 0, proxy_mode_full);
+        SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
+            buffer, size, &image_config, &frame_size, 0, proxy_mode_full);
         if (size > 0) {
             ASSERT_LT(ret, 0);
         }

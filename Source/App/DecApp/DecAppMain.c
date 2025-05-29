@@ -91,7 +91,8 @@ static void* thread_send(void* arg) {
 
     do {
         uint32_t frame_size = 0;
-        SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_get_single_frame_size(bitstream_ptr, bitstream_size, NULL, &frame_size, 1, config_dec->decoder.proxy_mode);
+        SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
+            bitstream_ptr, bitstream_size, NULL, &frame_size, 1, config_dec->decoder.proxy_mode);
         if (ret != SvtJxsErrorNone) {
             break;
         }
@@ -348,12 +349,12 @@ int32_t main(int32_t argc, char* argv[]) {
 
     /*First frame consistency test.*/
     uint32_t frame_size = 0;
-    ret = svt_jpeg_xs_decoder_get_single_frame_size(config_dec.bitstream_buf_ref + config_dec.bitstream_offset,
-                                                    config_dec.bitstream_buf_size - config_dec.bitstream_offset,
-                                                    &config_dec.image_config,
-                                                    &frame_size,
-                                                    1,
-                                                    config_dec.decoder.proxy_mode);
+    ret = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(config_dec.bitstream_buf_ref + config_dec.bitstream_offset,
+                                                               config_dec.bitstream_buf_size - config_dec.bitstream_offset,
+                                                               &config_dec.image_config,
+                                                               &frame_size,
+                                                               1,
+                                                               config_dec.decoder.proxy_mode);
     if (ret != SvtJxsErrorNone) {
         fprintf(stderr, "Unable to get first frame size, input codestream (%s)\n", config_dec.in_filename);
         return_error = DEC_INVALID_BITSTREAM;
@@ -405,13 +406,13 @@ int32_t main(int32_t argc, char* argv[]) {
     }
 
 #if !TEST_STRIDE
-    /*Test if functions svt_jpeg_xs_decoder_get_single_frame_size and svt_jpeg_xs_decoder_init
+    /*Test if functions svt_jpeg_xs_decoder_get_single_frame_size_with_proxy and svt_jpeg_xs_decoder_init
      *return the same image config
      */
     if (memcmp(&image_config_init, &config_dec.image_config, sizeof(config_dec.image_config))) {
         fprintf(stderr,
                 "Decoder svt_jpeg_xs_decoder_init() return different image_config than "
-                "svt_jpeg_xs_decoder_get_single_frame_size()!!\n");
+                "svt_jpeg_xs_decoder_get_single_frame_size_with_proxy()!!\n");
         return_error = DEC_INVALID_BITSTREAM;
         goto fail;
     }

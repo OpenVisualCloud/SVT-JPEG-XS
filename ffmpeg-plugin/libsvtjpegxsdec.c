@@ -91,10 +91,10 @@ static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* g
     uint32_t pixel_size;
 
     if (!svt_dec->decoder_initialized) {
-        err = svt_jpeg_xs_decoder_get_single_frame_size(
+        err = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
             avpkt->data, avpkt->size, NULL, &svt_dec->frame_size, 1 /*quick search*/, svt_dec->decoder.proxy_mode);
         if (err) {
-            av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_single_frame_size failed, err=%d\n", err);
+            av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_single_frame_size_with_proxy failed, err=%d\n", err);
             return err;
         }
         if (avpkt->size < svt_dec->frame_size) {
