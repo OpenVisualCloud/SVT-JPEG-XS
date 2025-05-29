@@ -5,6 +5,7 @@
 
 #include <SvtJpegxsDec.h>
 
+#include "libavutil/mem.h"
 #include "libavutil/common.h"
 #include "libavutil/cpu.h"
 #include "libavutil/imgutils.h"
