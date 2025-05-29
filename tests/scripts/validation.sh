@@ -4,28 +4,7 @@ function check_vcpus(){
     echo $(lscpu | awk '/^CPU\(s\):/{print $NF}')
 }
 
-function download_recursively(){
-    local ARTIFACTORY_FOLDER=$1
-    local INPUT_FILES_PATH=$2
-    local current_link=$ARTIFACTORY_FOLDER
-    echo "Downloading from ${ARTIFACTORY_FOLDER} to ${INPUT_FILES_PATH}."
 
-    readarray -t folder_array <<< $(curl -L $current_link | awk -F '\"' '/<a href=/{if($2 != "../"){print $2}}');
-
-    for folder in ${folder_array[@]}; do
-        echo "Traversing into ${current_link}${folder}"
-        mkdir -p ${INPUT_FILES_PATH}/${folder}
-        current_link=${current_link}${folder}
-
-        readarray -t file_array <<< $(curl -L $current_link | awk -F '\"' '/<a href=/{if($2 != "../"){print $2}}');
-        for file in ${file_array[@]}; do
-            file_link=${current_link}${file}
-            echo "Current file: ${file_link}"
-            curl -L $file_link --output ${INPUT_FILES_PATH}/${folder}${file}
-        done
-        current_link=$ARTIFACTORY_FOLDER
-    done
-}
 
 function run_unit_tests() {
     local UNIT_TESTS_BINARY_DIR=$4
@@ -85,7 +64,6 @@ fi
 cd ${ROOT_DIRECTORY}/tests
 }
 
-ARTIFACTORY_FOLDER="https://af01p-igk.devtools.intel.com/artifactory/sed-vs-pol-automation-open-igk-local/JPEG-XS/TEST_ED2/"
 INPUT_FILES_PATH="${INPUT_FILES_PATH:-"$(pwd)/images"}"
 ROOT_DIRECTORY="${ROOT_DIRECTORY:-"$(dirname $(pwd))"}"
 OS="linux"
