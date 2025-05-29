@@ -38,7 +38,7 @@ jobs:
   linux-build:
     needs: changes
     if: ${{ needs.changes.outputs.changed == 'true' }}
-    runs-on: 'ubuntu-22.04'
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
     - name: 'Harden Runner'
       uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
@@ -52,7 +52,7 @@ jobs:
       working-directory: Build/linux
       run: | 
            sudo apt-get update
-           sudo apt-get -y install nasm
+           sudo apt-get -y install cmake=3.6* nasm
 
     - name: 'Build:  Debug and Release versions'
       working-directory: Build/linux
