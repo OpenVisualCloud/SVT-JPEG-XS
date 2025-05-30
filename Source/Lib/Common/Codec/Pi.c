@@ -577,7 +577,12 @@ SvtJxsErrorType_t pi_update_proxy_mode(pi_t* pi, proxy_mode_t proxy_mode, uint32
 
     if (proxy_mode == proxy_mode_half) {
         proxy_subsampling = 1;
-        pi->packets_num = 4;
+        if (pi->decom_v == 1) {
+            pi->packets_num = 1;
+        }
+        else {
+            pi->packets_num = 4;
+        }
     }
     if (proxy_mode == proxy_mode_quarter) {
         proxy_subsampling = 2;
