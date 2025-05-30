@@ -144,9 +144,10 @@ coding-sigf  | optional  | (default:on), 0(off), 1(on)                          
 coding-vpred | optional  | (default:off), 0(off), 1(on)                                   | Coding feature: Vertical-prediction
 
 ## libsvtjpegxs decoder available params:
-Name | mandatory/optional | Accepted values | description
-  --     |     --    |               --                                                | --
-threads  | optional  | Any integer in range< 1;64>                                     | Number of threads decoder can create
+Name       | mandatory/optional | Accepted values | description
+    --     |     --    |               --                                                | --
+threads    | optional  | Any integer in range< 1;64>                                     | Number of threads decoder can create
+proxy-mode | optional  | (default:full), 0(full), 1(half), 2(quarter)                    | Specify resolution scaling mode
 
 ### Encoding raw video:
 ```

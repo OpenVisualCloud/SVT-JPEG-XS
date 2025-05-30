@@ -78,7 +78,8 @@ ColourFormat_t svt_jpeg_xs_get_format_from_params(uint32_t comps_num, uint32_t s
 }
 
 SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_common,
-                                              svt_jpeg_xs_image_config_t* out_image_config) {
+                                              svt_jpeg_xs_image_config_t* out_image_config, proxy_mode_t proxy_mode,
+                                              uint32_t verbose) {
     SvtJxsErrorType_t ret = pi_compute(
         &dec_common->pi, //TODO: Update if required
         0 /*Init decoder*/,
@@ -105,6 +106,10 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
     /*TODO: Dump PI in Verbose mode
     pi_dump(&ctx->pi);
     */
+    ret = pi_update_proxy_mode(&dec_common->pi, proxy_mode, verbose);
+    if (ret) {
+        return ret;
+    }
 
     if (dec_common->picture_header_const.hdr_Cpih) {
         for (uint32_t c = 0; c < dec_common->pi.comps_num; c++) {

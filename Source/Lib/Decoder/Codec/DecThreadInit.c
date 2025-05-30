@@ -241,11 +241,13 @@ void* thread_init_stage_kernel(void* input_ptr) {
 
         if (dec_api_prv->verbose >= VERBOSE_WARNINGS && (input_buffer_ptr->flags != SvtJxsDecoderEndOfCodestream)) {
             uint32_t read_size = 0;
-            SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_get_single_frame_size(input_buffer_ptr->dec_input.bitstream.buffer,
-                                                                              input_buffer_ptr->dec_input.bitstream.used_size,
-                                                                              NULL,
-                                                                              &read_size,
-                                                                              0);
+            SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
+                input_buffer_ptr->dec_input.bitstream.buffer,
+                input_buffer_ptr->dec_input.bitstream.used_size,
+                NULL,
+                &read_size,
+                0,
+                dec_api_prv->proxy_mode);
             if ((ret != SvtJxsErrorNone) && input_buffer_ptr->dec_input.bitstream.used_size != read_size) {
                 //TODO: Hard to test this case and in future this problem should be removed
                 fprintf(stderr,

@@ -212,6 +212,8 @@ SvtJxsErrorType_t pi_compute(pi_t* pi, uint8_t init_for_encoder, uint32_t comps_
                              uint32_t sx[MAX_COMPONENTS_NUM], uint32_t sy[MAX_COMPONENTS_NUM], uint32_t precinct_width,
                              uint32_t slice_height);
 
+SvtJxsErrorType_t pi_update_proxy_mode(pi_t* pi, proxy_mode_t proxy_mode, uint32_t verbose);
+
 void pi_show_bands(const pi_t* const pi, int gain_priorities);
 
 SvtJxsErrorType_t format_get_sampling_factory(ColourFormat_t format, uint32_t* out_comp_num, uint32_t* out_sx, uint32_t* out_sy,

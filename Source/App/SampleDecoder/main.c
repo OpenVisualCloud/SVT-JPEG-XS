@@ -28,6 +28,7 @@ int32_t main(int32_t argc, char* argv[]) {
     dec.verbose = VERBOSE_SYSTEM_INFO;
     dec.threads_num = 10;
     dec.use_cpu_flags = CPU_FLAGS_ALL;
+    dec.proxy_mode = proxy_mode_full;
 
     svt_jpeg_xs_bitstream_buffer_t bitstream;
     // 1000 bytes is enough to obtain single encoded frame size when fast_search option is enabled
@@ -42,8 +43,8 @@ int32_t main(int32_t argc, char* argv[]) {
     fseek(input_file, 0, SEEK_SET);
 
     uint32_t frame_size = 0;
-    SvtJxsErrorType_t err = svt_jpeg_xs_decoder_get_single_frame_size(
-        (uint8_t*)bitstream.buffer, (uint32_t)read_size, NULL, &frame_size, 1);
+    SvtJxsErrorType_t err = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
+        (uint8_t*)bitstream.buffer, (uint32_t)read_size, NULL, &frame_size, 1, dec.proxy_mode);
     if (err) {
         return err;
     }

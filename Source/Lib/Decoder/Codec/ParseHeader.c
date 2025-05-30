@@ -628,9 +628,12 @@ static uint32_t get_32_bits(const uint8_t* mem) {
 
 SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, size_t bitstream_buf_size,
                                                svt_jpeg_xs_image_config_t* out_image_config, uint32_t* frame_size,
-                                               uint32_t fast_search) {
+                                               uint32_t fast_search, proxy_mode_t proxy_mode) {
     if (frame_size == NULL) {
         return SvtJxsErrorDecoderInvalidPointer;
+    }
+    if (proxy_mode >= proxy_mode_max) {
+        return SvtJxsErrorBadParameter;
     }
     *frame_size = 0;
 
@@ -798,6 +801,24 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
                         out_image_config->components[c].width = width;
                         out_image_config->components[c].height = height;
                     }
+
+                    if (proxy_mode != proxy_mode_full) {
+                        uint8_t ss = 0;
+                        if (proxy_mode == proxy_mode_half) {
+                            ss = 1;
+                        }
+                        if (proxy_mode == proxy_mode_quarter) {
+                            ss = 2;
+                        }
+
+                        out_image_config->width = (width + (1 << ss) - 1) >> ss;
+                        out_image_config->height = (height + (1 << ss) - 1) >> ss;
+                        for (c = 0; c < comps_num; c++) {
+                            out_image_config->components[c].width = (out_image_config->components[c].width + (1 << ss) - 1) >> ss;
+                            out_image_config->components[c].height = (out_image_config->components[c].height + (1 << ss) - 1) >> ss;
+                        }
+                    }
+
                     for (c = 0; c < comps_num; c++) {
                         uint32_t pixel_size = out_image_config->bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
                         out_image_config->components[c].byte_size = out_image_config->components[c].width *

@@ -475,6 +475,7 @@ static int decoder_init_session(struct st22_decoder_session* session,
 
   session->codec_ctx->use_cpu_flags = CPU_FLAGS_ALL;
   session->codec_ctx->verbose = VERBOSE_SYSTEM_INFO;
+  session->codec_ctx->proxy_mode = proxy_mode_full;
   session->codec_ctx->callback_send_data_available = NULL;
   session->codec_ctx->callback_send_data_available_context = NULL;
   session->codec_ctx->callback_get_data_available = callback_jpeg_xs_decoder_frame_ready;
