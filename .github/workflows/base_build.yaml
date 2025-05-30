@@ -52,7 +52,7 @@ jobs:
       working-directory: Build/linux
       run: | 
            sudo apt-get update
-           sudo apt-get -y install nasm
+           sudo apt-get -y install nasm cmake
 
     - name: 'Build:  Debug and Release versions'
       working-directory: Build/linux
