@@ -2,7 +2,7 @@
 
 #Sets the script directory to the current working directory
 cd "${0%/*}"
-#Set default basch configuration
+#Set default bash configuration
 set -e
 
 find Source -regex '.*\.\(cc\|cpp\|hpp\|cu\|c\|h\)' -exec clang-format -i {} \;
