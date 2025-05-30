@@ -321,18 +321,18 @@ static const struct ProxyTopology TestSizesProxy[] = {
     /*resolution multiple of 4*/
     {COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 1920, 1080, 2, 4, proxy_mode_half,    960, 540, 1, 3, 4, {{960, 540, 6, 1, 3},{960, 540, 6, 1, 3},{960, 540, 6, 1, 3}}},
     {COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 1920, 1080, 2, 4, proxy_mode_quarter, 480, 270, 0, 2, 1, {{480, 270, 3, 0, 2},{480, 270, 3, 0, 2},{480, 270, 3, 0, 2}}},
-    {COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 1920, 1080, 1, 4, proxy_mode_half,    960, 540, 0, 3, 4, {{960, 540, 4, 0, 3},{960, 540, 4, 0, 3},{960, 540, 4, 0, 3}}},
+    {COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 1920, 1080, 1, 4, proxy_mode_half,    960, 540, 0, 3, 1, {{960, 540, 4, 0, 3},{960, 540, 4, 0, 3},{960, 540, 4, 0, 3}}},
     {COLOUR_FORMAT_PLANAR_YUV422,        1920, 1080, 2, 5, proxy_mode_half,    960, 540, 1, 4, 4, {{960, 540, 7, 1, 4},{480, 540, 7, 1, 4},{480, 540, 7, 1, 4}}},
     {COLOUR_FORMAT_PLANAR_YUV422,        1920, 1080, 2, 5, proxy_mode_quarter, 480, 270, 0, 3, 1, {{480, 270, 4, 0, 3},{240, 270, 4, 0, 3},{240, 270, 4, 0, 3}}},
-    {COLOUR_FORMAT_PLANAR_YUV422,        1920, 1080, 1, 5, proxy_mode_half,    960, 540, 0, 4, 4, {{960, 540, 5, 0, 4},{480, 540, 5, 0, 4},{480, 540, 5, 0, 4}}},
+    {COLOUR_FORMAT_PLANAR_YUV422,        1920, 1080, 1, 5, proxy_mode_half,    960, 540, 0, 4, 1, {{960, 540, 5, 0, 4},{480, 540, 5, 0, 4},{480, 540, 5, 0, 4}}},
     {COLOUR_FORMAT_PLANAR_YUV420,        1920, 1080, 2, 5, proxy_mode_half,    960, 540, 1, 4, 4, {{960, 540, 7, 1, 4},{480, 270, 5, 0, 4},{480, 270, 5, 0, 4}}},
     /*Odd resolution*/
     {COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 4097, 1743, 2, 4, proxy_mode_half,    2049, 872, 1, 3, 4, {{2049, 872, 6, 1, 3},{2049, 872, 6, 1, 3},{2049, 872, 6, 1, 3}}},
     {COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 4095, 1743, 2, 4, proxy_mode_quarter, 1024, 436, 0, 2, 1, {{1024, 436, 3, 0, 2},{1024, 436, 3, 0, 2},{1024, 436, 3, 0, 2}}},
-    {COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 4093, 1741, 1, 4, proxy_mode_half,    2047, 871, 0, 3, 4, {{2047, 871, 4, 0, 3},{2047, 871, 4, 0, 3},{2047, 871, 4, 0, 3}}},
+    {COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 4093, 1741, 1, 4, proxy_mode_half,    2047, 871, 0, 3, 1, {{2047, 871, 4, 0, 3},{2047, 871, 4, 0, 3},{2047, 871, 4, 0, 3}}},
     {COLOUR_FORMAT_PLANAR_YUV422,        4090, 1739, 2, 5, proxy_mode_half,    2045, 870, 1, 4, 4, {{2045, 870, 7, 1, 4},{1023, 870, 7, 1, 4},{1023, 870, 7, 1, 4}}},
     {COLOUR_FORMAT_PLANAR_YUV422,        4090, 1737, 2, 5, proxy_mode_quarter, 1023, 435, 0, 3, 1, {{1023, 435, 4, 0, 3},{512, 435, 4, 0, 3},{512, 435, 4, 0, 3}}},
-    {COLOUR_FORMAT_PLANAR_YUV422,        4088, 1735, 1, 5, proxy_mode_half,    2044, 868, 0, 4, 4, {{2044, 868, 5, 0, 4},{1022, 868, 5, 0, 4},{1022, 868, 5, 0, 4}}},
+    {COLOUR_FORMAT_PLANAR_YUV422,        4088, 1735, 1, 5, proxy_mode_half,    2044, 868, 0, 4, 1, {{2044, 868, 5, 0, 4},{1022, 868, 5, 0, 4},{1022, 868, 5, 0, 4}}},
     {COLOUR_FORMAT_PLANAR_YUV420,        4096, 1746, 2, 5, proxy_mode_half,    2048, 873, 1, 4, 4, {{2048, 873, 7, 1, 4},{1024, 437, 5, 0, 4},{1024, 437, 5, 0, 4}}},
 };
 // clang-format on
