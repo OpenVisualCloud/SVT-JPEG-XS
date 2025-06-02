@@ -9,10 +9,9 @@ on:
         default: "main"
         type: string
 
-permissions:
-  contents: read
 
 jobs:
+  asadadasda
   super-linter:
     name: "super-linter: Workflow initializing"
     runs-on: "ubuntu-22.04"
