@@ -12,11 +12,11 @@ Prerequisites:
 
 ### Build guide
 1. Build and install SVT-JPEG-XS:
- - `cd Build/linux && ./build.sh install`
+ - `cd <repo_dir>/Build/linux && ./build.sh install`
 2. Export Environment Variables:
  - `export CPATH="/usr/local/include/svt-jpegxs" && export LD_LIBRARY_PATH="/usr/local/lib/"`
 3. Build Fuzzy Tests:
- - `cd tests/FuzzyTests && clang -lSvtJpegxs -fsanitize=fuzzer  encoder.c -o SvtJxsEncFuzzer`
+ - `cd <repo_dir>/tests/FuzzyTests && clang -lSvtJpegxs -fsanitize=fuzzer  encoder.c -o SvtJxsEncFuzzer`
 
 ### Usage
 > Note: Running the command overwrites previously saved logs. Make sure to move them to archive before executing.
@@ -34,11 +34,11 @@ Where:
 
 ### Build guide
 1. Build and install SVT-JPEG-XS:
- - `cd Build/linux && ./build.sh install`
+ - `cd <repo_dir>/Build/linux && ./build.sh install`
 2. Export Environment Variables:
  - `export CPATH="/usr/local/include/svt-jpegxs" && export LD_LIBRARY_PATH="/usr/local/lib/"`
 3. Build Fuzzy Tests:
- - `cd tests/FuzzyTests && clang -lSvtJpegxs -fsanitize=fuzzer  decoder.c -o SvtJxsDecFuzzer`
+ - `cd <repo_dir>/tests/FuzzyTests && clang -lSvtJpegxs -fsanitize=fuzzer  decoder.c -o SvtJxsDecFuzzer`
 
 ### Usage
 > Note: Running the command overwrites previously saved logs. Make sure to move them to archive before executing.
