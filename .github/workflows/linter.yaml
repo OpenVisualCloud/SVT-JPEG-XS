@@ -32,7 +32,7 @@ jobs:
       - name: Lint
         uses: super-linter/super-linter/slim@e1cb86b6e8d119f789513668b4b30bf17fe1efe4 # v7.2.0 x-release-please-version
         env:
-          DISABLE_ERRORS: true
+          DISABLE_ERRORS: false
           VALIDATE_ALL_CODEBASE: false
           GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}
           BASH_SEVERITY: "warning"
