@@ -56,7 +56,9 @@ jobs:
 
     - name: 'Build:  Debug and Release versions'
       working-directory: Build/linux
-      run: ./build.sh --all --test
+      run: |
+        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+        ./build.sh -j ${NPROC} --all --test
 
     - name: "Archive: upload artifacts"
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -66,107 +68,76 @@ jobs:
         path: |
           Bin/
           tests/scripts/parrallelUT.sh
-
           tests/scripts/
 
-  # linux-unit-tests:
-  #   needs: linux-build
-  #   runs-on: 'ubuntu-22.04'
-  #   timeout-minutes: 120
-  #   steps:
-  #   - name: 'Harden Runner'
-  #     uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
-  #     with:
-  #       egress-policy: audit
+  linux-unit-tests:
+    needs: linux-build
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
 
-  #   - name: 'Setup:  Install dependencies'
-  #     run: |
-  #          sudo apt-get update
-  #          sudo apt-get -y install nasm
-  #   - name: download build artifacts
-  #     uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-  #     with:
-  #       name: "${{ env.LINUX_ARTIFACTS }}"
+    - name: 'Setup:  Install dependencies'
+      run: |
+           sudo apt-get update
+           sudo apt-get -y install nasm
+    - name: download build artifacts
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: "${{ env.LINUX_ARTIFACTS }}"
 
-  #   - name: 'Unit tests: Release'
-  #     run: |
-  #       NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
-  #       echo "Number of processors: ${NPROC}"
-  #       cd Bin/Release/
-  #       ls -l
-  #       sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
-  #       sudo chmod +x ${{ github.workspace }}/Bin/Release/*
-  #       ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
+    - name: 'Unit tests: Release'
+      run: |
+        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+        echo "Number of processors: ${NPROC}"
+        cd Bin/Release/
+        ls -l
+        sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
+        sudo chmod +x ${{ github.workspace }}/Bin/Release/*
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
 
-  # linux-unit-tests-valgrind:
-  #   needs: [linux-build, linux-unit-tests]
-  #   runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
-  #   timeout-minutes: 120
-  #   steps:
-  #   - name: 'Harden Runner'
-  #     uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
-  #     with:
-  #       egress-policy: audit
+  linux-unit-tests-valgrind:
+    needs: [linux-build, linux-unit-tests]
+    runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
 
-  #   - name: 'Setup: Cleanup workspace'
-  #     run: |
-  #       rm -rf ./* || true
-  #       rm -rf ./.??* || true
-  #       ls -la ./
+    - name: 'Setup: Cleanup workspace'
+      run: |
+        rm -rf ./* || true
+        rm -rf ./.??* || true
+        ls -la ./
 
-  #   - name: 'Setup: Install dependencies'
-  #     run: |
-  #          sudo apt-get update
-  #          sudo apt-get -y install nasm valgrind
+    - name: 'Setup: Install dependencies'
+      run: |
+           sudo apt-get update
+           sudo apt-get -y install nasm valgrind
 
-  #   - name: 'Setup: Download build artifacts'
-  #     uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-  #     with:
-  #       name: "${{ env.LINUX_ARTIFACTS }}"
+    - name: 'Setup: Download build artifacts'
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: "${{ env.LINUX_ARTIFACTS }}"
 
-  #   - name: 'Unit tests: Release with valgrind'
-  #     run: |
-  #       NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
-  #       echo "Number of processors: ${NPROC}"
-  #       cd Bin/Release/
-  #       ls -l
-  #       sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
-  #       sudo chmod +x ${{ github.workspace }}/Bin/Release/*
-  #       export LD_LIBRARY_PATH=$(pwd)
-  #       ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC} valgrind
-
-  # linux-unit-tests:
-  #   needs: linux-build
-  #   runs-on: 'ubuntu-22.04'
-  #   timeout-minutes: 120
-  #   steps:
-  #   - name: 'Harden Runner'
-  #     uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
-  #     with:
-  #       egress-policy: audit
-
-  #   - name: 'Setup:  Install dependencies'
-  #     run: |
-  #          sudo apt-get update
-  #          sudo apt-get -y install nasm
-  #   - name: download build artifacts
-  #     uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-  #     with:
-  #       name: "${{ env.LINUX_ARTIFACTS }}"
-
-  #   - name: 'Unit tests: Release'
-  #     run: |
-  #       NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
-  #       echo "Number of processors: ${NPROC}"
-  #       cd Bin/Release/
-  #       ls -l
-  #       sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
-  #       sudo chmod +x ${{ github.workspace }}/Bin/Release/*
-  #       export LD_LIBRARY_PATH=$(pwd)
-  #       ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
+    - name: 'Unit tests: Release with valgrind'
+      run: |
+        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
+        echo "Number of processors: ${NPROC}"
+        cd Bin/Release/
+        ls -l
+        sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
+        sudo chmod +x ${{ github.workspace }}/Bin/Release/*
+        export LD_LIBRARY_PATH=$(pwd)
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC} valgrind
 
   linux-conformance-tests:
-    needs: [linux-build]
+    needs: [linux-build, linux-unit-tests]
     runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
