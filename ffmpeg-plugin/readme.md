@@ -24,14 +24,14 @@ export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
 git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
 cd ffmpeg
 ```
-### b) Checkout to branch/tag 6.1:
+### b) Checkout to branch/tag 7.1:
 ```
- git checkout release/6.1
+ git checkout release/7.1
 ```
 ### c) apply jpeg-xs plugin patches:
   ```
   cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/6.1/*.patch
+  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/7.1/*.patch
   ```
 ### d) Configure:
 ```
@@ -43,7 +43,7 @@ make -j40
 make install
 ```
 
-Note, for ffmpeg 7.0 version, replace 6.1 with 7.0 for above example commands.
+Note, for ffmpeg 7.0 or 6.1 version, replace 7.1 with corresponding version for above commands.
 
 ## 4. Test executable:
 Binary (executable) is located in main ffmpeg directory or ```$INSTALL_DIR/bin/```
@@ -89,14 +89,14 @@ cmake --build svtjpegxs-build -j10 --config Release --target install
 git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
 cd ffmpeg
 ```
-### b) checkout to branch/tag 6.1:
+### b) checkout to branch/tag 7.1:
  ```
- git checkout release/6.1
+ git checkout release/7.1
 ```
 ### c) apply plugin patches:
   ```
   cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/6.1/*.patch
+  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/7.1/*.patch
 ```
 ### d) Export path for svt-jpeg-xs installation directory:
 ```
@@ -125,7 +125,7 @@ install-dir
 make -j10
 ```
 
-Note, for ffmpeg 7.0 version, replace 6.1 with 7.0 for above example commands.
+Note, for ffmpeg 7.0 or 6.1 version, replace 7.1 with corresponding version for above commands.
 
 # How to use ffmpeg with jpeg-xs
 
@@ -144,9 +144,10 @@ coding-sigf  | optional  | (default:on), 0(off), 1(on)                          
 coding-vpred | optional  | (default:off), 0(off), 1(on)                                   | Coding feature: Vertical-prediction
 
 ## libsvtjpegxs decoder available params:
-Name | mandatory/optional | Accepted values | description
-  --     |     --    |               --                                                | --
-threads  | optional  | Any integer in range< 1;64>                                     | Number of threads decoder can create
+Name       | mandatory/optional | Accepted values | description
+    --     |     --    |               --                                                | --
+threads    | optional  | Any integer in range< 1;64>                                     | Number of threads decoder can create
+proxy-mode | optional  | (default:full), 0(full), 1(half), 2(quarter)                    | Specify resolution scaling mode
 
 ### Encoding raw video:
 ```

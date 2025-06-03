@@ -14,7 +14,7 @@ extern "C" {
 
 /* API Version */
 #define SVT_JPEGXS_API_VER_MAJOR (0)
-#define SVT_JPEGXS_API_VER_MINOR (9)
+#define SVT_JPEGXS_API_VER_MINOR (10)
 
 /*Define PREFIX_API*/
 #ifdef DEF_DLL
@@ -157,6 +157,13 @@ typedef enum SvtJxsErrorType {
 
     SvtJxsErrorMax = 0x7FFFFFFF
 } SvtJxsErrorType_t;
+
+typedef enum {
+    proxy_mode_full = 0,    //0 - Off, decode the stream to Full resolution
+    proxy_mode_half = 1,    //1 - Proxy-Mode 1/2, decode the stream to half the Width and Height
+    proxy_mode_quarter = 2, //2 - Proxy-Mode 1/4, decode the stream to quarter the Width and Height
+    proxy_mode_max
+} proxy_mode_t;
 
 /**
 CPU FLAGS

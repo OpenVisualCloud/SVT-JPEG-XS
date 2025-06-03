@@ -8,7 +8,6 @@
 #include "Definitions.h"
 #include "common_dsp_rtcd.h"
 #include "decoder_dsp_rtcd.h"
-#include "SvtJpegxsDec.h"
 #include "ParseHeader.h"
 #include "DecThreadInit.h"
 #include "DecThreadSlice.h"
@@ -22,7 +21,16 @@
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_single_frame_size(const uint8_t* bitstream_buf, size_t bitstream_buf_size,
                                                                        svt_jpeg_xs_image_config_t* out_image_config,
                                                                        uint32_t* frame_size, uint32_t fast_search) {
-    return static_get_single_frame_size(bitstream_buf, bitstream_buf_size, out_image_config, frame_size, fast_search);
+    return static_get_single_frame_size(
+        bitstream_buf, bitstream_buf_size, out_image_config, frame_size, fast_search, proxy_mode_full);
+}
+
+PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(const uint8_t* bitstream_buf,
+                                                                                  size_t bitstream_buf_size,
+                                                                                  svt_jpeg_xs_image_config_t* out_image_config,
+                                                                                  uint32_t* frame_size, uint32_t fast_search,
+                                                                                  proxy_mode_t proxy_mode) {
+    return static_get_single_frame_size(bitstream_buf, bitstream_buf_size, out_image_config, frame_size, fast_search, proxy_mode);
 }
 
 PREFIX_API void svt_jpeg_xs_decoder_close(svt_jpeg_xs_decoder_api_t* dec_api) {
@@ -127,6 +135,14 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         return SvtJxsErrorBadParameter;
     }
 
+    if (dec_api->proxy_mode >= proxy_mode_max) {
+        if (dec_api->verbose >= VERBOSE_ERRORS) {
+            fprintf(stderr, "Unrecognized proxy mode\n");
+        }
+        return SvtJxsErrorBadParameter;
+    }
+    dec_api_prv->proxy_mode = dec_api->proxy_mode;
+
     const CPU_FLAGS cpu_flags = get_cpu_flags();
     dec_api->use_cpu_flags &= cpu_flags;
     if (dec_api_prv->verbose >= VERBOSE_SYSTEM_INFO) {
@@ -186,7 +202,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         dec_api_prv->dec_common.max_frame_bitstream_size = header_dynamic.hdr_Lcod;
     }
 
-    ret = svt_jpeg_xs_dec_init_common(&dec_api_prv->dec_common, out_image_config);
+    ret = svt_jpeg_xs_dec_init_common(&dec_api_prv->dec_common, out_image_config, dec_api_prv->proxy_mode, dec_api_prv->verbose);
     if (ret) {
         svt_jpeg_xs_decoder_close(dec_api);
         return ret;
@@ -199,9 +215,15 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         const char* color_format_name = svt_jpeg_xs_get_format_name(format);
         fprintf(stderr, "-------------------------------------------\n");
         fprintf(stderr,
-                "SVT [config]: Resolution [width x height]         \t: %d x %d\n",
+                "SVT [config]: Stream Resolution [width x height]     \t: %d x %d\n",
                 dec_api_prv->dec_common.picture_header_const.hdr_width,
                 dec_api_prv->dec_common.picture_header_const.hdr_height);
+        if (dec_api_prv->proxy_mode != proxy_mode_full) {
+            fprintf(stderr,
+                    "SVT [config]: Decoding Resolution [width x height]     \t: %d x %d\n",
+                    out_image_config->width,
+                    out_image_config->height);
+        }
         fprintf(stderr,
                 "SVT [config]: DecoderBitDepth / DecoderColorFormat\t: %d / %s\n",
                 dec_api_prv->dec_common.picture_header_const.hdr_bit_depth[0],

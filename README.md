@@ -249,6 +249,7 @@ Input Options:
                             (disabled: 0, enabled [1-240])
 [--packetization-mode]     Specify how bitstream is passed to decoder
                             (multiple packets per frame:1, single packet per frame:0, default:0)
+[--proxy-mode]             Resolution scaling mode(disabled: 0, scale 1/2: 1, scale 1/4: 2, default: 0)
 ```
 
 Output Options:
@@ -268,6 +269,16 @@ Threading, performance:
                             (default: 0, which means lowest possible number of threads is created)
 ```
 
+Decoder Proxy-mode limitation:
+
+|   sampling    | decomp_v | proxy-mode 1/2 support | proxy-mode 1/4 support |
+|       --      |    --    |           --           |           --           |
+| YUV444/YUV422 |    2     |           Y            |           Y            |
+| YUV444/YUV422 |    1     |           Y            |           N            |
+| YUV444/YUV422 |    0     |           N            |           N            |
+|    YUV420     |    2     |           Y            |           N            |
+|    YUV420     |    1     |           N            |           N            |
+
 ## Encoder and Decoder design
 
 Please see [Encoder design](documentation/encoder/svt-jpegxs-encoder-design.md)
@@ -283,6 +294,6 @@ Please see [Decoder snippet](documentation/decoder/DecoderSnippets.md) for decod
 
 ## Notes
 
-The information in this document was compiled at <mark>v0.9</mark> may not
+The information in this document was compiled at <mark>v0.10</mark> of the code and may not
 reflect the latest status of the design. For the most up-to-date
-settings and implementation, it's recommended to visit the section of the code.
+settings and implementation, it's recommended to visit the specific section of the code.

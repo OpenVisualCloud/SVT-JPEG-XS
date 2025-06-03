@@ -5,6 +5,7 @@
 
 #include <SvtJpegxsDec.h>
 
+#include "libavutil/mem.h"
 #include "libavutil/common.h"
 #include "libavutil/cpu.h"
 #include "libavutil/imgutils.h"
@@ -16,6 +17,7 @@
 #include "profiles.h"
 
 typedef struct SvtJpegXsDecodeContext {
+    AVClass* class;
     svt_jpeg_xs_image_config_t config;
     svt_jpeg_xs_decoder_api_t decoder;
     uint32_t decoder_initialized;
@@ -26,6 +28,7 @@ typedef struct SvtJpegXsDecodeContext {
     uint32_t frame_size;
     uint32_t buffer_filled_len;
     uint8_t* bitstream_buffer;
+    int proxy_mode;
 } SvtJpegXsDecodeContext;
 
 
@@ -89,9 +92,10 @@ static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* g
     uint32_t pixel_size;
 
     if (!svt_dec->decoder_initialized) {
-        err = svt_jpeg_xs_decoder_get_single_frame_size(avpkt->data, avpkt->size, NULL, &svt_dec->frame_size, 1/*quick search*/);
+        err = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
+            avpkt->data, avpkt->size, NULL, &svt_dec->frame_size, 1 /*quick search*/, svt_dec->decoder.proxy_mode);
         if (err) {
-            av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_single_frame_size failed, err=%d\n", err);
+            av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_single_frame_size_with_proxy failed, err=%d\n", err);
             return err;
         }
         if (avpkt->size < svt_dec->frame_size) {
@@ -235,6 +239,16 @@ static av_cold int svt_jpegxs_dec_init(AVCodecContext* avctx) {
         svt_dec->decoder.verbose = VERBOSE_WARNINGS;
     }
 
+    if (svt_dec->proxy_mode == 1) {
+        svt_dec->decoder.proxy_mode = proxy_mode_half;
+    }
+    else if (svt_dec->proxy_mode == 2) {
+        svt_dec->decoder.proxy_mode = proxy_mode_quarter;
+    }
+    else {
+        svt_dec->decoder.proxy_mode = proxy_mode_full;
+    }
+
     svt_dec->decoder.threads_num = FFMIN(avctx->thread_count ? avctx->thread_count : av_cpu_count(), 64);
     svt_dec->decoder.use_cpu_flags = CPU_FLAGS_ALL;
     svt_dec->decoder.packetization_mode = 0;
@@ -243,6 +257,20 @@ static av_cold int svt_jpegxs_dec_init(AVCodecContext* avctx) {
 
     return 0;
 }
+
+#define OFFSET(x) offsetof(SvtJpegXsDecodeContext, x)
+#define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_DECODING_PARAM
+static const AVOption svtjpegxs_dec_options[] = {
+    {"proxy-mode", "Resolution scaling mode: 0-full, 1-half, 2-quarter", OFFSET(proxy_mode), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 2, VE},
+    {NULL},
+};
+
+static const AVClass svtjpegxs_dec_class = {
+    .class_name = "libsvtjpegxsdec",
+    .item_name = av_default_item_name,
+    .option = svtjpegxs_dec_options,
+    .version = LIBAVUTIL_VERSION_INT,
+};
 
 const FFCodec ff_libsvtjpegxs_decoder = {
     .p.name         = "libsvtjpegxs",
@@ -257,4 +285,5 @@ const FFCodec ff_libsvtjpegxs_decoder = {
     .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |
                       FF_CODEC_CAP_AUTO_THREADS,
     .p.wrapper_name = "libsvtjpegxs",
+    .p.priv_class = &svtjpegxs_dec_class,
 };

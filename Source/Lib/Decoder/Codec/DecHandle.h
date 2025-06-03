@@ -12,6 +12,7 @@
 #include "DecThreads.h"
 #include "Threads/SystemResourceManager.h"
 #include "SvtJpegxsImageBufferTools.h"
+#include "SvtJpegxsDec.h"
 
 typedef struct {
     int32_t in_use;
@@ -54,6 +55,8 @@ typedef struct svt_jpeg_xs_decoder_api_prv {
 
     uint32_t verbose;
     uint8_t packetization_mode;
+    proxy_mode_t proxy_mode;
+
     svt_jpeg_xs_decoder_common_t dec_common; /*Common decoder*/
 
     /* Thread model resources:
