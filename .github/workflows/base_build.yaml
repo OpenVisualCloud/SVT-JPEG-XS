@@ -165,6 +165,7 @@ jobs:
       working-directory: ${{ github.workspace }}/tests/scripts
       run: | 
         export NUM_JOBS=$(cat /proc/cpuinfo | grep processor | wc -l)
+        sudo chmod -R 755 ${GITHUB_WORKSPACE}/tests/scripts/
         ./ParallelAllTests.sh ${NUM_JOBS}  ${INPUT_FILES_PATH} ${DEC_BIN_DIR}/SvtJpegxsDecApp      
       env:
         DEC_BIN_DIR: ${{ github.workspace }}/Bin/Release
