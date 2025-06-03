@@ -1,5 +1,10 @@
 #!/bin/bash
+#
+# Copyright(c) 2025 Intel Corporation
+# SPDX - License - Identifier: BSD - 2 - Clause - Patent
+#
 #param 'help' print script params
+
 
 echo "Run Decoder Conformance Test"
 source ./CommonLib.sh

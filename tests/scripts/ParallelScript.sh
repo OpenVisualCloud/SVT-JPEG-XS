@@ -1,4 +1,10 @@
 #!/bin/bash
+#
+# Copyright(c) 2025 Intel Corporation
+# SPDX - License - Identifier: BSD - 2 - Clause - Patent
+#
+
+
 echo "Example: $0 parallel_number script_name.sh [parametr_to_script_1] [parametr_to_script_2] [...]"
 nproc=$1
 script_name=$2

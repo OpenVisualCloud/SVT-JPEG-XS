@@ -1,5 +1,10 @@
 #!/bin/bash
+#
+# Copyright(c) 2025 Intel Corporation
+# SPDX - License - Identifier: BSD - 2 - Clause - Patent
+#
 #param 'help' print script params
+
 
 function print_help() {
     echo "Help for scripts:"
