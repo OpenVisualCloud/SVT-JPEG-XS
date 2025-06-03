@@ -971,14 +971,15 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_send_picture(svt_jpeg_xs_encode
     printf("00[%s:%i] Send frame to encoder: %03li\n", __func__, __LINE__, (size_t)enc_api_prv->frame_number);
 #endif
 
+    SvtJxsErrorType_t ret = SvtJxsErrorNone;
     if (blocking_flag) {
-        svt_jxs_get_empty_object(enc_api_prv->input_image_producer_fifo_ptr, &wrapper_ptr);
+        ret = svt_jxs_get_empty_object(enc_api_prv->input_image_producer_fifo_ptr, &wrapper_ptr);
     }
     else {
-        svt_jxs_get_empty_object_non_blocking(enc_api_prv->input_image_producer_fifo_ptr, &wrapper_ptr);
+        ret = svt_jxs_get_empty_object_non_blocking(enc_api_prv->input_image_producer_fifo_ptr, &wrapper_ptr);
     }
 
-    if (wrapper_ptr) {
+    if (wrapper_ptr && (ret == SvtJxsErrorNone)) {
         EncoderInputItem* input_item = (EncoderInputItem*)wrapper_ptr->object_ptr;
         input_item->enc_input = *enc_input; //Copy input structure
         input_item->frame_number = enc_api_prv->frame_number;

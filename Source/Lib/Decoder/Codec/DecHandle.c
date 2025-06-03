@@ -392,18 +392,19 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
     }
 
     ObjectWrapper_t* input_wrapper_ptr;
+    SvtJxsErrorType_t ret = SvtJxsErrorNone;
     if (blocking_flag) {
-        svt_jxs_get_empty_object(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
+        ret = svt_jxs_get_empty_object(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
     }
     else {
-        svt_jxs_get_empty_object_non_blocking(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
+        ret = svt_jxs_get_empty_object_non_blocking(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
     }
 
     if (dec_api->verbose >= VERBOSE_INFO_MULTITHREADING) {
         fprintf(stderr, "\n[%s] Send frame to Lib, Item: %p\n", __FUNCTION__, input_wrapper_ptr);
     }
 
-    if (input_wrapper_ptr != NULL) {
+    if ((input_wrapper_ptr != NULL) && (ret == SvtJxsErrorNone)) {
         TaskInputBitstream* buffer_input = (TaskInputBitstream*)input_wrapper_ptr->object_ptr;
         buffer_input->dec_input = *dec_input; /*Copy output buffer structure.*/
         buffer_input->flags = 0;
