@@ -10,7 +10,7 @@ on:
         type: string
 jobs:
   super-linter:
-    name: 'super-linter: Workflow initializing'
+    name: super-linter
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
@@ -32,3 +32,5 @@ jobs:
           GITHUB_TOKEN: '${{ secrets.TOKEN_GITHUB }}'
           BASH_SEVERITY: warning
           VALIDATE_BASH: true
+          LINTER_RULES_PATH: .github/configs
+          BASH_FILE_NAME: .shellcheck
