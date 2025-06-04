@@ -95,7 +95,7 @@ then
         LOG_FILE_SUFFIX=""
         if [ "${VALGRIND_PARAM}" == "true" ]; then export LOG_FILE_SUFFIX="Valgrind";  fi
 
-        for BUILD_TYPE in ${BUILD_CONFIGS[@]}
+        for BUILD_TYPE in "${BUILD_CONFIGS[@]}"
         do      
             BINARIES_DIR="${ROOT_DIRECTORY}/Bin/${BUILD_TYPE}"
             BUILD_SCRIPT_DIR="${ROOT_DIRECTORY}/Build/${OS}"

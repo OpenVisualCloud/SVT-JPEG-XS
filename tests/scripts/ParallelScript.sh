@@ -42,7 +42,7 @@ for index in $(seq 0 $(($nproc-1))); do
     cmd_proc="$cmd tmp:$tmp_dir_parallel/tmp_$index range:$range_start-$range_end"
     range_start=$range_end
     ${cmd_proc} > $tmp_dir_parallel/out_$index.txt 2>&1 & pid_id=$!
-    pid_array+="($pid_id)"
+    pid_array+=("${pid_id}")
     echo "Run: $index/$nproc PID: $pid_id $cmd_proc"
 done
 
