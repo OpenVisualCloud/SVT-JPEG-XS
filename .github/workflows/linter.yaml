@@ -32,5 +32,5 @@ jobs:
           GITHUB_TOKEN: '${{ secrets.TOKEN_GITHUB }}'
           BASH_SEVERITY: warning
           VALIDATE_BASH: true
-          LINTER_RULES_PATH: .github/configs
+          LINTER_RULES_PATH: .github/config
           BASH_FILE_NAME: .shellcheck
