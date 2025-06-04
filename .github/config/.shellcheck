@@ -3,4 +3,3 @@
 # surrounding quotes made intetntionally, 
 # cd without pipe ignored ntetionally
 disable=SC2154,SC2027,SC2164
-

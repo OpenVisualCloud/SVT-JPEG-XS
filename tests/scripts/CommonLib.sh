@@ -23,14 +23,14 @@ function print_help() {
 }
 
 #Global variables
-path_global=$1
-exec_dec=$2
-valgrind=""
-decode_flag=0
-range_min=0
-range_max=9999999
-tmp_dir="tmp"
-run_fast=0
+export path_global=$1
+export exec_dec=$2
+export valgrind=""
+export decode_flag=0
+export range_min=0
+export range_max=9999999
+export tmp_dir="tmp"
+export run_fast=0
 
 #Common lib variables
 help_flag=0
@@ -58,7 +58,7 @@ for ARG in "$@"; do
         rangeall=${rangeall#"range:"}
         echo Range param: $rangeall
         if [[ $ARG = *-* ]]; then
-            min_max=(${rangeall//-/ })
+            min_max="(${rangeall//-/ })"
             range_min=${min_max[0]}
             range_max=${min_max[1]}
         else
