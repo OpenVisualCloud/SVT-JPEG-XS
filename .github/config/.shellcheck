@@ -2,4 +2,4 @@
 # ignore var is referenced but not assigned. 
 # surrounding quotes made intetntionally, 
 # cd without pipe ignored ntetionally
-disable=SC2154,SC2027,SC2164
+disable=SC2154,SC2027,SC2164,SC1090
