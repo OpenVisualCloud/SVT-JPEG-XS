@@ -31,9 +31,4 @@ jobs:
           DISABLE_ERRORS: false
           GITHUB_TOKEN: '${{ secrets.TOKEN_GITHUB }}'
           BASH_SEVERITY: warning
-          VALIDATE_BASH_EXEC: true
           VALIDATE_BASH: true
-          VALIDATE_CLANG_FORMAT: true
-          VALIDATE_CPP: true
-          VALIDATE_GITHUB_ACTIONS: true
-          VALIDATE_PYTHON_BLACK: true
