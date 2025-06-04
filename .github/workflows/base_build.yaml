@@ -29,7 +29,7 @@ jobs:
       changed: ${{ steps.filter.outputs.base_build == 'true' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      
+
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v2
         id: filter
         with:
@@ -50,13 +50,14 @@ jobs:
 
     - name: 'Setup:  Install dependencies'
       working-directory: Build/linux
-      run: | 
+      run: |
            sudo apt-get update
-           sudo apt-get -y install nasm cmake
+           sudo apt-get -y install cmake nasm
 
     - name: 'Build:  Debug and Release versions'
       working-directory: Build/linux
-      run: ./build.sh --all --test
+      run: |
+        ./build.sh --jobs=10 --all --test
 
     - name: "Archive: upload artifacts"
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -66,10 +67,11 @@ jobs:
         path: |
           Bin/
           tests/scripts/parrallelUT.sh
+          tests/scripts/
 
   linux-unit-tests:
     needs: linux-build
-    runs-on: 'ubuntu-22.04'
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
@@ -78,7 +80,7 @@ jobs:
         egress-policy: audit
 
     - name: 'Setup:  Install dependencies'
-      run: | 
+      run: |
            sudo apt-get update
            sudo apt-get -y install nasm
     - name: download build artifacts
@@ -94,7 +96,6 @@ jobs:
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
         sudo chmod +x ${{ github.workspace }}/Bin/Release/*
-        export LD_LIBRARY_PATH=$(pwd)
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
 
   linux-unit-tests-valgrind:
@@ -114,7 +115,7 @@ jobs:
         ls -la ./
 
     - name: 'Setup: Install dependencies'
-      run: | 
+      run: |
            sudo apt-get update
            sudo apt-get -y install nasm valgrind
 
@@ -124,7 +125,7 @@ jobs:
         name: "${{ env.LINUX_ARTIFACTS }}"
 
     - name: 'Unit tests: Release with valgrind'
-      run: | 
+      run: |
         NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
         echo "Number of processors: ${NPROC}"
         cd Bin/Release/
@@ -134,12 +135,44 @@ jobs:
         export LD_LIBRARY_PATH=$(pwd)
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC} valgrind
 
+  linux-conformance-tests:
+    needs: [linux-build, linux-unit-tests]
+    runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Setup: Install dependencies'
+      run: |
+           sudo apt-get update
+           sudo apt-get -y install nasm valgrind
+
+
+    - name: 'Setup: Download build artifacts'
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: "${{ env.LINUX_ARTIFACTS }}"
+
+    - name: 'Conformance tests: Release'
+      working-directory: ${{ github.workspace }}/tests/scripts
+      run: |
+        export NUM_JOBS=$(cat /proc/cpuinfo | grep processor | wc -l)
+        sudo chmod -R 755 ${GITHUB_WORKSPACE}/tests/scripts/
+        sudo chmod -R 755 ${DEC_BIN_DIR}/
+        ./ParallelAllTests.sh ${NUM_JOBS}  ${INPUT_FILES_PATH} ${DEC_BIN_DIR}/SvtJpegxsDecApp
+      env:
+        DEC_BIN_DIR: ${{ github.workspace }}/Bin/Release
+        INPUT_FILES_PATH: /opt/samples/Samples/ConformanceTestDecoder/
+
   windows-build:
     needs: changes
     if: ${{ needs.changes.outputs.changed == 'true' }}
     runs-on: 'windows-2022'
     timeout-minutes: 120
-    env: 
+    env:
       YASM_PATH: C:\Yasm
     steps:
     - name: 'Harden Runner'
@@ -166,7 +199,7 @@ jobs:
 
     - name: upload artifacts
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-      with:      
+      with:
         retention-days: 30
         name: ${{ env.WINDOWS_ARTIFACTS }}
         path: |

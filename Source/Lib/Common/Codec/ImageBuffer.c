@@ -222,21 +222,21 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_frame_pool_get(svt_jpeg_xs_frame_pool_t
         ObjectWrapper_t* wrapper_ptr_bitstream_ctx = NULL;
         if (blocking_flag) {
             if (frame_pool->use_image_buffer) {
-                svt_jxs_get_empty_object(frame_pool->pool_image_buffer_fifo_ptr, &wrapper_ptr_image_ctx);
+                ret = svt_jxs_get_empty_object(frame_pool->pool_image_buffer_fifo_ptr, &wrapper_ptr_image_ctx);
             }
             if (frame_pool->use_bitstream) {
-                svt_jxs_get_empty_object(frame_pool->pool_bitstream_fifo_ptr, &wrapper_ptr_bitstream_ctx);
+                ret = svt_jxs_get_empty_object(frame_pool->pool_bitstream_fifo_ptr, &wrapper_ptr_bitstream_ctx);
             }
         }
         else {
             if (frame_pool->use_image_buffer) {
-                svt_jxs_get_empty_object_non_blocking(frame_pool->pool_image_buffer_fifo_ptr, &wrapper_ptr_image_ctx);
+                ret = svt_jxs_get_empty_object_non_blocking(frame_pool->pool_image_buffer_fifo_ptr, &wrapper_ptr_image_ctx);
                 if (wrapper_ptr_image_ctx == NULL) {
                     return SvtJxsErrorNoErrorEmptyQueue;
                 }
             }
             if (frame_pool->use_bitstream) {
-                svt_jxs_get_empty_object_non_blocking(frame_pool->pool_bitstream_fifo_ptr, &wrapper_ptr_bitstream_ctx);
+                ret = svt_jxs_get_empty_object_non_blocking(frame_pool->pool_bitstream_fifo_ptr, &wrapper_ptr_bitstream_ctx);
                 if (wrapper_ptr_bitstream_ctx == NULL) {
                     if (wrapper_ptr_image_ctx) {
                         svt_jxs_release_object(wrapper_ptr_image_ctx);
@@ -244,6 +244,9 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_frame_pool_get(svt_jpeg_xs_frame_pool_t
                     return SvtJxsErrorNoErrorEmptyQueue;
                 }
             }
+        }
+        if (ret != SvtJxsErrorNone) {
+            return ret;
         }
         ret = SvtJxsErrorNone;
         if (wrapper_ptr_image_ctx) {

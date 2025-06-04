@@ -1,4 +1,10 @@
 #!/bin/bash
+#
+# Copyright(c) 2025 Intel Corporation
+# SPDX - License - Identifier: BSD - 2 - Clause - Patent
+#
+
+
 exec=$1
 nproc=$2
 param=$3
