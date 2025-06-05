@@ -32,7 +32,7 @@
 set -euox pipefail
 
 if [[ -z ${GTEST_ROOT:-} ]]; then
-  GTEST_ROOT="$(realpath "$(dirname ${0})"/..)"
+  GTEST_ROOT="$(realpath $(dirname ${0})/..)"
 fi
 
 # Test the CMake build
@@ -47,7 +47,7 @@ for cmake_off_on in OFF ON; do
     -Dcxx_no_exception=${cmake_off_on} \
     -Dcxx_no_rtti=${cmake_off_on}
   time make
-  time ctest -j"$(nproc)" --output-on-failure
+  time ctest -j$(nproc) --output-on-failure
 done
 
 # Test the Bazel build

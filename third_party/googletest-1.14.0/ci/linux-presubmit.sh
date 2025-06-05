@@ -35,7 +35,7 @@ readonly LINUX_LATEST_CONTAINER="gcr.io/google.com/absl-177019/linux_hybrid-late
 readonly LINUX_GCC_FLOOR_CONTAINER="gcr.io/google.com/absl-177019/linux_gcc-floor:20230120"
 
 if [[ -z ${GTEST_ROOT:-} ]]; then
-  GTEST_ROOT="$(realpath "$(dirname ${0})"/..)"
+  GTEST_ROOT="$(realpath $(dirname ${0})/..)"
 fi
 
 if [[ -z ${STD:-} ]]; then
