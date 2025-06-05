@@ -23,14 +23,14 @@ function print_help() {
 }
 
 #Global variables
-export path_global=$1
-export exec_dec=$2
-export valgrind=""
-export decode_flag=0
-export range_min=0
-export range_max=9999999
-export tmp_dir="tmp"
-export run_fast=0
+path_global=$1
+exec_dec=$2
+valgrind=""
+decode_flag=0
+range_min=0
+range_max=9999999
+tmp_dir="tmp"
+run_fast=0
 
 #Common lib variables
 help_flag=0
@@ -119,7 +119,7 @@ function common_lib_end_summary() {
     echo "Tests execute: $tests_execute Tests Ignore: $tests_ignore Sum tests: $test_id"
     if (($range_min == 0 && $range_min == $range_max)); then
         unset SCRIPT_TESTS_NUMBER
-        export SCRIPT_TESTS_NUMBER=$test_id
+         SCRIPT_TESTS_NUMBER=$test_id
         echo "Num of tests to execute: SCRIPT_TESTS_NUMBER=$SCRIPT_TESTS_NUMBER range: (0-$test_id) Get variable bye: "'source ./script && echo ${SCRIPT_TESTS_NUMBER}'
     fi
 }
