@@ -99,7 +99,7 @@ jobs:
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
 
   linux-unit-tests-valgrind:
-    needs: [linux-build, linux-unit-tests]
+    needs: linux-unit-tests
     runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
@@ -136,7 +136,7 @@ jobs:
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC} valgrind
 
   linux-conformance-tests:
-    needs: [linux-build, linux-unit-tests]
+    needs: linux-unit-tests-valgrind
     runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
