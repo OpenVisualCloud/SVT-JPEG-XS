@@ -1,0 +1,36 @@
+name: Linter
+on:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to run the scans on
+        default: main
+        type: string
+jobs:
+  super-linter:
+    name: super-linter
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6
+        with:
+          egress-policy: audit
+      - name: checkout repository
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          fetch-depth: 0
+          ref: '${{ env.INPUT_BRANCH }}'
+      - name: Lint
+        uses: super-linter/super-linter/slim@e1cb86b6e8d119f789513668b4b30bf17fe1efe4
+        env:
+          DISABLE_ERRORS: false
+          GITHUB_TOKEN: '${{ secrets.TOKEN_GITHUB }}'
+          BASH_SEVERITY: error
+          VALIDATE_BASH: true
+          LINTER_RULES_PATH: .github/config
+          BASH_FILE_NAME: .shellcheck

@@ -1,0 +1,5 @@
+# https://github.com/koalaman/shellcheck/blob/master/shellcheck.1.md#rc-files
+# ignore var is referenced but not assigned. 
+# surrounding quotes made intentionally, 
+# cd without pipe ignored on purpose
+disable=SC2154,SC2027,SC2164,SC1090

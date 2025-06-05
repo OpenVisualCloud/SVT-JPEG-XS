@@ -6,7 +6,7 @@
 
 
 function check_vcpus(){
-    echo $(lscpu | awk '/^CPU\(s\):/{print $NF}')
+    echo "$(lscpu | awk '/^CPU\(s\):/{print $NF}')"
 }
 
 
@@ -89,13 +89,13 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
 then
     build_project_binaries
 
-    for VALGRIND_PARAM in ${VALGRIND_PARAMS[@]}
+    for VALGRIND_PARAM in "${VALGRIND_PARAMS[@]}"
     do 
         echo "******************* Valgrind enabled ${VALGRIND_PARAM} *******************"
         LOG_FILE_SUFFIX=""
         if [ "${VALGRIND_PARAM}" == "true" ]; then LOG_FILE_SUFFIX="Valgrind";  fi
 
-        for BUILD_TYPE in ${BUILD_CONFIGS[@]}
+        for BUILD_TYPE in "${BUILD_CONFIGS[@]}"
         do      
             BINARIES_DIR="${ROOT_DIRECTORY}/Bin/${BUILD_TYPE}"
             BUILD_SCRIPT_DIR="${ROOT_DIRECTORY}/Build/${OS}"

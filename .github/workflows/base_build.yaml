@@ -20,6 +20,7 @@ concurrency:
 env:
   LINUX_ARTIFACTS: linux-build-${{ github.run_number }}
   WINDOWS_ARTIFACTS: win-build-${{ github.run_number }}
+  JOBS_NUM: 100
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -90,16 +91,15 @@ jobs:
 
     - name: 'Unit tests: Release'
       run: |
-        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
         echo "Number of processors: ${NPROC}"
         cd Bin/Release/
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
         sudo chmod +x ${{ github.workspace }}/Bin/Release/*
-        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC}
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }}
 
   linux-unit-tests-valgrind:
-    needs: [linux-build, linux-unit-tests]
+    needs: linux-unit-tests
     runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
@@ -126,17 +126,15 @@ jobs:
 
     - name: 'Unit tests: Release with valgrind'
       run: |
-        NPROC=$(cat /proc/cpuinfo | grep processor | wc -l)
-        echo "Number of processors: ${NPROC}"
         cd Bin/Release/
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
         sudo chmod +x ${{ github.workspace }}/Bin/Release/*
         export LD_LIBRARY_PATH=$(pwd)
-        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${NPROC} valgrind
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }} valgrind
 
   linux-conformance-tests:
-    needs: [linux-build, linux-unit-tests]
+    needs: linux-unit-tests-valgrind
     runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
@@ -159,10 +157,9 @@ jobs:
     - name: 'Conformance tests: Release'
       working-directory: ${{ github.workspace }}/tests/scripts
       run: |
-        export NUM_JOBS=$(cat /proc/cpuinfo | grep processor | wc -l)
         sudo chmod -R 755 ${GITHUB_WORKSPACE}/tests/scripts/
         sudo chmod -R 755 ${DEC_BIN_DIR}/
-        ./ParallelAllTests.sh ${NUM_JOBS}  ${INPUT_FILES_PATH} ${DEC_BIN_DIR}/SvtJpegxsDecApp
+        ./ParallelAllTests.sh ${{ env.JOBS_NUM }}  ${INPUT_FILES_PATH} ${DEC_BIN_DIR}/SvtJpegxsDecApp
       env:
         DEC_BIN_DIR: ${{ github.workspace }}/Bin/Release
         INPUT_FILES_PATH: /opt/samples/Samples/ConformanceTestDecoder/

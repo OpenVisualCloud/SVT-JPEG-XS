@@ -119,7 +119,7 @@ function common_lib_end_summary() {
     echo "Tests execute: $tests_execute Tests Ignore: $tests_ignore Sum tests: $test_id"
     if (($range_min == 0 && $range_min == $range_max)); then
         unset SCRIPT_TESTS_NUMBER
-        export SCRIPT_TESTS_NUMBER=$test_id
+         SCRIPT_TESTS_NUMBER=$test_id
         echo "Num of tests to execute: SCRIPT_TESTS_NUMBER=$SCRIPT_TESTS_NUMBER range: (0-$test_id) Get variable bye: "'source ./script && echo ${SCRIPT_TESTS_NUMBER}'
     fi
 }
