@@ -30,7 +30,7 @@ jobs:
         env:
           DISABLE_ERRORS: false
           GITHUB_TOKEN: '${{ secrets.TOKEN_GITHUB }}'
-          BASH_SEVERITY: warning
+          BASH_SEVERITY: error
           VALIDATE_BASH: true
           LINTER_RULES_PATH: .github/config
           BASH_FILE_NAME: .shellcheck
