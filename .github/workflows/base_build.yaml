@@ -159,7 +159,7 @@ jobs:
     - name: 'Conformance tests: Release'
       working-directory: ${{ github.workspace }}/tests/scripts
       run: |
-        export NUM_JOBS=50
+        NUM_JOBS=100
         sudo chmod -R 755 ${GITHUB_WORKSPACE}/tests/scripts/
         sudo chmod -R 755 ${DEC_BIN_DIR}/
         ./ParallelAllTests.sh ${NUM_JOBS}  ${INPUT_FILES_PATH} ${DEC_BIN_DIR}/SvtJpegxsDecApp
