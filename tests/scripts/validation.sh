@@ -70,7 +70,7 @@ cd ${ROOT_DIRECTORY}/tests
 }
 
 INPUT_FILES_PATH="${INPUT_FILES_PATH:-"$(pwd)/images"}"
-ROOT_DIRECTORY="${ROOT_DIRECTORY:-"$(dirname "$(pwd)")"}"
+ROOT_DIRECTORY="${ROOT_DIRECTORY:-"$(dirname $(pwd))"}"
 OS="linux"
 RUN_UNIT_TESTS="${RUN_UNIT_TESTS:-true}"
 RUN_CONFORMANCE_TESTS="${RUN_CONFORMANCE_TESTS:-true}"
@@ -93,7 +93,7 @@ then
     do 
         echo "******************* Valgrind enabled ${VALGRIND_PARAM} *******************"
         LOG_FILE_SUFFIX=""
-        if [ "${VALGRIND_PARAM}" == "true" ]; then export LOG_FILE_SUFFIX="Valgrind";  fi
+        if [ "${VALGRIND_PARAM}" == "true" ]; then LOG_FILE_SUFFIX="Valgrind";  fi
 
         for BUILD_TYPE in "${BUILD_CONFIGS[@]}"
         do      

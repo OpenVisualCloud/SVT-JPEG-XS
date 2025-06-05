@@ -58,7 +58,7 @@ for ARG in "$@"; do
         rangeall=${rangeall#"range:"}
         echo Range param: $rangeall
         if [[ $ARG = *-* ]]; then
-            min_max="(${rangeall//-/ })"
+            min_max=(${rangeall//-/ })
             range_min=${min_max[0]}
             range_max=${min_max[1]}
         else
