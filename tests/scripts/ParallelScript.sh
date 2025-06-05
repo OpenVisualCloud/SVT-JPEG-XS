@@ -55,7 +55,7 @@ else
     echo "Wait ${#pid_array[@]} jobs..."
     index=0
     index_first_error=0
-    for pid in "${pid_array[*]}"; do
+    for pid in "${pid_array[@]}"; do
         wait $pid
         ret=$?
         echo "Job $index/$nproc return: $ret"
