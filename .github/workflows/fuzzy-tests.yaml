@@ -1,0 +1,73 @@
+name: Base Build
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: false
+        default: 'main'
+      sha:
+        description: 'SHA to build'
+        required: false
+        default: 'HEAD'
+      timeout:
+        description: 'test time [seconds] (default: 60)'
+        default: 60
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: false
+        default: 'main'
+      sha:
+        description: 'SHA to build'
+        required: false
+        default: 'HEAD'
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  JOBS_NUM: 100
+  CPATH: "/usr/local/include/svt-jpegxs"
+  LD_LIBRARY_PATH: ="${LD_LIBRARY_PATH};/usr/local/lib/"
+jobs:
+  runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+  steps:
+  - name: 'Harden Runner'
+    uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+    with:
+      egress-policy: audit
+
+  - name: 'Checkout repository'
+    uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    with:
+      ref: ${{ inputs.branch }}@${{ inputs.sha }}
+      fetch-depth: 0
+
+  - name: 'Setup:  Install dependencies'
+    working-directory: Build/linux
+    run: |
+          sudo apt-get update
+          sudo apt-get -y install cmake nasm
+
+  - name: 'Build: Debug and Release version'
+    working-directory: Build/linux
+    run: |
+      sudo ./build.sh --install
+
+  - name: "Build: Fuzzing"
+    working-directory: tests/FuzzyTests
+    run: |  
+      clang -lSvtJpegxs -fsanitize=fuzzer  encoder.c -o SvtJxsEncFuzzer
+      clang -lSvtJpegxs -fsanitize=fuzzer  decoder.c -o SvtJxsDecFuzzer
+      sudo chmod +x SvtJxsEncFuzzer
+      sudo chmod +x SvtJxsDecFuzzer

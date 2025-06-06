@@ -164,6 +164,14 @@ jobs:
         DEC_BIN_DIR: ${{ github.workspace }}/Bin/Release
         INPUT_FILES_PATH: /opt/samples/Samples/ConformanceTestDecoder/
 
+    - name: fuzzy-tests
+      needs: linux-build
+      uses: ./.github/workflows/fuzzy-tests.yaml
+      with:
+        branch: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        sha: ${{ github.sha }}
+        timeout: 60
+
   windows-build:
     needs: changes
     if: ${{ needs.changes.outputs.changed == 'true' }}
