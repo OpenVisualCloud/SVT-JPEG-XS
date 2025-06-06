@@ -1,4 +1,4 @@
-name: Base Build
+name: Fuzzy Tests
 
 on:
   workflow_call:
