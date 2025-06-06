@@ -6,24 +6,35 @@ on:
       branch:
         description: 'Branch to build'
         required: false
+        type: string
         default: 'main'
       sha:
         description: 'SHA to build'
+        type: string
         required: false
         default: 'HEAD'
       timeout:
         description: 'test time [seconds] (default: 60)'
+        type: number
+        required: false
         default: 60
   workflow_dispatch:
     inputs:
       branch:
         description: 'Branch to build'
         required: false
+        type: string
         default: 'main'
       sha:
         description: 'SHA to build'
+        type: string
         required: false
         default: 'HEAD'
+      timeout:
+        description: 'test time [seconds] (default: 60)'
+        type: number
+        required: false
+        default: 60
 defaults:
   run:
     shell: bash
