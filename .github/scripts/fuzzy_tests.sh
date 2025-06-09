@@ -44,6 +44,9 @@ else
   done
 fi
 
+export CPATH="/usr/local/include/svt-jpegxs"
+export LD_LIBRARY_PATH="/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
 # 1. Build and install SVT-JPEG-XS
 if [ $BUILD -eq 1 ]; then
   echo "Building and installing SVT-JPEG-XS..."
@@ -59,10 +62,6 @@ if [ $BUILD -eq 1 ]; then
   sudo chmod +x SvtJxsDecFuzze
 fi
 
-
-export CPATH="/usr/local/include/svt-jpegxs"
-export LD_LIBRARY_PATH="/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
 # 4. Run Encoder Fuzzer
 if [ $TEST_ENCODER -eq 1 ]; then
   cd "$FUZZY_DIR"
@@ -74,12 +73,6 @@ fi
 if [ $TEST_DECODER -eq 1 ]; then
   cd "$FUZZY_DIR"
   mkdir -p ${DECODER_SAMPLES} && cp -r ${INPUT_FILES_PATH}/* ${DECODER_SAMPLES}/
-  if [ ! -d "$DECODER_SAMPLES" ]; then
-    echo "Creating corpus directory for decoder fuzzer at $DECODER_SAMPLES"
-    mkdir -p "$DECODER_SAMPLES"
-    echo "Please add encoded streams to $DECODER_SAMPLES before running the decoder fuzzer."
-    exit 0
-  fi
 
   # 6. Run Decoder Fuzzer
   echo "Running decoder fuzzer..."

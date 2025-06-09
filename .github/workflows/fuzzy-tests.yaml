@@ -72,7 +72,7 @@ jobs:
       run: |
         .github/scripts/fuzzy_tests.sh -td
       env: 
-        DECODER_SAMPLES: /opt/samples/Samples/ConformanceTestDecoder/test_bitsreams
+        INPUT_FILES_PATH: /opt/samples/Samples/ConformanceTestDecoder/test_bitsreams
 
     - name: "Run: Encoder fuzzing tests"
       run: |
