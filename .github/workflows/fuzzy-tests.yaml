@@ -80,3 +80,12 @@ jobs:
         clang -lSvtJpegxs -fsanitize=fuzzer  decoder.c -o SvtJxsDecFuzzer
         sudo chmod +x SvtJxsEncFuzzer
         sudo chmod +x SvtJxsDecFuzzer
+
+    - name: "Run: Decoder fuzzing tests"
+      working-directory: tests/FuzzyTests
+      run: |
+        INPUT_DIR=fuzzin_files
+        mkdir -p ${INPUT_DIR} && cp -r ${INPUT_FILES_PATH}/* ${INPUT_DIR}/
+        ./SvtJxsDecFuzzer ${INPUT_DIR} -rss_limit_mb=15000 -max_total_time=60 -jobs=20 
+      env: 
+        INPUT_FILES_PATH: /opt/samples/Samples/ConformanceTestDecoder/test_bitsreams/
