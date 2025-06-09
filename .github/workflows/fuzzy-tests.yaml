@@ -13,7 +13,8 @@ on:
         type: number
         required: false
         default: 60
-    pull_request:
+  pull_request:
+
 defaults:
   run:
     shell: bash
