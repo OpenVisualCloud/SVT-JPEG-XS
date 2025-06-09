@@ -60,24 +60,20 @@ jobs:
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
     - name: 'Setup:  Install dependencies'
-      working-directory: Build/linux
       run: |
             sudo apt update
             sudo apt -y install cmake nasm clang
 
     - name: 'Build: binaries'
-      working-directory: Build/linux
       run: |
         sudo .github/scripts/fuzzy_tests.sh -b
 
     - name: "Run: Decoder fuzzing tests"
-      working-directory: tests/FuzzyTests
       run: |
         .github/scripts/fuzzy_tests.sh -td
       env: 
         DECODER_SAMPLES: /opt/samples/Samples/ConformanceTestDecoder/test_bitsreams
 
     - name: "Run: Encoder fuzzing tests"
-      working-directory: tests/FuzzyTests
       run: |
         .github/scripts/fuzzy_tests.sh -te
