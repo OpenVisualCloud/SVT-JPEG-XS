@@ -59,7 +59,7 @@ if [ $BUILD -eq 1 ]; then
   echo "Building decoder fuzzer..."
   clang -lSvtJpegxs -fsanitize=fuzzer decoder.c -o SvtJxsDecFuzzer
   chmod +x SvtJxsEncFuzzer
-  chmod +x SvtJxsDecFuzze
+  chmod +x SvtJxsDecFuzzer
 fi
 
 # 4. Run Encoder Fuzzer
