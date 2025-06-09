@@ -46,8 +46,7 @@ permissions:
 
 env:
   JOBS_NUM: 100
-  CPATH: "/usr/local/include/svt-jpegxs"
-  LD_LIBRARY_PATH: ="${LD_LIBRARY_PATH};/usr/local/lib/"
+  TIMEOUT_SECONDS: 60
 jobs:
   fuzzy-tests:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
@@ -68,26 +67,19 @@ jobs:
             sudo apt update
             sudo apt -y install cmake nasm clang
 
-    - name: 'Build: Debug and Release version'
+    - name: 'Build: binaries'
       working-directory: Build/linux
       run: |
-        sudo ./build.sh --install
-
-    - name: "Build: Fuzzing binaries"
-      working-directory: tests/FuzzyTests
-      run: |
-        
-        clang -lSvtJpegxs -fsanitize=fuzzer  encoder.c -o SvtJxsEncFuzzer
-        clang -lSvtJpegxs -fsanitize=fuzzer  decoder.c -o SvtJxsDecFuzzer
-        sudo chmod +x SvtJxsEncFuzzer
-        sudo chmod +x SvtJxsDecFuzzer
+        sudo .github/scripts/fuzzy_tests.sh -b
 
     - name: "Run: Decoder fuzzing tests"
       working-directory: tests/FuzzyTests
       run: |
-        export CPATH="/usr/local/include/svt-jpegxs" && export LD_LIBRARY_PATH="/usr/local/lib/${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-        INPUT_DIR=fuzzin_files
-        mkdir -p ${INPUT_DIR} && cp -r ${INPUT_FILES_PATH}/* ${INPUT_DIR}/
-        ./SvtJxsDecFuzzer ${INPUT_DIR} -rss_limit_mb=15000 -max_total_time=60 -jobs=20 
+        .github/scripts/fuzzy_tests.sh -td
       env: 
-        INPUT_FILES_PATH: /opt/samples/Samples/ConformanceTestDecoder/test_bitsreams
+        DECODER_SAMPLES: /opt/samples/Samples/ConformanceTestDecoder/test_bitsreams
+
+    - name: "Run: Encoder fuzzing tests"
+      working-directory: tests/FuzzyTests
+      run: |
+        .github/scripts/fuzzy_tests.sh -te
