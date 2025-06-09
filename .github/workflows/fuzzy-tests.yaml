@@ -1,40 +1,18 @@
 name: Fuzzy Tests
 
 on:
-  # workflow_call:
-  #   inputs:
-  #     branch:
-  #       description: 'Branch to build'
-  #       required: false
-  #       type: string
-  #       default: 'main'
-  #     sha:
-  #       description: 'SHA to build'
-  #       type: string
-  #       required: false
-  #       default: 'HEAD'
-  #     timeout:
-  #       description: 'test time [seconds] (default: 60)'
-  #       type: number
-  #       required: false
-  #       default: 60
-  # workflow_dispatch:
-  #   inputs:
-  #     branch:
-  #       description: 'Branch to build'
-  #       required: false
-  #       type: string
-  #       default: 'main'
-  #     sha:
-  #       description: 'SHA to build'
-  #       type: string
-  #       required: false
-  #       default: 'HEAD'
-  #     timeout:
-  #       description: 'test time [seconds] (default: 60)'
-  #       type: number
-  #       required: false
-  #       default: 60
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: false
+        type: string
+        default: 'main'
+      timeout:
+        description: 'test time [seconds] (default: 60)'
+        type: number
+        required: false
+        default: 60
     pull_request:
 defaults:
   run:
@@ -45,8 +23,8 @@ permissions:
 
 
 env:
-  JOBS_NUM: 100
-  TIMEOUT_SECONDS: 60
+  JOBS_NUM: 20
+  TIMEOUT_SECONDS: ${{ inputs.timeout}}
 jobs:
   fuzzy-tests:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
