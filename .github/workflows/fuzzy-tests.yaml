@@ -1,0 +1,77 @@
+name: Fuzzy Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: false
+        type: string
+        default: 'main'
+      timeout:
+        description: 'test time [seconds] (default: 60)'
+        type: number
+        required: false
+        default: 60
+  pull_request:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  JOBS_NUM: 100
+  TIMEOUT_SECONDS: ${{ inputs.timeout || 60 }}
+jobs:
+  encoder:
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    - name: 'Setup:  Install dependencies'
+      run: |
+            sudo apt update
+            sudo apt -y install cmake nasm clang
+
+    - name: 'Build: binaries'
+      run: |
+        sudo .github/scripts/fuzzy_tests.sh -b
+
+    - name: "Run: Decoder fuzzing tests"
+      run: |
+        .github/scripts/fuzzy_tests.sh -td
+      env: 
+        INPUT_FILES_PATH: /opt/samples/Samples/ConformanceTestDecoder/test_bitsreams
+
+  decoder:
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: 'Setup:  Install dependencies'
+        run: |
+              sudo apt update
+              sudo apt -y install cmake nasm clang
+
+      - name: 'Build: binaries'
+        run: |
+          sudo .github/scripts/fuzzy_tests.sh -b
+
+      - name: "Run: Encoder fuzzing tests"
+        run: |
+          .github/scripts/fuzzy_tests.sh -te
