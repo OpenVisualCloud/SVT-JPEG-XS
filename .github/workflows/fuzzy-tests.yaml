@@ -65,8 +65,8 @@ jobs:
     - name: 'Setup:  Install dependencies'
       working-directory: Build/linux
       run: |
-            sudo apt-get update
-            sudo apt-get -y install cmake nasm
+            sudo apt update
+            sudo apt -y install cmake nasm clang
 
     - name: 'Build: Debug and Release version'
       working-directory: Build/linux
