@@ -24,8 +24,8 @@ permissions:
 
 
 env:
-  JOBS_NUM: 20
-  TIMEOUT_SECONDS: ${{ inputs.timeout}}
+  JOBS_NUM: 100
+  TIMEOUT_SECONDS: ${{ inputs.timeout || 60 }}
 jobs:
   fuzzy-tests:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
