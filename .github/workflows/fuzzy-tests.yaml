@@ -85,7 +85,7 @@ jobs:
     - name: "Run: Decoder fuzzing tests"
       working-directory: tests/FuzzyTests
       run: |
-        export CPATH="/usr/local/include/svt-jpegxs" && export LD_LIBRARY_PATH="/usr/local/lib/${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        export CPATH="/usr/local/include/svt-jpegxs" && export LD_LIBRARY_PATH="/mypath${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
         INPUT_DIR=fuzzin_files
         mkdir -p ${INPUT_DIR} && cp -r ${INPUT_FILES_PATH}/* ${INPUT_DIR}/
         ./SvtJxsDecFuzzer ${INPUT_DIR} -rss_limit_mb=15000 -max_total_time=60 -jobs=20 
