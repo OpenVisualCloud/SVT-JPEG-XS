@@ -7,6 +7,8 @@ Please see https://llvm.org/docs/LibFuzzer.html for more information.
 Prerequisites:
 - Linux Environment
 - Clang compiler
+- libstdc++-${gcc-version}-dev installed
+   - where gcc-version is the highest gcc version installed on host
 
 ## Encoder Fuzzy Tests
 
@@ -14,7 +16,7 @@ Prerequisites:
 1. Build and install SVT-JPEG-XS:
  - `cd <repo_dir>/Build/linux && ./build.sh install`
 2. Export Environment Variables:
- - `export CPATH="/usr/local/include/svt-jpegxs" && export LD_LIBRARY_PATH="/usr/local/lib/"`
+ - `export CPATH="/usr/local/include/svt-jpegxs" && export LD_LIBRARY_PATH="/usr/local/lib/${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"`
 3. Build Fuzzy Tests:
  - `cd <repo_dir>/tests/FuzzyTests && clang -lSvtJpegxs -fsanitize=fuzzer  encoder.c -o SvtJxsEncFuzzer`
 
@@ -36,7 +38,7 @@ Where:
 1. Build and install SVT-JPEG-XS:
  - `cd <repo_dir>/Build/linux && ./build.sh install`
 2. Export Environment Variables:
- - `export CPATH="/usr/local/include/svt-jpegxs" && export LD_LIBRARY_PATH="/usr/local/lib/"`
+ - `export CPATH="/usr/local/include/svt-jpegxs" && export LD_LIBRARY_PATH="/usr/local/lib/${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"`
 3. Build Fuzzy Tests:
  - `cd <repo_dir>/tests/FuzzyTests && clang -lSvtJpegxs -fsanitize=fuzzer  decoder.c -o SvtJxsDecFuzzer`
 
