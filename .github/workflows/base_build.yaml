@@ -98,6 +98,16 @@ jobs:
         sudo chmod +x ${{ github.workspace }}/Bin/Release/*
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }}
 
+    - name: 'Unit tests: Debug'
+      run: |
+        echo "Number of processors: ${NPROC}"
+        cd Bin/Debug/
+        ls -l
+        sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
+        sudo chmod +x ${{ github.workspace }}/Bin/Debug/*
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }}
+
+
   linux-unit-tests-valgrind:
     needs: linux-unit-tests
     runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
