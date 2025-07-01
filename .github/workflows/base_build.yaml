@@ -70,7 +70,7 @@ jobs:
           tests/scripts/parrallelUT.sh
           tests/scripts/
 
-  linux-unit-tests:
+  linux-unit-tests-release:
     needs: linux-build
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
@@ -98,6 +98,25 @@ jobs:
         sudo chmod +x ${{ github.workspace }}/Bin/Release/*
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }}
 
+  linux-unit-tests-release:
+    needs: linux-build
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    timeout-minutes: 120
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Setup:  Install dependencies'
+      run: |
+           sudo apt-get update
+           sudo apt-get -y install nasm
+    - name: download build artifacts
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: "${{ env.LINUX_ARTIFACTS }}"
+
     - name: 'Unit tests: Debug'
       run: |
         echo "Number of processors: ${NPROC}"
@@ -107,9 +126,8 @@ jobs:
         sudo chmod +x ${{ github.workspace }}/Bin/Debug/*
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }}
 
-
   linux-unit-tests-valgrind:
-    needs: linux-unit-tests
+    needs: linux-build
     runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
@@ -144,7 +162,7 @@ jobs:
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }} valgrind
 
   linux-conformance-tests:
-    needs: linux-unit-tests-valgrind
+    needs: linux-build
     runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
