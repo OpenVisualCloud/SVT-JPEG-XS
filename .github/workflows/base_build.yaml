@@ -190,7 +190,7 @@ jobs:
         ./ParallelAllTests.sh ${{ env.JOBS_NUM }}  ${INPUT_FILES_PATH} ${DEC_BIN_DIR}/SvtJpegxsDecApp
       env:
         DEC_BIN_DIR: ${{ github.workspace }}/Bin/Release
-        INPUT_FILES_PATH: /opt/samples/Samples/ConformanceTestDecoder
+        INPUT_FILES_PATH: /opt/samples/Samples
 
   windows-build:
     needs: changes
