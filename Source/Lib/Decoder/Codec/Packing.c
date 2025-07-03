@@ -713,7 +713,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
         subpkt_len_bytes = bitstream_reader_get_used_bytes(bitstream) - len_before_subpkt_bytes;
         if (subpkt_len_bytes != (pkt_header.gcli_len)) {
             int32_t leftover = (int32_t)pkt_header.gcli_len - subpkt_len_bytes;
-            if (leftover > 0) {
+            if (leftover > 0 && bitstream_reader_is_enough_bytes(bitstream, leftover)) {
                 if (verbose >= VERBOSE_WARNINGS) {
                     fprintf(stderr, "WARNING: (GCLI) skipped=%d\n", leftover);
                 }
@@ -768,7 +768,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
         subpkt_len_bytes = bitstream_reader_get_used_bytes(bitstream) - len_before_subpkt_bytes;
         if (subpkt_len_bytes != (pkt_header.data_len)) {
             int32_t leftover = (int32_t)pkt_header.data_len - subpkt_len_bytes;
-            if (leftover > 0) {
+            if (leftover > 0 && bitstream_reader_is_enough_bytes(bitstream, leftover)) {
                 if (verbose >= VERBOSE_WARNINGS) {
                     fprintf(stderr, "WARNING: (DATA) skipped=%d\n", leftover);
                 }
@@ -816,7 +816,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
             subpkt_len_bytes = bitstream_reader_get_used_bytes(bitstream) - len_before_subpkt_bytes;
             if (subpkt_len_bytes != ((uint32_t)pkt_header.sign_len)) {
                 int32_t leftover = (int32_t)pkt_header.sign_len - subpkt_len_bytes;
-                if (leftover > 0) {
+                if (leftover > 0 && bitstream_reader_is_enough_bytes(bitstream, leftover)) {
                     if (verbose >= VERBOSE_WARNINGS) {
                         fprintf(stderr, "WARNING: (SIGN) skipped=%d\n", leftover);
                     }
