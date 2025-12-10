@@ -39,7 +39,7 @@ jobs:
   linux-build:
     needs: changes
     if: ${{ needs.changes.outputs.changed == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
     - name: 'Harden Runner'
       uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
@@ -72,7 +72,7 @@ jobs:
 
   linux-unit-tests-release:
     needs: linux-build
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
@@ -101,7 +101,7 @@ jobs:
 
   linux-unit-tests-debug:
     needs: linux-build
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
@@ -130,7 +130,7 @@ jobs:
 
   linux-unit-tests-valgrind:
     needs: linux-build
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
@@ -165,7 +165,7 @@ jobs:
 
   linux-conformance-tests:
     needs: linux-build
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
