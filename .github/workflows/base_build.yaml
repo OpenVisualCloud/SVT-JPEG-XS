@@ -53,7 +53,7 @@ jobs:
       working-directory: Build/linux
       run: |
            sudo apt-get update
-           sudo apt-get -y install cmake nasm valgrind
+           sudo apt-get -y install cmake nasm valgrind make gcc g++
 
     - name: 'Build:  Debug and Release versions'
       working-directory: Build/linux
@@ -83,7 +83,7 @@ jobs:
     - name: 'Setup:  Install dependencies'
       run: |
            sudo apt-get update
-           sudo apt-get -y install nasm valgrind
+           sudo apt-get -y install cmake nasm valgrind make gcc g++
 
     - name: download build artifacts
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -112,7 +112,7 @@ jobs:
     - name: 'Setup:  Install dependencies'
       run: |
            sudo apt-get update
-           sudo apt-get -y install nasm valgrind
+           sudo apt-get -y install cmake nasm valgrind make gcc g++
 
     - name: download build artifacts
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -147,7 +147,7 @@ jobs:
     - name: 'Setup: Install dependencies'
       run: |
            sudo apt-get update
-           sudo apt-get -y install nasm valgrind
+           sudo apt-get -y install cmake nasm valgrind make gcc g++
 
     - name: 'Setup: Download build artifacts'
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -176,7 +176,7 @@ jobs:
     - name: 'Setup: Install dependencies'
       run: |
            sudo apt-get update
-           sudo apt-get -y install nasm valgrind
+           sudo apt-get -y install cmake nasm valgrind make gcc g++
 
     - name: 'Setup: Download build artifacts'
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
