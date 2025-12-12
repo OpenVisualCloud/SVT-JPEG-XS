@@ -53,7 +53,7 @@ jobs:
       working-directory: Build/linux
       run: |
            sudo apt-get update
-           sudo apt-get -y install cmake nasm
+           sudo apt-get -y install cmake nasm valgrind make gcc g++
 
     - name: 'Build:  Debug and Release versions'
       working-directory: Build/linux
@@ -83,7 +83,8 @@ jobs:
     - name: 'Setup:  Install dependencies'
       run: |
            sudo apt-get update
-           sudo apt-get -y install nasm
+           sudo apt-get -y install cmake nasm valgrind make gcc g++
+
     - name: download build artifacts
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
       with:
@@ -111,7 +112,8 @@ jobs:
     - name: 'Setup:  Install dependencies'
       run: |
            sudo apt-get update
-           sudo apt-get -y install nasm
+           sudo apt-get -y install cmake nasm valgrind make gcc g++
+
     - name: download build artifacts
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
       with:
@@ -128,7 +130,7 @@ jobs:
 
   linux-unit-tests-valgrind:
     needs: linux-build
-    runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
@@ -145,7 +147,7 @@ jobs:
     - name: 'Setup: Install dependencies'
       run: |
            sudo apt-get update
-           sudo apt-get -y install nasm valgrind
+           sudo apt-get -y install cmake nasm valgrind make gcc g++
 
     - name: 'Setup: Download build artifacts'
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -163,7 +165,7 @@ jobs:
 
   linux-conformance-tests:
     needs: linux-build
-    runs-on:  ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
@@ -174,8 +176,7 @@ jobs:
     - name: 'Setup: Install dependencies'
       run: |
            sudo apt-get update
-           sudo apt-get -y install nasm valgrind
-
+           sudo apt-get -y install cmake nasm valgrind make gcc g++
 
     - name: 'Setup: Download build artifacts'
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
