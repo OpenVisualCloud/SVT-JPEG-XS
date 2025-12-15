@@ -15,22 +15,39 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+      packages: read
+      # To report GitHub Actions status checks
+      statuses: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
+
       - name: checkout repository
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
           ref: '${{ env.INPUT_BRANCH }}'
+
       - name: Lint
-        uses: super-linter/super-linter/slim@e1cb86b6e8d119f789513668b4b30bf17fe1efe4
+        uses: super-linter/super-linter/slim@502f4fe48a81a392756e173e39a861f8c8efe056 # v8.3.0
         env:
           DISABLE_ERRORS: false
-          GITHUB_TOKEN: '${{ secrets.TOKEN_GITHUB }}'
-          BASH_SEVERITY: error
-          VALIDATE_BASH: true
-          LINTER_RULES_PATH: .github/config
+          VALIDATE_ALL_CODEBASE: false
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASH_FILE_NAME: .shellcheck
+          BASH_SEVERITY: "error"
+          LINTER_RULES_PATH: ".github/config"
+          GITHUB_COMMENT_ON_PR: false
+          GITHUB_STATUS_UPDATES: true
+          VALIDATE_BASH_EXEC: true
+          VALIDATE_BASH: true
+          VALIDATE_CPP: true
+          VALIDATE_GITHUB_ACTIONS: true
+          VALIDATE_JSON_PRETTIER: true
+          VALIDATE_JSONC_PRETTIER: true
+          VALIDATE_MARKDOWN: true
+          VALIDATE_PROTOBUF: true
+          VALIDATE_PYTHON_BLACK: true
+          VALIDATE_YAML_PRETTIER: true
