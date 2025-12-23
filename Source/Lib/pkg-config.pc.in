@@ -8,5 +8,5 @@ Description: SVT (Scalable Video Technology) for JPEG XS library
 Version: @SVT_LIB_VERSION_MAJOR@.@SVT_LIB_VERSION_MINOR@.@SVT_LIB_VERSION_PATCH@
 Libs: -L${libdir} -lSvtJpegxs
 Libs.private: @LIBS_PRIVATE@
-Cflags: -I${includedir}/svt-jpegxs@DEC_PKG_CONFIG_EXTRA_CFLAGS@
-Cflags.private: -UEB_DLL
+Cflags: -I${includedir}/svt-jpegxs @LIB_PKG_CONFIG_EXTRA_CFLAGS@
+Cflags.private: -UDEF_DLL
