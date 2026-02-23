@@ -8,3 +8,4 @@ Build/coverage_linux
 *.patch
 *.raw
 *.log
+build/
