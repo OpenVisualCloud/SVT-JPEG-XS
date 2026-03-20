@@ -23,6 +23,7 @@ void linear_output_scaling_16bit_avx2(const pi_t* const pi, int32_t* comps[MAX_C
 
 void linear_output_scaling_8bit_line_avx2(int32_t* in, uint32_t bw, uint32_t depth, uint8_t* out, uint32_t w);
 void linear_output_scaling_16bit_line_avx2(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w);
+void linear_output_scaling_16bit_line_msb_avx2(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w);
 
 #ifdef __cplusplus
 }

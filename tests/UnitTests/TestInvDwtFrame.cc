@@ -572,7 +572,7 @@ void transform_components_test(const pi_t* pi, int16_t* buffer_in[MAX_COMPONENTS
                         }
                         else {
                             uint16_t* out_buf_16 = ((uint16_t*)out_buf) + component_line_idx * out_stride;
-                            nlt_inverse_transform_line_16bit(in, bit_depth, &picture_header_dynamic, out_buf_16, width);
+                            nlt_inverse_transform_line_16bit(in, bit_depth, &picture_header_dynamic, out_buf_16, width, 0);
                         }
                         component_line_idx++;
                     }

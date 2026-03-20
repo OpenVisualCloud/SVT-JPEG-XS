@@ -140,6 +140,10 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
                     linear_input_scaling_line_16bit_c,
                     linear_input_scaling_line_16bit_avx2,
                     linear_input_scaling_line_16bit_avx512);
+    SET_AVX2_AVX512(linear_input_scaling_line_16bit_msb,
+                    linear_input_scaling_line_16bit_msb_c,
+                    linear_input_scaling_line_16bit_msb_avx2,
+                    linear_input_scaling_line_16bit_msb_avx512);
 
     SET_AVX2_AVX512(pack_data_single_group, pack_data_single_group_c, NULL, pack_data_single_group_avx512);
     SET_SSE2(gc_precinct_stage_scalar_loop, gc_precinct_stage_scalar_loop_c, gc_precinct_stage_scalar_loop_ASM);

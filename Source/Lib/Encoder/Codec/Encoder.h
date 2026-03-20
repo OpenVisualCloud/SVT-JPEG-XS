@@ -63,6 +63,7 @@ typedef struct svt_jpeg_xs_encoder_common {
     uint16_t Cw; //Precinct width
     ColourFormat_t colour_format;
     uint8_t bit_depth; // Pixel Bit Depth
+    uint8_t input_bit_depth_msb_aligned;
     float compression_rate;
 
     pi_t pi; /* Picture Information */

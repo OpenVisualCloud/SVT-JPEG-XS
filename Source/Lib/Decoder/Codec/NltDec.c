@@ -246,6 +246,19 @@ void linear_output_scaling_8bit_line_c(int32_t* in, uint32_t bw, uint32_t depth,
     }
 }
 
+void linear_output_scaling_16bit_line_msb_c(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w) {
+    int32_t dzeta = bw - depth;
+    int32_t m = (1 << depth) - 1;
+    int32_t msb_shift = 16 - depth;
+
+    for (uint32_t x = 0; x < w; x++) {
+        int32_t v = in[x];
+        v += (1 << bw) >> 1;
+        v = (v + ((1 << dzeta) >> 1)) >> dzeta;
+        out[x] = (uint16_t)nlt_clamp(v, m) << msb_shift;
+    }
+}
+
 void linear_output_scaling_16bit_line_c(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w) {
     int32_t dzeta = bw - depth;
     int32_t m = (1 << depth) - 1;
@@ -380,9 +393,13 @@ void nlt_inverse_transform_line_8bit(int32_t* in, uint32_t depth, const picture_
 }
 
 void nlt_inverse_transform_line_16bit(int32_t* in, uint32_t depth, const picture_header_dynamic_t* picture_header_dynamic,
-                                      uint16_t* out, int32_t w) {
+                                      uint16_t* out, int32_t w, uint8_t msb_aligned) {
     if (picture_header_dynamic->hdr_Tnlt == 0) {
-        linear_output_scaling_16bit_line(in, picture_header_dynamic->hdr_Bw, depth, out, w);
+        if (msb_aligned) {
+            linear_output_scaling_16bit_line_msb(in, picture_header_dynamic->hdr_Bw, depth, out, w);
+        } else {
+            linear_output_scaling_16bit_line(in, picture_header_dynamic->hdr_Bw, depth, out, w);
+        }
     }
     else if (picture_header_dynamic->hdr_Tnlt == 1) {
         int32_t dco = (int32_t)picture_header_dynamic->hdr_Tnlt_alpha -

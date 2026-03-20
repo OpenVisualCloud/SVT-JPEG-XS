@@ -177,3 +177,38 @@ void linear_output_scaling_16bit_line_avx2(int32_t* in, uint32_t bw, uint32_t de
         out[x] = (uint16_t)(v > m ? m : v < 0 ? 0 : v);
     }
 }
+
+void linear_output_scaling_16bit_line_msb_avx2(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w) {
+    int32_t x;
+    const int32_t dzeta = bw - depth;
+    const uint32_t round = ((1 << bw) >> 1) + ((1 << dzeta) >> 1);
+    const int32_t m = (1 << depth) - 1;
+    const int32_t msb_shift = 16 - depth;
+    const __m256i round_avx2 = _mm256_set1_epi32(round);
+    const __m256i zero_avx2 = _mm256_setzero_si256();
+    const __m256i max_avx2 = _mm256_set1_epi32(m);
+
+    for (x = 0; x <= (int32_t)w - 16; x += 16) {
+        __m256i v1_avx2 = _mm256_loadu_si256((__m256i*)(in + x));
+        v1_avx2 = _mm256_add_epi32(v1_avx2, round_avx2);
+        v1_avx2 = _mm256_srai_epi32(v1_avx2, dzeta);
+        v1_avx2 = _mm256_max_epi32(_mm256_min_epi32(v1_avx2, max_avx2), zero_avx2);
+
+        __m256i v2_avx2 = _mm256_loadu_si256((__m256i*)(in + x + 8));
+        v2_avx2 = _mm256_add_epi32(v2_avx2, round_avx2);
+        v2_avx2 = _mm256_srai_epi32(v2_avx2, dzeta);
+        v2_avx2 = _mm256_max_epi32(_mm256_min_epi32(v2_avx2, max_avx2), zero_avx2);
+
+        __m256i packed = _mm256_packus_epi32(v1_avx2, v2_avx2);
+        packed = _mm256_permute4x64_epi64(packed, 0xd8);
+        /* MSB-align: shift each 16-bit lane left by (16 - depth) */
+        packed = _mm256_slli_epi16(packed, msb_shift);
+        _mm256_storeu_si256((__m256i*)(out + x), packed);
+    }
+    for (; x < (int32_t)w; x++) {
+        int32_t v = in[x];
+        v += round;
+        v >>= dzeta;
+        out[x] = (uint16_t)(v > m ? m : v < 0 ? 0 : v) << msb_shift;
+    }
+}

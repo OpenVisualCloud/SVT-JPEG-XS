@@ -15,6 +15,7 @@
 #include "NltDec.h"
 #include "NltEnc.h"
 #include "Enc_avx512.h"
+#include "NltDec_avx512.h"
 #include "Precinct.h"
 
 TEST(Nlt_Linear_Output_8bit, 8AVX2) {
@@ -334,5 +335,99 @@ TEST(Nlt_Linear_Input_16bit, AVX2) {
 TEST(Nlt_Linear_Input_16bit, AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         test_linear_input_scaling_line_16bit(linear_input_scaling_line_16bit_avx512);
+    }
+}
+
+void test_linear_input_scaling_line_16bit_msb(void (*test_fn)(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift,
+                                                               int32_t offset, uint8_t bit_depth)) {
+    const uint32_t w = 1999;
+    const uint8_t param_Bw = 20;
+
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    uint16_t* src = (uint16_t*)malloc(w * sizeof(uint16_t));
+    int32_t* dst_ref = (int32_t*)malloc(w * sizeof(int32_t));
+    int32_t* dst_mod = (int32_t*)malloc(w * sizeof(int32_t));
+
+    memset(src, 0, w * sizeof(uint16_t));
+    memset(dst_ref, 0, w * sizeof(int32_t));
+    memset(dst_mod, 0, w * sizeof(int32_t));
+
+    /* MSB-aligned: shift = Bw - 16 (constant, depth-independent), no masking */
+    const uint8_t shift = param_Bw - 16;  /* = 4 for Bw=20 */
+    const int32_t offset = 1 << (param_Bw - 1);
+
+    /* Test for 10-bit and 12-bit depths */
+    for (uint8_t input_bit_depth = 10; input_bit_depth <= 12; input_bit_depth += 2) {
+        /* Generate MSB-aligned input: pixel value in top `input_bit_depth` bits */
+        for (uint32_t j = 0; j < w; j++) {
+            uint16_t pixel = rnd->Rand16() % ((1 << input_bit_depth) - 1);
+            src[j] = pixel << (16 - input_bit_depth);  /* MSB-align */
+        }
+
+        linear_input_scaling_line_16bit_msb_c(src, dst_ref, w, shift, offset, input_bit_depth);
+        test_fn(src, dst_mod, w, shift, offset, input_bit_depth);
+        ASSERT_EQ(memcmp(dst_ref, dst_mod, sizeof(int32_t) * w), 0);
+
+        memset(dst_ref, 0, w * sizeof(int32_t));
+        memset(dst_mod, 0, w * sizeof(int32_t));
+    }
+
+    free(src);
+    free(dst_ref);
+    free(dst_mod);
+    delete rnd;
+}
+
+TEST(Nlt_Linear_Input_16bit_MSB, AVX2) {
+    test_linear_input_scaling_line_16bit_msb(linear_input_scaling_line_16bit_msb_avx2);
+}
+
+TEST(Nlt_Linear_Input_16bit_MSB, AVX512) {
+    if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
+        test_linear_input_scaling_line_16bit_msb(linear_input_scaling_line_16bit_msb_avx512);
+    }
+}
+
+void test_linear_output_scaling_16bit_line_msb(void (*test_fn)(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w)) {
+    const uint32_t w = 1999;
+    const uint32_t bw = 20;
+
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    int32_t* in = (int32_t*)malloc(w * sizeof(int32_t));
+    uint16_t* out_ref = (uint16_t*)malloc(w * sizeof(uint16_t));
+    uint16_t* out_mod = (uint16_t*)malloc(w * sizeof(uint16_t));
+
+    for (uint32_t j = 0; j < w; j++) {
+        in[j] = rnd->Rand16();
+    }
+
+    for (uint32_t depth = 10; depth <= 12; depth += 2) {
+        memset(out_ref, 0xcd, w * sizeof(uint16_t));
+        memset(out_mod, 0xcd, w * sizeof(uint16_t));
+
+        linear_output_scaling_16bit_line_msb_c(in, bw, depth, out_ref, w);
+        test_fn(in, bw, depth, out_mod, w);
+        ASSERT_EQ(memcmp(out_ref, out_mod, sizeof(uint16_t) * w), 0);
+
+        /* Verify MSB-alignment: lowest (16-depth) bits must be zero */
+        for (uint32_t j = 0; j < w; j++) {
+            uint16_t mask = (uint16_t)((1 << (16 - depth)) - 1);
+            ASSERT_EQ(out_ref[j] & mask, 0) << "pixel " << j << " depth=" << depth << " not MSB-aligned";
+        }
+    }
+
+    free(in);
+    free(out_ref);
+    free(out_mod);
+    delete rnd;
+}
+
+TEST(Nlt_Linear_Output_16bit_MSB, AVX2) {
+    test_linear_output_scaling_16bit_line_msb(linear_output_scaling_16bit_line_msb_avx2);
+}
+
+TEST(Nlt_Linear_Output_16bit_MSB, AVX512) {
+    if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
+        test_linear_output_scaling_16bit_line_msb(linear_output_scaling_16bit_line_msb_avx512);
     }
 }

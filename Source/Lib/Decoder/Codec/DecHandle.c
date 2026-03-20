@@ -128,6 +128,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
     dec_api_prv->verbose = dec_api->verbose;
 
     dec_api_prv->packetization_mode = dec_api->packetization_mode;
+    dec_api_prv->dec_common.output_bit_depth_msb_aligned = dec_api->output_bit_depth_msb_aligned;
     if (dec_api_prv->packetization_mode != 0 && dec_api_prv->packetization_mode != 1) {
         if (dec_api->verbose >= VERBOSE_ERRORS) {
             fprintf(stderr, "Unrecognized packetization mode\n");

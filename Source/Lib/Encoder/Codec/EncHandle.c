@@ -129,6 +129,8 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
 
     /*Validation of encoder parameters:*/
     enc_common->bit_depth = config_struct->input_bit_depth;
+    enc_common->input_bit_depth_msb_aligned = config_struct->input_bit_depth_msb_aligned;
+    enc_common->picture_header_dynamic.hdr_input_msb_aligned = config_struct->input_bit_depth_msb_aligned;
     if (enc_common->bit_depth < 8 || enc_common->bit_depth > 14) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
             fprintf(stderr, "Incorrect bit_depth, expected: 8 to 14,  provided: %d\n", enc_common->bit_depth);

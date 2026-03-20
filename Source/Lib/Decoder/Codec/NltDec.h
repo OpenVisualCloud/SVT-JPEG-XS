@@ -24,9 +24,10 @@ void nlt_inverse_transform(int32_t* comps[MAX_COMPONENTS_NUM], const pi_t* pi, c
 void nlt_inverse_transform_line_8bit(int32_t* in, uint32_t depth, const picture_header_dynamic_t* picture_header_dynamic,
                                      uint8_t* out, int32_t w);
 void nlt_inverse_transform_line_16bit(int32_t* in, uint32_t depth, const picture_header_dynamic_t* picture_header_dynamic,
-                                      uint16_t* out, int32_t w);
+                                      uint16_t* out, int32_t w, uint8_t msb_aligned);
 void linear_output_scaling_8bit_line_c(int32_t* in, uint32_t bw, uint32_t depth, uint8_t* out, uint32_t w);
 void linear_output_scaling_16bit_line_c(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w);
+void linear_output_scaling_16bit_line_msb_c(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w);
 
 #ifdef __cplusplus
 }

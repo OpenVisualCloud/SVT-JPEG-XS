@@ -89,7 +89,10 @@ typedef struct svt_jpeg_xs_encoder_api {
      * 1. Insert the new parameter as a member of this structure before the padding array.
      * 2. Decrease the size of the padding array by the size of the new parameter to keep the struct size unchanged.
      */
-    uint8_t padding[64];
+    /* Optional, default 0: When set, 10/12-bit input pixels are MSB-aligned in the 16-bit word
+     * (pixel value `v` stored as `v << (16 - bit_depth)`). When 0 (default), pixels are LSB-aligned. */
+    uint8_t input_bit_depth_msb_aligned;
+    uint8_t padding[63];
 } svt_jpeg_xs_encoder_api_t;
 
 /* STEP 0 (Optional): Set default encoder parameters.

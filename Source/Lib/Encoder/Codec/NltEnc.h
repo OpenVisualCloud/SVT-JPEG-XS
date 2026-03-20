@@ -18,6 +18,8 @@ void nlt_input_scaling_line(const void* src, int32_t* dst, uint32_t width, pictu
 void linear_input_scaling_line_8bit_c(const uint8_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset);
 void linear_input_scaling_line_16bit_c(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
                                        uint8_t bit_depth);
+void linear_input_scaling_line_16bit_msb_c(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
+                                            uint8_t bit_depth);
 
 #ifdef __cplusplus
 }

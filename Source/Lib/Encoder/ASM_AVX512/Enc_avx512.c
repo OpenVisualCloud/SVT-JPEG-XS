@@ -240,6 +240,26 @@ void linear_input_scaling_line_16bit_avx512(const uint16_t* src, int32_t* dst, u
     }
 }
 
+void linear_input_scaling_line_16bit_msb_avx512(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
+                                                 uint8_t bit_depth) {
+    (void)bit_depth; /* MSB-aligned: no masking needed */
+    int simd_batch = w / 16;
+    int remaining = w % 16;
+    __m512i reg_offset = _mm512_set1_epi32(offset);
+
+    for (int i = 0; i < simd_batch; i++) {
+        /* Load 16 x uint16, zero-extend to 16 x int32, left-shift by (Bw-16), subtract offset */
+        __m512i reg = _mm512_cvtepu16_epi32(_mm256_loadu_si256((__m256i*)src));
+        __m512i result = _mm512_sub_epi32(_mm512_slli_epi32(reg, shift), reg_offset);
+        _mm512_storeu_si512(dst, result);
+        src += 16;
+        dst += 16;
+    }
+    for (int i = 0; i < remaining; i++) {
+        dst[i] = ((uint32_t)src[i] << shift) - offset;
+    }
+}
+
 /*Optimization Vertical lines loops to AVX*/
 void transform_vertical_loop_hf_line_0_avx512(uint32_t width, int32_t* out_hf, const int32_t* line_0, const int32_t* line_1) {
     uint32_t i = 0;

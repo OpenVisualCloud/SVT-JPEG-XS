@@ -124,3 +124,23 @@ void linear_input_scaling_line_16bit_avx2(const uint16_t* src, int32_t* dst, uin
         dst[i] = ((src[i] & input_mask) << shift) - offset;
     }
 }
+
+void linear_input_scaling_line_16bit_msb_avx2(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
+                                               uint8_t bit_depth) {
+    (void)bit_depth; /* MSB-aligned: no masking needed */
+    const uint32_t simd_batch = w / 8;
+    const uint32_t remaining = w % 8;
+    const __m256i offset_avx2 = _mm256_set1_epi32(offset);
+
+    for (uint32_t i = 0; i < simd_batch; i++) {
+        /* Load 8 x uint16, zero-extend to 8 x int32, left-shift by (Bw-16), subtract offset */
+        __m256i reg = _mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i*)src));
+        __m256i result = _mm256_sub_epi32(_mm256_slli_epi32(reg, shift), offset_avx2);
+        _mm256_storeu_si256((__m256i*)dst, result);
+        src += 8;
+        dst += 8;
+    }
+    for (uint32_t i = 0; i < remaining; i++) {
+        dst[i] = ((uint32_t)src[i] << shift) - offset;
+    }
+}

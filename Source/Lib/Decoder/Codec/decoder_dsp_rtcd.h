@@ -51,6 +51,7 @@ RTCD_EXTERN void (*idwt_horizontal_line_lf16_hf16)(const int16_t* in_lf, const i
 RTCD_EXTERN void (*idwt_horizontal_line_lf32_hf16)(const int32_t* in_lf, const int16_t* in_hf, int32_t* out, uint32_t len,
                                                    uint8_t shift);
 RTCD_EXTERN void (*linear_output_scaling_16bit_line)(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w);
+RTCD_EXTERN void (*linear_output_scaling_16bit_line_msb)(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w);
 
 RTCD_EXTERN void (*idwt_vertical_line)(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1, int32_t* out[4],
                                        uint32_t len, int32_t first_precinct, int32_t last_precinct, int32_t height);

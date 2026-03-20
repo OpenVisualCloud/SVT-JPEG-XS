@@ -44,6 +44,14 @@ void linear_input_scaling_line_16bit_c(const uint16_t* src, int32_t* dst, uint32
     }
 }
 
+void linear_input_scaling_line_16bit_msb_c(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
+                                            uint8_t bit_depth) {
+    (void)bit_depth; /* MSB-aligned: no masking; shift = Bw-16, same for all depths */
+    for (uint32_t j = 0; j < w; j++) {
+        dst[j] = ((uint32_t)src[j] << shift) - offset;
+    }
+}
+
 void linear_input_scaling_line(const void* src, int32_t* dst, uint32_t width, uint8_t input_bit_depth, uint8_t shift,
                                int32_t offset) {
     if (input_bit_depth <= 8) {
@@ -57,16 +65,32 @@ void linear_input_scaling_line(const void* src, int32_t* dst, uint32_t width, ui
 
 void nlt_input_scaling_line(const void* src, int32_t* dst, uint32_t width, picture_header_dynamic_t* hdr,
                             uint8_t input_bit_depth) {
-    const uint8_t shift = hdr->hdr_Bw - input_bit_depth;
-    const int32_t offset = 1 << (hdr->hdr_Bw - 1);
-    switch (hdr->hdr_Tnlt) {
-    case 0:
-        linear_input_scaling_line(src, dst, width, input_bit_depth, shift, offset);
-        break;
-    case 1:
-    case 2:
-    default:
-        assert(0);
-        break;
+    if (hdr->hdr_input_msb_aligned && input_bit_depth > 8) {
+        /* MSB-aligned 16-bit: shift = Bw-16 (constant, depth-independent), no masking */
+        const uint8_t shift = hdr->hdr_Bw - 16;
+        const int32_t offset = 1 << (hdr->hdr_Bw - 1);
+        switch (hdr->hdr_Tnlt) {
+        case 0:
+            linear_input_scaling_line_16bit_msb((uint16_t*)src, dst, width, shift, offset, input_bit_depth);
+            break;
+        case 1:
+        case 2:
+        default:
+            assert(0);
+            break;
+        }
+    } else {
+        const uint8_t shift = hdr->hdr_Bw - input_bit_depth;
+        const int32_t offset = 1 << (hdr->hdr_Bw - 1);
+        switch (hdr->hdr_Tnlt) {
+        case 0:
+            linear_input_scaling_line(src, dst, width, input_bit_depth, shift, offset);
+            break;
+        case 1:
+        case 2:
+        default:
+            assert(0);
+            break;
+        }
     }
 }
