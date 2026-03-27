@@ -42,6 +42,12 @@ jobs:
             sudo apt update
             sudo apt -y install cmake nasm clang
 
+    - name: Fix workspace permissions
+      if: always()
+      run: |
+        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
+
     - name: 'Build: binaries'
       run: |
         .github/scripts/fuzzy_tests.sh -b
@@ -68,6 +74,12 @@ jobs:
       run: |
             sudo apt update
             sudo apt -y install cmake nasm clang
+
+    - name: Fix workspace permissions
+      if: always()
+      run: |
+        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
     - name: 'Build: binaries'
       run: |
