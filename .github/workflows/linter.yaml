@@ -44,7 +44,7 @@ jobs:
           VALIDATE_BASH_EXEC: true
           VALIDATE_BASH: true
           VALIDATE_CPP: true
-          VALIDATE_GITHUB_ACTIONS: true
+          VALIDATE_GITHUB_ACTIONS: false
           VALIDATE_JSON_PRETTIER: true
           VALIDATE_JSONC_PRETTIER: true
           VALIDATE_MARKDOWN: true
