@@ -43,12 +43,10 @@ jobs:
             sudo apt -y install cmake nasm clang
 
     - name: 'Build: binaries'
-      working-directory: repo-${{ github.run_id }}-${{ github.run_attempt }}
       run: |
         .github/scripts/fuzzy_tests.sh -b
 
     - name: "Run: Decoder fuzzing tests"
-      working-directory: repo-${{ github.run_id }}-${{ github.run_attempt }}
       run: |
         .github/scripts/fuzzy_tests.sh -td
       env:
@@ -72,11 +70,9 @@ jobs:
             sudo apt -y install cmake nasm clang
 
     - name: 'Build: binaries'
-      working-directory: repo-${{ github.run_id }}-${{ github.run_attempt }}
       run: |
         .github/scripts/fuzzy_tests.sh -b
 
     - name: "Run: Encoder fuzzing tests"
-      working-directory: repo-${{ github.run_id }}-${{ github.run_attempt }}
       run: |
         .github/scripts/fuzzy_tests.sh -te
