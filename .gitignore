@@ -9,3 +9,4 @@ Build/coverage_linux
 *.raw
 *.log
 build/
+.claude/
