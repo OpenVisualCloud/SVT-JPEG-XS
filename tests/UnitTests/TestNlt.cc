@@ -339,7 +339,7 @@ TEST(Nlt_Linear_Input_16bit, AVX512) {
 }
 
 void test_linear_input_scaling_line_16bit_msb(void (*test_fn)(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift,
-                                                               int32_t offset, uint8_t bit_depth)) {
+                                                              int32_t offset, uint8_t bit_depth)) {
     const uint32_t w = 1999;
     const uint8_t param_Bw = 20;
 
@@ -353,7 +353,7 @@ void test_linear_input_scaling_line_16bit_msb(void (*test_fn)(const uint16_t* sr
     memset(dst_mod, 0, w * sizeof(int32_t));
 
     /* MSB-aligned: shift = Bw - 16 (constant, depth-independent), no masking */
-    const uint8_t shift = param_Bw - 16;  /* = 4 for Bw=20 */
+    const uint8_t shift = param_Bw - 16; /* = 4 for Bw=20 */
     const int32_t offset = 1 << (param_Bw - 1);
 
     /* Test for 10-bit and 12-bit depths */
@@ -361,7 +361,7 @@ void test_linear_input_scaling_line_16bit_msb(void (*test_fn)(const uint16_t* sr
         /* Generate MSB-aligned input: pixel value in top `input_bit_depth` bits */
         for (uint32_t j = 0; j < w; j++) {
             uint16_t pixel = rnd->Rand16() % ((1 << input_bit_depth) - 1);
-            src[j] = pixel << (16 - input_bit_depth);  /* MSB-align */
+            src[j] = pixel << (16 - input_bit_depth); /* MSB-align */
         }
 
         linear_input_scaling_line_16bit_msb_c(src, dst_ref, w, shift, offset, input_bit_depth);
@@ -388,7 +388,8 @@ TEST(Nlt_Linear_Input_16bit_MSB, AVX512) {
     }
 }
 
-void test_linear_output_scaling_16bit_line_msb(void (*test_fn)(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w)) {
+void test_linear_output_scaling_16bit_line_msb(void (*test_fn)(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out,
+                                                               uint32_t w)) {
     const uint32_t w = 1999;
     const uint32_t bw = 20;
 

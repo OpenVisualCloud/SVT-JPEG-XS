@@ -59,8 +59,8 @@ int32_t main(int32_t argc, char *argv[]) {
     }
 
     svt_jpeg_xs_bitstream_buffer_t out_buf;
-    uint32_t bitstream_size = (uint32_t)(
-        ((uint64_t)enc.source_width * enc.source_height * enc.bpp_numerator / enc.bpp_denominator + 7) / +8);
+    uint32_t bitstream_size =
+        (uint32_t)(((uint64_t)enc.source_width * enc.source_height * enc.bpp_numerator / enc.bpp_denominator + 7) / +8);
     out_buf.allocation_size = bitstream_size;
     out_buf.used_size = 0;
     out_buf.buffer = malloc(out_buf.allocation_size);

@@ -87,7 +87,7 @@ typedef struct picture_header_dynamic {
 
     uint16_t hdr_Xcrg[MAX_COMPONENTS_NUM];
     uint16_t hdr_Ycrg[MAX_COMPONENTS_NUM];
-    uint8_t hdr_input_msb_aligned;  /* Non-standard: MSB-aligned 16-bit encoder input mode */
+    uint8_t hdr_input_msb_aligned; /* Non-standard: MSB-aligned 16-bit encoder input mode */
 } picture_header_dynamic_t;
 
 typedef struct precinct_band_info {

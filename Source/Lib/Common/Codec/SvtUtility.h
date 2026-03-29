@@ -23,7 +23,7 @@ void assert_err(uint32_t condition, char* err_msg);
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
-#define DIV_ROUND_UP(val, round)   (((val) + (round)-1) / (round))
+#define DIV_ROUND_UP(val, round)   (((val) + (round) - 1) / (round))
 #define DIV_ROUND_DOWN(val, round) ((val) / (round))
 
 static INLINE void get_current_time(uint64_t* const seconds, uint64_t* const mseconds) {

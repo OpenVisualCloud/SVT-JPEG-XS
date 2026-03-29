@@ -494,8 +494,8 @@ void transform_precinct(const pi_t* pi, svt_jpeg_xs_decoder_instance_t* ctx, uin
         }
         else {
             uint16_t* out_buf_16 = ((uint16_t*)out_buf) + component_line_idx * out_stride;
-            nlt_inverse_transform_line_16bit(in, bit_depth, &ctx->picture_header_dynamic, out_buf_16, width,
-                                             ctx->dec_common->output_bit_depth_msb_aligned);
+            nlt_inverse_transform_line_16bit(
+                in, bit_depth, &ctx->picture_header_dynamic, out_buf_16, width, ctx->dec_common->output_bit_depth_msb_aligned);
         }
         component_line_idx++;
     }

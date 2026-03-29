@@ -52,10 +52,10 @@ extern SvtJxsErrorType_t svt_jxs_block_on_mutex(Handle_t mutex_handle);
 extern SvtJxsErrorType_t svt_jxs_destroy_mutex(Handle_t mutex_handle);
 #ifdef _WIN32
 
-#define SVT_CREATE_THREAD(pointer, thread_function, thread_context)   \
-    do {                                                              \
+#define SVT_CREATE_THREAD(pointer, thread_function, thread_context)       \
+    do {                                                                  \
         pointer = svt_jxs_create_thread(thread_function, thread_context); \
-        SVT_ADD_MEM(pointer, 1, POINTER_TYPE_THREAD);                 \
+        SVT_ADD_MEM(pointer, 1, POINTER_TYPE_THREAD);                     \
     } while (0)
 
 #else
@@ -68,16 +68,16 @@ extern SvtJxsErrorType_t svt_jxs_destroy_mutex(Handle_t mutex_handle);
 #include <sched.h>
 #include <pthread.h>
 #if defined(__linux__)
-#define SVT_CREATE_THREAD(pointer, thread_function, thread_context)   \
-    do {                                                              \
+#define SVT_CREATE_THREAD(pointer, thread_function, thread_context)       \
+    do {                                                                  \
         pointer = svt_jxs_create_thread(thread_function, thread_context); \
-        SVT_ADD_MEM(pointer, 1, POINTER_TYPE_THREAD);                 \
+        SVT_ADD_MEM(pointer, 1, POINTER_TYPE_THREAD);                     \
     } while (0)
 #else
-#define SVT_CREATE_THREAD(pointer, thread_function, thread_context)   \
-    do {                                                              \
+#define SVT_CREATE_THREAD(pointer, thread_function, thread_context)       \
+    do {                                                                  \
         pointer = svt_jxs_create_thread(thread_function, thread_context); \
-        SVT_ADD_MEM(pointer, 1, POINTER_TYPE_THREAD);                 \
+        SVT_ADD_MEM(pointer, 1, POINTER_TYPE_THREAD);                     \
     } while (0)
 #endif
 #endif

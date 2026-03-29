@@ -48,7 +48,7 @@ RTCD_EXTERN void (*linear_input_scaling_line_8bit)(const uint8_t* src, int32_t* 
 RTCD_EXTERN void (*linear_input_scaling_line_16bit)(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
                                                     uint8_t bit_depth);
 RTCD_EXTERN void (*linear_input_scaling_line_16bit_msb)(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift,
-                                                         int32_t offset, uint8_t bit_depth);
+                                                        int32_t offset, uint8_t bit_depth);
 
 RTCD_EXTERN void (*pack_data_single_group)(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint8_t gcli, uint8_t gtli);
 RTCD_EXTERN void (*gc_precinct_stage_scalar_loop)(uint32_t line_groups_num, uint16_t* coeff_data_ptr_16bit,

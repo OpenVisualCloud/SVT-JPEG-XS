@@ -309,8 +309,12 @@ static void Test_Bitstream_1_Correct_valgrind(uint64_t use_cpu_flags) {
                                       Frame_Sample_1_16x16_8bit_422_bitstream_size);
     ASSERT_EQ(ret, SvtJxsErrorNone);
     uint32_t frame_size = 0;
-    SvtJxsErrorType_t ret2 = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
-        Frame_Sample_1_16x16_8bit_422_bitstream, Frame_Sample_1_16x16_8bit_422_bitstream_size, &image_config, &frame_size, 0, proxy_mode_full);
+    SvtJxsErrorType_t ret2 = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(Frame_Sample_1_16x16_8bit_422_bitstream,
+                                                                                  Frame_Sample_1_16x16_8bit_422_bitstream_size,
+                                                                                  &image_config,
+                                                                                  &frame_size,
+                                                                                  0,
+                                                                                  proxy_mode_full);
     ASSERT_EQ(ret2, SvtJxsErrorNone);
     ASSERT_EQ(frame_size, Frame_Sample_1_16x16_8bit_422_bitstream_size);
 }

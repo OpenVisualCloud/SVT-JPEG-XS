@@ -241,7 +241,7 @@ void linear_input_scaling_line_16bit_avx512(const uint16_t* src, int32_t* dst, u
 }
 
 void linear_input_scaling_line_16bit_msb_avx512(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
-                                                 uint8_t bit_depth) {
+                                                uint8_t bit_depth) {
     (void)bit_depth; /* MSB-aligned: no masking needed */
     int simd_batch = w / 16;
     int remaining = w % 16;
@@ -650,7 +650,8 @@ void convert_packed_to_planar_rgb_16bit_avx512(const void* in_rgb, void* out_com
     }
 }
 
-void gc_precinct_stage_scalar_avx512(uint8_t* gcli_data_ptr, uint16_t* coeff_data_ptr_16bit, uint32_t group_size, uint32_t width) {
+void gc_precinct_stage_scalar_avx512(uint8_t* gcli_data_ptr, uint16_t* coeff_data_ptr_16bit, uint32_t group_size,
+                                     uint32_t width) {
     UNUSED(group_size);
     assert(group_size == GROUP_SIZE);
 

@@ -142,19 +142,19 @@ void write_4_bits(bitstream_writer_t* bitstream, uint8_t input) {
         }
         case 5: {
             mem[0] |= (((input) >> 1) & 0x7);
-            mem[1] = (((input)&0x1) << 7);
+            mem[1] = (((input) & 0x1) << 7);
             bitstream->bits_used = 1;
             break;
         }
         case 6: {
             mem[0] |= (((input) >> 2) & 0x3);
-            mem[1] = (((input)&0x3) << 6);
+            mem[1] = (((input) & 0x3) << 6);
             bitstream->bits_used = 2;
             break;
         }
         case 7: {
             mem[0] |= (((input) >> 3) & 0x1);
-            mem[1] = (((input)&0x7) << 5);
+            mem[1] = (((input) & 0x7) << 5);
             bitstream->bits_used = 3;
             break;
         }

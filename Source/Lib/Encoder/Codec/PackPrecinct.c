@@ -273,7 +273,7 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
             default:
                 assert(0);
             }
-        }                                  //else if band not exist in this precinct write 0
+        } //else if band not exist in this precinct write 0
         write_2_bits(bitstream, type_Dpb); //D[p,b] Bit-plane count coding mode of band b
     }
     align_bitstream_writer_to_next_byte(bitstream);
