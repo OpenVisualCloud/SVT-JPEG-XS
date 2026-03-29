@@ -123,9 +123,9 @@ class QuantTest : public ::testing::TestWithParam<int> {
     uint32_t buffer_size;
     uint32_t gtli;
     QUANT_TYPE dq_type;
-    uint16_t* buf_ref;
-    uint16_t* buf_mod;
-    uint8_t* gclis;
+    uint16_t* buf_ref = nullptr;
+    uint16_t* buf_mod = nullptr;
+    uint8_t* gclis = nullptr;
 
   protected:
     static void SetUpTestCase() {
@@ -147,8 +147,7 @@ class QuantTest : public ::testing::TestWithParam<int> {
     virtual void TearDown() {
         if (gclis)
             free(gclis);
-        if (buf_ref)
-            free(buf_ref);
+        // buf_ref always points to static expected_output, never heap-allocated
         if (buf_mod)
             free(buf_mod);
     }
