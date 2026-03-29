@@ -71,10 +71,10 @@ typedef enum PointerType {
 
 #define ALVALUE 64
 
-#define SVT_CREATE_SEMAPHORE(pointer, initial_count, max_count)   \
-    do {                                                          \
+#define SVT_CREATE_SEMAPHORE(pointer, initial_count, max_count)       \
+    do {                                                              \
         pointer = svt_jxs_create_semaphore(initial_count, max_count); \
-        SVT_ADD_MEM(pointer, 1, POINTER_TYPE_SEMAPHORE);          \
+        SVT_ADD_MEM(pointer, 1, POINTER_TYPE_SEMAPHORE);              \
     } while (0)
 
 #define SVT_DESTROY_SEMAPHORE(pointer)                             \

@@ -18,7 +18,7 @@ void linear_input_scaling_line_8bit_avx512(const uint8_t* src, int32_t* dst, uin
 void linear_input_scaling_line_16bit_avx512(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
                                             uint8_t bit_depth);
 void linear_input_scaling_line_16bit_msb_avx512(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
-                                                 uint8_t bit_depth);
+                                                uint8_t bit_depth);
 void image_shift_avx512(uint16_t* out_coeff_16bit, int32_t* in_coeff_32bit, uint32_t width, int32_t shift, int32_t offset);
 
 /*Optimization Vertical lines loops to AVX*/

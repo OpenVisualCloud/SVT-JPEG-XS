@@ -265,11 +265,11 @@ extern SvtJxsErrorType_t svt_jxs_release_object(ObjectWrapper_t *object_ptr);
      *********************************************************************/
 extern SvtJxsErrorType_t svt_jxs_shutdown_process(const SystemResource_t *resource_ptr);
 
-#define SVT_GET_FULL_OBJECT(full_fifo_ptr, wrapper_dbl_ptr)                          \
-    do {                                                                             \
+#define SVT_GET_FULL_OBJECT(full_fifo_ptr, wrapper_dbl_ptr)                              \
+    do {                                                                                 \
         SvtJxsErrorType_t err = svt_jxs_get_full_object(full_fifo_ptr, wrapper_dbl_ptr); \
-        if (err == SvtJxsErrorNoErrorFifoShutdown)                                   \
-            return NULL;                                                             \
+        if (err == SvtJxsErrorNoErrorFifoShutdown)                                       \
+            return NULL;                                                                 \
     } while (0)
 
 #ifdef __cplusplus

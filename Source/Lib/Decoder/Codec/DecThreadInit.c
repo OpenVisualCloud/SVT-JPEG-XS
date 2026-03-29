@@ -265,7 +265,8 @@ void* thread_init_stage_kernel(void* input_ptr) {
         ObjectWrapper_t* wrapper_ptr_decoder_ctx = NULL;
 
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(stderr, "[%s] Before svt_jxs_get_empty_object(dec_api_prv->internal_pool_frame_context_fifo_ptr\n", __FUNCTION__);
+            fprintf(
+                stderr, "[%s] Before svt_jxs_get_empty_object(dec_api_prv->internal_pool_frame_context_fifo_ptr\n", __FUNCTION__);
         }
         SvtJxsErrorType_t err = svt_jxs_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr,
                                                          &wrapper_ptr_decoder_ctx);

@@ -812,7 +812,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
             }
             align_bitstream_reader_to_next_byte(bitstream);
             precinct_bits_left -= precinct_bits_left & 7; /*Align left bits to byte.*/
-        /*************Sign sub-packet END****************************/
+                                                          /*************Sign sub-packet END****************************/
             subpkt_len_bytes = bitstream_reader_get_used_bytes(bitstream) - len_before_subpkt_bytes;
             if (subpkt_len_bytes != ((uint32_t)pkt_header.sign_len)) {
                 int32_t leftover = (int32_t)pkt_header.sign_len - subpkt_len_bytes;

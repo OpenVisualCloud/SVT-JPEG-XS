@@ -815,7 +815,8 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
                         out_image_config->height = (height + (1 << ss) - 1) >> ss;
                         for (c = 0; c < comps_num; c++) {
                             out_image_config->components[c].width = (out_image_config->components[c].width + (1 << ss) - 1) >> ss;
-                            out_image_config->components[c].height = (out_image_config->components[c].height + (1 << ss) - 1) >> ss;
+                            out_image_config->components[c].height = (out_image_config->components[c].height + (1 << ss) - 1) >>
+                                ss;
                         }
                     }
 

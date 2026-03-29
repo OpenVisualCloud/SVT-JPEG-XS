@@ -45,7 +45,7 @@ void linear_input_scaling_line_16bit_c(const uint16_t* src, int32_t* dst, uint32
 }
 
 void linear_input_scaling_line_16bit_msb_c(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
-                                            uint8_t bit_depth) {
+                                           uint8_t bit_depth) {
     (void)bit_depth; /* MSB-aligned: no masking; shift = Bw-16, same for all depths */
     for (uint32_t j = 0; j < w; j++) {
         dst[j] = ((uint32_t)src[j] << shift) - offset;
@@ -79,7 +79,8 @@ void nlt_input_scaling_line(const void* src, int32_t* dst, uint32_t width, pictu
             assert(0);
             break;
         }
-    } else {
+    }
+    else {
         const uint8_t shift = hdr->hdr_Bw - input_bit_depth;
         const int32_t offset = 1 << (hdr->hdr_Bw - 1);
         switch (hdr->hdr_Tnlt) {

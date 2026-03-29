@@ -397,7 +397,8 @@ void nlt_inverse_transform_line_16bit(int32_t* in, uint32_t depth, const picture
     if (picture_header_dynamic->hdr_Tnlt == 0) {
         if (msb_aligned) {
             linear_output_scaling_16bit_line_msb(in, picture_header_dynamic->hdr_Bw, depth, out, w);
-        } else {
+        }
+        else {
             linear_output_scaling_16bit_line(in, picture_header_dynamic->hdr_Bw, depth, out, w);
         }
     }

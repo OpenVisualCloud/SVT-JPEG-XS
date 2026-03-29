@@ -36,13 +36,13 @@ void svt_jxs_remove_mem_entry(void* ptr, PointerType_t type);
 
 #else
 #define svt_jxs_print_memory_usage() \
-    do {                         \
+    do {                             \
     } while (0)
 #define svt_jxs_increase_component_count() \
-    do {                               \
+    do {                                   \
     } while (0)
 #define svt_jxs_decrease_component_count() \
-    do {                               \
+    do {                                   \
     } while (0)
 #define SVT_ADD_MEM_ENTRY(p, type, count) \
     do {                                  \

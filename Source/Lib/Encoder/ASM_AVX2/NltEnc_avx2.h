@@ -17,7 +17,7 @@ void linear_input_scaling_line_8bit_avx2(const uint8_t* src, int32_t* dst, uint3
 void linear_input_scaling_line_16bit_avx2(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
                                           uint8_t bit_depth);
 void linear_input_scaling_line_16bit_msb_avx2(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
-                                               uint8_t bit_depth);
+                                              uint8_t bit_depth);
 
 #ifdef __cplusplus
 }

@@ -86,7 +86,7 @@ void quant_uniform_avx512(uint16_t* buf, uint32_t size, uint8_t* gclis, uint8_t 
         d = _mm512_slli_epi32(d, gtli);
         d = _mm512_packs_epi32(d, d);
 
-        __m256i d_avx = _mm512_castsi512_si256(_mm512_permutexvar_epi64(permute,d));
+        __m256i d_avx = _mm512_castsi512_si256(_mm512_permutexvar_epi64(permute, d));
 
         sign = _mm256_and_si256(sign, _mm256_cmpgt_epi16(d_avx, zero));
         d_avx = _mm256_or_si256(d_avx, sign);
