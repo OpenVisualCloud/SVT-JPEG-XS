@@ -1,0 +1,38 @@
+default: true
+# Heading levels may skip in these upstream design docs (navigation structure)
+MD001: false
+# Headings around figures/images don't always have surrounding blank lines
+MD022: false
+# Parallel sections (Linux/Windows) naturally share heading names
+MD024: false
+# Dual-section readme (Linux + Windows) intentionally has two h1 headings
+MD025: false
+# Multiple consecutive blank lines appear in upstream design docs
+MD012: false
+# 80-char line limit is impractical for technical parameter tables
+MD013: false
+# Hard tabs appear in table cells in upstream design docs
+MD010: false
+# Lists inside figures/tables sections lack surrounding blank lines
+MD032: false
+# Inline HTML (e.g. <mark>) is used for highlighting in snippets docs
+MD033: false
+# LICENSE.md uses bold emphasis for the SPDX identifier (standard license format)
+MD036: false
+# Upstream docs use various list indent styles; don't enforce a specific size
+MD005: false
+MD007: false
+# Ordered list items may not use sequential numbering in some upstream docs
+MD029: false
+# Spaces inside code spans are minor style issues
+MD038: false
+# Upstream docs use ** for bold; don't require __
+MD050: false
+# Table pipe style (leading_only vs leading_and_trailing) varies across docs
+MD055: false
+# Tables in upstream docs may lack surrounding blank lines
+MD058: false
+# Docs intentionally start with navigation links, not a top-level heading
+MD041: false
+# Table column alignment is too strict for technical docs with long cell content
+MD060: false
