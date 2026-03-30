@@ -9,7 +9,7 @@
 - [Figure 2](#figure-2): 1 Slice, 4 Precincts and multiple Packets diagram
 - [Figure 3](#figure-3): Packets progression within precinct
 - [Figure 4](#figure-4): High-level encoder process dataflow
-- [Figure 5](#figure-5): Encoding pipeline per slice 
+- [Figure 5](#figure-5): Encoding pipeline per slice
 
 
 ## List of Tables
@@ -68,13 +68,13 @@ Figure 3 shows how single precinct is divided into multiple packets, (Sd=1 Numbe
 ## High-level encoder architecture
 
 The encoder is designed around *processes*. A process is an execution
-thread in software or an IP core in hardware. 
+thread in software or an IP core in hardware.
 
 The architecture is simplistic and flexible enough to support an implementation in which
 one slice at a time is encoded through the entire pipeline.
 
 In the SVT-JPEGXS encoder, a picture is divided into slices.
-Parallelism in the encoder is achieved at the slice level. 
+Parallelism in the encoder is achieved at the slice level.
 Multiple slices from the same picture could be processed simultaneously, where each process could, for example, be performing a different task in the encoding pipeline.
 
 
@@ -83,11 +83,11 @@ A high-level diagram of the encoder pipeline is shown in Figure 4.
 
 ![image4](./OverallEncoderDesign.png)
 <a name = "figure-4"></a>
-#### Figure 4. High-level encoder process dataflow 
+#### Figure 4. High-level encoder process dataflow
 
 ### Initialization Stage
 
- 
+
  The initialization stage process is the first stage that takes pictures from input and split it into multiple slices.
  It is a single threaded and picture-based process that handles one
 picture at a time in display order.
@@ -106,7 +106,7 @@ data processing is shown in Figure 5.
 
 ![image5](./Slice_Thread.png)
 <a name = "figure-5"></a>
-#### Figure 5. Encoding pipeline per slice 
+#### Figure 5. Encoding pipeline per slice
 
 ## Encoder Algorithms
 
@@ -137,7 +137,7 @@ group coding stage has three steps:
 
 Precinct rate control consists of finding the best coding method with the lowest quality loss in quantization.
 
-Truncation position (GTLI) is used for budget calculation. 
+Truncation position (GTLI) is used for budget calculation.
 Initially a search for best quantization is done through setting refinement to 0 and calculating different truncation positions and corresponding budgets.
 Then best refinement is searched based on the best quantization value selected.
 

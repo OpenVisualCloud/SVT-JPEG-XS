@@ -15,15 +15,15 @@ This library is implementation of ISO/IEC 21122 protocol.
 ## Environment and Requirements
 
 Encoder/Decoder sample app and libraries requirements:
- - Any CPU that support x86-64 instruction set
+- Any CPU that support x86-64 instruction set
 
 Unit Tests requirements (SvtJpegxsUnitTests):
- -  Any CPU that support x86-64 and AVX2 instruction set
+- Any CPU that support x86-64 and AVX2 instruction set
 
 Supported OS versions:
 
- - Linux Ubuntu 20.04 and 22.04
- - Windows 10 and Windows 11
+- Linux Ubuntu 20.04 and 22.04
+- Windows 10 and Windows 11
 
 ## Build and Install
 
@@ -33,7 +33,7 @@ Supported OS versions:
   - Visual Studio* 2022 or 2019 (older version were not tested)
   - CMake 3.16 or later
   - YASM Assembler version 1.2.0 or later
-    - Download the yasm executable from the following [link](https://yasm.tortall.net/Download.html)
+    - Download the yasm executable from the [yasm download page](https://yasm.tortall.net/Download.html)
     - Rename `yasm-*-win64.exe` to `yasm.exe`
     - Copy `yasm.exe` into a location that is in the `PATH` environment variable (for example: `%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\`)
 

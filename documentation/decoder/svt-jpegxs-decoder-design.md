@@ -9,7 +9,7 @@
 - [Figure 1](#figure-1): 5-level horizontal and 2-level vertical Picture decomposition into bands for Luma component
 - [Figure 2](#figure-2): 1 Slice, 4 Precincts and multiple Packets diagram
 - [Figure 3](#figure-3): High-level decoder process dataflow
-- [Figure 4](#figure-4): Modules of the SVT-JPEGXS decoder and slices synchronization 
+- [Figure 4](#figure-4): Modules of the SVT-JPEGXS decoder and slices synchronization
 
 
 ## Introduction
@@ -65,13 +65,13 @@ Furthermore each packet consists of multiple subpackets where each subpacket con
 
 The high-level decoder pipeline is shown in Figure 3. Further details on
 individual stages are given in subsequent sections. The multi-threading aspect
-of the decoder is also explained in detail in a separate section. 
+of the decoder is also explained in detail in a separate section.
 
 The architecture is simplistic and flexible enough to support an implementation in which
 one slice at a time is decoded through the entire pipeline with a small delay due to synchronization between slices. Precincts from slice (s+1) are used to inverse transform precincts (p+n+1) and (p+n+2) from slice (s) if vertical decomposition is > 0.
 
 In the SVT-JPEGXS decoder, a picture is divided into slices.
-Parallelism in the decoder is achieved at the slice level. 
+Parallelism in the decoder is achieved at the slice level.
 Multiple slices from the same picture could be processed simultaneously, where each process could, for example, be performing a different task in the decoding pipeline.
 
 
@@ -80,11 +80,11 @@ A high-level diagram of the decoder pipeline is shown in Figure 3.
 
 ![image3](./OverallDecoderDesign.png)
 <a name = "figure-3"></a>
-#### Figure 3. High-level decoder process dataflow 
+#### Figure 3. High-level decoder process dataflow
 
 ## Initialization Stage
 
- 
+
  The initialization stage is a single threaded process. It is where picture header parsing is done along with picture buffers allocation.
 
 
@@ -107,7 +107,7 @@ SVT-JPEGXS decoder per slice. The algorithms are done sequentially for each prec
 An illustration of slice-based modules of the SVT-JPEGXS decoder and slices synchronization is shown in Figure 4.
 ![image4](./decoder-slice-sync.png)
 <a name = "figure-4"></a>
-#### Figure 4. Modules of the SVT-JPEGXS decoder and slices synchronization 
+#### Figure 4. Modules of the SVT-JPEGXS decoder and slices synchronization
 
 
 ### Unpack Precinct

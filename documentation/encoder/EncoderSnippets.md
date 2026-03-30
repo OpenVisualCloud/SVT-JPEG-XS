@@ -6,7 +6,7 @@ source_width | Width of the image in sample grid positions | mandatory | N/A | <
 source_height | Height of the image in sample   grid positions | mandatory | N/A | <64; 65 535>
 input_bit_depth | Specifies the bit depth of input video. | mandatory | N/A | 8(8 bit), 10(10 bit)
 colour_format | Specifies the format of input video,   please refer to ColourFormat_t enum | mandatory | N/A | Tested: (COLOUR_FORMAT_PLANAR_YUV420, COLOUR_FORMAT_PLANAR_YUV422, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB),   experimental: (COLOUR_FORMAT_YUV400)
-bpp_numerator | Bitrate: bits per pixel numerator,   BPP=(bpp_numerator/bpp_denominator), Per frame bitrate is equal to (width * height * bpp_numerator / bpp_denominator) | mandatory | N/A | <1;N/A>
+bpp_numerator | Bitrate: bits per pixel numerator,   BPP=(bpp_numerator/bpp_denominator), Per frame bitrate is equal to (width \* height \* bpp_numerator / bpp_denominator) | mandatory | N/A | <1;N/A>
 bpp_denominator | Bitrate: bits per pixel denominator, required if non-integer   BPP is required | optional | 1 | <1; N/A>
 use_cpu_flags | Performance: limit assembly instruction set used by encoder,   please refer to CPU_FLAGS | optional | CPU_FLAGS_ALL | CPU_FLAGS_C, CPU_FLAGS_MMX, CPU_FLAGS_SSE ,CPU_FLAGS_SSE2 ,CPU_FLAGS_SSE3 ,CPU_FLAGS_SSSE3 ,CPU_FLAGS_SSE4_1 ,CPU_FLAGS_SSE4_2 ,CPU_FLAGS_AVX ,CPU_FLAGS_AVX2 ,CPU_FLAGS_ALL (avx512)
 threads_num | Performance: Number of thread encoder can create, 0 mean   minimum number of threads is created | optional | 0 | <0;N/A>
@@ -22,16 +22,16 @@ coding_significance | Coding feature: Signification coding | optional | 1 (enabl
 coding_vertical_prediction_mode | Coding feature: vertical prediction | optional | 0 (disable) | 0(disable), 1(zero prediction residuals), 2(zero   coefficients)
 rate_control_mode | Rate control type | optional | 0 | 0(CBR: budget per precinct), 1(CBR: budget per precinct with padding movement), 2(CBR: budget per slice), 3(CBR: budget per slice with nax size RATE)
 slice_packetization_mode | Specify how encoded stream is returned | optional| 0 | 1(multiple packets per frame), 0(single packet per frame)
-callback_send_data_available |   | optional | NULL | function pointer
-callback_send_data_available_context |   | optional | NULL |  
-callback_get_data_available |   | optional | NULL | function pointer
-callback_get_data_available_context |   | optional | NULL |  
+callback_send_data_available | ï¿½ | optional | NULL | function pointer
+callback_send_data_available_context | ï¿½ | optional | NULL | ï¿½
+callback_get_data_available | ï¿½ | optional | NULL | function pointer
+callback_get_data_available_context | ï¿½ | optional | NULL | ï¿½
 
 ### Encoder simplified usage
 
-Code listed below is also kept [here](../../Source/App/SampleEncoder/main.c)
+Code listed below is also kept in [SampleEncoder/main.c](../../Source/App/SampleEncoder/main.c)
 
-```
+```c
 #include <SvtJpegxsEnc.h>
 
 int32_t main(int32_t argc, char* argv[]) {

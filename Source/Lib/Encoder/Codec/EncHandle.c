@@ -355,8 +355,6 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         min_width_band >>= 1;
         min_height_band >>= 1;
         min_ndecomp_v = min_ndecomp_v - 1; //Zeroed ndecomp_v for YUV420 is checked earlier
-        if (min_ndecomp_v > 0) {
-        }
     }
     if (COLOUR_FORMAT_PLANAR_YUV422 == enc_common->colour_format) {
         min_width_band >>= 1;

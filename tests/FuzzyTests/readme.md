@@ -2,7 +2,7 @@
 
 This document describes the Fuzzy Tests used to validate the SVT-JPEG-XS encoder and decoder implementations.
 The tests are designed to ensure that the encoder and decoder does not crash for different configurations and input data.
-Please see https://llvm.org/docs/LibFuzzer.html for more information.
+Please see <https://llvm.org/docs/LibFuzzer.html> for more information.
 
 Prerequisites:
 - Linux Environment

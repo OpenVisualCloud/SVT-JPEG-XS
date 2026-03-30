@@ -6,16 +6,16 @@ use_cpu_flags | Performance: limit assembly instruction set used by decoder,   p
 threads_num | Performance: Number of thread decoder can create, 0 mean   minimum number of threads is created | optional | 0 | <0;N/A>
 verbose | Limit number of logs in console, please refer to VerboseMessages enum | optional | VERBOSE_SYSTEM_INFO | VERBOSE_NONE, VERBOSE_ERRORS, VERBOSE_SYSTEM_INFO, VERBOSE_SYSTEM_INFO_ALL, VERBOSE_WARNINGS, VERBOSE_INFO_MULTITHREADING,VERBOSE_INFO_FULL
 packetization_mode | Specify how bitstream is passed to decoder | optional| 0 | 1(multiple packets per frame), 0(single packet per frame)
-callback_send_data_available |   | optional | NULL | function pointer
-callback_send_data_available_context |   | optional | NULL |  
-callback_get_data_available |   | optional | NULL | function pointer
-callback_get_data_available_context |   | optional | NULL |  
+callback_send_data_available | ï¿½ | optional | NULL | function pointer
+callback_send_data_available_context | ï¿½ | optional | NULL | ï¿½
+callback_get_data_available | ï¿½ | optional | NULL | function pointer
+callback_get_data_available_context | ï¿½ | optional | NULL | ï¿½
 
 ### Decoder simplified usage
 
-Code listed below is also kept [here](../../Source/App/SampleDecoder/main.c)
+Code listed below is also kept in [SampleDecoder/main.c](../../Source/App/SampleDecoder/main.c)
 
-```
+```c
 #include <SvtJpegxsDec.h>
 #include <stdio.h>
 #include <stdlib.h>
