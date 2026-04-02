@@ -24,26 +24,29 @@ export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
 git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
 cd ffmpeg
 ```
-### b) Checkout to branch/tag 7.1:
+### b) Checkout to branch/tag (6.1, 7.0, 7.1, 8.0, 8.1):
 ```
- git checkout release/7.1
+git checkout release/(6.1, 7.0, 7.1, 8.0, 8.1)
 ```
-### c) apply jpeg-xs plugin patches:
+### c) copy files - ONLY for ffmpeg 6.0, 7.0, 7.1, 8.0
   ```
-  cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/7.1/*.patch
+cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
   ```
-### d) Configure:
+### d) apply jpeg-xs plugin patches:
+  ```
+git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/(6.1, 7.0, 7.1, 8.0, 8.1)/*.patch
+  ```
+### e) Configure:
 ```
 ./configure --enable-libsvtjpegxs --prefix=$INSTALL_DIR --enable-shared
 ```
-### e) build and install:
+### f) build and install:
 ```
 make -j40
 make install
 ```
 
-Note, for ffmpeg 7.0 or 6.1 version, replace 7.1 with corresponding version for above commands.
+Note, for ffmpeg 8.0, 7.1, 7.0 or 6.1 version, replace 8.1 with corresponding version for above commands.
 
 ## 4. Test executable:
 Binary (executable) is located in main ffmpeg directory or ```$INSTALL_DIR/bin/```
@@ -89,20 +92,24 @@ cmake --build svtjpegxs-build -j10 --config Release --target install
 git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
 cd ffmpeg
 ```
-### b) checkout to branch/tag 7.1:
+### b) checkout to branch/tag (6.1, 7.0, 7.1, 8.0, 8.1):
  ```
- git checkout release/7.1
+ git checkout release/(6.1, 7.0, 7.1, 8.0, 8.1)
 ```
-### c) apply plugin patches:
+### c) copy files - ONLY for ffmpeg 6.0, 7.0, 7.1, 8.0
   ```
-  cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
-  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/7.1/*.patch
+cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
+  ```
+
+### d) apply plugin patches:
+  ```
+  git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/(6.1, 7.0, 7.1, 8.0, 8.1)/*.patch
 ```
-### d) Export path for svt-jpeg-xs installation directory:
+### e) Export path for svt-jpeg-xs installation directory:
 ```
 export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
 ```
-### e) Configure Release Build:
+### f) Configure Release Build:
 ```
 ./configure --enable-libsvtjpegxs --prefix=$INSTALL_DIR --enable-static --disable-shared
 ```
@@ -120,12 +127,12 @@ install-dir
         pkgconfig
             SvtJpegxs.pc
 ```
-### f) build:
+### g) build:
 ```
 make -j10
 ```
 
-Note, for ffmpeg 7.0 or 6.1 version, replace 7.1 with corresponding version for above commands.
+Note, for ffmpeg 8.0, 7.1, 7.0 or 6.1 version, replace 8.1 with corresponding version for above commands.
 
 # How to use ffmpeg with jpeg-xs
 
