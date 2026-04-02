@@ -17,7 +17,7 @@
 typedef struct SvtJpegXsEncodeContext {
     AVClass* class;
 
-    char *bpp_str;
+    char* bpp_str;
 
     int slice_height;
     int decomp_v;
@@ -47,13 +47,13 @@ static int svt_jpegxs_enc_encode(AVCodecContext* avctx, AVPacket* pkt, const AVF
         return ret;
     }
 
-    out_buf.buffer = pkt->data;// output bitstream ptr
-    out_buf.allocation_size = pkt->size;// output bitstream size
+    out_buf.buffer = pkt->data;          // output bitstream ptr
+    out_buf.allocation_size = pkt->size; // output bitstream size
     out_buf.used_size = 0;
 
     for (int comp = 0; comp < 3; comp++) {
         // svt-jpegxs require stride in pixel's not in bytes, this means that for 10 bit-depth, stride is half the linesize
-        in_buf.stride[comp] = frame->linesize[comp]/ pixel_size;
+        in_buf.stride[comp] = frame->linesize[comp] / pixel_size;
         in_buf.data_yuv[comp] = frame->data[comp];
         in_buf.alloc_size[comp] = in_buf.stride[comp] * svt_enc->encoder.source_height * pixel_size;
     }
@@ -93,8 +93,7 @@ static av_cold int svt_jpegxs_enc_free(AVCodecContext* avctx) {
     return 0;
 }
 
-static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_encoder_api_t *encoder)
-{
+static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_encoder_api_t* encoder) {
     switch (avctx->pix_fmt) {
     case AV_PIX_FMT_YUV420P:
         encoder->input_bit_depth = 8;
@@ -185,7 +184,8 @@ static void set_bpp(const char* value, svt_jpeg_xs_encoder_api_t* encoder) {
 
 static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
     SvtJpegXsEncodeContext* svt_enc = avctx->priv_data;
-    SvtJxsErrorType_t err = svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &(svt_enc->encoder));
+    SvtJxsErrorType_t err = svt_jpeg_xs_encoder_load_default_parameters(
+        SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &(svt_enc->encoder));
 
     if (err != SvtJxsErrorNone) {
         av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_load_default_parameters failed\n");
@@ -216,7 +216,7 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
         return AVERROR_OPTION_NOT_FOUND;
     }
 
-    set_bpp(svt_enc->bpp_str ,&(svt_enc->encoder));
+    set_bpp(svt_enc->bpp_str, &(svt_enc->encoder));
 
     if (svt_enc->decomp_v != -1) {
         svt_enc->encoder.ndecomp_v = svt_enc->decomp_v;
@@ -247,23 +247,31 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
     }
     av_log(NULL, AV_LOG_DEBUG, "svt_jpeg_xs_encoder_init ok\n");
 
-    svt_enc->bitstream_frame_size = ((avctx->width * avctx->height * svt_enc->encoder.bpp_numerator / svt_enc->encoder.bpp_denominator + 7) / 8);
+    svt_enc->bitstream_frame_size =
+        ((avctx->width * avctx->height * svt_enc->encoder.bpp_numerator / svt_enc->encoder.bpp_denominator + 7) / 8);
 
     return 0;
 }
 
 #define OFFSET(x) offsetof(SvtJpegXsEncodeContext, x)
-#define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
+#define VE        AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption svtjpegxs_enc_options[] = {
-    { "bpp",          "Bits per pixel",                                   OFFSET(bpp_str),      AV_OPT_TYPE_STRING,{.str = NULL }, 0, 0, VE },
-    { "slice_height", "Specify number of lines calculated in one thread", OFFSET(slice_height), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 10000, VE },
-
-    { "decomp_v",     "vertical decomposition level",                              OFFSET(decomp_v),              AV_OPT_TYPE_INT, {.i64 = -1 }, -1, 2, VE },
-    { "decomp_h",     "horizontal decomposition level",                            OFFSET(decomp_h),              AV_OPT_TYPE_INT, {.i64 = -1 }, -1, 5, VE },
-    { "quantization", "Quantization algorithm: deadzone:0, uniform:1",             OFFSET(quant),                 AV_OPT_TYPE_INT, {.i64 = -1 }, -1, 1, VE },
-    { "coding-signs", "Enable Signs handling strategy: disable:0, fast:1, full:2", OFFSET(coding_signs_handling), AV_OPT_TYPE_INT, {.i64 = -1 }, -1, 2, VE },
-    { "coding-sigf",  "Enable Significance coding",                                OFFSET(coding_significance),   AV_OPT_TYPE_INT, {.i64 = -1 }, -1, 1, VE },
-    { "coding-vpred", "Enable Vertical Prediction coding: disable:0, zero prediction residuals:1, zero coefficients:2", OFFSET(coding_vpred), AV_OPT_TYPE_INT, {.i64 = -1 }, -1, 2, VE },
+    { "bpp",          "Bits per pixel",                                   OFFSET(bpp_str),                AV_OPT_TYPE_STRING,{.str = NULL }, 0, 0, VE },
+    { "slice_height", "Specify number of lines calculated in one thread", OFFSET(slice_height),           AV_OPT_TYPE_INT,   {.i64 = 0 },    0, 10000, VE },
+    { "decomp_v",     "vertical decomposition level",                     OFFSET(decomp_v),               AV_OPT_TYPE_INT,   {.i64 = -1 },   -1, 2, VE },
+    { "decomp_h",     "horizontal decomposition level",                   OFFSET(decomp_h),               AV_OPT_TYPE_INT,   {.i64 = -1 },   -1, 5, VE },
+    { "quantization", "Quantization algorithm",                           OFFSET(quant),                  AV_OPT_TYPE_INT,   {.i64 = -1 },   -1, 1, VE, .unit = "quantization" },
+      { "deadzone",     NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "quantization" },
+      { "uniform",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "quantization" },
+    { "coding-signs", "Enable Signs handling strategy",                   OFFSET(coding_signs_handling),  AV_OPT_TYPE_INT,   {.i64 = -1 },   -1, 2, VE, .unit = "coding-signs" },
+      { "disable",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "coding-signs" },
+      { "fast",         NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "coding-signs" },
+      { "full",         NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-signs" },
+    { "coding-sigf",  "Enable Significance coding",                        OFFSET(coding_significance),   AV_OPT_TYPE_BOOL,  {.i64 = -1 },   -1, 1, VE },
+    { "coding-vpred", "Enable Vertical Prediction coding",                 OFFSET(coding_vpred),          AV_OPT_TYPE_INT,   {.i64 = -1 },   -1, 2, VE, .unit = "coding-vpred" },
+      { "disable",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
+      { "no_residuals", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
+      { "no_coeffs",    NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
     {NULL},
 };
 
@@ -275,36 +283,35 @@ static const AVClass svtjpegxs_enc_class = {
 };
 
 const FFCodec ff_libsvtjpegxs_encoder = {
-    .p.name         = "libsvtjpegxs",
+    .p.name = "libsvtjpegxs",
     CODEC_LONG_NAME("SVT JPEG XS(Scalable Video Technology for JPEG XS) encoder"),
-    .p.type         = AVMEDIA_TYPE_VIDEO,
-    .p.id           = AV_CODEC_ID_JPEGXS,
+    .p.type = AVMEDIA_TYPE_VIDEO,
+    .p.id = AV_CODEC_ID_JPEGXS,
     .priv_data_size = sizeof(SvtJpegXsEncodeContext),
-    .init           = svt_jpegxs_enc_init,
-    .close          = svt_jpegxs_enc_free,
+    .init = svt_jpegxs_enc_init,
+    .close = svt_jpegxs_enc_free,
     FF_CODEC_ENCODE_CB(svt_jpegxs_enc_encode),
     .p.capabilities = AV_CODEC_CAP_OTHER_THREADS | AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |
-                      FF_CODEC_CAP_AUTO_THREADS,
-    .p.pix_fmts = (const enum AVPixelFormat[]){ AV_PIX_FMT_YUV420P,
-                                                AV_PIX_FMT_YUV422P,
-                                                AV_PIX_FMT_YUV444P,
-                                                AV_PIX_FMT_YUV420P10LE,
-                                                AV_PIX_FMT_YUV422P10LE,
-                                                AV_PIX_FMT_YUV444P10LE,
-                                                AV_PIX_FMT_YUV420P12LE,
-                                                AV_PIX_FMT_YUV422P12LE,
-                                                AV_PIX_FMT_YUV444P12LE,
-                                                AV_PIX_FMT_YUV420P14LE,
-                                                AV_PIX_FMT_YUV422P14LE,
-                                                AV_PIX_FMT_YUV444P14LE,
-                                                AV_PIX_FMT_GBRP,
-                                                AV_PIX_FMT_GBRP10LE,
-                                                AV_PIX_FMT_GBRP12LE,
-                                                AV_PIX_FMT_GBRP14LE,
-                                                AV_PIX_FMT_RGB24,
-                                                AV_PIX_FMT_BGR24,
-                                                AV_PIX_FMT_NONE },
+    .caps_internal = FF_CODEC_CAP_NOT_INIT_THREADSAFE | FF_CODEC_CAP_AUTO_THREADS,
+    .p.pix_fmts = (const enum AVPixelFormat[]){AV_PIX_FMT_YUV420P,
+                                               AV_PIX_FMT_YUV422P,
+                                               AV_PIX_FMT_YUV444P,
+                                               AV_PIX_FMT_YUV420P10LE,
+                                               AV_PIX_FMT_YUV422P10LE,
+                                               AV_PIX_FMT_YUV444P10LE,
+                                               AV_PIX_FMT_YUV420P12LE,
+                                               AV_PIX_FMT_YUV422P12LE,
+                                               AV_PIX_FMT_YUV444P12LE,
+                                               AV_PIX_FMT_YUV420P14LE,
+                                               AV_PIX_FMT_YUV422P14LE,
+                                               AV_PIX_FMT_YUV444P14LE,
+                                               AV_PIX_FMT_GBRP,
+                                               AV_PIX_FMT_GBRP10LE,
+                                               AV_PIX_FMT_GBRP12LE,
+                                               AV_PIX_FMT_GBRP14LE,
+                                               AV_PIX_FMT_RGB24,
+                                               AV_PIX_FMT_BGR24,
+                                               AV_PIX_FMT_NONE},
     .p.wrapper_name = "libsvtjpegxs",
     .p.priv_class = &svtjpegxs_enc_class,
 };
