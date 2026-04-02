@@ -1,0 +1,48 @@
+From 8a6cb8ef5a5792d81a2f7f5797f3a92bb400c9c9 Mon Sep 17 00:00:00 2001
+From: Tomasz Szumski <tomasz.szumski@intel.com>
+Date: Tue, 9 Jul 2024 10:04:16 +0200
+Subject: [PATCH 1/3] Enable JPEG XS codec type
+
+---
+ libavcodec/codec_desc.c | 9 +++++++++
+ libavcodec/codec_id.h   | 1 +
+ 2 files changed, 10 insertions(+)
+
+diff --git a/libavcodec/codec_desc.c b/libavcodec/codec_desc.c
+index a065556e51..ca5a3d4cb3 100644
+--- a/libavcodec/codec_desc.c
++++ b/libavcodec/codec_desc.c
+@@ -1996,9 +1996,18 @@ static const AVCodecDescriptor codec_descriptors[] = {
+         .id        = AV_CODEC_ID_PRORES_RAW,
+         .type      = AVMEDIA_TYPE_VIDEO,
+         .name      = "prores_raw",
+         .long_name = NULL_IF_CONFIG_SMALL("Apple ProRes RAW"),
+         .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
+         .profiles  = NULL_IF_CONFIG_SMALL(ff_prores_raw_profiles),
+     },
++    {
++        .id        = AV_CODEC_ID_JPEGXS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "jpegxs",
++        .long_name = NULL_IF_CONFIG_SMALL("JPEG XS"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY |
++                     AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/jxs"),
++    },
+
+     /* various PCM "codecs" */
+     {
+diff --git a/libavcodec/codec_id.h b/libavcodec/codec_id.h
+index c4842e61ff..5baa960e82 100644
+--- a/libavcodec/codec_id.h
++++ b/libavcodec/codec_id.h
+@@ -332,5 +332,6 @@ enum AVCodecID {
+     AV_CODEC_ID_APV,
+     AV_CODEC_ID_PRORES_RAW,
++    AV_CODEC_ID_JPEGXS,
+
+     /* various PCM "codecs" */
+     AV_CODEC_ID_FIRST_AUDIO = 0x10000,     ///< A dummy id pointing at the start of audio codecs
+--
+2.51.0
+

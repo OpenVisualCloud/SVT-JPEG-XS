@@ -1,0 +1,77 @@
+From 3764fca2006b8aebb4fe12d03c220214d42a88df Mon Sep 17 00:00:00 2001
+From: Tomasz Szumski <tomasz.szumski@intel.com>
+Date: Tue, 24 Oct 2023 12:42:00 +0200
+Subject: [PATCH 3/3] svt-jpegxs encoder and decoder support
+
+---
+ configure              | 5 +++++
+ libavcodec/Makefile    | 2 ++
+ libavcodec/allcodecs.c | 2 ++
+ 3 files changed, 9 insertions(+)
+
+diff --git a/configure b/configure
+index c931b867c5..76192f14a7 100755
+--- a/configure
++++ b/configure
+@@ -339,6 +339,7 @@ External library support:
+   --enable-whisper         enable whisper filter [no]
+   --disable-xlib           disable xlib [autodetect]
+   --disable-zlib           disable zlib [autodetect]
++  --enable-libsvtjpegxs    enable JPEGXS encoding/decoding via SVT [no]
+ 
+   The following libraries provide various hardware acceleration features:
+   --disable-amf            disable AMF video encoding code [autodetect]
+@@ -2004,6 +2005,7 @@ EXTERNAL_LIBRARY_LIST="
+     opengl
+     openssl
+     pocketsphinx
++    libsvtjpegxs
+     vapoursynth
+     vulkan_static
+     whisper
+@@ -3678,6 +3680,8 @@ vapoursynth_demuxer_deps="vapoursynth"
+ videotoolbox_suggest="coreservices"
+ videotoolbox_deps="corefoundation coremedia corevideo VTDecompressionSessionDecodeFrame"
+ videotoolbox_encoder_deps="videotoolbox VTCompressionSessionPrepareToEncodeFrames"
++libsvtjpegxs_encoder_deps="libsvtjpegxs"
++libsvtjpegxs_decoder_deps="libsvtjpegxs"
+ 
+ # demuxers / muxers
+ ac3_demuxer_select="ac3_parser"
+@@ -7170,6 +7174,7 @@ enabled libvmaf           && check_pkg_config libvmaf_cuda "libvmaf >= 2.0.0" li
+ enabled libvo_amrwbenc    && require libvo_amrwbenc vo-amrwbenc/enc_if.h E_IF_init -lvo-amrwbenc
+ enabled libvorbis         && require_pkg_config libvorbis vorbis vorbis/codec.h vorbis_info_init &&
+                              require_pkg_config libvorbisenc vorbisenc vorbis/vorbisenc.h vorbis_encode_init
++enabled libsvtjpegxs      && require_pkg_config libsvtjpegxs "SvtJpegxs >= 0.10.0" SvtJpegxsEnc.h svt_jpeg_xs_encoder_init
+ 
+ enabled whisper           && require_pkg_config whisper "whisper >= 1.7.5" whisper.h whisper_init_from_file_with_params
+ 
+diff --git a/libavcodec/Makefile b/libavcodec/Makefile
+index 5a4d4d341c..d3c34903f5 100644
+--- a/libavcodec/Makefile
++++ b/libavcodec/Makefile
+@@ -1207,6 +1207,8 @@ OBJS-$(CONFIG_LIBXEVD_DECODER)            += libxevd.o
+ OBJS-$(CONFIG_LIBXEVE_ENCODER)            += libxeve.o
+ OBJS-$(CONFIG_LIBXVID_ENCODER)            += libxvid.o
+ OBJS-$(CONFIG_LIBZVBI_TELETEXT_DECODER)   += libzvbi-teletextdec.o ass.o
++OBJS-$(CONFIG_LIBSVTJPEGXS_ENCODER)       += libsvtjpegxsenc.o
++OBJS-$(CONFIG_LIBSVTJPEGXS_DECODER)       += libsvtjpegxsdec.o
+ 
+ # parsers
+ OBJS-$(CONFIG_AAC_LATM_PARSER)         += latm_parser.o
+diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
+index f5ec2e01e8..2392c083f9 100644
+--- a/libavcodec/allcodecs.c
++++ b/libavcodec/allcodecs.c
+@@ -827,6 +827,8 @@ extern const FFCodec ff_libxavs_encoder;
+ extern const FFCodec ff_libxavs2_encoder;
+ extern const FFCodec ff_libxvid_encoder;
+ extern const FFCodec ff_libzvbi_teletext_decoder;
++extern const FFCodec ff_libsvtjpegxs_encoder;
++extern const FFCodec ff_libsvtjpegxs_decoder;
+ 
+ /* text */
+ extern const FFCodec ff_bintext_decoder;
+-- 
+2.51.0
+
