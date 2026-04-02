@@ -4,16 +4,24 @@
 
 set -e
 
-# Usage: ./build_ffmpeg_svtjpegxs.sh <ffmpeg-version: 6.1|7.0> <install_ffmpeg: y|n>
+# Usage: ./build_ffmpeg_svtjpegxs.sh <ffmpeg-version: 6.1|7.0|7.1|8.0|8.1> <install_ffmpeg: y|n>
 JPEGXS_REPO=$(pwd)
 FFMPEG_VERSION=${1:-6.1}
 INSTALL_FMPEG=${2:-"n"}
+COPY_FILES=${3:-"y"}
 
-if [[ "$FFMPEG_VERSION" != "6.1" && "$FFMPEG_VERSION" != "7.0" ]]; then
+if [[ "$FFMPEG_VERSION" != "6.1" && "$FFMPEG_VERSION" != "7.0" && "$FFMPEG_VERSION" != "7.1" && "$FFMPEG_VERSION" != "8.0" && "$FFMPEG_VERSION" != "8.1" ]]; then
     echo "Usage: $0  <ffmpeg-version> <install-ffmpeg>"
-    echo "ffmpeg-version: 6.1|7.0 (required)"
+    echo "ffmpeg-version: 6.1|7.0|7.1|8.0|8.1 (required)"
     echo "install-ffmpeg: y|n (default: n)"
     echo "Example: $0 6.1 y"
+    exit 1
+fi
+
+if [[ "$COPY_FILES" != "y" && "$COPY_FILES" != "n" ]]; then
+    echo "Usage: $0  <ffmpeg-version> <install-ffmpeg> <copy-files>"
+    echo "copy-files: y|n (default: y)"
+    echo "Example: $0 6.1 y y"
     exit 1
 fi
 echo "=== 0. Create installation directory and export env variable ==="
@@ -37,7 +45,9 @@ git checkout "release/$FFMPEG_VERSION"
 echo "=== 4. Apply jpeg-xs plugin patches ==="
 git config --global user.email "runner@github.com"
 git config --global user.name "action-runner"
-cp "$JPEGXS_REPO/ffmpeg-plugin/libsvtjpegxs"* libavcodec/
+if [[ "$COPY_FILES" == "y" ]]; then
+    cp "$JPEGXS_REPO/ffmpeg-plugin/libsvtjpegxs"* libavcodec/
+fi
 git am --whitespace=fix "$JPEGXS_REPO/ffmpeg-plugin/$FFMPEG_VERSION/"*.patch
 
 echo "=== 5. Configure FFmpeg ==="
