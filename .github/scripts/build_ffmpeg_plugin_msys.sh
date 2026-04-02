@@ -4,9 +4,17 @@ set -e
 
 JPEGXS_REPO="${PWD}"
 FFMPEG_VERSION="${1:-6.1}"
+COPY_FILES="${2:-y}"
 
-if [[ "$FFMPEG_VERSION" != "6.1" && "$FFMPEG_VERSION" != "7.0" ]]; then
-    echo "Usage: $0  <ffmpeg-version: 6.1|7.0> (default: 6.1)"
+if [[ "$FFMPEG_VERSION" != "6.1" && "$FFMPEG_VERSION" != "7.0" && "$FFMPEG_VERSION" != "7.1" && "$FFMPEG_VERSION" != "8.0" && "$FFMPEG_VERSION" != "8.1" ]]; then
+    echo "Usage: $0  <ffmpeg-version: 6.1|7.0|7.1|8.0|8.1> <copy-files: y|n>"
+    echo "Example: $0 8.1 y"
+    exit 1
+fi
+
+if [[ "$COPY_FILES" != "y" && "$COPY_FILES" != "n" ]]; then
+    echo "Usage: $0  <ffmpeg-version: 6.1|7.0|7.1|8.0|8.1> <copy-files: y|n>"
+    echo "Example: $0 8.1 y"
     exit 1
 fi
 pacman -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils mingw-w64-x86_64-winpthreads mingw-w64-x86_64-toolchain
@@ -32,7 +40,9 @@ cd "ffmpeg-$FFMPEG_VERSION"
 git checkout "release/$FFMPEG_VERSION"
 
 # 4. Apply jpeg-xs plugin patches
-cp "$JPEGXS_REPO/ffmpeg-plugin/libsvtjpegxs"* libavcodec/
+if [[ "$COPY_FILES" == "y" ]]; then
+    cp "$JPEGXS_REPO/ffmpeg-plugin/libsvtjpegxs"* libavcodec/
+fi
 git am --whitespace=fix "$JPEGXS_REPO/ffmpeg-plugin/$FFMPEG_VERSION/"*.patch
 
 # 5. Configure FFmpeg
