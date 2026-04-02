@@ -186,7 +186,7 @@ jobs:
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
-          name: "${{ env.LINUX_ARTIFACTS_8_0 }}"
+          name: "${{ env.LINUX_ARTIFACTS_8_1 }}"
           retention-days: 30
           path: |
             install-dir/bin/
@@ -336,7 +336,7 @@ jobs:
         with:
           msystem: mingw64
           update: true
-          install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
+          install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm nasm
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}
@@ -376,7 +376,7 @@ jobs:
         with:
           msystem: mingw64
           update: true
-          install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
+          install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm nasm
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}

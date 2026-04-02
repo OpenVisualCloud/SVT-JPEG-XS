@@ -211,7 +211,7 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
     }
 
     if (!svt_enc->bpp_str) {
-        //TODO: Consider using avctx->bit_rate to specify bpp_num/bpp_denom in this case
+        // TODO: Consider using avctx->bit_rate to specify bpp_num/bpp_denom in this case
         av_log(NULL, AV_LOG_ERROR, "libsvtjpegxs Encoder require -bpp(bits per pixel) param\n");
         return AVERROR_OPTION_NOT_FOUND;
     }
@@ -256,22 +256,45 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
 #define OFFSET(x) offsetof(SvtJpegXsEncodeContext, x)
 #define VE        AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption svtjpegxs_enc_options[] = {
-    { "bpp",          "Bits per pixel",                                   OFFSET(bpp_str),                AV_OPT_TYPE_STRING,{.str = NULL }, 0, 0, VE },
-    { "slice_height", "Specify number of lines calculated in one thread", OFFSET(slice_height),           AV_OPT_TYPE_INT,   {.i64 = 0 },    0, 10000, VE },
-    { "decomp_v",     "vertical decomposition level",                     OFFSET(decomp_v),               AV_OPT_TYPE_INT,   {.i64 = -1 },   -1, 2, VE },
-    { "decomp_h",     "horizontal decomposition level",                   OFFSET(decomp_h),               AV_OPT_TYPE_INT,   {.i64 = -1 },   -1, 5, VE },
-    { "quantization", "Quantization algorithm",                           OFFSET(quant),                  AV_OPT_TYPE_INT,   {.i64 = -1 },   -1, 1, VE, .unit = "quantization" },
-      { "deadzone",     NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "quantization" },
-      { "uniform",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "quantization" },
-    { "coding-signs", "Enable Signs handling strategy",                   OFFSET(coding_signs_handling),  AV_OPT_TYPE_INT,   {.i64 = -1 },   -1, 2, VE, .unit = "coding-signs" },
-      { "disable",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "coding-signs" },
-      { "fast",         NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "coding-signs" },
-      { "full",         NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-signs" },
-    { "coding-sigf",  "Enable Significance coding",                        OFFSET(coding_significance),   AV_OPT_TYPE_BOOL,  {.i64 = -1 },   -1, 1, VE },
-    { "coding-vpred", "Enable Vertical Prediction coding",                 OFFSET(coding_vpred),          AV_OPT_TYPE_INT,   {.i64 = -1 },   -1, 2, VE, .unit = "coding-vpred" },
-      { "disable",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
-      { "no_residuals", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
-      { "no_coeffs",    NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
+    {"bpp", "Bits per pixel", OFFSET(bpp_str), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
+    {"slice_height",
+     "Specify number of lines calculated in one thread",
+     OFFSET(slice_height),
+     AV_OPT_TYPE_INT,
+     {.i64 = 0},
+     0,
+     10000,
+     VE},
+    {"decomp_v", "vertical decomposition level", OFFSET(decomp_v), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 2, VE},
+    {"decomp_h", "horizontal decomposition level", OFFSET(decomp_h), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 5, VE},
+    {"quantization", "Quantization algorithm", OFFSET(quant), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 1, VE, .unit = "quantization"},
+    {"deadzone", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "quantization"},
+    {"uniform", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "quantization"},
+    {"coding-signs",
+     "Enable Signs handling strategy",
+     OFFSET(coding_signs_handling),
+     AV_OPT_TYPE_INT,
+     {.i64 = -1},
+     -1,
+     2,
+     VE,
+     .unit = "coding-signs"},
+    {"disable", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "coding-signs"},
+    {"fast", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "coding-signs"},
+    {"full", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-signs"},
+    {"coding-sigf", "Enable Significance coding", OFFSET(coding_significance), AV_OPT_TYPE_BOOL, {.i64 = -1}, -1, 1, VE},
+    {"coding-vpred",
+     "Enable Vertical Prediction coding",
+     OFFSET(coding_vpred),
+     AV_OPT_TYPE_INT,
+     {.i64 = -1},
+     -1,
+     2,
+     VE,
+     .unit = "coding-vpred"},
+    {"disable", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred"},
+    {"no_residuals", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred"},
+    {"no_coeffs", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred"},
     {NULL},
 };
 
