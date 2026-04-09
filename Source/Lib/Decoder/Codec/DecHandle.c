@@ -18,6 +18,8 @@
 #include "EncDec.h"
 #include "SvtJpegxsImageBufferTools.h"
 
+#include <stdio.h>
+
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_single_frame_size(const uint8_t* bitstream_buf, size_t bitstream_buf_size,
                                                                        svt_jpeg_xs_image_config_t* out_image_config,
                                                                        uint32_t* frame_size, uint32_t fast_search) {

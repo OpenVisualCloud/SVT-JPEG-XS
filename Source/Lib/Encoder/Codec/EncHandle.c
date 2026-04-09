@@ -16,6 +16,8 @@
 #include "Codestream.h"
 #include "EncDec.h"
 
+#include <stdio.h>
+
 /**********************************
  * Encoder Library Handle Deconstructor
  **********************************/
