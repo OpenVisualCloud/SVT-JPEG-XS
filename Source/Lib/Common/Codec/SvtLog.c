@@ -28,7 +28,7 @@ static void svt_log_set_log_file(const char *file) {
         g_log_file = fopen(file, "w+");
 }
 
-void svt_log_init() {
+void svt_jxs_log_init() {
     const char *log = getenv("SVT_LOG");
     SvtLogLevel level = SVT_LOG_INFO;
     if (log)
@@ -58,7 +58,7 @@ static const char *log_level_str(SvtLogLevel level) {
     }
 }
 
-void svt_log(SvtLogLevel level, const char *tag, const char *format, ...) {
+void svt_jxs_log(SvtLogLevel level, const char *tag, const char *format, ...) {
     if (level > g_log_level)
         return;
 
