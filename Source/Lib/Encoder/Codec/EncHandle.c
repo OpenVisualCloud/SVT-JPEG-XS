@@ -4,6 +4,9 @@
 */
 
 #include "EncHandle.h"
+
+#include <stdio.h>
+
 #include "DwtInput.h"
 #include "DwtStageProcess.h"
 #include "FinalStageProcess.h"
@@ -353,8 +356,8 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         min_width_band >>= 1;
         min_height_band >>= 1;
         min_ndecomp_v = min_ndecomp_v - 1; //Zeroed ndecomp_v for YUV420 is checked earlier
-        if (min_ndecomp_v > 0) {
-        }
+        // if (min_ndecomp_v > 0) {
+        // }
     }
     if (COLOUR_FORMAT_PLANAR_YUV422 == enc_common->colour_format) {
         min_width_band >>= 1;
@@ -617,7 +620,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_init(uint64_t version_api_major
         return SvtJxsErrorBadParameter;
     }
     enc_api->private_ptr = NULL;
-    svt_log_init();
+    svt_jxs_log_init();
     // Init Component OS objects (threads, semaphores, etc.)
     // also links the various Component control functions
     return_error = encoder_allocate_handle(enc_api);
@@ -819,8 +822,10 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_init(uint64_t version_api_major
             enc_common,
             input_item_destroyer);
 
-    enc_api_prv->input_image_producer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(enc_api_prv->input_image_resource_ptr, 0);
-    enc_api_prv->input_image_consumer_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(enc_api_prv->input_image_resource_ptr, 0);
+    enc_api_prv->input_image_producer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(enc_api_prv->input_image_resource_ptr,
+                                                                                           0);
+    enc_api_prv->input_image_consumer_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(enc_api_prv->input_image_resource_ptr,
+                                                                                           0);
 
     SVT_NEW(enc_api_prv->output_queue_resource_ptr,
             svt_jxs_system_resource_ctor,
@@ -832,11 +837,9 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_init(uint64_t version_api_major
             output_item_destroyer);
 
     enc_api_prv->output_queue_producer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(
-        enc_api_prv->output_queue_resource_ptr,
-                                                                                        0);
+        enc_api_prv->output_queue_resource_ptr, 0);
     enc_api_prv->output_queue_consumer_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(
-        enc_api_prv->output_queue_resource_ptr,
-                                                                                        0);
+        enc_api_prv->output_queue_resource_ptr, 0);
 
     if (enc_common->cpu_profile == CPU_PROFILE_CPU) {
         // Wavelet Vertical Transform Input

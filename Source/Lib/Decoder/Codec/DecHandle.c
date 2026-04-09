@@ -4,6 +4,9 @@
 */
 
 #include "DecHandle.h"
+
+#include <stdio.h>
+
 #include "Decoder.h"
 #include "Definitions.h"
 #include "common_dsp_rtcd.h"
@@ -348,7 +351,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
 
     if (dec_api_prv->verbose >= VERBOSE_ERRORS) {
         fprintf(stderr, "-------------------------------------------\n");
-        svt_log_init();
+        svt_jxs_log_init();
         svt_jxs_print_memory_usage();
     }
 
