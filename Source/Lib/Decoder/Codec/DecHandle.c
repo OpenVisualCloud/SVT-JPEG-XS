@@ -4,6 +4,9 @@
 */
 
 #include "DecHandle.h"
+
+#include <stdio.h>
+
 #include "Decoder.h"
 #include "Definitions.h"
 #include "common_dsp_rtcd.h"
@@ -17,8 +20,6 @@
 #include "SvtLog.h"
 #include "EncDec.h"
 #include "SvtJpegxsImageBufferTools.h"
-
-#include <stdio.h>
 
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_single_frame_size(const uint8_t* bitstream_buf, size_t bitstream_buf_size,
                                                                        svt_jpeg_xs_image_config_t* out_image_config,
