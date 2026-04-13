@@ -1,56 +1,42 @@
-From 29f918767fac1974d290a36a1c03dd9ed9fc111e Mon Sep 17 00:00:00 2001
+From 3b01d749b0258a273e27e6eccd5e32edc3454c27 Mon Sep 17 00:00:00 2001
 From: Grzegorz Rys <grzegorz.rys@intel.com>
 Date: Mon, 30 Oct 2023 06:49:02 +0100
-Subject: [PATCH 1/3] Allow JPEG XS to be stored in mp4, mkv and mpegts
- containers
+Subject: [PATCH] Allow JPEG XS to be stored in mp4, mkv and mpegts containers
 
+Write JXS_video_descriptor (EXTENSION_DESCRIPTOR 0x3f, ext tag 0x14)
+in the PMT for MPEG-TS muxing, as required by ISO/IEC 13818-1.
 ---
- libavformat/isom.c      | 1 +
- libavformat/isom_tags.c | 1 +
- libavformat/movenc.c    | 1 +
- libavformat/mpegtsenc.c | 3 +++
- 4 files changed, 6 insertions(+)
-
-diff --git a/libavformat/isom.c b/libavformat/isom.c
-index 1a2b3c4d5e..5f6e7f8e9d 100644
---- a/libavformat/isom.c
-+++ b/libavformat/isom.c
-@@ -54,6 +54,7 @@ const AVCodecTag ff_mp4_obj_type[] = {
-     { AV_CODEC_ID_MP3         , 0x6B }, /* 11172-3 */
-     { AV_CODEC_ID_MJPEG       , 0x6C }, /* 10918-1 */
-     { AV_CODEC_ID_PNG         , 0x6D },
-     { AV_CODEC_ID_JPEG2000    , 0x6E }, /* 15444-1 */
-+    { AV_CODEC_ID_JPEGXS      , 0x6F }, /* ISO/IEC 21122-3 */
-     { AV_CODEC_ID_VC1         , 0xA3 },
-     { AV_CODEC_ID_DIRAC       , 0xA4 },
+ libavformat/isom_tags.c |  1 +
+ libavformat/movenc.c    |  1 +
+ libavformat/mpegtsenc.c | 83 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 85 insertions(+)
 
 diff --git a/libavformat/isom_tags.c b/libavformat/isom_tags.c
-index 1cd655b06c..6f193196ca 100644
+index 1cd655b06c..43195efd3f 100644
 --- a/libavformat/isom_tags.c
 +++ b/libavformat/isom_tags.c
 @@ -213,6 +213,7 @@ const AVCodecTag ff_codec_movvideo_tags[] = {
      { AV_CODEC_ID_MPEG2VIDEO, MKTAG('m', 'p', '2', 'v') }, /* FCP5 */
 
      { AV_CODEC_ID_JPEG2000, MKTAG('m', 'j', 'p', '2') }, /* JPEG 2000 produced by FCP */
-+    { AV_CODEC_ID_JPEGXS,   MKTAG('j', 'x', 's', ' ') }, /* JPEGXS */
++    { AV_CODEC_ID_JPEGXS,   MKTAG('j', 'x', 's', 'm') }, /* JPEGXS */
 
      { AV_CODEC_ID_TARGA, MKTAG('t', 'g', 'a', ' ') }, /* Truevision Targa */
      { AV_CODEC_ID_TIFF,  MKTAG('t', 'i', 'f', 'f') }, /* TIFF embedded in MOV */
-
 diff --git a/libavformat/movenc.c b/libavformat/movenc.c
-index 8f9e7d5c6b..abcdef123456 100644
+index fe6b259561..e4be9644f4 100644
 --- a/libavformat/movenc.c
 +++ b/libavformat/movenc.c
-@@ -8897,6 +8897,7 @@ static const AVCodecTag codec_mp4_tags[] = {
+@@ -8898,6 +8898,7 @@ static const AVCodecTag codec_mp4_tags[] = {
+     { AV_CODEC_ID_MJPEG,           MKTAG('m', 'p', '4', 'v') },
      { AV_CODEC_ID_PNG,             MKTAG('m', 'p', '4', 'v') },
      { AV_CODEC_ID_JPEG2000,        MKTAG('m', 'p', '4', 'v') },
-+    { AV_CODEC_ID_JPEGXS,          MKTAG('j', 'x', 's', ' ') },
++    { AV_CODEC_ID_JPEGXS,          MKTAG('j', 'x', 's', 'm') },
      { AV_CODEC_ID_VC1,             MKTAG('v', 'c', '-', '1') },
      { AV_CODEC_ID_DIRAC,           MKTAG('d', 'r', 'a', 'c') },
      { AV_CODEC_ID_TSCC2,           MKTAG('m', 'p', '4', 'v') },
-     { AV_CODEC_ID_VP9,             MKTAG('v', 'p', '0', '9') },
-
 diff --git a/libavformat/mpegtsenc.c b/libavformat/mpegtsenc.c
+index 96cdea955e..935cc35673 100644
 --- a/libavformat/mpegtsenc.c
 +++ b/libavformat/mpegtsenc.c
 @@ -387,6 +387,9 @@ static int get_dvb_stream_type(AVFormatContext *s, AVStream *st)
@@ -63,3 +49,90 @@ diff --git a/libavformat/mpegtsenc.c b/libavformat/mpegtsenc.c
      case AV_CODEC_ID_VC1:
          stream_type = STREAM_TYPE_VIDEO_VC1;
          break;
+@@ -811,6 +814,86 @@ static int mpegts_write_pmt(AVFormatContext *s, MpegTSService *service)
+             } else if (stream_type == STREAM_TYPE_VIDEO_CAVS || stream_type == STREAM_TYPE_VIDEO_AVS2 ||
+                        stream_type == STREAM_TYPE_VIDEO_AVS3) {
+                 put_registration_descriptor(&q, MKTAG('A', 'V', 'S', 'V'));
++            } else if (stream_type == STREAM_TYPE_VIDEO_JPEGXS) {
++                /* Write JXS_video_descriptor per ISO/IEC 13818-1 Table 2-109.
++                 * Carried as EXTENSION_DESCRIPTOR (0x3f) with
++                 * ext tag JXS_VIDEO_DESCRIPTOR (0x14).
++                 * Total descriptor_length = 1 (ext tag) + 28 (payload) = 29 */
++                int vertical_size = st->codecpar->height;
++                int interlace_mode = 0;
++                uint32_t frat = 0, brat = 0;
++                uint16_t schar = 0;
++                uint8_t vfr_flags;
++
++                switch (st->codecpar->field_order) {
++                case AV_FIELD_TT:
++                case AV_FIELD_TB:
++                    interlace_mode = 1;
++                    vertical_size = st->codecpar->height / 2;
++                    break;
++                case AV_FIELD_BB:
++                case AV_FIELD_BT:
++                    interlace_mode = 2;
++                    vertical_size = st->codecpar->height / 2;
++                    break;
++                default:
++                    break;
++                }
++
++                if (st->codecpar->bit_rate > 0)
++                    brat = (uint32_t)((st->codecpar->bit_rate + (1 << 16) - 1) >> 16);
++
++                if (st->codecpar->framerate.num > 0 && st->codecpar->framerate.den > 0) {
++                    int frat_num, frat_den;
++                    if (st->codecpar->framerate.den == 1001) {
++                        frat_den = 2;
++                        frat_num = (st->codecpar->framerate.num + 500) / 1000;
++                    } else {
++                        frat_den = 1;
++                        frat_num = st->codecpar->framerate.num / st->codecpar->framerate.den;
++                    }
++                    frat = ((uint32_t)interlace_mode << 30) |
++                           ((uint32_t)(frat_den & 0x3f) << 24) |
++                           (frat_num & 0xFFFF);
++                }
++
++                switch (st->codecpar->format) {
++                case AV_PIX_FMT_YUV444P:
++                case AV_PIX_FMT_YUV444P10LE:
++                case AV_PIX_FMT_YUV444P12LE:
++                case AV_PIX_FMT_YUV444P14LE:
++                case AV_PIX_FMT_GBRP:
++                case AV_PIX_FMT_GBRP10LE:
++                case AV_PIX_FMT_GBRP12LE:
++                case AV_PIX_FMT_GBRP14LE:
++                    schar = 1; /* 4:4:4 */
++                    break;
++                default:
++                    schar = 0; /* 4:2:2 */
++                    break;
++                }
++
++                vfr_flags = 0x1f; /* reserved bits [4:0] set to 1 */
++                if (st->codecpar->color_range == AVCOL_RANGE_JPEG)
++                    vfr_flags |= 0x80; /* video_full_range_flag */
++
++                *q++ = EXTENSION_DESCRIPTOR;      /* descriptor_tag */
++                *q++ = 29;                        /* descriptor_length */
++                *q++ = JXS_VIDEO_DESCRIPTOR;      /* descriptor_tag_extension */
++                *q++ = 0;                         /* descriptor_version */
++                put16(&q, st->codecpar->width);   /* horizontal_size */
++                put16(&q, vertical_size);         /* vertical_size */
++                AV_WB32(q, brat); q += 4;        /* brat */
++                AV_WB32(q, frat); q += 4;        /* frat */
++                put16(&q, schar);                 /* schar */
++                put16(&q, 0);                     /* Ppih */
++                put16(&q, 0);                     /* Plev */
++                AV_WB32(q, 0); q += 4;           /* max_buffer_size */
++                *q++ = 0;                         /* buffer_model_type */
++                *q++ = st->codecpar->color_primaries;
++                *q++ = st->codecpar->color_trc;
++                *q++ = st->codecpar->color_space;
++                *q++ = vfr_flags;
+             }
+             break;
+         case AVMEDIA_TYPE_DATA:
