@@ -6,6 +6,7 @@
 #include "EncHandle.h"
 
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "DwtInput.h"
 #include "DwtStageProcess.h"
@@ -572,7 +573,12 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
     if (out_image_config->format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
         out_image_config->components_num = 1;
         //Single plane of size w*h*3
-        out_image_config->components[0].byte_size = enc_api->source_width * enc_api->source_height * 3 * pixel_size;
+        const uint64_t byte_size64 = (uint64_t)enc_api->source_width * enc_api->source_height * 3 * pixel_size;
+        if (byte_size64 > UINT32_MAX) {
+            fprintf(stderr, "Image component 0 byte_size overflow: %" PRIu64 " exceeds uint32 max\n", byte_size64);
+            return SvtJxsErrorBadParameter;
+        }
+        out_image_config->components[0].byte_size = (uint32_t)byte_size64;
         out_image_config->components[0].width = enc_api->source_width;
         out_image_config->components[0].height = enc_api->source_height;
     }
@@ -583,8 +589,13 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
             out_image_config->components[c].height = out_image_config->height >> (sy[c] - 1);
         }
         for (int32_t c = 0; c < out_image_config->components_num; c++) {
-            out_image_config->components[c].byte_size = out_image_config->components[c].width *
+            const uint64_t byte_size64 = (uint64_t)out_image_config->components[c].width *
                 out_image_config->components[c].height * pixel_size;
+            if (byte_size64 > UINT32_MAX) {
+                fprintf(stderr, "Image component %d byte_size overflow: %" PRIu64 " exceeds uint32 max\n", c, byte_size64);
+                return SvtJxsErrorBadParameter;
+            }
+            out_image_config->components[c].byte_size = (uint32_t)byte_size64;
         }
     }
 
@@ -645,6 +656,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_init(uint64_t version_api_major
         if (enc_api->verbose >= VERBOSE_ERRORS) {
             SVT_LOG("Unrecognized slice packetization mode\n");
         }
+        svt_jpeg_xs_encoder_close(enc_api);
         return SvtJxsErrorBadParameter;
     }
     enc_common->slice_packetization_mode = enc_api->slice_packetization_mode;
@@ -951,11 +963,19 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_send_picture(svt_jpeg_xs_encode
     if (enc_input->bitstream.allocation_size < enc_api_prv->enc_common.picture_header_dynamic.hdr_Lcod) {
         return SvtJxsErrorBadParameter;
     }
+    if (enc_input->bitstream.buffer == NULL) {
+        fprintf(stderr, "Invalid input: bitstream buffer is NULL\n");
+        return SvtJxsErrorBadParameter;
+    }
 
     pi_t* pi = &enc_api_prv->enc_common.pi;
     uint8_t input_bit_depth = enc_api_prv->enc_common.bit_depth;
     uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     for (uint8_t c = 0; c < pi->comps_num; ++c) {
+        if (enc_input->image.data_yuv[c] == NULL) {
+            fprintf(stderr, "Invalid input: data_yuv[%u] is NULL\n", c);
+            return SvtJxsErrorBadParameter;
+        }
         uint32_t min_size;
         // The last row might be shorter than the stride, e.g. in case the application is encoding
         // an interlaced image with fields interleaved row by row, but feeding each field individually

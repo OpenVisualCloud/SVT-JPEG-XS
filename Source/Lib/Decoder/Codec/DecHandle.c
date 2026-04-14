@@ -135,6 +135,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         if (dec_api->verbose >= VERBOSE_ERRORS) {
             fprintf(stderr, "Unrecognized packetization mode\n");
         }
+        svt_jpeg_xs_decoder_close(dec_api);
         return SvtJxsErrorBadParameter;
     }
 
@@ -142,6 +143,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         if (dec_api->verbose >= VERBOSE_ERRORS) {
             fprintf(stderr, "Unrecognized proxy mode\n");
         }
+        svt_jpeg_xs_decoder_close(dec_api);
         return SvtJxsErrorBadParameter;
     }
     dec_api_prv->proxy_mode = dec_api->proxy_mode;
@@ -378,6 +380,10 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
     uint8_t input_bit_depth = dec_api_prv->dec_common.picture_header_const.hdr_bit_depth[0];
     uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     for (uint8_t c = 0; c < pi->comps_num; ++c) {
+        if (dec_input->image.data_yuv[c] == NULL) {
+            fprintf(stderr, "Invalid input: data_yuv[%u] is NULL\n", c);
+            return SvtJxsErrorBadParameter;
+        }
         uint32_t min_size;
         // The last row might be shorter than the stride, e.g. in case the application is decoding
         // an interlaced image (represented by two codestreams, one for each field) into an output

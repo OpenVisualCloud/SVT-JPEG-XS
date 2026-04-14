@@ -3,6 +3,8 @@
 * SPDX - License - Identifier: BSD - 2 - Clause - Patent
 */
 
+#include <inttypes.h>
+#include <stdio.h>
 #include "SvtJpegxsImageBufferTools.h"
 #include "Threads/SystemResourceManager.h"
 
@@ -18,6 +20,18 @@ struct svt_jpeg_xs_frame_pool {
 };
 
 PREFIX_API svt_jpeg_xs_image_buffer_t* svt_jpeg_xs_image_buffer_alloc(svt_jpeg_xs_image_config_t* image_config) {
+    if (!image_config) {
+        fprintf(stderr, "Invalid image config: NULL pointer\n");
+        return NULL;
+    }
+    if (image_config->components_num > MAX_COMPONENTS_NUM) {
+        fprintf(stderr,
+                "Invalid image config: components_num (%u) exceeds maximum (%u)\n",
+                image_config->components_num,
+                MAX_COMPONENTS_NUM);
+        return NULL;
+    }
+
     svt_jpeg_xs_image_buffer_t* image_buffer;
     SVT_NO_THROW_CALLOC(image_buffer, 1, sizeof(svt_jpeg_xs_image_buffer_t));
     if (!image_buffer) {
@@ -30,8 +44,20 @@ PREFIX_API svt_jpeg_xs_image_buffer_t* svt_jpeg_xs_image_buffer_alloc(svt_jpeg_x
 
     uint32_t pixel_size = image_config->bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     if (image_config->format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
-        image_buffer->stride[0] = image_config->components[0].width * 3;
-        image_buffer->alloc_size[0] = image_buffer->stride[0] * image_config->components[0].height * pixel_size;
+        const uint64_t stride64 = (uint64_t)image_config->components[0].width * 3;
+        if (stride64 > UINT32_MAX) {
+            fprintf(stderr, "Image buffer alloc overflow: stride %" PRIu64 " exceeds uint32 max\n", stride64);
+            svt_jpeg_xs_image_buffer_free(image_buffer);
+            return NULL;
+        }
+        const uint64_t alloc64 = stride64 * image_config->components[0].height * pixel_size;
+        if (alloc64 > UINT32_MAX) {
+            fprintf(stderr, "Image buffer alloc overflow: alloc_size %" PRIu64 " exceeds uint32 max\n", alloc64);
+            svt_jpeg_xs_image_buffer_free(image_buffer);
+            return NULL;
+        }
+        image_buffer->stride[0] = (uint32_t)stride64;
+        image_buffer->alloc_size[0] = (uint32_t)alloc64;
         assert(image_buffer->alloc_size[0] == image_config->components[0].byte_size);
         SVT_NO_THROW_MALLOC(image_buffer->data_yuv[0], image_buffer->alloc_size[0]);
         if (!image_buffer->data_yuv[0]) {
@@ -41,8 +67,16 @@ PREFIX_API svt_jpeg_xs_image_buffer_t* svt_jpeg_xs_image_buffer_alloc(svt_jpeg_x
     }
     else {
         for (uint32_t c = 0; c < image_config->components_num; c++) {
+            const uint64_t alloc64 = (uint64_t)image_config->components[c].width * image_config->components[c].height *
+                pixel_size;
+            if (alloc64 > UINT32_MAX) {
+                fprintf(
+                    stderr, "Image buffer alloc overflow: component %u alloc_size %" PRIu64 " exceeds uint32 max\n", c, alloc64);
+                svt_jpeg_xs_image_buffer_free(image_buffer);
+                return NULL;
+            }
             image_buffer->stride[c] = image_config->components[c].width;
-            image_buffer->alloc_size[c] = image_buffer->stride[c] * image_config->components[c].height * pixel_size;
+            image_buffer->alloc_size[c] = (uint32_t)alloc64;
             assert(image_buffer->alloc_size[c] >= image_config->components[c].byte_size);
             SVT_NO_THROW_MALLOC(image_buffer->data_yuv[c], image_buffer->alloc_size[c]);
             if (!image_buffer->data_yuv[c]) {
@@ -149,6 +183,14 @@ PREFIX_API svt_jpeg_xs_frame_pool_t* svt_jpeg_xs_frame_pool_alloc(const svt_jpeg
 
         if (image_config == NULL) {
             frame_pool->use_image_buffer = 0;
+        }
+        else if (image_config->components_num > MAX_COMPONENTS_NUM) {
+            fprintf(stderr,
+                    "Invalid image config: components_num (%u) exceeds maximum (%u)\n",
+                    image_config->components_num,
+                    MAX_COMPONENTS_NUM);
+            svt_jpeg_xs_frame_pool_free(frame_pool);
+            return NULL;
         }
         else {
             frame_pool->use_image_buffer = 1;
