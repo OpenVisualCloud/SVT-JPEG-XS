@@ -3,14 +3,14 @@
 * SPDX - License - Identifier: BSD - 2 - Clause - Patent
 */
 
+#include <string.h>
+
 #include "gtest/gtest.h"
 #include "SvtJpegxs.h"
 #include "SvtJpegxsDec.h"
 #include "SvtJpegxsEnc.h"
 #include "SvtJpegxsImageBufferTools.h"
 #include "SampleFramesData.h"
-
-#include <string.h>
 
 /*
  * Tests for svt_jpeg_xs_image_buffer_alloc() validation
