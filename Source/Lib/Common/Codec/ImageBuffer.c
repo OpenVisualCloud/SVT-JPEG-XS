@@ -3,9 +3,10 @@
 * SPDX - License - Identifier: BSD - 2 - Clause - Patent
 */
 
+#include <inttypes.h>
+#include <stdio.h>
 #include "SvtJpegxsImageBufferTools.h"
 #include "Threads/SystemResourceManager.h"
-#include <inttypes.h>
 
 struct svt_jpeg_xs_frame_pool {
     uint8_t use_image_buffer;

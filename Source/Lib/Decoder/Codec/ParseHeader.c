@@ -4,12 +4,15 @@
 */
 
 #include "ParseHeader.h"
+
+#include <inttypes.h>
+#include <stdio.h>
+
 #include "BitstreamReader.h"
 #include "SvtJpegxsDec.h"
 #include "Pi.h"
 #include "Codestream.h"
 #include "SvtJpegxsDec.h"
-#include <inttypes.h>
 
 /* Maximum number of components allowed by the JPEG XS spec (ISO/IEC 21122) */
 #define JPEGXS_SPEC_MAX_COMPONENTS_NUM (8)
