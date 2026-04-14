@@ -9,6 +9,7 @@
 #include "Pi.h"
 #include "Codestream.h"
 #include "SvtJpegxsDec.h"
+#include <inttypes.h>
 
 /* Maximum number of components allowed by the JPEG XS spec (ISO/IEC 21122) */
 #define JPEGXS_SPEC_MAX_COMPONENTS_NUM (8)
@@ -830,9 +831,9 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
                             out_image_config->components[c].height * pixel_size;
                         if (byte_size64 > UINT32_MAX) {
                             fprintf(stderr,
-                                    "Image component %d byte_size overflow: %lu exceeds uint32 max\n",
+                                    "Image component %d byte_size overflow: %" PRIu64 " exceeds uint32 max\n",
                                     c,
-                                    (unsigned long)byte_size64);
+                                    byte_size64);
                             return SvtJxsErrorDecoderInvalidBitstream;
                         }
                         out_image_config->components[c].byte_size = (uint32_t)byte_size64;

@@ -6,6 +6,7 @@
 #include "EncHandle.h"
 
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "DwtInput.h"
 #include "DwtStageProcess.h"
@@ -574,7 +575,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
         //Single plane of size w*h*3
         const uint64_t byte_size64 = (uint64_t)enc_api->source_width * enc_api->source_height * 3 * pixel_size;
         if (byte_size64 > UINT32_MAX) {
-            fprintf(stderr, "Image component 0 byte_size overflow: %lu exceeds uint32 max\n", (unsigned long)byte_size64);
+            fprintf(stderr, "Image component 0 byte_size overflow: %" PRIu64 " exceeds uint32 max\n", byte_size64);
             return SvtJxsErrorBadParameter;
         }
         out_image_config->components[0].byte_size = (uint32_t)byte_size64;
@@ -591,7 +592,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
             const uint64_t byte_size64 = (uint64_t)out_image_config->components[c].width *
                 out_image_config->components[c].height * pixel_size;
             if (byte_size64 > UINT32_MAX) {
-                fprintf(stderr, "Image component %d byte_size overflow: %lu exceeds uint32 max\n", c, (unsigned long)byte_size64);
+                fprintf(stderr, "Image component %d byte_size overflow: %" PRIu64 " exceeds uint32 max\n", c, byte_size64);
                 return SvtJxsErrorBadParameter;
             }
             out_image_config->components[c].byte_size = (uint32_t)byte_size64;

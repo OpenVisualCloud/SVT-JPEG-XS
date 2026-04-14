@@ -5,6 +5,7 @@
 
 #include "SvtJpegxsImageBufferTools.h"
 #include "Threads/SystemResourceManager.h"
+#include <inttypes.h>
 
 struct svt_jpeg_xs_frame_pool {
     uint8_t use_image_buffer;
@@ -44,13 +45,13 @@ PREFIX_API svt_jpeg_xs_image_buffer_t* svt_jpeg_xs_image_buffer_alloc(svt_jpeg_x
     if (image_config->format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
         const uint64_t stride64 = (uint64_t)image_config->components[0].width * 3;
         if (stride64 > UINT32_MAX) {
-            fprintf(stderr, "Image buffer alloc overflow: stride (%lu) exceeds uint32 max\n", (unsigned long)stride64);
+            fprintf(stderr, "Image buffer alloc overflow: stride %" PRIu64 " exceeds uint32 max\n", stride64);
             svt_jpeg_xs_image_buffer_free(image_buffer);
             return NULL;
         }
         const uint64_t alloc64 = stride64 * image_config->components[0].height * pixel_size;
         if (alloc64 > UINT32_MAX) {
-            fprintf(stderr, "Image buffer alloc overflow: alloc_size (%lu) exceeds uint32 max\n", (unsigned long)alloc64);
+            fprintf(stderr, "Image buffer alloc overflow: alloc_size %" PRIu64 " exceeds uint32 max\n", alloc64);
             svt_jpeg_xs_image_buffer_free(image_buffer);
             return NULL;
         }
@@ -68,10 +69,8 @@ PREFIX_API svt_jpeg_xs_image_buffer_t* svt_jpeg_xs_image_buffer_alloc(svt_jpeg_x
             const uint64_t alloc64 = (uint64_t)image_config->components[c].width * image_config->components[c].height *
                 pixel_size;
             if (alloc64 > UINT32_MAX) {
-                fprintf(stderr,
-                        "Image buffer alloc overflow: component %u alloc_size (%lu) exceeds uint32 max\n",
-                        c,
-                        (unsigned long)alloc64);
+                fprintf(
+                    stderr, "Image buffer alloc overflow: component %u alloc_size %" PRIu64 " exceeds uint32 max\n", c, alloc64);
                 svt_jpeg_xs_image_buffer_free(image_buffer);
                 return NULL;
             }
