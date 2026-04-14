@@ -10,6 +10,9 @@
 #include "Codestream.h"
 #include "SvtJpegxsDec.h"
 
+/* Maximum number of components allowed by the JPEG XS spec (ISO/IEC 21122) */
+#define JPEGXS_SPEC_MAX_COMPONENTS_NUM (8)
+
 void get_packet_header(bitstream_reader_t* bitstream, int32_t use_long_header, packet_header_t* out_pkt) {
     const uint8_t* mem = (const uint8_t*)bitstream->mem + bitstream->offset;
     //Read 1 bit
@@ -159,10 +162,11 @@ SvtJxsErrorType_t get_picture_header(bitstream_reader_t* bitstream, picture_head
     }
 
     picture_header_const->hdr_comps_num = read_8_bits(bitstream);
-    if (picture_header_const->hdr_comps_num < 1 || picture_header_const->hdr_comps_num > 8) {
+    if (picture_header_const->hdr_comps_num < 1 || picture_header_const->hdr_comps_num > JPEGXS_SPEC_MAX_COMPONENTS_NUM) {
         if (verbose >= VERBOSE_ERRORS) {
             fprintf(stderr,
-                    "Picture header invalid number of components expected 1-8, read=%d!\n",
+                    "Picture header invalid number of components expected 1-%d, read=%d!\n",
+                    JPEGXS_SPEC_MAX_COMPONENTS_NUM,
                     picture_header_const->hdr_comps_num);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
@@ -727,7 +731,7 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
                 // return frame not full
                 return SvtJxsErrorDecoderBitstreamTooShort;
             }
-            if (comps_num < 1 || comps_num > 8) {
+            if (comps_num < 1 || comps_num > JPEGXS_SPEC_MAX_COMPONENTS_NUM) {
                 return SvtJxsErrorDecoderInvalidBitstream;
             }
             uint32_t offset = offset_bytes + 4;
@@ -815,14 +819,23 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
                         out_image_config->height = (height + (1 << ss) - 1) >> ss;
                         for (c = 0; c < comps_num; c++) {
                             out_image_config->components[c].width = (out_image_config->components[c].width + (1 << ss) - 1) >> ss;
-                            out_image_config->components[c].height = (out_image_config->components[c].height + (1 << ss) - 1) >> ss;
+                            out_image_config->components[c].height = (out_image_config->components[c].height + (1 << ss) - 1) >>
+                                ss;
                         }
                     }
 
                     for (c = 0; c < comps_num; c++) {
                         uint32_t pixel_size = out_image_config->bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
-                        out_image_config->components[c].byte_size = out_image_config->components[c].width *
+                        const uint64_t byte_size64 = (uint64_t)out_image_config->components[c].width *
                             out_image_config->components[c].height * pixel_size;
+                        if (byte_size64 > UINT32_MAX) {
+                            fprintf(stderr,
+                                    "Image component %d byte_size overflow: %lu exceeds uint32 max\n",
+                                    c,
+                                    (unsigned long)byte_size64);
+                            return SvtJxsErrorDecoderInvalidBitstream;
+                        }
+                        out_image_config->components[c].byte_size = (uint32_t)byte_size64;
                     }
                 }
                 //If fast_search is enabled but expected_codestream_size is 0, then VBR is used and we need to parse entire stream
