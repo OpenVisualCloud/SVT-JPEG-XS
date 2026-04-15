@@ -5,146 +5,144 @@ Subject: [PATCH 2/3] Update jpegxs_parse_frame with GBR formats
 
 Signed-off-by: Grzegorz Rys <grzegorz.rys@intel.com>
 ---
- libavcodec/jpegxs_parser.c | 111 +++++++++++++++++++++++++++----------
- 1 file changed, 81 insertions(+), 30 deletions(-)
+ libavcodec/jpegxs_parser.c | 102 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 60 insertions(+), 42 deletions(-)
 
-diff --git a/libavcodec/jpegxs_parser.c b/libavcodec/jpegxs_parser.c
-index a9750b0a02..1cc6708946 100644
 --- a/libavcodec/jpegxs_parser.c
 +++ b/libavcodec/jpegxs_parser.c
-@@ -106,6 +106,7 @@ static int jpegxs_parse_frame(AVCodecParserContext *s, AVCodecContext *avctx,
+@@ -106,6 +106,7 @@
      GetBitContext gb;
      int8_t bpc[3], log2_chroma_w[3], log2_chroma_h[3];
      int size, marker, components;
-+    int is_rgb = 0;  // 0 = YUV, 1 = RGB
++    int has_cdt = 0, has_cts = 0, is_rgb = 0;
  
      s->key_frame = 1;
      s->pict_type = AV_PICTURE_TYPE_I;
-@@ -170,37 +171,19 @@ static int jpegxs_parse_frame(AVCodecParserContext *s, AVCodecContext *avctx,
+@@ -170,42 +171,101 @@
                                 log2_chroma_w[2] != log2_chroma_w[1]))
                      return 0;
              }
--
--            switch (bpc[0]) {
--            case 8:
--                if (components == 1)                                     s->format = AV_PIX_FMT_GRAY8;
--                else if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P;
--                else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P;
--                else                                                     s->format = AV_PIX_FMT_YUV420P;
--                break;
--            case 10:
--                if (components == 1)                                     s->format = AV_PIX_FMT_GRAY10;
--                else if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P10;
--                else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P10;
--                else                                                     s->format = AV_PIX_FMT_YUV420P10;
--                break;
--            case 12:
--                if (components == 1)                                     s->format = AV_PIX_FMT_GRAY12;
--                else if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P12;
--                else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P12;
--                else                                                     s->format = AV_PIX_FMT_YUV420P12;
--                break;
--            case 14:
--                if (components == 1)                                     s->format = AV_PIX_FMT_GRAY14;
--                else if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P14;
--                else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P14;
--                else                                                     s->format = AV_PIX_FMT_YUV420P14;
--                break;
--            default:
--                s->format = AV_PIX_FMT_NONE;
--                break;
++            has_cdt = 1;
 +            bytestream2_skip(&gbc, FFMAX(size - 2, 0));
 +            break;
 +        case JPEGXS_MARKER_CTS:
 +            size = bytestream2_get_be16(&gbc);
 +            if (size >= 3) {
 +                int colour_spec = bytestream2_get_byte(&gbc);
-+                // colour_spec: 0=YCbCr, 1=RGB, 2=Gray, ...
-+                if (colour_spec == 1)
-+                    is_rgb = 1;
++
++                has_cts = 1;
++                is_rgb = colour_spec == 1;
++            }
++            bytestream2_skip(&gbc, FFMAX(size - 3, 0));
++            break;
++        default:
++            size = bytestream2_get_be16(&gbc);
++            bytestream2_skip(&gbc, FFMAX(size - 2, 0));
++            break;
++        }
++
++        if (!has_cdt)
++            continue;
+ 
+-            switch (bpc[0]) {
+-            case 8:
+-                if (components == 1)                                     s->format = AV_PIX_FMT_GRAY8;
+-                else if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P;
++        if (components == 3 &&
++            log2_chroma_w[1] == 1 &&
++            log2_chroma_h[1] == 1 &&
++            !has_cts)
++            continue;
++
++        switch (bpc[0]) {
++        case 8:
++            if (components == 1) {
++                s->format = AV_PIX_FMT_GRAY8;
++            } else if (is_rgb) {
++                if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) {
++                    s->format = AV_PIX_FMT_GBRP;
++                } else {
++                    s->format = AV_PIX_FMT_NONE;
++                }
++            } else {
++                if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P;
+                 else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P;
+                 else                                                     s->format = AV_PIX_FMT_YUV420P;
+-                break;
+-            case 10:
+-                if (components == 1)                                     s->format = AV_PIX_FMT_GRAY10;
+-                else if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P10;
++            }
++            break;
++        case 10:
++            if (components == 1) {
++                s->format = AV_PIX_FMT_GRAY10;
++            } else if (is_rgb) {
++                if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) {
++                    s->format = AV_PIX_FMT_GBRP10LE;
++                } else {
++                    s->format = AV_PIX_FMT_NONE;
++                }
++            } else {
++                if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P10;
+                 else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P10;
+                 else                                                     s->format = AV_PIX_FMT_YUV420P10;
+-                break;
+-            case 12:
+-                if (components == 1)                                     s->format = AV_PIX_FMT_GRAY12;
+-                else if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P12;
++            }
++            break;
++        case 12:
++            if (components == 1) {
++                s->format = AV_PIX_FMT_GRAY12;
++            } else if (is_rgb) {
++                if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) {
++                    s->format = AV_PIX_FMT_GBRP12LE;
++                } else {
++                    s->format = AV_PIX_FMT_NONE;
++                }
++            } else {
++                if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P12;
+                 else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P12;
+                 else                                                     s->format = AV_PIX_FMT_YUV420P12;
+-                break;
+-            case 14:
+-                if (components == 1)                                     s->format = AV_PIX_FMT_GRAY14;
+-                else if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P14;
++            }
++            break;
++        case 14:
++            if (components == 1) {
++                s->format = AV_PIX_FMT_GRAY14;
++            } else if (is_rgb) {
++                if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) {
++                    s->format = AV_PIX_FMT_GBRP14LE;
++                } else {
++                    s->format = AV_PIX_FMT_NONE;
++                }
++            } else {
++                if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P14;
+                 else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P14;
+                 else                                                     s->format = AV_PIX_FMT_YUV420P14;
+-                break;
+-            default:
+-                s->format = AV_PIX_FMT_NONE;
+-                break;
              }
 -            return 0;
-+            bytestream2_skip(&gbc, FFMAX(size - 3, 0));
-+            // Format decision after CTS
-+            goto format_decision;
++            break;
          default:
-             size = bytestream2_get_be16(&gbc);
-             bytestream2_skip(&gbc, FFMAX(size - 2, 0));
-@@ -208,6 +191,74 @@ static int jpegxs_parse_frame(AVCodecParserContext *s, AVCodecContext *avctx,
+-            size = bytestream2_get_be16(&gbc);
+-            bytestream2_skip(&gbc, FFMAX(size - 2, 0));
++            s->format = AV_PIX_FMT_NONE;
+             break;
          }
++
++        return 0;
      }
  
-+format_decision:
-+    // Determine pixel format based on bit depth and chroma subsampling
-+    switch (bpc[0]) {
-+    case 8:
-+        if (components == 1) {
-+            s->format = AV_PIX_FMT_GRAY8;
-+        } else if (is_rgb) {
-+            if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) {
-+                s->format = AV_PIX_FMT_GBRP;
-+            } else {
-+                s->format = AV_PIX_FMT_NONE;  // Invalid RGB with chroma subsampling
-+            }
-+        } else {
-+            if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P;
-+            else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P;
-+            else                                                     s->format = AV_PIX_FMT_YUV420P;
-+        }
-+        break;
-+    case 10:
-+        if (components == 1) {
-+            s->format = AV_PIX_FMT_GRAY10;
-+        } else if (is_rgb) {
-+            if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) {
-+                s->format = AV_PIX_FMT_GBRP10LE;
-+            } else {
-+                s->format = AV_PIX_FMT_NONE;
-+            }
-+        } else {
-+            if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P10;
-+            else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P10;
-+            else                                                     s->format = AV_PIX_FMT_YUV420P10;
-+        }
-+        break;
-+    case 12:
-+        if (components == 1) {
-+            s->format = AV_PIX_FMT_GRAY12;
-+        } else if (is_rgb) {
-+            if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) {
-+                s->format = AV_PIX_FMT_GBRP12LE;
-+            } else {
-+                s->format = AV_PIX_FMT_NONE;
-+            }
-+        } else {
-+            if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P12;
-+            else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P12;
-+            else                                                     s->format = AV_PIX_FMT_YUV420P12;
-+        }
-+        break;
-+    case 14:
-+        if (components == 1) {
-+            s->format = AV_PIX_FMT_GRAY14;
-+        } else if (is_rgb) {
-+            if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) {
-+                s->format = AV_PIX_FMT_GBRP14LE;
-+            } else {
-+                s->format = AV_PIX_FMT_NONE;
-+            }
-+        } else {
-+            if (log2_chroma_w[1] == 1 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV444P14;
-+            else if (log2_chroma_w[1] == 2 && log2_chroma_h[1] == 1) s->format = AV_PIX_FMT_YUV422P14;
-+            else                                                     s->format = AV_PIX_FMT_YUV420P14;
-+        }
-+        break;
-+    default:
-+        s->format = AV_PIX_FMT_NONE;
-+        break;
-+    }
-+
      return 0;
- }
- 
+
 -- 
 2.51.0
-
