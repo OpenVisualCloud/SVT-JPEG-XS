@@ -273,7 +273,7 @@ static void Test_Bitstream_ZeroAlloc_valgrind(uint64_t use_cpu_flags) {
     decoder_simple_init_rtcd(use_cpu_flags);
     svt_jpeg_xs_image_config_t image_config;
     memset(&image_config, 0, sizeof(svt_jpeg_xs_image_config_t));
-    uint8_t zero_alloc;
+    uint8_t zero_alloc = 0; // Fix: Initialize to silence clang -Wuninitialized-const-pointer
     //Decode full bitstream
     int32_t ret = test_bitstream_full(use_cpu_flags, &zero_alloc, 0, NULL, 0);
     ASSERT_EQ(ret, SvtJxsErrorDecoderInvalidPointer);
@@ -309,8 +309,12 @@ static void Test_Bitstream_1_Correct_valgrind(uint64_t use_cpu_flags) {
                                       Frame_Sample_1_16x16_8bit_422_bitstream_size);
     ASSERT_EQ(ret, SvtJxsErrorNone);
     uint32_t frame_size = 0;
-    SvtJxsErrorType_t ret2 = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
-        Frame_Sample_1_16x16_8bit_422_bitstream, Frame_Sample_1_16x16_8bit_422_bitstream_size, &image_config, &frame_size, 0, proxy_mode_full);
+    SvtJxsErrorType_t ret2 = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(Frame_Sample_1_16x16_8bit_422_bitstream,
+                                                                                  Frame_Sample_1_16x16_8bit_422_bitstream_size,
+                                                                                  &image_config,
+                                                                                  &frame_size,
+                                                                                  0,
+                                                                                  proxy_mode_full);
     ASSERT_EQ(ret2, SvtJxsErrorNone);
     ASSERT_EQ(frame_size, Frame_Sample_1_16x16_8bit_422_bitstream_size);
 }
@@ -567,7 +571,6 @@ TEST(Decoder, Bitstream_Corruprion_xor_bits_valgrind_AVX512) {
 static void Test_Bitstream_Corruprion_max_bits_valgrind(uint64_t use_cpu_flags) {
     decoder_simple_init_rtcd(use_cpu_flags);
 
-    int changes = 0;
     uint8_t* buffer_decodable = (uint8_t*)malloc(Frame_Sample_1_16x16_8bit_422_bitstream_size);
     memcpy(buffer_decodable, Frame_Sample_1_16x16_8bit_422_bitstream, Frame_Sample_1_16x16_8bit_422_bitstream_size);
 
@@ -576,7 +579,6 @@ static void Test_Bitstream_Corruprion_max_bits_valgrind(uint64_t use_cpu_flags) 
         for (uint32_t j = 0; j < 8; ++j) {
             printf("Start Byte: %u Start Bit: %u\n", i, j);
             xor_next_bits(buffer_decodable, i, Frame_Sample_1_16x16_8bit_422_bitstream_size, 7 - j, 1);
-            changes++;
 
             int32_t ret = test_bitstream_simple(Frame_Sample_1_16x16_8bit_422_bitstream,
                                                 Frame_Sample_1_16x16_8bit_422_bitstream_size,
@@ -585,7 +587,6 @@ static void Test_Bitstream_Corruprion_max_bits_valgrind(uint64_t use_cpu_flags) 
             /*Should not return invalid error code, -100, -200.. etc.*/
             ASSERT_TRUE(ret < INVALID_ERROR_CODE_START);
             if (ret < 0) {
-                changes--;
                 xor_next_bits(buffer_decodable, i, Frame_Sample_1_16x16_8bit_422_bitstream_size, 7 - j, 1);
             }
         }

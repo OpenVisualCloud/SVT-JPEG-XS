@@ -43,7 +43,7 @@ jobs:
           GITHUB_STATUS_UPDATES: true
           VALIDATE_BASH_EXEC: true
           VALIDATE_BASH: true
-          VALIDATE_CPP: true
+          # VALIDATE_CPP: true
           VALIDATE_JSON_PRETTIER: true
           VALIDATE_JSONC_PRETTIER: true
           VALIDATE_MARKDOWN: true

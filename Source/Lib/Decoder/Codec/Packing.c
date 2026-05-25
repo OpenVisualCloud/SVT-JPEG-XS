@@ -43,7 +43,7 @@ static INLINE int8_t vlc_reader_get_next_value(vlc_reader_t* vlc_reader) {
         if (vlc_reader->register_bits <= 32) {
             if (vlc_reader->bits_to_use >= vlc_reader->bits_used + 64) {
                 //Load 32
-                vlc_reader->register64 |= ((uint64_t)((uint32_t) ~(
+                vlc_reader->register64 |= ((uint64_t)((uint32_t)~(
                                               (((uint32_t)vlc_reader->mem[0]) << 24) | (((uint32_t)vlc_reader->mem[1]) << 16) |
                                               (((uint32_t)vlc_reader->mem[2]) << 8) | ((uint32_t)vlc_reader->mem[3]))))
                     << (32 - vlc_reader->register_bits);
@@ -566,10 +566,17 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
             const uint32_t c = pi->global_band_info[band_idx].comp_id;
             const uint32_t ypos = pi->packets[packet_idx].line_idx;
             if (ypos < prec->p_info->b_info[c][b].height) {
-                const int32_t packet_header_size_bits = long_hdr ? 7 * 8 : 5 * 8;
+                const int32_t packet_header_size_bytes = long_hdr ? 7 : 5;
+                const int32_t packet_header_size_bits = packet_header_size_bytes * 8;
                 precinct_bits_left -= packet_header_size_bits;
                 if (precinct_bits_left < 0) {
                     return SvtJxsErrorDecoderInvalidBitstream;
+                }
+                // Fix: Validate that the underlying buffer has enough bytes before
+                // calling get_packet_header(), which reads directly from memory
+                // without bounds checking.
+                if (!bitstream_reader_is_enough_bytes(bitstream, packet_header_size_bytes)) {
+                    return SvtJxsErrorDecoderBitstreamTooShort;
                 }
                 get_packet_header(bitstream, long_hdr, &pkt_header);
                 skip_packet = 0;
@@ -718,6 +725,9 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                     fprintf(stderr, "WARNING: (GCLI) skipped=%d\n", leftover);
                 }
                 bitstream_reader_add_padding(bitstream, leftover);
+                // Fix: Deduct padding from budget to prevent drift between
+                // precinct_bits_left and actual bitstream position.
+                precinct_bits_left -= leftover * 8;
             }
             else {
                 if (verbose >= VERBOSE_ERRORS) {
@@ -773,6 +783,9 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                     fprintf(stderr, "WARNING: (DATA) skipped=%d\n", leftover);
                 }
                 bitstream_reader_add_padding(bitstream, leftover);
+                // Fix: Deduct padding from budget to prevent drift between
+                // precinct_bits_left and actual bitstream position.
+                precinct_bits_left -= leftover * 8;
             }
             else {
                 if (verbose >= VERBOSE_ERRORS) {
@@ -812,7 +825,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
             }
             align_bitstream_reader_to_next_byte(bitstream);
             precinct_bits_left -= precinct_bits_left & 7; /*Align left bits to byte.*/
-        /*************Sign sub-packet END****************************/
+                                                          /*************Sign sub-packet END****************************/
             subpkt_len_bytes = bitstream_reader_get_used_bytes(bitstream) - len_before_subpkt_bytes;
             if (subpkt_len_bytes != ((uint32_t)pkt_header.sign_len)) {
                 int32_t leftover = (int32_t)pkt_header.sign_len - subpkt_len_bytes;
@@ -821,6 +834,9 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                         fprintf(stderr, "WARNING: (SIGN) skipped=%d\n", leftover);
                     }
                     bitstream_reader_add_padding(bitstream, leftover);
+                    // Fix: Deduct padding from budget to prevent drift between
+                    // precinct_bits_left and actual bitstream position.
+                    precinct_bits_left -= leftover * 8;
                 }
                 else {
                     if (verbose >= VERBOSE_ERRORS) {

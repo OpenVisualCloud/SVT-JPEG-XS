@@ -178,8 +178,10 @@ int dwt_horizontal_depricated_avx512(int32_t* out_lf, int32_t* out_hf, const int
     __m512i reg1_permutex2var_mask = _mm512_loadu_si512(reg1_permutex2var_mask_table);
     __m512i two = _mm512_set1_epi32(2);
 
-    uint32_t simd_batch = width / 32;
-    uint32_t remaining = width % 32;
+    // Fix: The SIMD loop reads 2 elements past each 32-element batch (for the DWT
+    // look-ahead filter). Reserve those 2 elements so the last batch doesn't overflow.
+    uint32_t simd_batch = width > 33 ? (width - 2) / 32 : 0;
+    uint32_t remaining = width - simd_batch * 32;
 
     /* simd for hf and lf */
     for (uint32_t row = 0; row < height; row++) {
@@ -207,7 +209,15 @@ int dwt_horizontal_depricated_avx512(int32_t* out_lf, int32_t* out_hf, const int
             _mm512_storeu_si512(dst_hf_row, hf);
 
             /* lf */
-            reg_col1 = _mm512_loadu_si512(dst_hf_row - 1);
+            if (b > 0) {
+                reg_col1 = _mm512_loadu_si512(dst_hf_row - 1);
+            }
+            else {
+                // Fix: For the first batch, dst_hf_row[-1] is before the allocated buffer.
+                // Use valignd to construct [0, hf[0], ..., hf[14]] without an OOB read.
+                // lf[0] is incorrect but gets overwritten by "correct the first for lf".
+                reg_col1 = _mm512_alignr_epi32(hf, _mm512_setzero_si512(), 15);
+            }
             reg_add = _mm512_add_epi32(_mm512_add_epi32(reg_col1, hf), two);
             __m512i reg_div4 = _mm512_srai_epi32(reg_add, 2);
             __m512i lf = _mm512_add_epi32(reg_col0, reg_div4);
@@ -219,12 +229,21 @@ int dwt_horizontal_depricated_avx512(int32_t* out_lf, int32_t* out_hf, const int
         }
 
         if (remaining) {
-            for (uint32_t i = 0; i < (remaining - 1); i += 2) {
+            // Fix: Use i + 2 < remaining instead of i < remaining - 1 to avoid reading
+            // src_row[remaining] (1 past the valid range). The last HF element for even
+            // width is handled by "correct the last" below.
+            for (uint32_t i = 0; i + 2 < remaining; i += 2) {
                 dst_hf_row[i / 2] = src_row[1 + i] - ((src_row[0 + i] + src_row[2 + i]) >> 1);
             }
 
-            if (remaining > 1) {
+            if (remaining > 1 && simd_batch > 0) {
                 dst_lf_row[0] = src_row[0] + ((dst_hf_row[-1] + dst_hf_row[0] + 2) >> 2);
+            }
+            else if (remaining > 1) {
+                // Fix: When simd_batch==0, dst_hf_row[-1] is before the allocated buffer.
+                // Use the boundary formula instead; this value gets overwritten by
+                // "correct the first for lf" anyway.
+                dst_lf_row[0] = src_row[0] + ((dst_hf_row[0] + 1) >> 1);
             }
 
             for (uint32_t i = 1; i < (remaining / 2); i++) {
@@ -241,7 +260,12 @@ int dwt_horizontal_depricated_avx512(int32_t* out_lf, int32_t* out_hf, const int
         }
         else {
             dst_hf_row[-1] = src_row[-1] - src_row[-2];
-            dst_lf_row[-1] = src_row[-2] + ((dst_hf_row[-2] + dst_hf_row[-1] + 2) >> 2);
+            // Fix: For width==2 there is only 1 HF element, so dst_hf_row[-2] is before
+            // the buffer. Skip the LF correction here; "correct the first for lf" below
+            // will write the correct value for LF[0].
+            if (width >= 4) {
+                dst_lf_row[-1] = src_row[-2] + ((dst_hf_row[-2] + dst_hf_row[-1] + 2) >> 2);
+            }
         }
 
         // correct the first for lf
