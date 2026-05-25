@@ -7,6 +7,9 @@
 #include <immintrin.h>
 #include "Definitions.h"
 
+/* Left-shift that avoids undefined behavior for negative values (C11 §6.5.7). */
+#define LSHIFT32(val, s) ((int32_t)((uint32_t)(int32_t)(val) << (s)))
+
 uint32_t loop_short_lf32_hf16(uint32_t len, const int32_t** lf_ptr, const int16_t** hf_ptr, int32_t** out_ptr, int32_t* prev_even,
                               uint8_t shift) {
     const uint32_t batch = (len - 2) / 8;
@@ -50,7 +53,8 @@ void idwt_horizontal_line_lf32_hf16_avx512(const int32_t* lf_ptr, const int16_t*
                                            uint8_t shift) {
     assert((len >= 2) && "[idwt_c()] ERROR: Length is too small!");
 
-    int32_t prev_even = lf_ptr[0] - ((((int32_t)hf_ptr[0] << shift) + 1) >> 1);
+    /* UBSan fix: use LSHIFT32 to avoid UB when left-shifting negative wavelet coefficients. */
+    int32_t prev_even = lf_ptr[0] - (((LSHIFT32(hf_ptr[0], shift)) + 1) >> 1);
 
     const __m512i permutevar_mask = _mm512_setr_epi32(
         0x10, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e);
@@ -104,19 +108,19 @@ void idwt_horizontal_line_lf32_hf16_avx512(const int32_t* lf_ptr, const int16_t*
     out_ptr[0] = prev_even;
 
     for (uint32_t i = 1; i < (leftover - 2); i += 2) {
-        out_ptr[2] = lf_ptr[1] - ((((int32_t)hf_ptr[0] << shift) + ((int32_t)hf_ptr[1] << shift) + 2) >> 2);
-        out_ptr[1] = ((int32_t)hf_ptr[0] << shift) + ((out_ptr[0] + out_ptr[2]) >> 1);
+        out_ptr[2] = lf_ptr[1] - (((LSHIFT32(hf_ptr[0], shift)) + LSHIFT32(hf_ptr[1], shift) + 2) >> 2);
+        out_ptr[1] = LSHIFT32(hf_ptr[0], shift) + ((out_ptr[0] + out_ptr[2]) >> 1);
         lf_ptr++;
         hf_ptr++;
         out_ptr += 2;
     }
 
     if (len & 1) {
-        out_ptr[2] = lf_ptr[1] - ((((int32_t)hf_ptr[0] << shift) + 1) >> 1);
-        out_ptr[1] = ((int32_t)hf_ptr[0] << shift) + ((out_ptr[0] + out_ptr[2]) >> 1);
+        out_ptr[2] = lf_ptr[1] - (((LSHIFT32(hf_ptr[0], shift)) + 1) >> 1);
+        out_ptr[1] = LSHIFT32(hf_ptr[0], shift) + ((out_ptr[0] + out_ptr[2]) >> 1);
     }
     else { //!(len & 1)
-        out_ptr[1] = ((int32_t)hf_ptr[0] << shift) + out_ptr[0];
+        out_ptr[1] = LSHIFT32(hf_ptr[0], shift) + out_ptr[0];
     }
 }
 
@@ -163,7 +167,8 @@ void idwt_horizontal_line_lf16_hf16_avx512(const int16_t* lf_ptr, const int16_t*
                                            uint8_t shift) {
     assert((len >= 2) && "[idwt_c()] ERROR: Length is too small!");
 
-    int32_t prev_even = ((int32_t)lf_ptr[0] << shift) - ((((int32_t)hf_ptr[0] << shift) + 1) >> 1);
+    /* UBSan fix: use LSHIFT32 to avoid UB when left-shifting negative wavelet coefficients. */
+    int32_t prev_even = LSHIFT32(lf_ptr[0], shift) - (((LSHIFT32(hf_ptr[0], shift)) + 1) >> 1);
 
     const __m512i permutevar_mask = _mm512_setr_epi32(
         0x10, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e);
@@ -217,19 +222,19 @@ void idwt_horizontal_line_lf16_hf16_avx512(const int16_t* lf_ptr, const int16_t*
     out_ptr[0] = prev_even;
 
     for (uint32_t i = 1; i < (leftover - 2); i += 2) {
-        out_ptr[2] = ((int32_t)lf_ptr[1] << shift) - ((((int32_t)hf_ptr[0] << shift) + ((int32_t)hf_ptr[1] << shift) + 2) >> 2);
-        out_ptr[1] = ((int32_t)hf_ptr[0] << shift) + ((out_ptr[0] + out_ptr[2]) >> 1);
+        out_ptr[2] = LSHIFT32(lf_ptr[1], shift) - (((LSHIFT32(hf_ptr[0], shift)) + LSHIFT32(hf_ptr[1], shift) + 2) >> 2);
+        out_ptr[1] = LSHIFT32(hf_ptr[0], shift) + ((out_ptr[0] + out_ptr[2]) >> 1);
         lf_ptr++;
         hf_ptr++;
         out_ptr += 2;
     }
 
     if (len & 1) {
-        out_ptr[2] = ((int32_t)lf_ptr[1] << shift) - ((((int32_t)hf_ptr[0] << shift) + 1) >> 1);
-        out_ptr[1] = ((int32_t)hf_ptr[0] << shift) + ((out_ptr[0] + out_ptr[2]) >> 1);
+        out_ptr[2] = LSHIFT32(lf_ptr[1], shift) - (((LSHIFT32(hf_ptr[0], shift)) + 1) >> 1);
+        out_ptr[1] = LSHIFT32(hf_ptr[0], shift) + ((out_ptr[0] + out_ptr[2]) >> 1);
     }
     else { //!(len & 1)
-        out_ptr[1] = ((int32_t)hf_ptr[0] << shift) + out_ptr[0];
+        out_ptr[1] = LSHIFT32(hf_ptr[0], shift) + out_ptr[0];
     }
 }
 
