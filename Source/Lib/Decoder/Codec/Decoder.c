@@ -10,6 +10,9 @@
 #include "Packing.h"
 #include "Precinct.h"
 #include "Mct.h"
+
+/* Left-shift that avoids undefined behavior for negative values (C11 §6.5.7). */
+#define LSHIFT32(val, s) ((int32_t)((uint32_t)(int32_t)(val) << (s)))
 #include "NltDec.h"
 
 SvtJxsErrorType_t svt_jpeg_xs_decoder_probe(const uint8_t* bitstream_buf, size_t codestream_size,
@@ -779,8 +782,9 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_final(svt_jpeg_xs_decoder_instance_t* ctx, 
                     component_precinct_height = pi->components[comp_id].height % pi->components[comp_id].precinct_height;
                 }
 
+                /* UBSan fix: use LSHIFT32 to avoid UB when left-shifting negative wavelet coefficients. */
                 for (uint32_t idx = 0; idx < component_precinct_height * width; idx++) {
-                    buff_out[idx] = (int32_t)(buff_in[0][idx]) << ctx->picture_header_dynamic.hdr_Fq;
+                    buff_out[idx] = LSHIFT32(buff_in[0][idx], ctx->picture_header_dynamic.hdr_Fq);
                 }
             }
         }

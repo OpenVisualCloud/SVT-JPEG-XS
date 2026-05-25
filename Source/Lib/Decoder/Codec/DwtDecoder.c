@@ -10,6 +10,9 @@
 #include "DwtDecoder.h"
 #include <assert.h>
 #include "SvtUtility.h"
+
+/* Left-shift that avoids undefined behavior for negative values (C11 §6.5.7). */
+#define LSHIFT32(val, s) ((int32_t)((uint32_t)(int32_t)(val) << (s)))
 #include "decoder_dsp_rtcd.h"
 #include "Idwt.h"
 
@@ -327,8 +330,9 @@ void new_transform_component_line(const pi_component_t* const component, int16_t
     if (decom_v == 0) {
         inv_transform_V0_ptr_t inv_transform_V0_Hn = inv_transform_V0_get_function_ptr(decom_h);
         if (decom_h == 0) {
+            /* UBSan fix: use LSHIFT32 to avoid UB when left-shifting negative wavelet coefficients. */
             for (uint32_t idx = 0; idx < component->width; idx++) {
-                lines->buffer_out[0][idx] = (int32_t)(buffer_in[0][idx]) << shift;
+                lines->buffer_out[0][idx] = LSHIFT32(buffer_in[0][idx], shift);
             }
         }
         else {

@@ -6,6 +6,11 @@
 #include "NltDec.h"
 #include "Pi.h"
 
+/*
+ * UBSan fix: use ((int64_t)1 << dzeta) throughout this file to avoid
+ * undefined behavior when dzeta (= 2*bw - depth) reaches 32.
+ */
+
 static INLINE int32_t nlt_clamp(int32_t val, int32_t clamp_val) {
     return (val > clamp_val ? clamp_val : val < 0 ? 0 : val);
 }
@@ -27,7 +32,7 @@ void linear_output_scaling_8bit_c(const pi_t* const pi, int32_t* comps[MAX_COMPO
             for (int32_t x = 0; x < w; x++) {
                 int32_t v = comps[i][y * w + x];
                 v += (1 << bw) >> 1;
-                v = (v + ((1 << dzeta) >> 1)) >> dzeta;
+                v = (v + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
                 out_buf[y * out_stride + x] = (uint8_t)nlt_clamp(v, m);
             }
         }
@@ -47,7 +52,7 @@ void linear_output_scaling_16bit_c(const pi_t* const pi, int32_t* comps[MAX_COMP
             for (int32_t x = 0; x < w; x++) {
                 int32_t v = comps[i][y * w + x];
                 v += (1 << bw) >> 1;
-                v = (v + ((1 << dzeta) >> 1)) >> dzeta;
+                v = (v + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
                 out_buf[y * out_stride + x] = (uint16_t)nlt_clamp(v, m);
             }
         }
@@ -72,7 +77,7 @@ void quadratic_output_scaling_8bit(const pi_t* const pi, int32_t* comps[MAX_COMP
                 v += (1 << bw) >> 1;
                 v = nlt_clamp(v, clamp_val);
                 int64_t v_64 = (int64_t)v * (int64_t)v;
-                v_64 = (v_64 + ((1 << dzeta) >> 1)) >> dzeta;
+                v_64 = (v_64 + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
                 v_64 += dco;
                 out_buf[y * out_stride + x] = (uint8_t)nlt_clamp64(v_64, m);
             }
@@ -96,7 +101,7 @@ void quadratic_output_scaling_16bit(const pi_t* const pi, int32_t* comps[MAX_COM
                 v += (1 << bw) >> 1;
                 v = nlt_clamp(v, clamp_val);
                 int64_t v_64 = (int64_t)v * (int64_t)v;
-                v_64 = (v_64 + ((1 << dzeta) >> 1)) >> dzeta;
+                v_64 = (v_64 + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
                 v_64 += dco;
                 out_buf[y * out_stride + x] = (uint16_t)nlt_clamp64(v_64, m);
             }
@@ -139,7 +144,7 @@ void extended_output_scaling_8bit(const pi_t* const pi, int32_t* comps[MAX_COMPO
                     v = nlt_clamp64(v, clamp_val);
                     v = a3 + (v * v);
                 }
-                v = (v + ((1 << dzeta) >> 1)) >> dzeta;
+                v = (v + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
                 out_buf[y * out_stride + x] = (uint8_t)nlt_clamp64(v, m);
             }
         }
@@ -181,7 +186,7 @@ void extended_output_scaling_16bit(const pi_t* const pi, int32_t* comps[MAX_COMP
                     v = nlt_clamp64(v, clamp_val);
                     v = a3 + (v * v);
                 }
-                v = (v + ((1 << dzeta) >> 1)) >> dzeta;
+                v = (v + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
                 out_buf[y * out_stride + x] = (uint16_t)nlt_clamp64(v, m);
             }
         }
@@ -241,7 +246,7 @@ void linear_output_scaling_8bit_line_c(int32_t* in, uint32_t bw, uint32_t depth,
     for (uint32_t x = 0; x < w; x++) {
         int32_t v = in[x];
         v += (1 << bw) >> 1;
-        v = (v + ((1 << dzeta) >> 1)) >> dzeta;
+        v = (v + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
         out[x] = (uint8_t)nlt_clamp(v, m);
     }
 }
@@ -253,7 +258,7 @@ void linear_output_scaling_16bit_line_c(int32_t* in, uint32_t bw, uint32_t depth
     for (uint32_t x = 0; x < w; x++) {
         int32_t v = in[x];
         v += (1 << bw) >> 1;
-        v = (v + ((1 << dzeta) >> 1)) >> dzeta;
+        v = (v + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
         out[x] = (uint16_t)nlt_clamp(v, m);
     }
 }
@@ -268,7 +273,7 @@ void quadratic_output_scaling_8bit_line(int32_t* in, uint32_t bw, int32_t dco, u
         v += (1 << bw) >> 1;
         v = nlt_clamp(v, clamp_val);
         int64_t v_64 = (int64_t)v * (int64_t)v;
-        v_64 = (v_64 + ((1 << dzeta) >> 1)) >> dzeta;
+        v_64 = (v_64 + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
         v_64 += dco;
         out[x] = (uint8_t)nlt_clamp64(v_64, m);
     }
@@ -284,7 +289,7 @@ void quadratic_output_scaling_16bit_line(int32_t* in, uint32_t bw, int32_t dco, 
         v += (1 << bw) >> 1;
         v = nlt_clamp(v, clamp_val);
         int64_t v_64 = (int64_t)v * (int64_t)v;
-        v_64 = (v_64 + ((1 << dzeta) >> 1)) >> dzeta;
+        v_64 = (v_64 + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
         v_64 += dco;
         out[x] = (uint16_t)nlt_clamp64(v_64, m);
     }
@@ -319,7 +324,7 @@ void extended_output_scaling_8bit_line(int32_t* in, uint8_t bw, int32_t t1, int3
             v = nlt_clamp64(v, clamp_val);
             v = a3 + (v * v);
         }
-        v = (v + ((1 << dzeta) >> 1)) >> dzeta;
+        v = (v + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
         out[x] = (uint8_t)nlt_clamp64(v, m);
     }
 }
@@ -353,7 +358,7 @@ void extended_output_scaling_16bit_line(int32_t* in, uint8_t bw, int32_t t1, int
             v = nlt_clamp64(v, clamp_val);
             v = a3 + (v * v);
         }
-        v = (v + ((1 << dzeta) >> 1)) >> dzeta;
+        v = (v + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
         out[x] = (uint16_t)nlt_clamp64(v, m);
     }
 }

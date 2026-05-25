@@ -83,9 +83,11 @@ class TransformIDWT53 : public ::testing::TestWithParam<fixture_param_t> {
             }
             break;
         case RAND_FULL:
+            /* UBSan fix: limit random values to 16-bit range to avoid signed overflow
+             * in DWT arithmetic (additions/subtractions of adjacent values). */
             for (int i = 0; i < lenght; ++i) {
-                lf_in[i] = rnd->random();
-                hf_in[i] = rnd->random();
+                lf_in[i] = (int32_t)(int16_t)rnd->random();
+                hf_in[i] = (int32_t)(int16_t)rnd->random();
             }
             break;
         };
@@ -96,7 +98,8 @@ class TransformIDWT53 : public ::testing::TestWithParam<fixture_param_t> {
         memset(data_out_avx2, 0, buffer_len);
 
         for (int i = 0; i < 5; ++i) {
-            RAND_TYPE type = (RAND_TYPE)i;
+            /* UBSan fix: clamp loop index to valid enum range before casting. */
+            RAND_TYPE type = (RAND_TYPE)(i > RAND_FULL ? RAND_FULL : i);
             if (type > RAND_FULL) {
                 type = RAND_FULL;
             }
@@ -153,7 +156,8 @@ class TransformIDWT53 : public ::testing::TestWithParam<fixture_param_t> {
         int32_t* buffer_temp = (int32_t*)malloc(sizeof(int32_t) * (len_width));
 
         for (int i = 0; i < 5; ++i) {
-            RAND_TYPE type = (RAND_TYPE)i;
+            /* UBSan fix: clamp loop index to valid enum range before casting. */
+            RAND_TYPE type = (RAND_TYPE)(i > RAND_FULL ? RAND_FULL : i);
             if (type > RAND_FULL) {
                 type = RAND_FULL;
             }

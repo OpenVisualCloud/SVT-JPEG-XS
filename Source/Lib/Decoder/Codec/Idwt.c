@@ -8,45 +8,50 @@
 #include "decoder_dsp_rtcd.h"
 #include <assert.h>
 
+/* Left-shift that avoids undefined behavior for negative values (C11 §6.5.7). */
+#define LSHIFT32(val, s) ((int32_t)((uint32_t)(int32_t)(val) << (s)))
+
 void idwt_horizontal_line_lf16_hf16_c(const int16_t* in_lf, const int16_t* in_hf, int32_t* out, uint32_t len, uint8_t shift) {
     assert((len >= 2) && "[idwt_c()] ERROR: Length is too small!");
 
-    out[0] = ((int32_t)in_lf[0] << shift) - ((((int32_t)in_hf[0] << shift) + 1) >> 1);
+    /* UBSan fix: use LSHIFT32 to avoid UB when left-shifting negative wavelet coefficients. */
+    out[0] = LSHIFT32(in_lf[0], shift) - (((LSHIFT32(in_hf[0], shift)) + 1) >> 1);
 
     for (uint32_t i = 1; i < len - 2; i += 2) {
-        out[2] = ((int32_t)in_lf[1] << shift) - ((((int32_t)in_hf[0] << shift) + ((int32_t)in_hf[1] << shift) + 2) >> 2);
-        out[1] = ((int32_t)in_hf[0] << shift) + ((out[0] + out[2]) >> 1);
+        out[2] = LSHIFT32(in_lf[1], shift) - (((LSHIFT32(in_hf[0], shift)) + LSHIFT32(in_hf[1], shift) + 2) >> 2);
+        out[1] = LSHIFT32(in_hf[0], shift) + ((out[0] + out[2]) >> 1);
         in_lf++;
         in_hf++;
         out += 2;
     }
     if (len & 1) {
-        out[2] = ((int32_t)in_lf[1] << shift) - ((((int32_t)in_hf[0] << shift) + 1) >> 1);
-        out[1] = ((int32_t)in_hf[0] << shift) + ((out[0] + out[2]) >> 1);
+        out[2] = LSHIFT32(in_lf[1], shift) - (((LSHIFT32(in_hf[0], shift)) + 1) >> 1);
+        out[1] = LSHIFT32(in_hf[0], shift) + ((out[0] + out[2]) >> 1);
     }
     else { //!(len & 1)
-        out[1] = ((int32_t)in_hf[0] << shift) + out[0];
+        out[1] = LSHIFT32(in_hf[0], shift) + out[0];
     }
 }
 
 void idwt_horizontal_line_lf32_hf16_c(const int32_t* in_lf, const int16_t* in_hf, int32_t* out, uint32_t len, uint8_t shift) {
     assert((len >= 2) && "[idwt_c()] ERROR: Length is too small!");
 
-    out[0] = in_lf[0] - ((((int32_t)in_hf[0] << shift) + 1) >> 1);
+    /* UBSan fix: use LSHIFT32 to avoid UB when left-shifting negative wavelet coefficients. */
+    out[0] = in_lf[0] - (((LSHIFT32(in_hf[0], shift)) + 1) >> 1);
 
     for (uint32_t i = 1; i < len - 2; i += 2) {
-        out[2] = in_lf[1] - ((((int32_t)in_hf[0] << shift) + ((int32_t)in_hf[1] << shift) + 2) >> 2);
-        out[1] = ((int32_t)in_hf[0] << shift) + ((out[0] + out[2]) >> 1);
+        out[2] = in_lf[1] - (((LSHIFT32(in_hf[0], shift)) + LSHIFT32(in_hf[1], shift) + 2) >> 2);
+        out[1] = LSHIFT32(in_hf[0], shift) + ((out[0] + out[2]) >> 1);
         in_lf++;
         in_hf++;
         out += 2;
     }
     if (len & 1) {
-        out[2] = in_lf[1] - ((((int32_t)in_hf[0] << shift) + 1) >> 1);
-        out[1] = ((int32_t)in_hf[0] << shift) + ((out[0] + out[2]) >> 1);
+        out[2] = in_lf[1] - (((LSHIFT32(in_hf[0], shift)) + 1) >> 1);
+        out[1] = LSHIFT32(in_hf[0], shift) + ((out[0] + out[2]) >> 1);
     }
     else { //!(len & 1)
-        out[1] = ((int32_t)in_hf[0] << shift) + out[0];
+        out[1] = LSHIFT32(in_hf[0], shift) + out[0];
     }
 }
 
