@@ -151,8 +151,10 @@ static int weight_table_recalculate_table_reduce_422_h(pi_t* pi, weight_tables_t
         h--;
         if (h != 1) {
             table->size -= 3;
-            memcpy((uint8_t*)table->gain, table->gain + 3, table->size * sizeof(table->gain[0]));
-            memcpy((uint8_t*)table->priority, table->priority + 3, table->size * sizeof(table->priority[0]));
+            // Fix: Use memmove instead of memcpy because source and destination overlap
+            // (dst=table->gain, src=table->gain+3, overlapping when size > 3).
+            memmove((uint8_t*)table->gain, table->gain + 3, table->size * sizeof(table->gain[0]));
+            memmove((uint8_t*)table->priority, table->priority + 3, table->size * sizeof(table->priority[0]));
         }
         else {
             //Remove last
@@ -194,12 +196,14 @@ static int weight_table_recalculate_table_reduce_422_v(pi_t* pi, weight_tables_t
         int remove = (h - 1); //Remove last in first line
         v--;
 
+        // Fix: Use (remove + 1) to compute the count of elements from source to end.
+        // Using just (remove) would read 3 bytes past the source buffer boundary.
         copy_mem_prv((uint8_t*)table->gain + 3 * remove,
                      table->gain + 3 * (remove + 1),
-                     (table->size - 3 * (remove)) * sizeof(table->gain[0]));
+                     (table->size - 3 * (remove + 1)) * sizeof(table->gain[0]));
         copy_mem_prv((uint8_t*)table->priority + 3 * remove,
                      table->priority + 3 * (remove + 1),
-                     (table->size - 3 * (remove)) * sizeof(table->priority[0]));
+                     (table->size - 3 * (remove + 1)) * sizeof(table->priority[0]));
         table->size -= 3;
         //Remove first
         table->size -= 3;
