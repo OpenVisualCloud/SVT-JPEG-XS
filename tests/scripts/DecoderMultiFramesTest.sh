@@ -183,8 +183,8 @@ function test_all_broken {
     test_dec 2 invalid_small_cfg_zero_band_10                          d41d8cd98f00b204e9800998ecf8427e
 }
 
-[[ $run_fast -eq 0 ]] && test_all_correct C 10 0
-                         test_all_broken C 10
+[[ $run_fast -eq 0 ]] && test_all_correct c 10 0
+                         test_all_broken c 10
                          test_all_correct avx2 20 0
                          test_all_broken avx2 20
                          test_all_correct avx2 20 1

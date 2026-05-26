@@ -148,7 +148,7 @@ function test_all {
     test_dec 218 976x650_12bit_COMPONENTS_4
 }
 
-[[ $run_fast -eq 0 ]] && test_all C 10 0
+[[ $run_fast -eq 0 ]] && test_all c 10 0
                          test_all avx2 20 0
                          test_all avx2 20 1
 [[ $run_fast -eq 0 ]] && test_all max 1 0
