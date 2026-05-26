@@ -504,7 +504,8 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
         /*Use wrapper output only to propagate error to Thread Final*/
         buffer_output->frame_error = SvtJxsDecoderEndOfCodestream;
         buffer_output->slice_id = 0;
-        dec_ctx->sync_num_slices_to_receive = 1;
+        // Atomic: final thread reads this concurrently while processing earlier slices
+        SVT_ATOMIC_STORE32(&dec_ctx->sync_num_slices_to_receive, 1);
 
         svt_jxs_post_full_object(universal_wrapper_ptr);
     }

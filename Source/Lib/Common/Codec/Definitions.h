@@ -34,6 +34,21 @@ extern "C" {
 #define FOPEN(f, s, m) f = fopen(s, m)
 #endif
 
+// Atomic load/store for 32-bit values shared between threads without a mutex.
+// Uses compiler intrinsics to suppress ThreadSanitizer false positives and
+// ensure proper memory ordering on weakly-ordered architectures.
+#if defined(__GNUC__) || defined(__clang__)
+#define SVT_ATOMIC_LOAD32(ptr)       __atomic_load_n((ptr), __ATOMIC_ACQUIRE)
+#define SVT_ATOMIC_STORE32(ptr, val) __atomic_store_n((ptr), (val), __ATOMIC_RELEASE)
+#elif defined(_WIN32)
+#include <intrin.h>
+#define SVT_ATOMIC_LOAD32(ptr)       (*(volatile uint32_t *)(ptr))
+#define SVT_ATOMIC_STORE32(ptr, val) _InterlockedExchange((volatile long *)(ptr), (long)(val))
+#else
+#define SVT_ATOMIC_LOAD32(ptr)       (*(volatile uint32_t *)(ptr))
+#define SVT_ATOMIC_STORE32(ptr, val) (*(volatile uint32_t *)(ptr) = (val))
+#endif
+
 #if (defined(__GNUC__) && __GNUC__) || defined(__SUNPRO_C)
 #define DECLARE_ALIGNED(n, typ, val) typ val __attribute__((aligned(n)))
 #elif defined(_WIN32)

@@ -93,7 +93,8 @@ void* thread_final_stage_kernel(void* input_ptr) {
         if (!dec_ctx->sync_slices_idwt) {
             /*IDWT between slices. Only when universal thread not calculate fully IDWT*/
             if (item->frame_error == 0) {
-                while ((item->slice_next_to_recalc < dec_ctx->sync_num_slices_to_receive) &&
+                // Atomic: init thread may reduce sync_num_slices_to_receive on error concurrently
+                while ((item->slice_next_to_recalc < SVT_ATOMIC_LOAD32(&dec_ctx->sync_num_slices_to_receive)) &&
                        dec_ctx->map_slices_decode_done[item->slice_next_to_recalc].val) {
                     SvtJxsErrorType_t error = svt_jpeg_xs_decode_final_slice_overlap(
                         dec_ctx, &item->dec_input.image, item->slice_next_to_recalc);
@@ -109,7 +110,8 @@ void* thread_final_stage_kernel(void* input_ptr) {
             }
         }
 
-        if (item->received_slices >= dec_ctx->sync_num_slices_to_receive) {
+        // Atomic: init thread may reduce sync_num_slices_to_receive on error concurrently
+        if (item->received_slices >= SVT_ATOMIC_LOAD32(&dec_ctx->sync_num_slices_to_receive)) {
             /*Finish frame.*/
             item->ready_to_send = 1;
 

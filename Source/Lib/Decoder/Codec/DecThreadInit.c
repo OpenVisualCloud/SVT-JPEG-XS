@@ -137,7 +137,7 @@ static void send_slices_tasks(svt_jpeg_xs_decoder_api_prv_t* dec_api_prv, TaskIn
     svt_jpeg_xs_decoder_instance_t* dec_ctx = wrapper_ptr_decoder_ctx->object_ptr;
     pi_t* pi = &dec_ctx->dec_common->pi;
 
-    dec_ctx->sync_num_slices_to_receive = pi->slice_num;
+    SVT_ATOMIC_STORE32(&dec_ctx->sync_num_slices_to_receive, pi->slice_num);
     dec_ctx->sync_slices_idwt = (pi->decom_v != 0) && (dec_api_prv->universal_threads_num > 1) && (pi->precincts_per_slice > 2) &&
         (dec_ctx->dec_common->picture_header_const.hdr_Cpih == 0);
 
@@ -194,7 +194,8 @@ static void send_slices_tasks(svt_jpeg_xs_decoder_api_prv_t* dec_api_prv, TaskIn
 
         buffer_output->frame_error = ret;
         if (ret) {
-            dec_ctx->sync_num_slices_to_receive = slice + 1;
+            // Atomic: final thread reads this concurrently while processing earlier slices
+            SVT_ATOMIC_STORE32(&dec_ctx->sync_num_slices_to_receive, slice + 1);
         }
         svt_jxs_post_full_object(universal_wrapper_ptr);
         if (ret) {
@@ -265,7 +266,8 @@ void* thread_init_stage_kernel(void* input_ptr) {
         ObjectWrapper_t* wrapper_ptr_decoder_ctx = NULL;
 
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(stderr, "[%s] Before svt_jxs_get_empty_object(dec_api_prv->internal_pool_frame_context_fifo_ptr\n", __FUNCTION__);
+            fprintf(
+                stderr, "[%s] Before svt_jxs_get_empty_object(dec_api_prv->internal_pool_frame_context_fifo_ptr\n", __FUNCTION__);
         }
         SvtJxsErrorType_t err = svt_jxs_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr,
                                                          &wrapper_ptr_decoder_ctx);
@@ -325,7 +327,7 @@ void* thread_init_stage_kernel(void* input_ptr) {
             /*Use wrapper output only to propagate error to Thread Final*/
             buffer_output->frame_error = ret;
             buffer_output->slice_id = 0;
-            dec_ctx->sync_num_slices_to_receive = 1;
+            SVT_ATOMIC_STORE32(&dec_ctx->sync_num_slices_to_receive, 1);
             svt_jxs_post_full_object(universal_wrapper_ptr);
         }
         else {
@@ -383,7 +385,7 @@ SvtJxsErrorType_t internal_svt_jpeg_xs_decoder_send_packet(svt_jpeg_xs_decoder_a
             svt_jxs_set_cond_var(&dec_ctx->map_slices_decode_done[slice_idx], SYNC_INIT);
         }
 
-        dec_ctx->sync_num_slices_to_receive = dec_ctx->dec_common->pi.slice_num;
+        SVT_ATOMIC_STORE32(&dec_ctx->sync_num_slices_to_receive, dec_ctx->dec_common->pi.slice_num);
         dec_ctx->sync_slices_idwt = (dec_ctx->dec_common->pi.decom_v != 0) && (dec_api_prv->universal_threads_num > 1) &&
             (dec_ctx->dec_common->pi.precincts_per_slice > 2) && (dec_ctx->dec_common->picture_header_const.hdr_Cpih == 0);
     }
@@ -443,7 +445,8 @@ SvtJxsErrorType_t internal_svt_jpeg_xs_decoder_send_packet(svt_jpeg_xs_decoder_a
         buffer_output->frame_error = ret;
 
         if (ret) {
-            dec_ctx->sync_num_slices_to_receive = slice_scheduler_ctx->slices_sent + 1;
+            // Atomic: final thread reads this concurrently while processing earlier slices
+            SVT_ATOMIC_STORE32(&dec_ctx->sync_num_slices_to_receive, slice_scheduler_ctx->slices_sent + 1);
         }
 
         svt_jxs_post_full_object(universal_wrapper_ptr);
