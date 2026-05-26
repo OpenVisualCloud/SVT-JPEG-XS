@@ -164,23 +164,25 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
 
     uint32_t frame_coeff_size = ctx->precincts_line_coeff_size * pi->precincts_line_num;
 
-    SVT_NO_THROW_MALLOC(ctx->coeff_buff_ptr_16bit, frame_coeff_size * sizeof(int16_t));
+    // Zero-initialize: IDWT may read padding/boundary elements before they are written
+    SVT_NO_THROW_CALLOC(ctx->coeff_buff_ptr_16bit, 1, frame_coeff_size * sizeof(int16_t));
     if (!ctx->coeff_buff_ptr_16bit) {
         ret |= 1;
     }
 
+    // Zero-initialize: IDWT temp buffers may be partially read at slice boundaries before full write
     if (pi->decom_v == 0) {
-        SVT_NO_THROW_MALLOC(ctx->precinct_idwt_tmp_buffer, 1 * pi->width * sizeof(int32_t));
-        SVT_NO_THROW_MALLOC(ctx->precinct_component_tmp_buffer, 1 * pi->width * sizeof(int32_t));
+        SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer, 1, 1 * pi->width * sizeof(int32_t));
+        SVT_NO_THROW_CALLOC(ctx->precinct_component_tmp_buffer, 1, 1 * pi->width * sizeof(int32_t));
     }
     else if (pi->decom_v == 1) {
-        SVT_NO_THROW_MALLOC(ctx->precinct_idwt_tmp_buffer, 3 * pi->width * sizeof(int32_t));
-        SVT_NO_THROW_MALLOC(ctx->precinct_component_tmp_buffer, 4 * pi->width * sizeof(int32_t));
+        SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer, 1, 3 * pi->width * sizeof(int32_t));
+        SVT_NO_THROW_CALLOC(ctx->precinct_component_tmp_buffer, 1, 4 * pi->width * sizeof(int32_t));
     }
     else { // pi->.decom_v == 2
         uint32_t V1_len = (pi->width / 2) + (pi->width & 1);
-        SVT_NO_THROW_MALLOC(ctx->precinct_idwt_tmp_buffer, (7 * V1_len + 4 * pi->width) * sizeof(int32_t)); // ~7.5 * pi->width
-        SVT_NO_THROW_MALLOC(ctx->precinct_component_tmp_buffer, 8 * pi->width * sizeof(int32_t));
+        SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer, 1, (7 * V1_len + 4 * pi->width) * sizeof(int32_t)); // ~7.5 * pi->width
+        SVT_NO_THROW_CALLOC(ctx->precinct_component_tmp_buffer, 1, 8 * pi->width * sizeof(int32_t));
     }
 
     if (!ctx->precinct_idwt_tmp_buffer || !ctx->precinct_component_tmp_buffer) {
@@ -251,13 +253,14 @@ svt_jpeg_xs_decoder_thread_context* svt_jpeg_xs_dec_thread_context_alloc(pi_t* p
     int ret = 0;
 
     //IDWT per precinct support
+    // Zero-initialize: IDWT temp buffers may be partially read at slice boundaries before full write
     if (pi->decom_v == 0) {
         for (uint32_t c = 0; c < pi->comps_num; c++) {
             ctx->precinct_components_tmp_buffer[c] = NULL;
             ctx->precinct_idwt_tmp_buffer[c] = NULL;
         }
-        SVT_NO_THROW_MALLOC(ctx->precinct_components_tmp_buffer[0], pi->width * sizeof(int32_t));
-        SVT_NO_THROW_MALLOC(ctx->precinct_idwt_tmp_buffer[0], pi->width * sizeof(int32_t));
+        SVT_NO_THROW_CALLOC(ctx->precinct_components_tmp_buffer[0], 1, pi->width * sizeof(int32_t));
+        SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer[0], 1, pi->width * sizeof(int32_t));
 
         if (!ctx->precinct_components_tmp_buffer[0] || !ctx->precinct_idwt_tmp_buffer[0]) {
             ret |= 1;
@@ -266,18 +269,19 @@ svt_jpeg_xs_decoder_thread_context* svt_jpeg_xs_dec_thread_context_alloc(pi_t* p
     else {
         for (uint32_t c = 0; c < pi->comps_num; c++) {
             if (pi->components[c].decom_v == 0) {
-                SVT_NO_THROW_MALLOC(ctx->precinct_idwt_tmp_buffer[c], pi->components[c].width * sizeof(int32_t));
-                SVT_NO_THROW_MALLOC(ctx->precinct_components_tmp_buffer[c], pi->components[c].width * sizeof(int32_t));
+                SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer[c], 1, pi->components[c].width * sizeof(int32_t));
+                SVT_NO_THROW_CALLOC(ctx->precinct_components_tmp_buffer[c], 1, pi->components[c].width * sizeof(int32_t));
             }
             else if (pi->components[c].decom_v == 1) {
-                SVT_NO_THROW_MALLOC(ctx->precinct_idwt_tmp_buffer[c], 3 * pi->components[c].width * sizeof(int32_t));
-                SVT_NO_THROW_MALLOC(ctx->precinct_components_tmp_buffer[c], 4 * pi->components[c].width * sizeof(int32_t));
+                SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer[c], 1, 3 * pi->components[c].width * sizeof(int32_t));
+                SVT_NO_THROW_CALLOC(ctx->precinct_components_tmp_buffer[c], 1, 4 * pi->components[c].width * sizeof(int32_t));
             }
             else { // pi->components[c].decom_v == 2
                 uint32_t V1_len = (pi->components[c].width / 2) + (pi->components[c].width & 1);
-                SVT_NO_THROW_MALLOC(ctx->precinct_idwt_tmp_buffer[c],
+                SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer[c],
+                                    1,
                                     (7 * V1_len + 3 * pi->components[c].width) * sizeof(int32_t)); // ~6.5 * component->width
-                SVT_NO_THROW_MALLOC(ctx->precinct_components_tmp_buffer[c], 8 * pi->components[c].width * sizeof(int32_t));
+                SVT_NO_THROW_CALLOC(ctx->precinct_components_tmp_buffer[c], 1, 8 * pi->components[c].width * sizeof(int32_t));
             }
             if (!ctx->precinct_components_tmp_buffer[c] || !ctx->precinct_idwt_tmp_buffer[c]) {
                 ret |= 1;

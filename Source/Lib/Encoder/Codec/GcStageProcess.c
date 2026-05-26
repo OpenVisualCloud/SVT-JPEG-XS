@@ -357,19 +357,31 @@ void set_planar_input_pointers(uint32_t line_idx, const void* plane_buffer_in[13
         plane_buffer_in[0] = buffer_in_base_addr + pixel_size * line_idx * plane_stride;
     }
     else if (pcs_ptr->enc_common->pi.components[comp].decom_v == 1) {
-        plane_buffer_in[0] = buffer_in_base_addr + pixel_size * (line_idx - 2) * plane_stride;
-        plane_buffer_in[1] = buffer_in_base_addr + pixel_size * (line_idx - 1) * plane_stride;
+        // Guard subtraction to prevent unsigned integer underflow when line_idx < offset.
+        // Unset entries remain NULL; the caller (DWT precalculate) skips them via its own line_idx check.
+        if (line_idx >= 2)
+            plane_buffer_in[0] = buffer_in_base_addr + pixel_size * (line_idx - 2) * plane_stride;
+        if (line_idx >= 1)
+            plane_buffer_in[1] = buffer_in_base_addr + pixel_size * (line_idx - 1) * plane_stride;
         plane_buffer_in[2] = buffer_in_base_addr + pixel_size * (line_idx - 0) * plane_stride;
         plane_buffer_in[3] = buffer_in_base_addr + pixel_size * (line_idx + 1) * plane_stride;
         plane_buffer_in[4] = buffer_in_base_addr + pixel_size * (line_idx + 2) * plane_stride;
     }
     else if (pcs_ptr->enc_common->pi.components[comp].decom_v == 2) {
-        plane_buffer_in[0] = buffer_in_base_addr + pixel_size * (line_idx - 6) * plane_stride;
-        plane_buffer_in[1] = buffer_in_base_addr + pixel_size * (line_idx - 5) * plane_stride;
-        plane_buffer_in[2] = buffer_in_base_addr + pixel_size * (line_idx - 4) * plane_stride;
-        plane_buffer_in[3] = buffer_in_base_addr + pixel_size * (line_idx - 3) * plane_stride;
-        plane_buffer_in[4] = buffer_in_base_addr + pixel_size * (line_idx - 2) * plane_stride;
-        plane_buffer_in[5] = buffer_in_base_addr + pixel_size * (line_idx - 1) * plane_stride;
+        // Guard subtraction to prevent unsigned integer underflow when line_idx < offset.
+        // Unset entries remain NULL; the caller (DWT precalculate) skips them via its own line_idx check.
+        if (line_idx >= 6)
+            plane_buffer_in[0] = buffer_in_base_addr + pixel_size * (line_idx - 6) * plane_stride;
+        if (line_idx >= 5)
+            plane_buffer_in[1] = buffer_in_base_addr + pixel_size * (line_idx - 5) * plane_stride;
+        if (line_idx >= 4)
+            plane_buffer_in[2] = buffer_in_base_addr + pixel_size * (line_idx - 4) * plane_stride;
+        if (line_idx >= 3)
+            plane_buffer_in[3] = buffer_in_base_addr + pixel_size * (line_idx - 3) * plane_stride;
+        if (line_idx >= 2)
+            plane_buffer_in[4] = buffer_in_base_addr + pixel_size * (line_idx - 2) * plane_stride;
+        if (line_idx >= 1)
+            plane_buffer_in[5] = buffer_in_base_addr + pixel_size * (line_idx - 1) * plane_stride;
         plane_buffer_in[6] = buffer_in_base_addr + pixel_size * (line_idx - 0) * plane_stride;
         plane_buffer_in[7] = buffer_in_base_addr + pixel_size * (line_idx + 1) * plane_stride;
         plane_buffer_in[8] = buffer_in_base_addr + pixel_size * (line_idx + 2) * plane_stride;

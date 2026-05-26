@@ -247,7 +247,8 @@ SvtJxsErrorType_t pack_stage_context_ctor(ThreadContext_t* thread_contxt_ptr, sv
             if (pi->components[c].decom_v == 0 || enc_common->cpu_profile == CPU_PROFILE_LOW_LATENCY) {
                 SVT_MALLOC_ALIGNED_ARRAY(precincts->coeff_buff_ptr_16bit[c], (size_t)pi_enc->coeff_buff_tmp_size_precinct[c]);
             }
-            SVT_MALLOC_ALIGNED_ARRAY(precincts->gc_buff_ptr[c], (size_t)pi_enc->gc_buff_tmp_size_precinct[c]);
+            // Zero-initialize: gc_buff_ptr is read by sigflags_max before being fully written
+            SVT_CALLOC_ALIGNED_ARRAY(precincts->gc_buff_ptr[c], (size_t)pi_enc->gc_buff_tmp_size_precinct[c]);
             if (enc_common->coding_significance) {
                 SVT_MALLOC_ALIGNED_ARRAY(precincts->gc_significance_buff_ptr[c],
                                          (size_t)pi_enc->gc_buff_tmp_significance_size_precinct[c]);
