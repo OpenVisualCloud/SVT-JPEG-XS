@@ -731,12 +731,12 @@ exec_enc=$exec_enc_rel
 
 echo RUN RELEASE TEST AVX
 exec_enc=$exec_enc_rel
-[[ $run_fast -eq 0 ]] && test_rate_control C 10 latency 0
+[[ $run_fast -eq 0 ]] && test_rate_control c 10 latency 0
 [[ $run_fast -eq 0 ]] && test_rate_control avx2 5 cpu 0
                          test_rate_control max 7 latency 0
                          test_rate_control max 7 latency 1
 
-[[ $run_fast -eq 0 ]] && test_rate_control_signs C 10 latency 0
+[[ $run_fast -eq 0 ]] && test_rate_control_signs c 10 latency 0
 [[ $run_fast -eq 0 ]] && test_rate_control_signs avx2 5 cpu 0
                          test_rate_control_signs max 7 latency 0
                          test_rate_control_signs max 7 latency 1
@@ -746,7 +746,7 @@ exec_enc=$exec_enc_rel
 #test_rate_control C 1
 
 echo Test Uncommon resolution
-[[ $run_fast -eq 0 ]] && test_uncommon_resolution C 10 latency 0
+[[ $run_fast -eq 0 ]] && test_uncommon_resolution c 10 latency 0
                          test_uncommon_resolution avx2 10 latency 0
 [[ $run_fast -eq 0 ]] && test_uncommon_resolution avx2 1 cpu 0
 [[ $run_fast -eq 0 ]] && test_uncommon_resolution max 10 latency 0
@@ -754,13 +754,13 @@ echo Test Uncommon resolution
 [[ $run_fast -eq 0 ]] && test_uncommon_resolution max 10 latency 1
 
 echo Test Handle errors
-[[ $run_fast -eq 0 ]] && test_handle_errors C 2 cpu 0
+[[ $run_fast -eq 0 ]] && test_handle_errors c 2 cpu 0
                          test_handle_errors avx2 2 latency 0
                          test_handle_errors avx2 2 latency 1
 
 echo Test Handle Invalid Input YUV
-[[ $run_fast -eq 0 ]] && test_invalid_yuv C 10 latency 0
-[[ $run_fast -eq 0 ]] && test_invalid_yuv C 10 cpu 0
+[[ $run_fast -eq 0 ]] && test_invalid_yuv c 10 latency 0
+[[ $run_fast -eq 0 ]] && test_invalid_yuv c 10 cpu 0
                          test_invalid_yuv avx2 10 latency 0
 [[ $run_fast -eq 0 ]] && test_invalid_yuv avx2 1 cpu 0
 [[ $run_fast -eq 0 ]] && test_invalid_yuv max 10 latency 0
