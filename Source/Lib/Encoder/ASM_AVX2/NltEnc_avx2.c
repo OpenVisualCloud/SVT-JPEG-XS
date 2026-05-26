@@ -12,7 +12,7 @@ void image_shift_avx2(uint16_t* out_coeff_16bit, int32_t* in_coeff_32bit, uint32
     uint16_t* out_ptr_line = out_coeff_16bit;
 
     const __m256i offset_avx2 = _mm256_set1_epi32(offset);
-    const __m256i sign_mask_epi32 = _mm256_set1_epi32(/*BITSTREAM_MASK_SIGN*/ ((uint32_t)1 << 31));
+    const __m256i sign_mask_epi32 = _mm256_set1_epi32(/*BITSTREAM_MASK_SIGN*/ (-2147483647 - 1));
     const __m256i zero = _mm256_setzero_si256();
 
     const uint32_t simd_batch = width / 16;
@@ -100,7 +100,7 @@ void linear_input_scaling_line_8bit_avx2(const uint8_t* src, int32_t* dst, uint3
         dst += 8;
     }
     for (uint32_t j = 0; j < remaining; j++) {
-        dst[j] = ((uint32_t)src[j] << shift) - offset;
+        dst[j] = (int32_t)((uint32_t)src[j] << shift) - (int32_t)offset;
     }
 }
 

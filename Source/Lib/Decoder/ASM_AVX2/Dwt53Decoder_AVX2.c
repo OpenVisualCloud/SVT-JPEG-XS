@@ -9,9 +9,6 @@
 #include "Definitions.h"
 #include "Idwt.h"
 
-/* Left-shift that avoids undefined behavior for negative values (C11 §6.5.7). */
-#define LSHIFT32(val, s) ((int32_t)((uint32_t)(int32_t)(val) << (s)))
-
 void idwt_horizontal_line_lf32_hf16_avx2(const int32_t *lf_ptr, const int16_t *hf_ptr, int32_t *out_ptr, uint32_t len,
                                          uint8_t shift) {
     assert((len >= 2) && "[idwt_c()] ERROR: Length is too small!");

@@ -673,15 +673,15 @@ void transform_component_test_V2(const pi_t* pi, const pi_enc_t* pi_enc, uint32_
                                                 line_idx,
                                                 plane_width,
                                                 plane_height,
-                                                buffers_input_unpack + (line_idx - 6) * plane_width, //-4
-                                                buffers_input_unpack + (line_idx - 5) * plane_width, //-4
-                                                buffers_input_unpack + (line_idx - 4) * plane_width, //-4
-                                                buffers_input_unpack + (line_idx - 3) * plane_width, //-3
-                                                buffers_input_unpack + (line_idx - 2) * plane_width, //-2
-                                                buffers_input_unpack + (line_idx - 1) * plane_width, //-1
-                                                buffers_input_unpack + (line_idx + 0) * plane_width, //0
-                                                buffers_input_unpack + (line_idx + 1) * plane_width, //1
-                                                buffers_input_unpack + (line_idx + 2) * plane_width, //2
+                                                buffers_input_unpack + ((int32_t)line_idx - 6) * (int32_t)plane_width, //-4
+                                                buffers_input_unpack + ((int32_t)line_idx - 5) * (int32_t)plane_width, //-4
+                                                buffers_input_unpack + ((int32_t)line_idx - 4) * (int32_t)plane_width, //-4
+                                                buffers_input_unpack + ((int32_t)line_idx - 3) * (int32_t)plane_width, //-3
+                                                buffers_input_unpack + ((int32_t)line_idx - 2) * (int32_t)plane_width, //-2
+                                                buffers_input_unpack + ((int32_t)line_idx - 1) * (int32_t)plane_width, //-1
+                                                buffers_input_unpack + (line_idx + 0) * plane_width,                   //0
+                                                buffers_input_unpack + (line_idx + 1) * plane_width,                   //1
+                                                buffers_input_unpack + (line_idx + 2) * plane_width,                   //2
                                                 buffer_prev,
                                                 buffer_on_place,
                                                 buffer_tmp);

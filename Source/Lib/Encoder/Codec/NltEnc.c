@@ -32,7 +32,7 @@ void image_shift_c(uint16_t* out_coeff_16bit, int32_t* in_coeff_32bit, uint32_t 
 
 void linear_input_scaling_line_8bit_c(const uint8_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset) {
     for (uint32_t j = 0; j < w; j++) {
-        dst[j] = ((uint32_t)src[j] << shift) - offset;
+        dst[j] = (int32_t)((uint32_t)src[j] << shift) - (int32_t)offset;
     }
 }
 

@@ -110,7 +110,12 @@ static INLINE int8_t vlc_reader_get_next_value(vlc_reader_t* vlc_reader) {
     int8_t res = 32 - svt_log2_32(vlc_reader->register64 >> 32); //Possible values: 1-32
     vlc_reader->register_bits -= res;
     vlc_reader->bits_used += res;
+#ifdef _MSC_VER
     vlc_reader->register64 <<= res;
+#else
+    /* Use __uint128_t to avoid integer sanitizer warning about bits shifted out of uint64_t. */
+    vlc_reader->register64 = (uint64_t)((__uint128_t)vlc_reader->register64 << res);
+#endif
     return res - 1;
 }
 
@@ -150,10 +155,10 @@ SvtJxsErrorType_t unpack_data_c(bitstream_reader_t* bitstream, uint16_t* buf, ui
                     return SvtJxsErrorDecoderInvalidBitstream;
                 }
                 val = read_4_bits_align4(bitstream);
-                s3 = val << (BITSTREAM_BIT_POSITION_SIGN);
-                s2 = (val & 2) << (BITSTREAM_BIT_POSITION_SIGN - 1);
-                s1 = (val & 4) << (BITSTREAM_BIT_POSITION_SIGN - 2);
-                s0 = (val & 8) << (BITSTREAM_BIT_POSITION_SIGN - 3);
+                s3 = (uint16_t)((unsigned)val << (BITSTREAM_BIT_POSITION_SIGN));
+                s2 = (uint16_t)((unsigned)(val & 2) << (BITSTREAM_BIT_POSITION_SIGN - 1));
+                s1 = (uint16_t)((unsigned)(val & 4) << (BITSTREAM_BIT_POSITION_SIGN - 2));
+                s0 = (uint16_t)((unsigned)(val & 8) << (BITSTREAM_BIT_POSITION_SIGN - 3));
                 unpack_data_single_group(bitstream, buf, bitplanes_size, gtli);
 
                 buf[0] |= s0;
@@ -172,10 +177,10 @@ SvtJxsErrorType_t unpack_data_c(bitstream_reader_t* bitstream, uint16_t* buf, ui
                     return SvtJxsErrorDecoderInvalidBitstream;
                 }
                 val = read_4_bits_align4(bitstream);
-                s3 = val << (BITSTREAM_BIT_POSITION_SIGN);
-                s2 = (val & 2) << (BITSTREAM_BIT_POSITION_SIGN - 1);
-                s1 = (val & 4) << (BITSTREAM_BIT_POSITION_SIGN - 2);
-                s0 = (val & 8) << (BITSTREAM_BIT_POSITION_SIGN - 3);
+                s3 = (uint16_t)((unsigned)val << (BITSTREAM_BIT_POSITION_SIGN));
+                s2 = (uint16_t)((unsigned)(val & 2) << (BITSTREAM_BIT_POSITION_SIGN - 1));
+                s1 = (uint16_t)((unsigned)(val & 4) << (BITSTREAM_BIT_POSITION_SIGN - 2));
+                s0 = (uint16_t)((unsigned)(val & 8) << (BITSTREAM_BIT_POSITION_SIGN - 3));
                 unpack_data_single_group(bitstream, buf_tmp, bitplanes_size, gtli);
                 buf_tmp[0] |= s0;
                 buf_tmp[1] |= s1;
@@ -719,7 +724,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
 
         subpkt_len_bytes = bitstream_reader_get_used_bytes(bitstream) - len_before_subpkt_bytes;
         if (subpkt_len_bytes != (pkt_header.gcli_len)) {
-            int32_t leftover = (int32_t)pkt_header.gcli_len - subpkt_len_bytes;
+            int32_t leftover = (int32_t)pkt_header.gcli_len - (int32_t)subpkt_len_bytes;
             if (leftover > 0 && bitstream_reader_is_enough_bytes(bitstream, leftover)) {
                 if (verbose >= VERBOSE_WARNINGS) {
                     fprintf(stderr, "WARNING: (GCLI) skipped=%d\n", leftover);
@@ -777,7 +782,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
 
         subpkt_len_bytes = bitstream_reader_get_used_bytes(bitstream) - len_before_subpkt_bytes;
         if (subpkt_len_bytes != (pkt_header.data_len)) {
-            int32_t leftover = (int32_t)pkt_header.data_len - subpkt_len_bytes;
+            int32_t leftover = (int32_t)pkt_header.data_len - (int32_t)subpkt_len_bytes;
             if (leftover > 0 && bitstream_reader_is_enough_bytes(bitstream, leftover)) {
                 if (verbose >= VERBOSE_WARNINGS) {
                     fprintf(stderr, "WARNING: (DATA) skipped=%d\n", leftover);
@@ -828,7 +833,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                                                           /*************Sign sub-packet END****************************/
             subpkt_len_bytes = bitstream_reader_get_used_bytes(bitstream) - len_before_subpkt_bytes;
             if (subpkt_len_bytes != ((uint32_t)pkt_header.sign_len)) {
-                int32_t leftover = (int32_t)pkt_header.sign_len - subpkt_len_bytes;
+                int32_t leftover = (int32_t)pkt_header.sign_len - (int32_t)subpkt_len_bytes;
                 if (leftover > 0 && bitstream_reader_is_enough_bytes(bitstream, leftover)) {
                     if (verbose >= VERBOSE_WARNINGS) {
                         fprintf(stderr, "WARNING: (SIGN) skipped=%d\n", leftover);

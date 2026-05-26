@@ -308,7 +308,7 @@ void test_linear_input_scaling_line_16bit(void (*test_fn)(const uint16_t* src, i
 
         //Test invalid input, when input values out of a range
         if (input_bit_depth < 16) {
-            uint16_t invalid_bits = ((uint16_t)0xFFFF) << input_bit_depth;
+            uint16_t invalid_bits = (uint16_t)((unsigned)0xFFFF << input_bit_depth);
             for (uint32_t j = 0; j < w; j++) {
                 src[j] |= invalid_bits;
             }

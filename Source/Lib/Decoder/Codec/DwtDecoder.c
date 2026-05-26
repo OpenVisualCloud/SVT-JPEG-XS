@@ -12,7 +12,7 @@
 #include "SvtUtility.h"
 
 /* Left-shift that avoids undefined behavior for negative values (C11 §6.5.7). */
-#define LSHIFT32(val, s) ((int32_t)((uint32_t)(int32_t)(val) << (s)))
+
 #include "decoder_dsp_rtcd.h"
 #include "Idwt.h"
 

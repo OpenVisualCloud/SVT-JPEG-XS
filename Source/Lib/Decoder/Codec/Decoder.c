@@ -11,8 +11,6 @@
 #include "Precinct.h"
 #include "Mct.h"
 
-/* Left-shift that avoids undefined behavior for negative values (C11 §6.5.7). */
-#define LSHIFT32(val, s) ((int32_t)((uint32_t)(int32_t)(val) << (s)))
 #include "NltDec.h"
 
 SvtJxsErrorType_t svt_jpeg_xs_decoder_probe(const uint8_t* bitstream_buf, size_t codestream_size,

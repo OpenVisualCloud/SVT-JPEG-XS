@@ -47,7 +47,7 @@ int8_t read_to_first_negative_bit_old(bitstream_reader_t* bitstream, uint32_t si
     val |= mem[3];
 
     if (bitstream->bits_used) {
-        val <<= bitstream->bits_used;
+        val = (uint32_t)((uint64_t)val << bitstream->bits_used);
         val |= mem[4] >> (8 - bitstream->bits_used);
     }
 
@@ -88,7 +88,7 @@ TEST(BitstreamReadWrite, read_to_first_negative_bit) {
             uint8_t bit = rnd->Rand8() > 210 ? 1 : 0;
             val |= bit << (bitstream.bits_used);
         }
-        buff[bitstream.offset] = ~val;
+        buff[bitstream.offset] = (uint8_t)~val;
     }
 
     for (bitstream.offset = 0; bitstream.offset < buffer_size; bitstream.offset++) {

@@ -40,7 +40,7 @@ void linear_output_scaling_8bit_avx2(const pi_t* const pi, int32_t* comps[MAX_CO
             }
             for (; x < w; x++) {
                 int32_t v = in_buf[y * w + x];
-                v += round;
+                v += (int32_t)round;
                 v >>= dzeta;
                 out_buf[y * out_stride + x] = (uint8_t)(v > m ? m : v < 0 ? 0 : v);
             }
@@ -82,7 +82,7 @@ void linear_output_scaling_16bit_avx2(const pi_t* const pi, int32_t* comps[MAX_C
             }
             for (; x < w; x++) {
                 int32_t v = in_buf[y * w + x];
-                v += round;
+                v += (int32_t)round;
                 v >>= dzeta;
                 out_buf[y * out_stride + x] = (uint16_t)(v > m ? m : v < 0 ? 0 : v);
             }
@@ -108,7 +108,7 @@ void inv_sign_avx2(uint16_t* in_out, uint32_t width) {
 
     for (uint32_t i = 0; i < remaining; i++) {
         const uint16_t val = in_out[i];
-        in_out[i] = (val & BITSTREAM_MASK_SIGN) ? -((int32_t)(val & ~BITSTREAM_MASK_SIGN)) : (int32_t)val;
+        in_out[i] = (uint16_t)((val & BITSTREAM_MASK_SIGN) ? -((int32_t)(val & ~BITSTREAM_MASK_SIGN)) : (int32_t)val);
     }
 }
 
@@ -140,7 +140,7 @@ void linear_output_scaling_8bit_line_avx2(int32_t* in, uint32_t bw, uint32_t dep
     }
     for (; x < (int32_t)w; x++) {
         int32_t v = in[x];
-        v += round;
+        v += (int32_t)round;
         v >>= dzeta;
         out[x] = (uint8_t)(v > m ? m : v < 0 ? 0 : v);
     }
@@ -172,7 +172,7 @@ void linear_output_scaling_16bit_line_avx2(int32_t* in, uint32_t bw, uint32_t de
     }
     for (; x < (int32_t)w; x++) {
         int32_t v = in[x];
-        v += round;
+        v += (int32_t)round;
         v >>= dzeta;
         out[x] = (uint16_t)(v > m ? m : v < 0 ? 0 : v);
     }

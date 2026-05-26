@@ -23,7 +23,7 @@ void linear_output_scaling_8bit_line_avx512(int32_t* in, uint32_t bw, uint32_t d
     }
     for (; x < (int32_t)w; x++) {
         int32_t v = in[x];
-        v += round;
+        v += (int32_t)round;
         v >>= dzeta;
         out[x] = (uint8_t)(v > m ? m : v < 0 ? 0 : v);
     }
@@ -48,7 +48,7 @@ void linear_output_scaling_16bit_line_avx512(int32_t* in, uint32_t bw, uint32_t 
     }
     for (; x < (int32_t)w; x++) {
         int32_t v = in[x];
-        v += round;
+        v += (int32_t)round;
         v >>= dzeta;
         out[x] = (uint16_t)(v > m ? m : v < 0 ? 0 : v);
     }

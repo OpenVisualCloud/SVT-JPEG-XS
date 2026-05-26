@@ -71,10 +71,10 @@ typedef enum PointerType {
 
 #define ALVALUE 64
 
-#define SVT_CREATE_SEMAPHORE(pointer, initial_count, max_count)   \
-    do {                                                          \
+#define SVT_CREATE_SEMAPHORE(pointer, initial_count, max_count)       \
+    do {                                                              \
         pointer = svt_jxs_create_semaphore(initial_count, max_count); \
-        SVT_ADD_MEM(pointer, 1, POINTER_TYPE_SEMAPHORE);          \
+        SVT_ADD_MEM(pointer, 1, POINTER_TYPE_SEMAPHORE);              \
     } while (0)
 
 #define SVT_DESTROY_SEMAPHORE(pointer)                             \
@@ -103,6 +103,13 @@ typedef enum PointerType {
 
 // Common Macros
 #define UNUSED(x) (void)(x)
+
+/* Left-shift that avoids undefined behavior for negative values (C11 §6.5.7).
+ * Cast chain: (int32_t)(val) ensures sign-extension for narrow types,
+ * (uint32_t) reinterprets as unsigned to avoid UB on negative left-shift,
+ * (uint64_t) widens so the shift cannot overflow 32-bit unsigned range,
+ * final (int32_t) truncates back to the desired 32-bit signed result. */
+#define LSHIFT32(val, s) ((int32_t)((uint64_t)(uint32_t)(int32_t)(val) << (s)))
 
 #ifdef __cplusplus
 }
