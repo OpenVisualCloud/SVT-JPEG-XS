@@ -42,7 +42,7 @@ TEST(pack_data_single_group, AVX512) {
 
         for (uint32_t i = 0; i < max_buff_size; i++) {
             int32_t sign = rnd->Rand16() % 2;
-            buf[i] = sign ? rnd->Rand16() : -rnd->Rand16();
+            buf[i] = (uint16_t)(sign ? rnd->Rand16() : -rnd->Rand16());
         }
 
         uint8_t gtli = rnd->Rand8() % 15;

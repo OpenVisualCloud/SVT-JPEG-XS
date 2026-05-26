@@ -110,7 +110,7 @@ SvtJxsErrorType_t unpack_data_avx2(bitstream_reader_t* bitstream, uint16_t* buf,
                     bits_sum += (gclis_ptr[group] - gtli) + 1;
                 }
             }
-            *precinct_bits_left -= bits_sum * 4;
+            *precinct_bits_left -= (int32_t)(bits_sum * 4);
             if (*precinct_bits_left < 0) {
                 return SvtJxsErrorDecoderInvalidBitstream;
             }
@@ -150,7 +150,7 @@ SvtJxsErrorType_t unpack_data_avx2(bitstream_reader_t* bitstream, uint16_t* buf,
                     bits_sum += (gclis_ptr[group] - gtli);
                 }
             }
-            *precinct_bits_left -= bits_sum * 4;
+            *precinct_bits_left -= (int32_t)(bits_sum * 4);
             if (*precinct_bits_left < 0) {
                 return SvtJxsErrorDecoderInvalidBitstream;
             }

@@ -8,7 +8,6 @@
 #include "Definitions.h"
 
 /* Left-shift that avoids undefined behavior for negative values (C11 §6.5.7). */
-#define LSHIFT32(val, s) ((int32_t)((uint32_t)(int32_t)(val) << (s)))
 
 uint32_t loop_short_lf32_hf16(uint32_t len, const int32_t** lf_ptr, const int16_t** hf_ptr, int32_t** out_ptr, int32_t* prev_even,
                               uint8_t shift) {

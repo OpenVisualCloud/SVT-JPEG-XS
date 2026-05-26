@@ -8,9 +8,6 @@
 #include "decoder_dsp_rtcd.h"
 #include <assert.h>
 
-/* Left-shift that avoids undefined behavior for negative values (C11 §6.5.7). */
-#define LSHIFT32(val, s) ((int32_t)((uint32_t)(int32_t)(val) << (s)))
-
 void idwt_horizontal_line_lf16_hf16_c(const int16_t* in_lf, const int16_t* in_hf, int32_t* out, uint32_t len, uint8_t shift) {
     assert((len >= 2) && "[idwt_c()] ERROR: Length is too small!");
 

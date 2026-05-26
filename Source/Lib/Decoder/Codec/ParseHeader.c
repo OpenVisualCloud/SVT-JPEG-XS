@@ -96,7 +96,7 @@ SvtJxsErrorType_t get_capabilities(bitstream_reader_t* bitstream, picture_header
     }
 
     uint16_t size_bytes = read_16_bits(bitstream);
-    size_bytes -= 2;
+    size_bytes = (uint16_t)(size_bytes - 2);
     if (size_bytes * 8 > MAX_CAPABILITY) {
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -283,7 +283,7 @@ SvtJxsErrorType_t get_component_table(bitstream_reader_t* bitstream, picture_hea
         return SvtJxsErrorDecoderBitstreamTooShort;
     }
     uint16_t size_bytes = read_16_bits(bitstream);
-    size_bytes -= 2;
+    size_bytes = (uint16_t)(size_bytes - 2);
     if (size_bytes != 2 * picture_header_const->hdr_comps_num) {
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -339,7 +339,7 @@ SvtJxsErrorType_t get_weights_table(bitstream_reader_t* bitstream, picture_heade
         return SvtJxsErrorDecoderBitstreamTooShort;
     }
     uint16_t size_bytes = read_16_bits(bitstream);
-    size_bytes -= 2;
+    size_bytes = (uint16_t)(size_bytes - 2);
     uint32_t bands_exist = size_bytes / 2;
 
     if (size_bytes & 1) {

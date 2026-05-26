@@ -9,7 +9,7 @@
 void inv_sign_c(uint16_t* in_out, uint32_t width) {
     for (uint32_t i = 0; i < width; i++) {
         const uint16_t val = in_out[i];
-        in_out[i] = ((val & BITSTREAM_MASK_SIGN) ? -((val & ~BITSTREAM_MASK_SIGN)) : val);
+        in_out[i] = (uint16_t)((val & BITSTREAM_MASK_SIGN) ? -((val & ~BITSTREAM_MASK_SIGN)) : val);
     }
 }
 

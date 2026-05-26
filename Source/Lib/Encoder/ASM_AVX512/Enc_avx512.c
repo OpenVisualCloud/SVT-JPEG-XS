@@ -156,7 +156,7 @@ void image_shift_avx512(uint16_t* out_coeff_16bit, int32_t* in_coeff_32bit, uint
     uint16_t* out_ptr_line = out_coeff_16bit;
 
     const __m512i offset_avx512 = _mm512_set1_epi32(offset);
-    const __m512i sign_mask_epi32 = _mm512_set1_epi32(/*BITSTREAM_MASK_SIGN*/ ((uint32_t)1 << 31));
+    const __m512i sign_mask_epi32 = _mm512_set1_epi32(/*BITSTREAM_MASK_SIGN*/ (-2147483647 - 1));
     const __m512i reg_permutevar_mask = _mm512_setr_epi64(0x00, 0x02, 0x04, 0x06, 0x01, 0x03, 0x05, 0x07);
     const __m512i zero = _mm512_setzero_si512();
 
@@ -215,7 +215,7 @@ void linear_input_scaling_line_8bit_avx512(const uint8_t* src, int32_t* dst, uin
         dst += 16;
     }
     for (uint32_t j = 0; j < remaining; j++) {
-        dst[j] = ((uint32_t)src[j] << shift) - offset;
+        dst[j] = (int32_t)((uint32_t)src[j] << shift) - (int32_t)offset;
     }
 }
 
@@ -630,7 +630,8 @@ void convert_packed_to_planar_rgb_16bit_avx512(const void* in_rgb, void* out_com
     }
 }
 
-void gc_precinct_stage_scalar_avx512(uint8_t* gcli_data_ptr, uint16_t* coeff_data_ptr_16bit, uint32_t group_size, uint32_t width) {
+void gc_precinct_stage_scalar_avx512(uint8_t* gcli_data_ptr, uint16_t* coeff_data_ptr_16bit, uint32_t group_size,
+                                     uint32_t width) {
     UNUSED(group_size);
     assert(group_size == GROUP_SIZE);
 

@@ -103,21 +103,21 @@ static void pack_bitplane_count_significance(bitstream_writer_t* bitstream, uint
 
 void pack_data_single_group_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint8_t gcli, uint8_t gtli) {
     uint16_t tmp[4];
-    tmp[0] = buf_16bit[0] << ((BITSTREAM_BIT_POSITION_SIGN + 1) - gcli);
-    tmp[1] = buf_16bit[1] << ((BITSTREAM_BIT_POSITION_SIGN + 1) - gcli);
-    tmp[2] = buf_16bit[2] << ((BITSTREAM_BIT_POSITION_SIGN + 1) - gcli);
-    tmp[3] = buf_16bit[3] << ((BITSTREAM_BIT_POSITION_SIGN + 1) - gcli);
+    tmp[0] = (uint16_t)((unsigned)buf_16bit[0] << ((BITSTREAM_BIT_POSITION_SIGN + 1) - gcli));
+    tmp[1] = (uint16_t)((unsigned)buf_16bit[1] << ((BITSTREAM_BIT_POSITION_SIGN + 1) - gcli));
+    tmp[2] = (uint16_t)((unsigned)buf_16bit[2] << ((BITSTREAM_BIT_POSITION_SIGN + 1) - gcli));
+    tmp[3] = (uint16_t)((unsigned)buf_16bit[3] << ((BITSTREAM_BIT_POSITION_SIGN + 1) - gcli));
 
     uint16_t val = 0;
     for (int32_t bits = ((int32_t)gcli - gtli - 1); bits >= 0; bits--) {
         val = (tmp[0] & BITSTREAM_MASK_SIGN);
-        tmp[0] <<= 1;
+        tmp[0] = (uint16_t)((unsigned)tmp[0] << 1);
         val |= (tmp[1] & BITSTREAM_MASK_SIGN) >> 1;
-        tmp[1] <<= 1;
+        tmp[1] = (uint16_t)((unsigned)tmp[1] << 1);
         val |= (tmp[2] & BITSTREAM_MASK_SIGN) >> 2;
-        tmp[2] <<= 1;
+        tmp[2] = (uint16_t)((unsigned)tmp[2] << 1);
         val |= (tmp[3] & BITSTREAM_MASK_SIGN) >> 3;
-        tmp[3] <<= 1;
+        tmp[3] = (uint16_t)((unsigned)tmp[3] << 1);
 
         val >>= (BITSTREAM_BIT_POSITION_SIGN - 3); //>>12
 
@@ -273,7 +273,7 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
             default:
                 assert(0);
             }
-        }                                  //else if band not exist in this precinct write 0
+        } //else if band not exist in this precinct write 0
         write_2_bits(bitstream, type_Dpb); //D[p,b] Bit-plane count coding mode of band b
     }
     align_bitstream_writer_to_next_byte(bitstream);

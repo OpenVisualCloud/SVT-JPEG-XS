@@ -286,9 +286,10 @@ class FRAME_IDWT : public ::testing::TestWithParam<fixture_param_t> {
     void set_random_coeffs() {
         for (uint32_t c = 0; c < num_comp; c++) {
             for (uint32_t i = 0; i < lenght; i++) {
-                int16_t coeff = rnd->Rand16();
+                int16_t coeff = (int16_t)rnd->Rand16();
                 /* UBSan fix: use LSHIFT to avoid UB when left-shifting negative int16_t coefficients. */
-                buffers_in_out_ref_32bit[c][i] = (int32_t)((uint32_t)(int32_t)coeff << picture_header_dynamic.hdr_Fq);
+                buffers_in_out_ref_32bit[c][i] = (int32_t)(uint32_t)((uint64_t)(uint32_t)(int32_t)coeff
+                                                                     << picture_header_dynamic.hdr_Fq);
                 //Currently IDWT also shift-left by Fq internally to reduce memory bandwidth
                 buffers_in_mod_16bit[c][i] = coeff;
                 buffers_out_mod_32bit[c][i] = buffers_in_out_ref_32bit[c][i];

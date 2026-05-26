@@ -482,7 +482,7 @@ static void Test_Bitstream_Corruprion_xor_bytes_valgrind(uint64_t use_cpu_flags)
         printf("Size: %u\n", i);
         uint8_t* buffer = (uint8_t*)malloc(Frame_Sample_1_16x16_8bit_422_bitstream_size);
         memcpy(buffer, Frame_Sample_1_16x16_8bit_422_bitstream, Frame_Sample_1_16x16_8bit_422_bitstream_size);
-        buffer[i] = ~buffer[i];
+        buffer[i] = (uint8_t)~buffer[i];
 
         int32_t ret = test_bitstream_full(use_cpu_flags,
                                           Frame_Sample_1_16x16_8bit_422_bitstream,

@@ -381,7 +381,7 @@ void linear_input_scaling_8bit_depricated(uint8_t Bw, uint8_t* src, int32_t* dst
 
     for (uint32_t i = 0; i < h; i++) {
         for (uint32_t j = 0; j < w; j++) {
-            dst[j] = ((uint32_t)src[j] << left) - offset;
+            dst[j] = (int32_t)((uint32_t)src[j] << left) - (int32_t)offset;
         }
         src += src_stride;
         dst += dst_stride;

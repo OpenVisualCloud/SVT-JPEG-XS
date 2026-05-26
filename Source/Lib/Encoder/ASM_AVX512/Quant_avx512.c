@@ -10,7 +10,7 @@
 #include <immintrin.h>
 
 static void quant_deadzone_avx512(uint16_t* buf, uint32_t size, int8_t gtli) {
-    uint16_t clamp = ((uint16_t)(~(uint16_t)0) << gtli) & (~BITSTREAM_MASK_SIGN);
+    uint16_t clamp = (uint16_t)(((unsigned)(uint16_t)(~(uint16_t)0) << gtli) & ~(unsigned)BITSTREAM_MASK_SIGN);
 
     const __m512i zero = _mm512_setzero_si512();
     const __m512i mask_sign = _mm512_set1_epi16((short)BITSTREAM_MASK_SIGN);

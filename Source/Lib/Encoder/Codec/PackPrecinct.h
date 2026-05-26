@@ -25,7 +25,7 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
 static INLINE void vlc_encode_pack_bits(bitstream_writer_t* bitstream, uint8_t nbits) {
     //Estimate that this path will be faster for more bits
     if (nbits > 1) {
-        uint32_t vlc_bits = ((1 << (nbits)) - 1) << 1;
+        uint32_t vlc_bits = ((1u << (nbits)) - 1) << 1;
         write_N_bits(bitstream, vlc_bits, nbits + 1);
     }
     else {
