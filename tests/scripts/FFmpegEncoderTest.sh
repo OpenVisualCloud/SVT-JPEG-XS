@@ -46,7 +46,7 @@ function test_ffmpeg_enc {
     path_yuv=$path_correct"/"$name_yuv".yuv"
     bin_name=$test_id_print"_"$name_yuv"_ffmpeg"
     bin_name="${bin_name:0:100}"
-    bin_path="$tmp_dir/"$bin_name".jxs"
+    bin_path="$tmp_dir/"$bin_name".mov"
 
     # Encode using ffmpeg with libsvtjpegxs encoder
     cmd="$valgrind$exec_ffmpeg -y -f rawvideo -pix_fmt $pix_fmt -s ${width}x${height} -i $path_yuv -frames:v $frames -c:v libsvtjpegxs $enc_params $bin_path"
@@ -95,7 +95,7 @@ function test_ffmpeg_enc_dec {
     path_yuv=$path_correct"/"$name_yuv".yuv"
     bin_name=$test_id_print"_"$name_yuv"_ffmpeg_encdec"
     bin_name="${bin_name:0:100}"
-    bin_path="$tmp_dir/"$bin_name".jxs"
+    bin_path="$tmp_dir/"$bin_name".mov"
     out_yuv_path="$tmp_dir/"$bin_name".yuv"
 
     # Encode using ffmpeg

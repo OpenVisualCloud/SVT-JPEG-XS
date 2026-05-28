@@ -5,13 +5,14 @@
 #
 
 
-echo "Example: $0 parallel_number path_to_test_resources path_to_ffmpeg [valgrind] [fast] [...]"
+echo "Example: $0 parallel_number"
 nproc=$1
 script_params=""
 
 index=0
 for ARG in "$@"; do
     if (($index >= 1)); then
+        #echo $ARG
         script_params="$script_params $ARG"
     fi
     index=$((index+1))
@@ -20,6 +21,7 @@ done
 [[ -z "$nproc" ]] && nproc=1
 echo "Run Parallel All FFmpeg Tests NPROC: $nproc params: $script_params"
 chmod +x ./FFmpegCommonLib.sh
+chmod +x ./CommonLib.sh
 chmod +x ./ParallelScript.sh
 chmod +x ./FFmpegDecoderConformanceTest.sh
 chmod +x ./FFmpegDecoderMultiFramesTest.sh
