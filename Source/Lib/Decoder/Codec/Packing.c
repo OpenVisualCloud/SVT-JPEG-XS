@@ -110,12 +110,7 @@ static INLINE int8_t vlc_reader_get_next_value(vlc_reader_t* vlc_reader) {
     int8_t res = 32 - svt_log2_32(vlc_reader->register64 >> 32); //Possible values: 1-32
     vlc_reader->register_bits -= res;
     vlc_reader->bits_used += res;
-#ifdef _MSC_VER
     vlc_reader->register64 <<= res;
-#else
-    /* Use __uint128_t to avoid integer sanitizer warning about bits shifted out of uint64_t. */
-    vlc_reader->register64 = (uint64_t)((__uint128_t)vlc_reader->register64 << res);
-#endif
     return res - 1;
 }
 

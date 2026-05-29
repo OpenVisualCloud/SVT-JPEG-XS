@@ -120,11 +120,12 @@ typedef enum PointerType {
 #define UNUSED(x) (void)(x)
 
 /* Left-shift that avoids undefined behavior for negative values (C11 §6.5.7).
- * Cast chain: (int32_t)(val) ensures sign-extension for narrow types,
- * (uint32_t) reinterprets as unsigned to avoid UB on negative left-shift,
- * (uint64_t) widens so the shift cannot overflow 32-bit unsigned range,
- * final (int32_t) truncates back to the desired 32-bit signed result. */
-#define LSHIFT32(val, s) ((int32_t)((uint64_t)(uint32_t)(int32_t)(val) << (s)))
+ * Cast to unsigned before shifting so that left-shifting a negative value is
+ * well-defined (unsigned shift, §6.5.7¶4).  Bits shifted out are intentionally
+ * discarded — this is NOT overflow, just a bit-reinterpretation pattern used
+ * throughout the wavelet transform.  Do NOT widen to uint64_t here: it causes
+ * GCC/Clang to emit 64-bit shifts in the IDWT inner loop (~6-9% regression). */
+#define LSHIFT32(val, s) ((int32_t)((uint32_t)(int32_t)(val) << (s)))
 
 #ifdef __cplusplus
 }
