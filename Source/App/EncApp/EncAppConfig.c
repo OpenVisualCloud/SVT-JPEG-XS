@@ -65,6 +65,8 @@ static void strncpy_local(char *dest, const char *src, size_t count) {
 #define CODING_SIGF_TOKEN   "--coding-sigf"
 #define CODING_PRED_TOKEN   "--coding-vpred"
 #define CODING_RATE_CONTROL "--rc"
+#define CODING_RAW_TOKEN    "--coding-raw"
+#define CAP_COMPAT_TOKEN    "--cap-compat"
 #define SHOW_BANDS          "--show-bands"
 
 #define LIMIT_FPS_TOKEN "--limit-fps"
@@ -127,6 +129,15 @@ static void set_coding_vpred(const char *value, EncoderConfig_t *cfg) {
 
 static void set_rate_control_mode(const char *value, EncoderConfig_t *cfg) {
     cfg->encoder.rate_control_mode = strtoul(value, NULL, 0);
+}
+
+static void set_coding_raw(const char *value, EncoderConfig_t *cfg) {
+    /* CLI: 1 = raw-mode enabled (default), 0 = disabled. Internal field stores the inverse. */
+    cfg->encoder.coding_raw_disable = strtoul(value, NULL, 0) ? 0 : 1;
+}
+
+static void set_cap_compat(const char *value, EncoderConfig_t *cfg) {
+    cfg->encoder.cap_compat = (uint8_t)strtoul(value, NULL, 0);
 }
 
 static void set_encoder_colour_format(const char *value, EncoderConfig_t *cfg) {
@@ -315,6 +326,8 @@ ConfigEntry config_entry[] = {
     {CODING_OPTIONS, CODING_SIGF_TOKEN,     "Enable Significance coding (enabled:1, disable:0, default:1)", 0, 1, set_coding_significance},
     {CODING_OPTIONS, CODING_PRED_TOKEN,     "Enable Vertical Prediction coding (disable:0, zero prediction residuals:1, zero coefficients:2, default: 0)", 0, 1, set_coding_vpred},
     {CODING_OPTIONS, CODING_RATE_CONTROL,   "Rate Control mode (CBR: budget per precinct: 0, CBR: budget per precinct with padding movement: 1, CBR: budget per slice: 2, CBR: budget per slice with max size RATE: 3, default 0)", 0, 1, set_rate_control_mode},
+    {CODING_OPTIONS, CODING_RAW_TOKEN,      "Packet-based raw-mode coding (enabled:1, disabled:0, default:1). Disabling clears the raw-mode capability bit and never selects raw packet packing.", 0, 1, set_coding_raw},
+    {CODING_OPTIONS, CAP_COMPAT_TOKEN,      "Legacy decoder CAP-marker compatibility (full CAP:0, empty CAP when no capability bit set:1, default:0)", 0, 1, set_cap_compat},
     {THREAD_PERF_OPTIONS, ASM_TYPE_TOKEN,   "Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2, sse3, "
                                             "ssse3, sse4_1, sse4_2,"
                                             " avx, avx2, avx512, max], by default highest level supported by CPU", 0, 1,

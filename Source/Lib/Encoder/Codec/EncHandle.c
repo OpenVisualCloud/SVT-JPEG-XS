@@ -255,7 +255,8 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     enc_common->picture_header_dynamic.hdr_Qpih = config_struct->quantization;
     enc_common->pi.use_short_header = (((config_struct->source_width * num_comp) < 32768) && (config_struct->ndecomp_v < 3));
 
-    enc_common->picture_header_dynamic.hdr_Rl = 1;
+    enc_common->picture_header_dynamic.hdr_Rl = config_struct->coding_raw_disable ? 0 : 1;
+    enc_common->cap_compat = config_struct->cap_compat ? 1 : 0;
 
     if (config_struct->coding_signs_handling > SIGN_HANDLING_STRATEGY_FULL) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {

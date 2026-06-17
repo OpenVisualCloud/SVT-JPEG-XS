@@ -26,6 +26,21 @@ void write_capabilities_marker(bitstream_writer_t* bitstream, svt_jpeg_xs_encode
     capability[7] = 0;           //Unused
     capability[8] = enc_common->picture_header_dynamic.hdr_Rl; //Support for packet-based raw-mode switch required
 
+    /* Legacy decoder compatibility: when enabled and no capability bit is set, emit an empty CAP marker
+     * (Lcap=2). Some strict decoders reject a non-empty CAP marker. When the stream genuinely requires a
+     * capability bit (e.g. 4:2:0 sub-sampling), a full CAP marker is still written to remain conformant. */
+    if (enc_common->cap_compat) {
+        uint8_t any_capability = 0;
+        for (uint8_t i = 0; i < elements; ++i) {
+            any_capability |= capability[i];
+        }
+        if (!any_capability) {
+            uint16_t empty_size_bytes = BITS_TO_BYTE_WITH_ALIGN(16); //Lcap only, no flags
+            write_16_bits(bitstream, empty_size_bytes);
+            return;
+        }
+    }
+
     uint16_t size_bytes = BITS_TO_BYTE_WITH_ALIGN(16 + elements); //Lcap + flags
     write_16_bits(bitstream, size_bytes);
     for (uint8_t i = 0; i < elements; ++i) {
