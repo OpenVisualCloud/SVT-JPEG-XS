@@ -97,6 +97,7 @@ jobs:
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
         sudo chmod +x ${{ github.workspace }}/Bin/Release/*
+        export LD_LIBRARY_PATH=$(pwd)
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }}
 
   linux-unit-tests-debug:
@@ -126,6 +127,7 @@ jobs:
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
         sudo chmod +x ${{ github.workspace }}/Bin/Debug/*
+        export LD_LIBRARY_PATH=$(pwd)
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }}
 
   linux-unit-tests-valgrind:
@@ -188,6 +190,7 @@ jobs:
       run: |
         sudo chmod -R 755 ${GITHUB_WORKSPACE}/tests/scripts/
         sudo chmod -R 755 ${DEC_BIN_DIR}/
+        export LD_LIBRARY_PATH=${DEC_BIN_DIR}
         ./ParallelAllTests.sh ${{ env.JOBS_NUM }}  ${INPUT_FILES_PATH} ${DEC_BIN_DIR}/SvtJpegxsDecApp
       env:
         DEC_BIN_DIR: ${{ github.workspace }}/Bin/Release
