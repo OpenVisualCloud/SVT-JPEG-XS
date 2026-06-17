@@ -707,7 +707,8 @@ static uint32_t precinct_get_budget_bytes(svt_jpeg_xs_encoder_common_t *enc_comm
     pi_t *pi = &enc_common->pi;
     /*For current implementation support only more complex implementation
       that 2 packages with that same band can have different ram mode flag.*/
-    assert(enc_common->picture_header_dynamic.hdr_Rl != 0);
+    /* Raw packet packing is only ever selected when raw-mode is enabled (hdr_Rl != 0).
+       When raw-mode is disabled (hdr_Rl == 0) the raw selection below is skipped, so this path is valid. */
     rate_control_calculate_band_best_method(pi, precinct, enc_common, coding_vertical_prediction_mode, coding_signs_handling);
     precinct_info_t *p_info = precinct->p_info;
 
@@ -761,7 +762,8 @@ static uint32_t precinct_get_budget_bytes(svt_jpeg_xs_encoder_common_t *enc_comm
         /*GCLI Pack Size:*/
         uint32_t packet_size_significance_bytes = BITS_TO_BYTE_WITH_ALIGN(packet_size_significance_bits);
         uint32_t packet_size_gcli_bytes = BITS_TO_BYTE_WITH_ALIGN(packet_size_gcli_bits);
-        if (packet_size_significance_bytes + packet_size_gcli_bytes > p_info->packet_size_gcli_raw_bytes[packet_idx]) {
+        if (enc_common->picture_header_dynamic.hdr_Rl &&
+            (packet_size_significance_bytes + packet_size_gcli_bytes > p_info->packet_size_gcli_raw_bytes[packet_idx])) {
             /*Set Pack RAW*/
             precinct->packet_methods_raw[packet_idx] = 1;
             precinct->packet_size_significance_bytes[packet_idx] = 0;

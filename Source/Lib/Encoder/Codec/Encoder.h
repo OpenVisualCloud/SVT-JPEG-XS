@@ -98,6 +98,7 @@ typedef struct svt_jpeg_xs_encoder_common {
     */
     uint32_t *slice_sizes;
     uint8_t slice_packetization_mode;
+    uint8_t cap_compat; /* Emit empty CAP marker (Lcap=2) when no capability bit is set (legacy decoder compatibility) */
 } svt_jpeg_xs_encoder_common_t;
 
 #ifdef __cplusplus

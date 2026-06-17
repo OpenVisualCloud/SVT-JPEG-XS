@@ -84,12 +84,29 @@ typedef struct svt_jpeg_xs_encoder_api {
 
     void* private_ptr; /*Private encoder pointer, do not touch!!! */
 
+    /* Disable packet-based raw-mode coding.
+     * 0 = raw-mode enabled (default, current behavior): picture header Rl=1, raw packet packing allowed,
+     *     and the raw-mode capability bit is signalled in the CAP marker.
+     * 1 = raw-mode disabled: picture header Rl=0, raw packet packing never selected,
+     *     and the raw-mode capability bit is cleared.
+     * Optional, default 0 */
+    uint8_t coding_raw_disable;
+
+    /* Legacy decoder capabilities-marker compatibility.
+     * 0 = full CAP marker (default, current behavior).
+     * 1 = emit an empty CAP marker (Lcap=2) when no capability bit is set. Some legacy/strict decoders
+     *     reject a non-empty CAP marker; an empty CAP is accepted by those decoders.
+     *     Note: when the stream genuinely requires a capability bit (e.g. 4:2:0 sub-sampling), a full CAP
+     *     marker is still written to remain conformant.
+     * Optional, default 0 */
+    uint8_t cap_compat;
+
     /* This padding is used to avoid changing the size of the public configuration struct
      * when new parameters are added in the future please follow these steps:
      * 1. Insert the new parameter as a member of this structure before the padding array.
      * 2. Decrease the size of the padding array by the size of the new parameter to keep the struct size unchanged.
      */
-    uint8_t padding[64];
+    uint8_t padding[62];
 } svt_jpeg_xs_encoder_api_t;
 
 /* STEP 0 (Optional): Set default encoder parameters.
