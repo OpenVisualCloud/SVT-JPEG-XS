@@ -97,6 +97,7 @@ jobs:
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
         sudo chmod +x ${{ github.workspace }}/Bin/Release/*
+        export LD_LIBRARY_PATH=$(pwd)
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }}
 
   linux-unit-tests-debug:
@@ -126,6 +127,7 @@ jobs:
         ls -l
         sudo chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
         sudo chmod +x ${{ github.workspace }}/Bin/Debug/*
+        export LD_LIBRARY_PATH=$(pwd)
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }}
 
   linux-unit-tests-valgrind:
