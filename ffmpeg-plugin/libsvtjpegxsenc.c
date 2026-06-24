@@ -305,6 +305,16 @@ static const AVClass svtjpegxs_enc_class = {
     .version = LIBAVUTIL_VERSION_INT,
 };
 
+static const enum AVPixelFormat libsvtjpegxs_supported_pixfmts[] = {
+    AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV422P, AV_PIX_FMT_YUV444P,
+    AV_PIX_FMT_YUV420P10LE, AV_PIX_FMT_YUV422P10LE, AV_PIX_FMT_YUV444P10LE,
+    AV_PIX_FMT_YUV420P12LE, AV_PIX_FMT_YUV422P12LE, AV_PIX_FMT_YUV444P12LE,
+    AV_PIX_FMT_YUV420P14LE, AV_PIX_FMT_YUV422P14LE, AV_PIX_FMT_YUV444P14LE,
+    AV_PIX_FMT_GBRP, AV_PIX_FMT_GBRP10LE, AV_PIX_FMT_GBRP12LE,
+    AV_PIX_FMT_GBRP14LE, AV_PIX_FMT_RGB24, AV_PIX_FMT_BGR24,
+    AV_PIX_FMT_NONE
+};
+
 const FFCodec ff_libsvtjpegxs_encoder = {
     .p.name = "libsvtjpegxs",
     CODEC_LONG_NAME("SVT JPEG XS(Scalable Video Technology for JPEG XS) encoder"),
@@ -316,25 +326,7 @@ const FFCodec ff_libsvtjpegxs_encoder = {
     FF_CODEC_ENCODE_CB(svt_jpegxs_enc_encode),
     .p.capabilities = AV_CODEC_CAP_OTHER_THREADS | AV_CODEC_CAP_DR1,
     .caps_internal = FF_CODEC_CAP_NOT_INIT_THREADSAFE | FF_CODEC_CAP_AUTO_THREADS,
-    .p.pix_fmts = (const enum AVPixelFormat[]){AV_PIX_FMT_YUV420P,
-                                               AV_PIX_FMT_YUV422P,
-                                               AV_PIX_FMT_YUV444P,
-                                               AV_PIX_FMT_YUV420P10LE,
-                                               AV_PIX_FMT_YUV422P10LE,
-                                               AV_PIX_FMT_YUV444P10LE,
-                                               AV_PIX_FMT_YUV420P12LE,
-                                               AV_PIX_FMT_YUV422P12LE,
-                                               AV_PIX_FMT_YUV444P12LE,
-                                               AV_PIX_FMT_YUV420P14LE,
-                                               AV_PIX_FMT_YUV422P14LE,
-                                               AV_PIX_FMT_YUV444P14LE,
-                                               AV_PIX_FMT_GBRP,
-                                               AV_PIX_FMT_GBRP10LE,
-                                               AV_PIX_FMT_GBRP12LE,
-                                               AV_PIX_FMT_GBRP14LE,
-                                               AV_PIX_FMT_RGB24,
-                                               AV_PIX_FMT_BGR24,
-                                               AV_PIX_FMT_NONE},
+    CODEC_PIXFMTS_ARRAY(libsvtjpegxs_supported_pixfmts),
     .p.wrapper_name = "libsvtjpegxs",
     .p.priv_class = &svtjpegxs_enc_class,
 };
