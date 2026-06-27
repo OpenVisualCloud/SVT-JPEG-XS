@@ -187,6 +187,23 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
     SvtJxsErrorType_t err = svt_jpeg_xs_encoder_load_default_parameters(
         SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &(svt_enc->encoder));
 
+    if (!svt_enc->bpp_str) {
+      svt_enc->bpp_str = (avctx->pix_fmt == AV_PIX_FMT_YUV420P/*)*/ ? "12" :
+                         (avctx->pix_fmt == AV_PIX_FMT_YUV420P10LE ? "15" :
+                         (avctx->pix_fmt == AV_PIX_FMT_YUV420P12LE ? "18" :
+                         (avctx->pix_fmt == AV_PIX_FMT_YUV422P ? "16" :
+                         (avctx->pix_fmt == AV_PIX_FMT_YUV422P10LE ? "20" :
+                        ((avctx->pix_fmt == AV_PIX_FMT_YUV422P12LE ||
+                          avctx->pix_fmt == AV_PIX_FMT_YUV444P ||
+                          /*avctx->pix_fmt == AV_PIX_FMT_GBRP ||
+                          avctx->pix_fmt == AV_PIX_FMT_RGB24 ||
+                          avctx->pix_fmt == AV_PIX_FMT_BGR24*/) ? "24" :
+                        (/*(*/avctx->pix_fmt == AV_PIX_FMT_YUV444P10LE /*||
+                          avctx->pix_fmt == AV_PIX_FMT_GBRP10LE)*/ ? "30" :
+                        (/*(*/avctx->pix_fmt == AV_PIX_FMT_YUV444P12LE /*||
+                          avctx->pix_fmt == AV_PIX_FMT_GBRP10LE)*/ ? "36" : "X"))))))));
+    }
+    
     if (err != SvtJxsErrorNone) {
         av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_load_default_parameters failed\n");
         return AVERROR_UNKNOWN;
