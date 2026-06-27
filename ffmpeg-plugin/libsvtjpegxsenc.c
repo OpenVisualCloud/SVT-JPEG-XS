@@ -194,8 +194,8 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
                          (avctx->pix_fmt == AV_PIX_FMT_YUV422P ? "16" :
                          (avctx->pix_fmt == AV_PIX_FMT_YUV422P10LE ? "20" :
                         ((avctx->pix_fmt == AV_PIX_FMT_YUV422P12LE ||
-                          avctx->pix_fmt == AV_PIX_FMT_YUV444P ||
-                          /*avctx->pix_fmt == AV_PIX_FMT_GBRP ||
+                          avctx->pix_fmt == AV_PIX_FMT_YUV444P /*||
+                          avctx->pix_fmt == AV_PIX_FMT_GBRP ||
                           avctx->pix_fmt == AV_PIX_FMT_RGB24 ||
                           avctx->pix_fmt == AV_PIX_FMT_BGR24*/) ? "24" :
                         (/*(*/avctx->pix_fmt == AV_PIX_FMT_YUV444P10LE /*||
