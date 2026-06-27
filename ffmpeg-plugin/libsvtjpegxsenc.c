@@ -227,12 +227,6 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
         svt_enc->encoder.verbose = VERBOSE_WARNINGS;
     }
 
-    if (!svt_enc->bpp_str) {
-        // TODO: Consider using avctx->bit_rate to specify bpp_num/bpp_denom in this case
-        av_log(NULL, AV_LOG_ERROR, "libsvtjpegxs Encoder require -bpp(bits per pixel) param\n");
-        return AVERROR_OPTION_NOT_FOUND;
-    }
-
     set_bpp(svt_enc->bpp_str, &(svt_enc->encoder));
 
     if (svt_enc->decomp_v != -1) {
