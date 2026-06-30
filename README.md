@@ -15,15 +15,17 @@ This library is implementation of ISO/IEC 21122 protocol.
 ## Environment and Requirements
 
 Encoder/Decoder sample app and libraries requirements:
- - Any CPU that support x86-64 instruction set
+
+- Any CPU that support x86-64 instruction set
 
 Unit Tests requirements (SvtJpegxsUnitTests):
- -  Any CPU that support x86-64 and AVX2 instruction set
+
+- Any CPU that support x86-64 and AVX2 instruction set
 
 Supported OS versions:
 
- - Linux Ubuntu 20.04 and 22.04
- - Windows 10 and Windows 11
+- Linux Ubuntu 20.04 and 22.04
+- Windows 10 and Windows 11
 
 ## Build and Install
 
@@ -33,7 +35,7 @@ Supported OS versions:
   - Visual Studio* 2022 or 2019 (older version were not tested)
   - CMake 3.16 or later
   - YASM Assembler version 1.2.0 or later
-    - Download the yasm executable from the following [link](https://yasm.tortall.net/Download.html)
+    - Download the yasm executable from [https://yasm.tortall.net/Download.html](https://yasm.tortall.net/Download.html)
     - Rename `yasm-*-win64.exe` to `yasm.exe`
     - Copy `yasm.exe` into a location that is in the `PATH` environment variable (for example: `%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\`)
 
@@ -71,26 +73,25 @@ Supported OS versions:
 
 #### PLANAR
 
-| format | EncApp: format + input-depth| ffmpeg name |status |
+| format | EncApp: format + input-depth | ffmpeg name | status |
 | -- | -- | -- | -- |
-| YUV 420 8-bit | yuv420 + 8 | yuv420p | Tested, working properly
-| YUV 420 10/12/14-bit |yuv420 + 10/12/14 | yuv420p{10/12/14}le | Tested, working properly
-| YUV 422 8-bit | yuv422 + 8 |yuv422p | Tested, working properly
-| YUV 422 10/12/14-bit |yuv422 + 10/12/14 | yuv422p{10/12/14}le | Tested, working properly
-| YUV 444 8-bit | yuv444 + 8 | yuv444p | Tested, working properly
-| YUV 444 10/12/14-bit | yuv444 + 10/12/14 |yuv444p{10/12/14}le | Tested, working properly
-| RGB 8-bit | rgb  + 8 | gbrp | Tested, working properly
-| RGB 10/12/14-bit |rgb + 10/12/14 | gbrp{10/12/14}le | Tested, working properly
-| YUV 400 8-bit | yuv400 + 8| - | Unsupported
-| YUV 400 10-bit |yuv400 + 10/12/14 | - | Unsupported
-
+| YUV 420 8-bit | yuv420 + 8 | yuv420p | Tested, working properly |
+| YUV 420 10/12/14-bit | yuv420 + 10/12/14 | yuv420p{10/12/14}le | Tested, working properly |
+| YUV 422 8-bit | yuv422 + 8 | yuv422p | Tested, working properly |
+| YUV 422 10/12/14-bit | yuv422 + 10/12/14 | yuv422p{10/12/14}le | Tested, working properly |
+| YUV 444 8-bit | yuv444 + 8 | yuv444p | Tested, working properly |
+| YUV 444 10/12/14-bit | yuv444 + 10/12/14 | yuv444p{10/12/14}le | Tested, working properly |
+| RGB 8-bit | rgb  + 8 | gbrp | Tested, working properly |
+| RGB 10/12/14-bit | rgb + 10/12/14 | gbrp{10/12/14}le | Tested, working properly |
+| YUV 400 8-bit | yuv400 + 8 | - | Unsupported |
+| YUV 400 10-bit | yuv400 + 10/12/14 | - | Unsupported |
 
 #### PACKED
-| format | EncApp: format + input-depth| ffmpeg name |status |
-| -- | -- | -- | -- |
-| RGB 8bit| rgbp + 8 | rgb24/bgr24 | Tested, working properly, **decoder decodes to planar format only**
-| RGB 10/12/14bit |rgbp + 10/12/14|   - | Tested, working properly, **decoder decodes to planar format only**
 
+| format | EncApp: format + input-depth | ffmpeg name | status |
+| -- | -- | -- | -- |
+| RGB 8bit | rgbp + 8 | rgb24/bgr24 | Tested, working properly, __decoder decodes to planar format only__ |
+| RGB 10/12/14bit | rgbp + 10/12/14 | - | Tested, working properly, __decoder decodes to planar format only__ |
 
 ### Usage examples
 
@@ -108,7 +109,7 @@ SvtJpegxsEncApp.exe -i <input_file.yuv> -b <output_bitstream.bin> -w 1920 -h 108
 
 #### Compression ratio
 
-To encode stream with compression rate of 12:1 (assuming 8bit yuv420p), one pixel require 12bits so `--bpp 1 ` should be used:
+To encode stream with compression rate of 12:1 (assuming 8bit yuv420p), one pixel require 12bits so `--bpp 1` should be used:
 
 ```shell
 ./SvtJpegxsEncApp -i <input_file.yuv> -b <output_bitstream.bin> -w 1920 -h 1080 --input-depth 8 --colour-format yuv420 --bpp 1 --decomp_v 2 --decomp_h 5 --lp 4
@@ -125,9 +126,9 @@ To measure average frame encoding time (latency) `--limit-fps`  and high enough 
 The `--limit-fps` must be lower than the maximum achievable number of frames. So that the next frames are not queued (time of waiting frames for processing is included in the latency time).
 
 #### Interlaced video
+
 To encode an interlaced stream, please provide a height that is half of the original.
 For example, for a 1080i stream, use ```-w 1920 -h 540``` instead of ```-w 1920 -h 1080```
-
 
 ### Available parameters
 
@@ -285,7 +286,6 @@ Please see [Encoder design](documentation/encoder/svt-jpegxs-encoder-design.md)
 
 Please see [Decoder design](documentation/decoder/svt-jpegxs-decoder-design.md)
 
-
 ## API usage
 
 Please see [Encoder snippet](documentation/encoder/EncoderSnippets.md) for encoder structure overview and simplified encoder usage.
@@ -294,6 +294,6 @@ Please see [Decoder snippet](documentation/decoder/DecoderSnippets.md) for decod
 
 ## Notes
 
-The information in this document was compiled at <mark>v0.10</mark> of the code and may not
+The information in this document was compiled at `v0.10` of the code and may not
 reflect the latest status of the design. For the most up-to-date
 settings and implementation, it's recommended to visit the specific section of the code.
