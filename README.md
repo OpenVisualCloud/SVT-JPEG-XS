@@ -6,7 +6,8 @@ Scalable Video Technology is licensed under the OSI-approved BSD+Patent license.
 
 ## Notice
 
-You are solely responsible for determining if your use of jpeg-xs requires any additional licenses. Intel is not responsible for obtaining any such licenses, nor liable for any licensing fees due, in connection with your use of jpeg-xs.
+You are solely responsible for determining if your use of jpeg-xs requires any additional licenses.
+Intel is not responsible for obtaining any such licenses, nor liable for any licensing fees due, in connection with your use of jpeg-xs.
 
 ## Overview
 
@@ -123,7 +124,8 @@ To measure average frame encoding time (latency) `--limit-fps`  and high enough 
 ./SvtJpegxsEncApp -i <input_file.yuv> -b <output_bitstream.bin> -w 1920 -h 1080 --input-depth 8 --colour-format yuv422 --bpp 5 --decomp_v 2 --decomp_h 5 --lp 4 --limit-fps 60
 ```
 
-The `--limit-fps` must be lower than the maximum achievable number of frames. So that the next frames are not queued (time of waiting frames for processing is included in the latency time).
+The `--limit-fps` must be lower than the maximum achievable number of frames.
+So that the next frames are not queued (time of waiting frames for processing is included in the latency time).
 
 #### Interlaced video
 
@@ -226,7 +228,8 @@ To measure average frame decoding time (latency) `--limit-fps`  and high enough 
 ./SvtJpegxsDecApp -i <input_bitstream.bin>  -o <output_file.yuv> --lp 5 --limit-fps 60
 ```
 
-The `--limit-fps` must be lower than the maximum achievable number of frames. So that the next frames are not queued (time of waiting frames for processing is included in the latency time).
+The `--limit-fps` must be lower than the maximum achievable number of frames.
+So that the next frames are not queued (time of waiting frames for processing is included in the latency time).
 
 ### Available parameters
 
