@@ -26,6 +26,8 @@ typedef struct SvtJpegXsEncodeContext {
     int coding_signs_handling;
     int coding_significance;
     int coding_vpred;
+    int coding_raw;
+    int cap_compat;
 
     svt_jpeg_xs_encoder_api_t encoder;
     int bitstream_frame_size;
@@ -236,6 +238,12 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
     if (svt_enc->coding_vpred != -1) {
         svt_enc->encoder.coding_vertical_prediction_mode = svt_enc->coding_vpred;
     }
+    if (svt_enc->coding_raw != -1) {
+        svt_enc->encoder.coding_raw_disable = svt_enc->coding_raw ? 0 : 1;
+    }
+    if (svt_enc->cap_compat != -1) {
+        svt_enc->encoder.cap_compat = svt_enc->cap_compat ? 1 : 0;
+    }
     if (svt_enc->slice_height > 0) {
         svt_enc->encoder.slice_height = svt_enc->slice_height;
     }
@@ -295,6 +303,22 @@ static const AVOption svtjpegxs_enc_options[] = {
     {"disable", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred"},
     {"no_residuals", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred"},
     {"no_coeffs", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred"},
+    {"coding-raw",
+     "Enable packet-based raw-mode coding (disable for legacy-decoder compatibility)",
+     OFFSET(coding_raw),
+     AV_OPT_TYPE_BOOL,
+     {.i64 = -1},
+     -1,
+     1,
+     VE},
+    {"cap-compat",
+     "Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required",
+     OFFSET(cap_compat),
+     AV_OPT_TYPE_BOOL,
+     {.i64 = -1},
+     -1,
+     1,
+     VE},
     {NULL},
 };
 

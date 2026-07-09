@@ -1,0 +1,61 @@
+From 0dcc5ecd55427c727e4244c6db5e22eab3b428b2 Mon Sep 17 00:00:00 2001
+From: Grzegorz Rys <grzegorz.rys@intel.com>
+Date: Thu, 9 Jul 2026 12:00:00 +0200
+Subject: [PATCH] avcodec/libsvtjpegxsenc: add coding-raw and cap-compat
+ options
+
+Add two AVOptions mirroring the SVT-JPEG-XS 0.10 encoder API fields
+coding_raw_disable and cap_compat:
+
+ - coding-raw: enable/disable packet-based raw-mode coding. Disabling
+   clears the raw-mode capability bit and never selects raw packet
+   packing, which some strict/legacy decoders require.
+ - cap-compat: emit an empty CAP marker (Lcap=2) when no capability
+   bit is set. Some legacy/strict decoders reject a non-empty CAP
+   marker. When the stream genuinely requires a capability bit (e.g.
+   4:2:0 sub-sampling) a full CAP marker is still written to remain
+   conformant.
+
+Both options default to unset (-1), leaving the library default
+behaviour in place.
+---
+ libavcodec/libsvtjpegxsenc.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/libavcodec/libsvtjpegxsenc.c b/libavcodec/libsvtjpegxsenc.c
+index cddc09a90b..2e3123bdac 100644
+--- a/libavcodec/libsvtjpegxsenc.c
++++ b/libavcodec/libsvtjpegxsenc.c
+@@ -46,6 +46,8 @@ typedef struct SvtJpegXsEncodeContext {
+     int coding_signs_handling;
+     int coding_significance;
+     int coding_vpred;
++    int coding_raw;
++    int cap_compat;
+
+     svt_jpeg_xs_encoder_api_t encoder;
+     int bitstream_frame_size;
+@@ -256,6 +258,12 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
+     if (svt_enc->coding_vpred != -1) {
+         svt_enc->encoder.coding_vertical_prediction_mode = svt_enc->coding_vpred;
+     }
++    if (svt_enc->coding_raw != -1) {
++        svt_enc->encoder.coding_raw_disable = svt_enc->coding_raw ? 0 : 1;
++    }
++    if (svt_enc->cap_compat != -1) {
++        svt_enc->encoder.cap_compat = svt_enc->cap_compat ? 1 : 0;
++    }
+     if (svt_enc->slice_height > 0) {
+         svt_enc->encoder.slice_height = svt_enc->slice_height;
+     }
+@@ -291,6 +299,8 @@ static const AVOption svtjpegxs_enc_options[] = {
+       { "disable",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
+       { "no_residuals", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
+       { "no_coeffs",    NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
++    { "coding-raw",   "Enable packet-based raw-mode coding (disable for legacy-decoder compatibility)", OFFSET(coding_raw),   AV_OPT_TYPE_BOOL, {.i64 = -1 }, -1, 1, VE },
++    { "cap-compat",   "Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required", OFFSET(cap_compat), AV_OPT_TYPE_BOOL, {.i64 = -1 }, -1, 1, VE },
+     {NULL},
+ };
+
+--
+2.43.0
