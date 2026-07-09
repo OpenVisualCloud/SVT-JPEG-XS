@@ -182,6 +182,8 @@ Coding features used during Rate Calculation (quality/speed tradeoff):
 [--coding-signs]           Enable Signs handling strategy (full:2, fast:1, disable:0, default:0)
 [--coding-sigf]            Enable signification coding (enabled:1, disable:0, default:1)
 [--coding-vpred]           Enable Vertical Prediction coding (disable:0, zero prediction residuals:1, zero coefficients:2, default: 0)
+[--coding-raw]             Enable packet-based raw-mode coding (enabled:1, disable for legacy-decoder compatibility:0, default:1)
+[--cap-compat]             Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required (enabled:1, disable:0, default:0)
 [--rc]                     Rate Control mode (
                             CBR: budget per precinct: 0,
                             CBR: budget per precinct with padding movement: 1,

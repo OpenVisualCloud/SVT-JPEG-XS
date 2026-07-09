@@ -1,4 +1,6 @@
-### Encoder configuration parameters overview (svt_jpeg_xs_encoder_api_t)
+# Encoder Snippets
+
+## Encoder configuration parameters overview (svt_jpeg_xs_encoder_api_t)
 
 param | description | mandatory/optional | default | Accepted values
 -- | -- | -- | -- | --
@@ -6,7 +8,7 @@ source_width | Width of the image in sample grid positions | mandatory | N/A | <
 source_height | Height of the image in sample   grid positions | mandatory | N/A | <64; 65 535>
 input_bit_depth | Specifies the bit depth of input video. | mandatory | N/A | 8(8 bit), 10(10 bit)
 colour_format | Specifies the format of input video,   please refer to ColourFormat_t enum | mandatory | N/A | Tested: (COLOUR_FORMAT_PLANAR_YUV420, COLOUR_FORMAT_PLANAR_YUV422, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB),   experimental: (COLOUR_FORMAT_YUV400)
-bpp_numerator | Bitrate: bits per pixel numerator,   BPP=(bpp_numerator/bpp_denominator), Per frame bitrate is equal to (width * height * bpp_numerator / bpp_denominator) | mandatory | N/A | <1;N/A>
+bpp_numerator | Bitrate: bits per pixel numerator,   BPP=(bpp_numerator/bpp_denominator), Per frame bitrate is equal to (width \* height \* bpp_numerator / bpp_denominator) | mandatory | N/A | <1;N/A>
 bpp_denominator | Bitrate: bits per pixel denominator, required if non-integer   BPP is required | optional | 1 | <1; N/A>
 use_cpu_flags | Performance: limit assembly instruction set used by encoder,   please refer to CPU_FLAGS | optional | CPU_FLAGS_ALL | CPU_FLAGS_C, CPU_FLAGS_MMX, CPU_FLAGS_SSE ,CPU_FLAGS_SSE2 ,CPU_FLAGS_SSE3 ,CPU_FLAGS_SSSE3 ,CPU_FLAGS_SSE4_1 ,CPU_FLAGS_SSE4_2 ,CPU_FLAGS_AVX ,CPU_FLAGS_AVX2 ,CPU_FLAGS_ALL (avx512)
 threads_num | Performance: Number of thread encoder can create, 0 mean   minimum number of threads is created | optional | 0 | <0;N/A>
@@ -21,17 +23,19 @@ coding_signs_handling | Coding feature: Sign handling strategy | optional | 0 (d
 coding_significance | Coding feature: Signification coding | optional | 1 (enable) | 0(disable), 1(enable)
 coding_vertical_prediction_mode | Coding feature: vertical prediction | optional | 0 (disable) | 0(disable), 1(zero prediction residuals), 2(zero   coefficients)
 rate_control_mode | Rate control type | optional | 0 | 0(CBR: budget per precinct), 1(CBR: budget per precinct with padding movement), 2(CBR: budget per slice), 3(CBR: budget per slice with nax size RATE)
-slice_packetization_mode | Specify how encoded stream is returned | optional| 0 | 1(multiple packets per frame), 0(single packet per frame)
-callback_send_data_available |   | optional | NULL | function pointer
-callback_send_data_available_context |   | optional | NULL |  
-callback_get_data_available |   | optional | NULL | function pointer
-callback_get_data_available_context |   | optional | NULL |  
+slice_packetization_mode | Specify how encoded stream is returned | optional | 0 | 1(multiple packets per frame), 0(single packet per frame)
+coding_raw_disable | Disable packet-based raw-mode coding (disable for legacy-decoder compatibility) | optional | 0 (raw-mode enabled) | 0(raw-mode enabled), 1(raw-mode disabled)
+cap_compat | Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required | optional | 0 (full CAP marker) | 0(full CAP marker), 1(empty CAP marker when no capability bit is set)
+callback_send_data_available | Callback called when the next input element is taken from the queue | optional | NULL | function pointer
+callback_send_data_available_context | Context pointer passed to callback_send_data_available | optional | NULL | pointer
+callback_get_data_available | Callback called when a new encoded frame is ready to get | optional | NULL | function pointer
+callback_get_data_available_context | Context pointer passed to callback_get_data_available | optional | NULL | pointer
 
-### Encoder simplified usage
+## Encoder simplified usage
 
-Code listed below is also kept [here](../../Source/App/SampleEncoder/main.c)
+Code listed below is also kept in [Source/App/SampleEncoder/main.c](../../Source/App/SampleEncoder/main.c)
 
-```
+```c
 #include <SvtJpegxsEnc.h>
 
 int32_t main(int32_t argc, char* argv[]) {
@@ -140,6 +144,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 ## Notes
 
-The information in this document was compiled at <mark>v0.10</mark> of the code and may not
+The information in this document was compiled at **v0.10** of the code and may not
 reflect the latest status of the design. For the most up-to-date
 settings and implementation, it's recommended to visit the specific section of the code.
