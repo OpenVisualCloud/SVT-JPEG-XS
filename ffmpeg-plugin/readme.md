@@ -209,6 +209,8 @@ quantization|optional|(default:deadzone), 0(deadzone), 1(uniform)|Coding feature
 coding-signs|optional|(default:off), 0(off), 1(fast), 2(full)|Coding feature: Sign handling strategy
 coding-sigf|optional|(default:on), 0(off), 1(on)|Coding feature: Significance coding
 coding-vpred|optional|(default:off), 0(off), 1(on)|Coding feature: Vertical-prediction
+coding-raw|optional|(default:auto/enabled), true(enabled), false(disable for legacy-decoder compatibility)|Coding feature: packet-based raw-mode coding
+cap-compat|optional|(default:auto/disabled), true(enabled), false(disabled)|Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required
 
 ## libsvtjpegxs decoder available params
 
