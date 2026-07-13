@@ -1,0 +1,68 @@
+From c5e4d947f5f2a1119cb2bb00d15ed86e76003b2e Mon Sep 17 00:00:00 2001
+From: Grzegorz Rys <grzegorz.rys@intel.com>
+Date: Mon, 13 Jul 2026 11:42:18 +0200
+Subject: [PATCH] avcodec/libsvtjpegxsenc: fix build with FFCodec pix_fmts API
+ change
+
+FFmpeg commit removed AVCodec.pix_fmts in favor of FFCodec.pix_fmts,
+set via the CODEC_PIXFMTS()/CODEC_PIXFMTS_ARRAY() helper macros
+(libavcodec/codec_internal.h). Update libsvtjpegxs encoder accordingly,
+fixing a release/9.0 build failure:
+
+  libavcodec/libsvtjpegxsenc.c:326:8: error: 'AVCodec' has no member
+  named 'pix_fmts'
+---
+ libavcodec/libsvtjpegxsenc.c | 37 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 19 deletions(-)
+
+diff --git a/libavcodec/libsvtjpegxsenc.c b/libavcodec/libsvtjpegxsenc.c
+index 2e3123bdac..75e3cc499a 100644
+--- a/libavcodec/libsvtjpegxsenc.c
++++ b/libavcodec/libsvtjpegxsenc.c
+@@ -323,25 +323,24 @@ const FFCodec ff_libsvtjpegxs_encoder = {
+     .p.capabilities = AV_CODEC_CAP_OTHER_THREADS | AV_CODEC_CAP_DR1,
+     .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |
+                       FF_CODEC_CAP_AUTO_THREADS,
+-    .p.pix_fmts = (const enum AVPixelFormat[]){ AV_PIX_FMT_YUV420P,
+-                                                AV_PIX_FMT_YUV422P,
+-                                                AV_PIX_FMT_YUV444P,
+-                                                AV_PIX_FMT_YUV420P10LE,
+-                                                AV_PIX_FMT_YUV422P10LE,
+-                                                AV_PIX_FMT_YUV444P10LE,
+-                                                AV_PIX_FMT_YUV420P12LE,
+-                                                AV_PIX_FMT_YUV422P12LE,
+-                                                AV_PIX_FMT_YUV444P12LE,
+-                                                AV_PIX_FMT_YUV420P14LE,
+-                                                AV_PIX_FMT_YUV422P14LE,
+-                                                AV_PIX_FMT_YUV444P14LE,
+-                                                AV_PIX_FMT_GBRP,
+-                                                AV_PIX_FMT_GBRP10LE,
+-                                                AV_PIX_FMT_GBRP12LE,
+-                                                AV_PIX_FMT_GBRP14LE,
+-                                                AV_PIX_FMT_RGB24,
+-                                                AV_PIX_FMT_BGR24,
+-                                                AV_PIX_FMT_NONE },
++    CODEC_PIXFMTS(AV_PIX_FMT_YUV420P,
++                  AV_PIX_FMT_YUV422P,
++                  AV_PIX_FMT_YUV444P,
++                  AV_PIX_FMT_YUV420P10LE,
++                  AV_PIX_FMT_YUV422P10LE,
++                  AV_PIX_FMT_YUV444P10LE,
++                  AV_PIX_FMT_YUV420P12LE,
++                  AV_PIX_FMT_YUV422P12LE,
++                  AV_PIX_FMT_YUV444P12LE,
++                  AV_PIX_FMT_YUV420P14LE,
++                  AV_PIX_FMT_YUV422P14LE,
++                  AV_PIX_FMT_YUV444P14LE,
++                  AV_PIX_FMT_GBRP,
++                  AV_PIX_FMT_GBRP10LE,
++                  AV_PIX_FMT_GBRP12LE,
++                  AV_PIX_FMT_GBRP14LE,
++                  AV_PIX_FMT_RGB24,
++                  AV_PIX_FMT_BGR24),
+     .p.wrapper_name = "libsvtjpegxs",
+     .p.priv_class = &svtjpegxs_enc_class,
+ };
+-- 
+2.53.0
+

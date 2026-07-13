@@ -1,0 +1,54 @@
+From e61c0f06f03396030bc1cca74b7226a564d1a75f Mon Sep 17 00:00:00 2001
+From: Grzegorz Rys <grzegorz.rys@intel.com>
+Date: Tue, 12 May 2026 10:19:10 +0200
+Subject: [PATCH] avformat/mpegts: fix JPEG XS schar descriptor parsing
+
+Fix JXS_video_descriptor schar field parsing in the MPEG-TS demuxer:
+ - Add 4:2:0 subsampling support (Ssub=2)
+ - Detect GBR/RGB pixel formats from colour_specification bits [11:8]
+ - Add comment clarifying bit depth comes from codestream, not descriptor
+
+The schar field per ISO/IEC 21122-3 encodes colour_specification in
+bits [11:8] (Cs: 0=YCbCr, 1=RGB/GBR) and subsampling in bits [3:0]
+(Ssub: 0=4:2:2, 1=4:4:4, 2=4:2:0). The previous code only handled
+Ssub 0 and 1, and did not check Cs bits for GBR detection.
+---
+ libavformat/mpegts.c | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/libavformat/mpegts.c b/libavformat/mpegts.c
+index 4b326d309b..6b94ebd785 100644
+--- a/libavformat/mpegts.c
++++ b/libavformat/mpegts.c
+@@ -1901,11 +1901,25 @@ static int parse_mpeg2_extension_descriptor(AVFormatContext *fc, AVStream *st, i
+                 st->codecpar->framerate.den = framerate_den;
+             }
+ 
++            /* schar bits [11:8] = Cs (colour_specification), bits [3:0] = Ssub (subsampling).
++             * Bit depth is not carried in schar; it comes from the codestream.
++             * Set a reasonable default format per subsampling; the parser will
++             * refine it once the first frame is parsed. */
+             switch (schar & 0xf) {
+-            case 0: st->codecpar->format = AV_PIX_FMT_YUV422P10LE; break;
+-            case 1: st->codecpar->format = AV_PIX_FMT_YUV444P10LE; break;
++            case 0: /* 4:2:2 */
++                st->codecpar->format = AV_PIX_FMT_YUV422P10LE;
++                break;
++            case 1: /* 4:4:4 */
++                if (((schar >> 8) & 0xf) == 1)
++                    st->codecpar->format = AV_PIX_FMT_GBRP10LE;
++                else
++                    st->codecpar->format = AV_PIX_FMT_YUV444P10LE;
++                break;
++            case 2: /* 4:2:0 */
++                st->codecpar->format = AV_PIX_FMT_YUV420P10LE;
++                break;
+             default:
+-                av_log(fc, AV_LOG_WARNING, "Unknown JPEG XS sampling format");
++                av_log(fc, AV_LOG_WARNING, "Unknown JPEG XS sampling format %d\n", schar & 0xf);
+                 break;
+             }
+ 
+-- 
+2.53.0
+

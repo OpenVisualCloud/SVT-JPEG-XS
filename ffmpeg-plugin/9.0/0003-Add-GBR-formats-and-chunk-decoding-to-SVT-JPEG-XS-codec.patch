@@ -1,0 +1,796 @@
+From 52be2097ea204782ad08146c26f63c9497ce6e1e Mon Sep 17 00:00:00 2001
+From: Grzegorz Rys <grzegorz.rys@intel.com>
+Date: Thu, 2 Apr 2026 11:05:22 +0200
+Subject: [PATCH 3/3] Update JPEGXS decoder and ecoder with GBR formats
+
+Signed-off-by: Grzegorz Rys <grzegorz.rys@intel.com>
+---
+ libavcodec/libsvtjpegxsdec.c | 301 ++++++++++++++++++++++-------------
+ libavcodec/libsvtjpegxsenc.c | 240 ++++++++++++++++------------
+ 2 files changed, 328 insertions(+), 213 deletions(-)
+
+diff --git a/libavcodec/libsvtjpegxsdec.c b/libavcodec/libsvtjpegxsdec.c
+index 7a325c4446..325bef76f0 100644
+--- a/libavcodec/libsvtjpegxsdec.c
++++ b/libavcodec/libsvtjpegxsdec.c
+@@ -37,179 +37,261 @@
+ #include "profiles.h"
+ 
+ typedef struct SvtJpegXsDecodeContext {
++    AVClass* class;
+     svt_jpeg_xs_image_config_t config;
+     svt_jpeg_xs_decoder_api_t decoder;
+-    svt_jpeg_xs_frame_t input;
+-    svt_jpeg_xs_frame_t output;
+     uint32_t decoder_initialized;
+ 
++    /*0- AVPacket* avpkt have full frame*/
++    /*1- AVPacket* avpkt have chunk of frame, need another buffer to merge packets*/
++    uint32_t chunk_decoding;
++    uint32_t frame_size;
++    uint32_t buffer_filled_len;
++    uint8_t* bitstream_buffer;
+     int proxy_mode;
+ } SvtJpegXsDecodeContext;
+ 
+-static int set_pix_fmt(void *logctx, const svt_jpeg_xs_image_config_t *config)
+-{
+-    int ret = AVERROR_BUG;
+-
+-    switch (config->format) {
+-    case COLOUR_FORMAT_PLANAR_YUV420:
+-        if (config->bit_depth == 8)
+-            return AV_PIX_FMT_YUV420P;
+-        else if (config->bit_depth == 10)
+-            return AV_PIX_FMT_YUV420P10LE;
+-        else if (config->bit_depth == 12)
+-            return AV_PIX_FMT_YUV420P12LE;
+-        else
+-            return AV_PIX_FMT_YUV420P14LE;
+-        break;
+-    case COLOUR_FORMAT_PLANAR_YUV422:
+-        if (config->bit_depth == 8)
+-            return AV_PIX_FMT_YUV422P;
+-        else if (config->bit_depth == 10)
+-            return AV_PIX_FMT_YUV422P10LE;
+-        else if (config->bit_depth == 12)
+-            return AV_PIX_FMT_YUV422P12LE;
+-        else
+-            return AV_PIX_FMT_YUV422P14LE;
+-        break;
+-    case COLOUR_FORMAT_PLANAR_YUV444_OR_RGB:
+-        if (config->bit_depth == 8)
+-            return AV_PIX_FMT_YUV444P;
+-        else if (config->bit_depth == 10)
+-            return AV_PIX_FMT_YUV444P10LE;
+-        else if (config->bit_depth == 12)
+-            return AV_PIX_FMT_YUV444P12LE;
+-        else
+-            return AV_PIX_FMT_YUV444P14LE;
+-        break;
+-    default:
+-        av_log(logctx, AV_LOG_ERROR, "Unsupported pixel format.\n");
+-        ret = AVERROR_INVALIDDATA;
+-        break;
+-    }
+-
+-    return ret;
++
++static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_image_config_t config) {
++    if (config.format == COLOUR_FORMAT_PLANAR_YUV420) {
++        if (config.bit_depth == 8) {
++            avctx->pix_fmt = AV_PIX_FMT_YUV420P;
++        }
++        else if (config.bit_depth == 10) {
++            avctx->pix_fmt = AV_PIX_FMT_YUV420P10LE;
++        }
++        else if (config.bit_depth == 12) {
++            avctx->pix_fmt = AV_PIX_FMT_YUV420P12LE;
++        }
++        else {
++            avctx->pix_fmt = AV_PIX_FMT_YUV420P14LE;
++        }
++    }
++    else if (config.format == COLOUR_FORMAT_PLANAR_YUV422) {
++        if (config.bit_depth == 8) {
++            avctx->pix_fmt = AV_PIX_FMT_YUV422P;
++        }
++        else if (config.bit_depth == 10) {
++            avctx->pix_fmt = AV_PIX_FMT_YUV422P10LE;
++        }
++        else if (config.bit_depth == 12) {
++            avctx->pix_fmt = AV_PIX_FMT_YUV422P12LE;
++        }
++        else {
++            avctx->pix_fmt = AV_PIX_FMT_YUV422P14LE;
++        }
++    }
++    else if (config.format == COLOUR_FORMAT_PLANAR_YUV444_OR_RGB) {
++        if (config.bit_depth == 8) {
++            avctx->pix_fmt = AV_PIX_FMT_YUV444P;
++        }
++        else if (config.bit_depth == 10) {
++            avctx->pix_fmt = AV_PIX_FMT_YUV444P10LE;
++        }
++        else if (config.bit_depth == 12) {
++            avctx->pix_fmt = AV_PIX_FMT_YUV444P12LE;
++        }
++        else {
++            avctx->pix_fmt = AV_PIX_FMT_YUV444P14LE;
++        }
++    }
++    else {
++        av_log(avctx, AV_LOG_ERROR, "Unsupported pixel format.\n");
++        return AVERROR_INVALIDDATA;
++    }
++    return 0;
+ }
+ 
+-static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* got_frame, AVPacket* avpkt)
+-{
++static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* got_frame, AVPacket* avpkt) {
+     SvtJpegXsDecodeContext* svt_dec = avctx->priv_data;
++
+     SvtJxsErrorType_t err = SvtJxsErrorNone;
+-    uint32_t frame_size;
+     int ret;
++    svt_jpeg_xs_frame_t dec_input;
++    svt_jpeg_xs_frame_t dec_output;
++    uint32_t pixel_size;
+ 
+-    err = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
+-        avpkt->data, avpkt->size, &svt_dec->config, &frame_size, 1 /*quick search*/, svt_dec->decoder.proxy_mode);
+-    if (err) {
+-        av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_single_frame_size_with_proxy failed, err=%d\n", err);
+-        return AVERROR_EXTERNAL;
+-    }
+-    if (avpkt->size < frame_size) {
+-        av_log(avctx, AV_LOG_ERROR, "Not enough data in a packet.\n");
+-        return AVERROR(EINVAL);
+-    }
+-    if (avpkt->size > frame_size) {
+-        av_log(avctx, AV_LOG_ERROR, "Single packet have data for more than one frame.\n");
+-        return AVERROR(EINVAL);
+-    }
+-
+-    ret = set_pix_fmt(avctx, &svt_dec->config);
+-    if (ret < 0)
+-        return ret;
++    if (!svt_dec->decoder_initialized) {
++        err = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
++            avpkt->data, avpkt->size, NULL, &svt_dec->frame_size, 1 /*quick search*/, svt_dec->decoder.proxy_mode);
++        if (err) {
++            av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_single_frame_size_with_proxy failed, err=%d\n", err);
++            return err;
++        }
++        if (avpkt->size < svt_dec->frame_size) {
++            svt_dec->chunk_decoding = 1;
++            svt_dec->bitstream_buffer = av_malloc(svt_dec->frame_size);
++            if (!svt_dec->bitstream_buffer) {
++                av_log(avctx, AV_LOG_ERROR, "Failed to allocate svt_dec->bitstream_buffer.\n");
++                return AVERROR(ENOMEM);
++            }
++            av_log(NULL, AV_LOG_DEBUG, "svt_jpegxs_dec_decode, bitstream_size=%d, chunk = %d\n", svt_dec->frame_size, avpkt->size);
++        }
++        if (avpkt->size > svt_dec->frame_size) {
++            av_log(avctx, AV_LOG_ERROR, "Single packet have data for more than one frame.\n");
++            return AVERROR_UNKNOWN;
++        }
+ 
+-    if (!svt_dec->decoder_initialized || ret != avctx->pix_fmt ||
+-        avctx->width != svt_dec->config.width || avctx->height != svt_dec->config.height) {
+-        if (svt_dec->decoder_initialized)
+-            svt_jpeg_xs_decoder_close(&svt_dec->decoder);
+-        err = svt_jpeg_xs_decoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR,
+-                                       &svt_dec->decoder, avpkt->data, avpkt->size, &svt_dec->config);
++        err = svt_jpeg_xs_decoder_init(
++            SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &(svt_dec->decoder), avpkt->data, avpkt->size, &(svt_dec->config));
+         if (err) {
+-            av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_decoder_init failed, err=%d\n", err);
+-            return AVERROR_EXTERNAL;
++            av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_init failed, err=%d\n", err);
++            return err;
+         }
+ 
+-        avctx->pix_fmt = ret;
++        ret = set_pix_fmt(avctx, svt_dec->config);
++        if (ret < 0) {
++            av_log(NULL, AV_LOG_ERROR, "set_pix_fmt failed, err=%d\n", ret);
++            return ret;
++        }
+ 
+         ret = ff_set_dimensions(avctx, svt_dec->config.width, svt_dec->config.height);
+         if (ret < 0) {
+-            av_log(avctx, AV_LOG_ERROR, "ff_set_dimensions failed, err=%d\n", ret);
++            av_log(NULL, AV_LOG_ERROR, "ff_set_dimensions failed, err=%d\n", ret);
+             return ret;
+         }
+ 
+         svt_dec->decoder_initialized = 1;
+     }
+ 
+-    if (avctx->skip_frame == AVDISCARD_ALL)
+-        return 0;
++    if (svt_dec->chunk_decoding) {
++        uint8_t* bitstrream_addr = svt_dec->bitstream_buffer + svt_dec->buffer_filled_len;
++        int bytes_to_copy = avpkt->size;
++        //Do not copy more data than allocation
++        if ((bytes_to_copy + svt_dec->buffer_filled_len) > svt_dec->frame_size) {
++            bytes_to_copy = svt_dec->frame_size - svt_dec->buffer_filled_len;
++        }
+ 
+-    svt_dec->input.bitstream.buffer = avpkt->data;
+-    svt_dec->input.bitstream.allocation_size = avpkt->size;
+-    svt_dec->input.bitstream.used_size = avpkt->size;
+-    svt_dec->input.user_prv_ctx_ptr = avpkt;
++        memcpy(bitstrream_addr, avpkt->data, bytes_to_copy);
++        svt_dec->buffer_filled_len += avpkt->size;
++        if (svt_dec->buffer_filled_len >= svt_dec->frame_size) {
++            dec_input.bitstream.buffer = svt_dec->bitstream_buffer;
++            dec_input.bitstream.allocation_size = svt_dec->frame_size;
++            dec_input.bitstream.used_size = svt_dec->frame_size;
++        }
++        else {
++            *got_frame = 0;
++            return avpkt->size;
++        }
++    }
++    else {// svt_dec->chunk_decoding == 0
++        dec_input.bitstream.buffer = avpkt->data;
++        dec_input.bitstream.allocation_size = avpkt->size;
++        dec_input.bitstream.used_size = avpkt->size;
++    }
++    dec_input.user_prv_ctx_ptr = avpkt;
+ 
+     ret = ff_get_buffer(avctx, picture, 0);
+-    if (ret < 0)
++    if (ret < 0) {
++        av_log(NULL, AV_LOG_ERROR, "ff_get_buffer failed, err=%d\n", ret);
+         return ret;
++    }
+ 
+-    unsigned pixel_shift = svt_dec->config.bit_depth <= 8 ? 0 : 1;
++    pixel_size = svt_dec->config.bit_depth <= 8 ? 1 : 2;
+     for (int comp = 0; comp < svt_dec->config.components_num; comp++) {
+-        svt_dec->input.image.data_yuv[comp] = picture->data[comp];
+-        svt_dec->input.image.stride[comp] = picture->linesize[comp] >> pixel_shift;
+-        svt_dec->input.image.alloc_size[comp] = picture->linesize[comp] * svt_dec->config.components[comp].height;
++        dec_input.image.data_yuv[comp] = picture->data[comp];
++        dec_input.image.stride[comp] = picture->linesize[comp]/pixel_size;
++        dec_input.image.alloc_size[comp] = picture->linesize[comp] * svt_dec->config.components[comp].height;
+     }
+ 
+-    err = svt_jpeg_xs_decoder_send_frame(&svt_dec->decoder, &svt_dec->input, 1 /*blocking*/);
++    err = svt_jpeg_xs_decoder_send_frame(&(svt_dec->decoder), &dec_input, 1 /*blocking*/);
+     if (err) {
+-        av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_decoder_send_frame failed, err=%d\n", err);
+-        return AVERROR_EXTERNAL;
++        av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_send_frame failed, err=%d\n", err);
++        return err;
+     }
+ 
+-    err = svt_jpeg_xs_decoder_get_frame(&svt_dec->decoder, &svt_dec->output, 1 /*blocking*/);
++    err = svt_jpeg_xs_decoder_get_frame(&(svt_dec->decoder), &dec_output, 1 /*blocking*/);
++    if (err == SvtJxsErrorDecoderConfigChange) {
++        av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_frame return SvtJxsErrorDecoderConfigChange\n");
++        return AVERROR_INPUT_CHANGED;
++    }
+     if (err) {
+-        av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_frame failed, err=%d\n", err);
+-        return AVERROR_EXTERNAL;
++        av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_frame failed, err=%d\n", err);
++        return err;
+     }
+ 
+-    if (svt_dec->output.user_prv_ctx_ptr != avpkt) {
+-        av_log(avctx, AV_LOG_ERROR, "Returned different user_prv_ctx_ptr than expected\n");
+-        return AVERROR_EXTERNAL;
++    if (dec_output.user_prv_ctx_ptr != avpkt) {
++        av_log(NULL, AV_LOG_ERROR, "Returned different user_prv_ctx_ptr than expected\n");
++        return AVERROR_UNKNOWN;
+     }
+ 
+     *got_frame = 1;
+ 
++    //Copy leftover from AVPacket if it contain data from two frames
++    if (svt_dec->chunk_decoding) {
++        int bytes_to_copy = svt_dec->buffer_filled_len % svt_dec->frame_size;
++        int packet_offset = avpkt->size - bytes_to_copy;
++        uint8_t* packet_addr = avpkt->data + packet_offset;
++        memcpy(svt_dec->bitstream_buffer, packet_addr, bytes_to_copy);
++        svt_dec->buffer_filled_len = bytes_to_copy;
++    }
++
+     return avpkt->size;
+ }
+ 
+-static av_cold int svt_jpegxs_dec_free(AVCodecContext* avctx)
+-{
++static av_cold int svt_jpegxs_dec_free(AVCodecContext* avctx) {
+     SvtJpegXsDecodeContext* svt_dec = avctx->priv_data;
++    svt_jpeg_xs_decoder_close(&(svt_dec->decoder));
++    av_log(NULL, AV_LOG_DEBUG, "svt_jpeg_xs_decoder_close called\n");
+ 
+-    svt_jpeg_xs_decoder_close(&svt_dec->decoder);
++    if (svt_dec->chunk_decoding) {
++        av_free(svt_dec->bitstream_buffer);
++    }
+ 
+     return 0;
+ }
+ 
+-static av_cold int svt_jpegxs_dec_init(AVCodecContext* avctx)
+-{
++static av_cold int svt_jpegxs_dec_init(AVCodecContext* avctx) {
+     SvtJpegXsDecodeContext* svt_dec = avctx->priv_data;
+ 
+-    int log_level = av_log_get_level();
+-    svt_dec->decoder.verbose = log_level < AV_LOG_DEBUG ? VERBOSE_ERRORS :
+-                                  log_level == AV_LOG_DEBUG ? VERBOSE_SYSTEM_INFO : VERBOSE_WARNINGS;
++    svt_dec->decoder_initialized = 0;
++    svt_dec->chunk_decoding = 0;
++    svt_dec->buffer_filled_len = 0;
++    svt_dec->bitstream_buffer = NULL;
+ 
+-    if (avctx->lowres == 1)
++    if (av_log_get_level() < AV_LOG_DEBUG) {
++        svt_dec->decoder.verbose = VERBOSE_ERRORS;
++    }
++    else if (av_log_get_level() == AV_LOG_DEBUG) {
++        svt_dec->decoder.verbose = VERBOSE_SYSTEM_INFO;
++    }
++    else {
++        svt_dec->decoder.verbose = VERBOSE_WARNINGS;
++    }
++
++    if (svt_dec->proxy_mode == 1) {
+         svt_dec->decoder.proxy_mode = proxy_mode_half;
+-    else if (avctx->lowres == 2)
++    }
++    else if (svt_dec->proxy_mode == 2) {
+         svt_dec->decoder.proxy_mode = proxy_mode_quarter;
+-    else
++    }
++    else {
+         svt_dec->decoder.proxy_mode = proxy_mode_full;
++    }
+ 
+-    int thread_count = avctx->thread_count ? avctx->thread_count : av_cpu_count();
+-    svt_dec->decoder.threads_num = FFMIN(thread_count, 64);
++    svt_dec->decoder.threads_num = FFMIN(avctx->thread_count ? avctx->thread_count : av_cpu_count(), 64);
+     svt_dec->decoder.use_cpu_flags = CPU_FLAGS_ALL;
++    svt_dec->decoder.packetization_mode = 0;
++
++    av_log(NULL, AV_LOG_DEBUG, "svt_jpegxs_dec_init called\n");
+ 
+     return 0;
+ }
+ 
++#define OFFSET(x) offsetof(SvtJpegXsDecodeContext, x)
++#define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_DECODING_PARAM
++static const AVOption svtjpegxs_dec_options[] = {
++    {"proxy-mode", "Resolution scaling mode: 0-full, 1-half, 2-quarter", OFFSET(proxy_mode), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 2, VE},
++    {NULL},
++};
++
++static const AVClass svtjpegxs_dec_class = {
++    .class_name = "libsvtjpegxsdec",
++    .item_name = av_default_item_name,
++    .option = svtjpegxs_dec_options,
++    .version = LIBAVUTIL_VERSION_INT,
++};
++
+ const FFCodec ff_libsvtjpegxs_decoder = {
+     .p.name         = "libsvtjpegxs",
+     CODEC_LONG_NAME("SVT JPEG XS(Scalable Video Technology for JPEG XS) decoder"),
+@@ -221,8 +303,7 @@ const FFCodec ff_libsvtjpegxs_decoder = {
+     FF_CODEC_DECODE_CB(svt_jpegxs_dec_decode),
+     .p.capabilities = AV_CODEC_CAP_OTHER_THREADS | AV_CODEC_CAP_DR1,
+     .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |
+-                      FF_CODEC_CAP_SKIP_FRAME_FILL_PARAM |
+                       FF_CODEC_CAP_AUTO_THREADS,
+-    .p.max_lowres   = 2,
+     .p.wrapper_name = "libsvtjpegxs",
++    .p.priv_class = &svtjpegxs_dec_class,
+ };
+diff --git a/libavcodec/libsvtjpegxsenc.c b/libavcodec/libsvtjpegxsenc.c
+index d8dbc93075..cddc09a90b 100644
+--- a/libavcodec/libsvtjpegxsenc.c
++++ b/libavcodec/libsvtjpegxsenc.c
+@@ -25,11 +25,9 @@
+ 
+ #include <SvtJpegxsEnc.h>
+ 
+-#include "libavutil/avassert.h"
+ #include "libavutil/common.h"
+ #include "libavutil/cpu.h"
+ #include "libavutil/imgutils.h"
+-#include "libavutil/rational.h"
+ 
+ #include "avcodec.h"
+ #include "codec_internal.h"
+@@ -39,6 +37,9 @@
+ typedef struct SvtJpegXsEncodeContext {
+     AVClass* class;
+ 
++    char *bpp_str;
++
++    int slice_height;
+     int decomp_v;
+     int decomp_h;
+     int quant;
+@@ -50,216 +51,232 @@ typedef struct SvtJpegXsEncodeContext {
+     int bitstream_frame_size;
+ } SvtJpegXsEncodeContext;
+ 
+-static int svt_jpegxs_enc_encode(AVCodecContext* avctx, AVPacket* pkt,
+-                                 const AVFrame* frame, int* got_packet)
+-{
++static int svt_jpegxs_enc_encode(AVCodecContext* avctx, AVPacket* pkt, const AVFrame* frame, int* got_packet) {
+     SvtJpegXsEncodeContext* svt_enc = avctx->priv_data;
+ 
++    svt_jpeg_xs_bitstream_buffer_t out_buf;
++    svt_jpeg_xs_image_buffer_t in_buf;
+     svt_jpeg_xs_frame_t enc_input;
+-    svt_jpeg_xs_bitstream_buffer_t *const out_buf = &enc_input.bitstream;
+-    svt_jpeg_xs_image_buffer_t *const in_buf = &enc_input.image;
+     svt_jpeg_xs_frame_t enc_output;
+ 
+     SvtJxsErrorType_t err = SvtJxsErrorNone;
++    uint32_t pixel_size = svt_enc->encoder.input_bit_depth <= 8 ? 1 : 2;
+ 
+-    int ret = ff_get_encode_buffer(avctx, pkt, svt_enc->bitstream_frame_size, 0);
+-    if (ret < 0)
++    int ret = ff_alloc_packet(avctx, pkt, svt_enc->bitstream_frame_size);
++    if (ret < 0) {
+         return ret;
++    }
+ 
+-    out_buf->buffer = pkt->data;// output bitstream ptr
+-    out_buf->allocation_size = pkt->size;// output bitstream size
+-    out_buf->used_size = 0;
++    out_buf.buffer = pkt->data;// output bitstream ptr
++    out_buf.allocation_size = pkt->size;// output bitstream size
++    out_buf.used_size = 0;
+ 
+-    unsigned pixel_shift = svt_enc->encoder.input_bit_depth <= 8 ? 0 : 1;
+     for (int comp = 0; comp < 3; comp++) {
+         // svt-jpegxs require stride in pixel's not in bytes, this means that for 10 bit-depth, stride is half the linesize
+-        in_buf->stride[comp]     = frame->linesize[comp] >> pixel_shift;
+-        in_buf->data_yuv[comp]   = frame->data[comp];
+-        in_buf->alloc_size[comp] = frame->linesize[comp] * svt_enc->encoder.source_height;
++        in_buf.stride[comp] = frame->linesize[comp]/ pixel_size;
++        in_buf.data_yuv[comp] = frame->data[comp];
++        in_buf.alloc_size[comp] = in_buf.stride[comp] * svt_enc->encoder.source_height * pixel_size;
+     }
+ 
++    enc_input.bitstream = out_buf;
++    enc_input.image = in_buf;
+     enc_input.user_prv_ctx_ptr = pkt;
+ 
+-    err = svt_jpeg_xs_encoder_send_picture(&svt_enc->encoder, &enc_input, 1 /*blocking*/);
++    err = svt_jpeg_xs_encoder_send_picture(&(svt_enc->encoder), &enc_input, 1 /*blocking*/);
+     if (err != SvtJxsErrorNone) {
+-        av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_encoder_send_picture failed\n");
+-        return AVERROR_EXTERNAL;
++        av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_send_picture failed\n");
++        return AVERROR_UNKNOWN;
+     }
+ 
+-    err = svt_jpeg_xs_encoder_get_packet(&svt_enc->encoder, &enc_output, 1 /*blocking*/);
++    err = svt_jpeg_xs_encoder_get_packet(&(svt_enc->encoder), &enc_output, 1 /*blocking*/);
+     if (err != SvtJxsErrorNone) {
+-        av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_encoder_get_packet failed\n");
+-        return AVERROR_EXTERNAL;
++        av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_get_packet failed\n");
++        return AVERROR_UNKNOWN;
+     }
+ 
+     if (enc_output.user_prv_ctx_ptr != pkt) {
+-        av_log(avctx, AV_LOG_ERROR, "Returned different user_prv_ctx_ptr than expected\n");
+-        return AVERROR_EXTERNAL;
++        av_log(NULL, AV_LOG_ERROR, "Returned different user_prv_ctx_ptr than expected\n");
++        return AVERROR_UNKNOWN;
+     }
+ 
+     pkt->size = enc_output.bitstream.used_size;
+ 
+     *got_packet = 1;
+-
+     return 0;
+ }
+ 
+ static av_cold int svt_jpegxs_enc_free(AVCodecContext* avctx) {
+     SvtJpegXsEncodeContext* svt_enc = avctx->priv_data;
+-
+-    svt_jpeg_xs_encoder_close(&svt_enc->encoder);
++    svt_jpeg_xs_encoder_close(&(svt_enc->encoder));
++    av_log(NULL, AV_LOG_DEBUG, "svt_jpeg_xs_encoder_close called\n");
+ 
+     return 0;
+ }
+ 
+-static void set_pix_fmt(AVCodecContext *avctx, svt_jpeg_xs_encoder_api_t *encoder)
++static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_encoder_api_t *encoder)
+ {
+     switch (avctx->pix_fmt) {
+     case AV_PIX_FMT_YUV420P:
+         encoder->input_bit_depth = 8;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV420;
+-        return;
++        return 0;
+     case AV_PIX_FMT_YUV422P:
+         encoder->input_bit_depth = 8;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+-        return;
++        return 0;
+     case AV_PIX_FMT_YUV444P:
++    case AV_PIX_FMT_GBRP:
+         encoder->input_bit_depth = 8;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+-        return;
++        return 0;
+     case AV_PIX_FMT_YUV420P10LE:
+         encoder->input_bit_depth = 10;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV420;
+-        return;
++        return 0;
+     case AV_PIX_FMT_YUV422P10LE:
+         encoder->input_bit_depth = 10;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+-        return;
++        return 0;
+     case AV_PIX_FMT_YUV444P10LE:
++    case AV_PIX_FMT_GBRP10LE:
+         encoder->input_bit_depth = 10;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+-        return;
++        return 0;
+     case AV_PIX_FMT_YUV420P12LE:
+         encoder->input_bit_depth = 12;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV420;
+-        return;
++        return 0;
+     case AV_PIX_FMT_YUV422P12LE:
+         encoder->input_bit_depth = 12;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+-        return;
++        return 0;
+     case AV_PIX_FMT_YUV444P12LE:
++    case AV_PIX_FMT_GBRP12LE:
+         encoder->input_bit_depth = 12;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+-        return;
++        return 0;
+     case AV_PIX_FMT_YUV420P14LE:
+         encoder->input_bit_depth = 14;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV420;
+-        return;
++        return 0;
+     case AV_PIX_FMT_YUV422P14LE:
+         encoder->input_bit_depth = 14;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+-        return;
++        return 0;
+     case AV_PIX_FMT_YUV444P14LE:
++    case AV_PIX_FMT_GBRP14LE:
+         encoder->input_bit_depth = 14;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+-        return;
++        return 0;
++    case AV_PIX_FMT_RGB24:
++    case AV_PIX_FMT_BGR24:
++        encoder->input_bit_depth = 8;
++        encoder->colour_format = COLOUR_FORMAT_PACKED_YUV444_OR_RGB;
++        return 0;
+     default:
+-        av_unreachable("Already checked via CODEC_PIXFMTS_ARRAY");
+         break;
+     }
++    av_log(avctx, AV_LOG_ERROR, "Unsupported pixel format.\n");
++    return AVERROR_INVALIDDATA;
++}
++
++static void set_bpp(const char* value, svt_jpeg_xs_encoder_api_t* encoder) {
++    char* end;
++    encoder->bpp_numerator = strtoul(value, &end, 0);
++    encoder->bpp_denominator = 1;
++    if (*end != '\0') {
++        while (*value) {
++            if (*value == '.' || *value == ',') {
++                value++;
++                break;
++            }
++            value++;
++        }
++        if (*value) {
++            uint32_t fraction = strtoul(value, &end, 0);
++            uint32_t chars = (uint32_t)(end - value);
++            for (uint32_t i = 0; i < chars; ++i) {
++                encoder->bpp_denominator *= 10;
++            }
++            encoder->bpp_numerator = encoder->bpp_numerator * encoder->bpp_denominator + fraction;
++        }
++    }
+ }
+ 
+ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
+     SvtJpegXsEncodeContext* svt_enc = avctx->priv_data;
+-    AVRational bpp;
+-    SvtJxsErrorType_t err;
++    SvtJxsErrorType_t err = svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &(svt_enc->encoder));
+ 
+-    err = svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &(svt_enc->encoder));
+     if (err != SvtJxsErrorNone) {
+-        av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_encoder_load_default_parameters failed\n");
+-        return AVERROR_EXTERNAL;
++        av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_load_default_parameters failed\n");
++        return AVERROR_UNKNOWN;
+     }
++    av_log(NULL, AV_LOG_DEBUG, "svt_jpeg_xs_encoder_load_default_parameters ok\n");
+ 
+     svt_enc->encoder.source_width = avctx->width;
+     svt_enc->encoder.source_height = avctx->height;
+ 
+-    set_pix_fmt(avctx, &svt_enc->encoder);
++    set_pix_fmt(avctx, &(svt_enc->encoder));
+ 
+-    int thread_count = avctx->thread_count ? avctx->thread_count : av_cpu_count();
+-    svt_enc->encoder.threads_num = FFMIN(thread_count, 64);
++    svt_enc->encoder.threads_num = FFMIN(avctx->thread_count ? avctx->thread_count : av_cpu_count(), 64);
+ 
+-    int log_level = av_log_get_level();
+-    svt_enc->encoder.verbose = log_level < AV_LOG_DEBUG ? VERBOSE_ERRORS :
+-                                  log_level == AV_LOG_DEBUG ? VERBOSE_SYSTEM_INFO : VERBOSE_WARNINGS;
+-
+-    if (avctx->framerate.num <= 0 || avctx->framerate.den <= 0) {
+-        av_log(avctx, AV_LOG_ERROR, "framerate must be set\n");
+-        return AVERROR(EINVAL);
++    if (av_log_get_level() < AV_LOG_DEBUG) {
++        svt_enc->encoder.verbose = VERBOSE_ERRORS;
++    }
++    else if (av_log_get_level() == AV_LOG_DEBUG) {
++        svt_enc->encoder.verbose = VERBOSE_SYSTEM_INFO;
++    }
++    else {
++        svt_enc->encoder.verbose = VERBOSE_WARNINGS;
+     }
+-    if (avctx->bit_rate == 0) {
+-        const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(avctx->pix_fmt);
+-        // default to a 1.5 compression ratio
+-        avctx->bit_rate = (int64_t)avctx->width * avctx->height *
+-                          (av_get_bits_per_pixel(desc) * 2 / 3) * av_q2d(avctx->framerate);
+-        av_log(avctx, AV_LOG_WARNING, "No bitrate set, defaulting to %"PRId64"\n", avctx->bit_rate);
++
++    if (!svt_enc->bpp_str) {
++        //TODO: Consider using avctx->bit_rate to specify bpp_num/bpp_denom in this case
++        av_log(NULL, AV_LOG_ERROR, "libsvtjpegxs Encoder require -bpp(bits per pixel) param\n");
++        return AVERROR_OPTION_NOT_FOUND;
+     }
+ 
+-    av_reduce(&bpp.num, &bpp.den, avctx->bit_rate, (int64_t)avctx->width * avctx->height, INT_MAX);
+-    bpp = av_div_q(bpp, avctx->framerate);
+-    svt_enc->encoder.bpp_numerator   = bpp.num;
+-    svt_enc->encoder.bpp_denominator = bpp.den;
++    set_bpp(svt_enc->bpp_str ,&(svt_enc->encoder));
+ 
+-    if (svt_enc->decomp_v >= 0)
++    if (svt_enc->decomp_v != -1) {
+         svt_enc->encoder.ndecomp_v = svt_enc->decomp_v;
+-    if (svt_enc->decomp_h >= 0)
++    }
++    if (svt_enc->decomp_h != -1) {
+         svt_enc->encoder.ndecomp_h = svt_enc->decomp_h;
+-    if (svt_enc->quant >= 0)
++    }
++    if (svt_enc->quant != -1) {
+         svt_enc->encoder.quantization = svt_enc->quant;
+-    if (svt_enc->coding_signs_handling >= 0)
++    }
++    if (svt_enc->coding_signs_handling != -1) {
+         svt_enc->encoder.coding_signs_handling = svt_enc->coding_signs_handling;
+-    if (svt_enc->coding_significance >= 0)
++    }
++    if (svt_enc->coding_significance != -1) {
+         svt_enc->encoder.coding_significance = svt_enc->coding_significance;
+-    if (svt_enc->coding_vpred >= 0)
++    }
++    if (svt_enc->coding_vpred != -1) {
+         svt_enc->encoder.coding_vertical_prediction_mode = svt_enc->coding_vpred;
+-    if (avctx->slices > 0)
+-        svt_enc->encoder.slice_height = avctx->height / avctx->slices;
++    }
++    if (svt_enc->slice_height > 0) {
++        svt_enc->encoder.slice_height = svt_enc->slice_height;
++    }
+ 
+-    err = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &svt_enc->encoder);
++    err = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &(svt_enc->encoder));
+     if (err != SvtJxsErrorNone) {
+-        av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_encoder_init failed\n");
+-        return AVERROR_EXTERNAL;
++        av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_init failed\n");
++        return AVERROR_UNKNOWN;
+     }
++    av_log(NULL, AV_LOG_DEBUG, "svt_jpeg_xs_encoder_init ok\n");
+ 
+-    svt_enc->bitstream_frame_size = (((int64_t)avctx->width * avctx->height *
+-                                      svt_enc->encoder.bpp_numerator / svt_enc->encoder.bpp_denominator + 7) / 8);
++    svt_enc->bitstream_frame_size = ((avctx->width * avctx->height * svt_enc->encoder.bpp_numerator / svt_enc->encoder.bpp_denominator + 7) / 8);
+ 
+     return 0;
+ }
+ 
+-static const enum AVPixelFormat pix_fmts[] = {
+-    AV_PIX_FMT_YUV420P,
+-    AV_PIX_FMT_YUV422P,
+-    AV_PIX_FMT_YUV444P,
+-    AV_PIX_FMT_YUV420P10LE,
+-    AV_PIX_FMT_YUV422P10LE,
+-    AV_PIX_FMT_YUV444P10LE,
+-    AV_PIX_FMT_YUV420P12LE,
+-    AV_PIX_FMT_YUV422P12LE,
+-    AV_PIX_FMT_YUV444P12LE,
+-    AV_PIX_FMT_YUV420P14LE,
+-    AV_PIX_FMT_YUV422P14LE,
+-    AV_PIX_FMT_YUV444P14LE,
+-    AV_PIX_FMT_NONE
+-};
+-
+-static const FFCodecDefault svt_jpegxs_defaults[] = {
+-    { "b", "0" },
+-    { NULL },
+-};
+-
+ #define OFFSET(x) offsetof(SvtJpegXsEncodeContext, x)
+ #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
+ static const AVOption svtjpegxs_enc_options[] = {
++    { "bpp",          "Bits per pixel",                                   OFFSET(bpp_str),      AV_OPT_TYPE_STRING,{.str = NULL }, 0, 0, VE },
++    { "slice_height", "Specify number of lines calculated in one thread", OFFSET(slice_height), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, 10000, VE },
+     { "decomp_v",     "vertical decomposition level",                              OFFSET(decomp_v),              AV_OPT_TYPE_INT,  {.i64 = -1 }, -1, 2, VE },
+     { "decomp_h",     "horizontal decomposition level",                            OFFSET(decomp_h),              AV_OPT_TYPE_INT,  {.i64 = -1 }, -1, 5, VE },
+     { "quantization", "Quantization algorithm",                                    OFFSET(quant),                 AV_OPT_TYPE_INT,  {.i64 = -1 }, -1, 1, VE, .unit = "quantization" },
+@@ -274,7 +291,7 @@ static const AVOption svtjpegxs_enc_options[] = {
+       { "disable",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
+       { "no_residuals", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
+       { "no_coeffs",    NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
+-    { NULL },
++    {NULL},
+ };
+ 
+ static const AVClass svtjpegxs_enc_class = {
+@@ -292,12 +309,29 @@ const FFCodec ff_libsvtjpegxs_encoder = {
+     .priv_data_size = sizeof(SvtJpegXsEncodeContext),
+     .init           = svt_jpegxs_enc_init,
+     .close          = svt_jpegxs_enc_free,
+-    .defaults       = svt_jpegxs_defaults,
+     FF_CODEC_ENCODE_CB(svt_jpegxs_enc_encode),
+     .p.capabilities = AV_CODEC_CAP_OTHER_THREADS | AV_CODEC_CAP_DR1,
+     .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |
+                       FF_CODEC_CAP_AUTO_THREADS,
+-    CODEC_PIXFMTS_ARRAY(pix_fmts),
++    .p.pix_fmts = (const enum AVPixelFormat[]){ AV_PIX_FMT_YUV420P,
++                                                AV_PIX_FMT_YUV422P,
++                                                AV_PIX_FMT_YUV444P,
++                                                AV_PIX_FMT_YUV420P10LE,
++                                                AV_PIX_FMT_YUV422P10LE,
++                                                AV_PIX_FMT_YUV444P10LE,
++                                                AV_PIX_FMT_YUV420P12LE,
++                                                AV_PIX_FMT_YUV422P12LE,
++                                                AV_PIX_FMT_YUV444P12LE,
++                                                AV_PIX_FMT_YUV420P14LE,
++                                                AV_PIX_FMT_YUV422P14LE,
++                                                AV_PIX_FMT_YUV444P14LE,
++                                                AV_PIX_FMT_GBRP,
++                                                AV_PIX_FMT_GBRP10LE,
++                                                AV_PIX_FMT_GBRP12LE,
++                                                AV_PIX_FMT_GBRP14LE,
++                                                AV_PIX_FMT_RGB24,
++                                                AV_PIX_FMT_BGR24,
++                                                AV_PIX_FMT_NONE },
+     .p.wrapper_name = "libsvtjpegxs",
+     .p.priv_class = &svtjpegxs_enc_class,
+ };
+-- 
+2.51.0
+
