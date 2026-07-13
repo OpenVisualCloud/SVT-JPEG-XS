@@ -10,20 +10,24 @@ FFMPEG_VERSION=${1:-6.1}
 INSTALL_FMPEG=${2:-"n"}
 COPY_FILES=${3:-"y"}
 
-if [[ "$FFMPEG_VERSION" != "6.1" && "$FFMPEG_VERSION" != "7.0" && "$FFMPEG_VERSION" != "7.1" && "$FFMPEG_VERSION" != "8.0" && "$FFMPEG_VERSION" != "8.1" ]]; then
+if [[ "$FFMPEG_VERSION" != "6.1" && "$FFMPEG_VERSION" != "7.0" && "$FFMPEG_VERSION" != "7.1" && "$FFMPEG_VERSION" != "8.0" && "$FFMPEG_VERSION" != "8.1" && "$FFMPEG_VERSION" != "9.0" ]]; then
     echo "Usage: $0  <ffmpeg-version> <install-ffmpeg>"
-    echo "ffmpeg-version: 6.1|7.0|7.1|8.0|8.1 (required)"
-    echo "install-ffmpeg: y|n (default: n)"
+    echo "ffmpeg-version: 6.1|7.0|7.1|8.0|8.1|9.0 (required)"
     echo "Example: $0 6.1 y"
     exit 1
 fi
 
 if [[ "$COPY_FILES" != "y" && "$COPY_FILES" != "n" ]]; then
-    echo "Usage: $0  <ffmpeg-version> <install-ffmpeg> <copy-files>"
-    echo "copy-files: y|n (default: y)"
+    echo "Usage: $0  <ffmpeg-version: 6.1|7.0|7.1|8.0|8.1|9.0> <copy-files: y|n>"
     echo "Example: $0 6.1 y y"
     exit 1
 fi
+
+if [[ ("$FFMPEG_VERSION" == "8.1" || "$FFMPEG_VERSION" == "9.0") && "$COPY_FILES" == "y" ]]; then
+    echo "ffmpeg $FFMPEG_VERSION already ships libsvtjpegxs* upstream, forcing copy-files=n"
+    COPY_FILES="n"
+fi
+
 echo "=== 0. Create installation directory and export env variable ==="
 export INSTALL_DIR="$PWD/install-dir"
 mkdir -p "$INSTALL_DIR"

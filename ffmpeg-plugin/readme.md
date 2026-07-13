@@ -39,10 +39,10 @@ git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
 cd ffmpeg
 ```
 
-### b) Checkout to branch/tag (6.1, 7.0, 7.1, 8.0, 8.1)
+### b) Checkout to branch/tag (6.1, 7.0, 7.1, 8.0, 8.1, 9.0)
 
 ```text
-git checkout release/(6.1, 7.0, 7.1, 8.0, 8.1)
+git checkout release/(6.1, 7.0, 7.1, 8.0, 8.1, 9.0)
 ```
 
 ### c) copy files - ONLY for ffmpeg 6.0, 7.0, 7.1, 8.0
@@ -54,7 +54,7 @@ cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
 ### d) apply jpeg-xs plugin patches
 
 ```text
-git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/(6.1, 7.0, 7.1, 8.0, 8.1)/*.patch
+git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/(6.1, 7.0, 7.1, 8.0, 8.1, 9.0)/*.patch
 ```
 
 ### e) Configure
@@ -69,9 +69,6 @@ git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/(6.1, 7.0, 7.1, 8.0, 8.1)/*
 make -j40
 make install
 ```
-
-Note: for ffmpeg 8.0, 7.1, 7.0, or 6.1 version, replace 8.1 with the
-corresponding version in the above commands.
 
 ## 4. Test executable
 
@@ -137,10 +134,10 @@ git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
 cd ffmpeg
 ```
 
-### b) checkout to branch/tag (6.1, 7.0, 7.1, 8.0, 8.1)
+### b) checkout to branch/tag (6.1, 7.0, 7.1, 8.0, 8.1, 9.0)
 
 ```text
-git checkout release/(6.1, 7.0, 7.1, 8.0, 8.1)
+git checkout release/(6.1, 7.0, 7.1, 8.0, 8.1, 9.0)
 ```
 
 ### c) copy files - ONLY for ffmpeg 6.0, 7.0, 7.1, 8.0
@@ -152,7 +149,7 @@ cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
 ### d) apply plugin patches
 
 ```text
-git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/(6.1, 7.0, 7.1, 8.0, 8.1)/*.patch
+git am --whitespace=fix <jpeg-xs-repo>/ffmpeg-plugin/(6.1, 7.0, 7.1, 8.0, 8.1, 9.0)/*.patch
 ```
 
 ### e) Export path for svt-jpeg-xs installation directory
@@ -190,9 +187,6 @@ install-dir
 ```text
 make -j10
 ```
-
-Note: for ffmpeg 8.0, 7.1, 7.0, or 6.1 version, replace 8.1 with the
-corresponding version in the above commands.
 
 # How to use ffmpeg with jpeg-xs
 
