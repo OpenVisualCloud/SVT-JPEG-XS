@@ -8,6 +8,7 @@
 #include "libavutil/common.h"
 #include "libavutil/cpu.h"
 #include "libavutil/imgutils.h"
+#include "libavutil/pixdesc.h"
 
 #include "avcodec.h"
 #include "codec_internal.h"
@@ -184,8 +185,29 @@ static void set_bpp(const char* value, svt_jpeg_xs_encoder_api_t* encoder) {
     }
 }
 
+/* Derive a lossless-equivalent bpp default from the already-resolved
+ * colour_format/input_bit_depth (set by set_pix_fmt()), used only when the
+ * user does not pass -bpp explicitly. This keeps a single source of truth
+ * for pixel-format support instead of a separate pix_fmt table, so it
+ * automatically covers every format set_pix_fmt() supports, present and
+ * future. Returns 0 if colour_format is not recognized. */
+static uint32_t default_bpp_numerator(const svt_jpeg_xs_encoder_api_t* encoder) {
+    switch (encoder->colour_format) {
+    case COLOUR_FORMAT_PLANAR_YUV420:
+        return encoder->input_bit_depth * 3 / 2;
+    case COLOUR_FORMAT_PLANAR_YUV422:
+        return encoder->input_bit_depth * 2;
+    case COLOUR_FORMAT_PLANAR_YUV444_OR_RGB:
+    case COLOUR_FORMAT_PACKED_YUV444_OR_RGB:
+        return encoder->input_bit_depth * 3;
+    default:
+        return 0;
+    }
+}
+
 static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
     SvtJpegXsEncodeContext* svt_enc = avctx->priv_data;
+    int ret;
     SvtJxsErrorType_t err = svt_jpeg_xs_encoder_load_default_parameters(
         SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &(svt_enc->encoder));
 
@@ -198,7 +220,9 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
     svt_enc->encoder.source_width = avctx->width;
     svt_enc->encoder.source_height = avctx->height;
 
-    set_pix_fmt(avctx, &(svt_enc->encoder));
+    if ((ret = set_pix_fmt(avctx, &(svt_enc->encoder))) < 0) {
+        return ret;
+    }
 
     svt_enc->encoder.threads_num = FFMIN(avctx->thread_count ? avctx->thread_count : av_cpu_count(), 64);
 
@@ -212,13 +236,25 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
         svt_enc->encoder.verbose = VERBOSE_WARNINGS;
     }
 
-    if (!svt_enc->bpp_str) {
-        // TODO: Consider using avctx->bit_rate to specify bpp_num/bpp_denom in this case
-        av_log(NULL, AV_LOG_ERROR, "libsvtjpegxs Encoder require -bpp(bits per pixel) param\n");
-        return AVERROR_OPTION_NOT_FOUND;
+    if (svt_enc->bpp_str) {
+        set_bpp(svt_enc->bpp_str, &(svt_enc->encoder));
     }
-
-    set_bpp(svt_enc->bpp_str, &(svt_enc->encoder));
+    else {
+        uint32_t default_bpp = default_bpp_numerator(&(svt_enc->encoder));
+        if (!default_bpp) {
+            // TODO: Consider using avctx->bit_rate to specify bpp_num/bpp_denom in this case
+            av_log(NULL, AV_LOG_ERROR, "libsvtjpegxs Encoder require -bpp(bits per pixel) param\n");
+            return AVERROR_OPTION_NOT_FOUND;
+        }
+        av_log(avctx,
+               AV_LOG_WARNING,
+               "-bpp not set; defaulting to uncompressed-equivalent %u bpp for %s "
+               "(no compression will occur). Set -bpp explicitly to target a specific bitrate.\n",
+               default_bpp,
+               av_get_pix_fmt_name(avctx->pix_fmt));
+        svt_enc->encoder.bpp_numerator = default_bpp;
+        svt_enc->encoder.bpp_denominator = 1;
+    }
 
     if (svt_enc->decomp_v != -1) {
         svt_enc->encoder.ndecomp_v = svt_enc->decomp_v;
@@ -264,7 +300,15 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
 #define OFFSET(x) offsetof(SvtJpegXsEncodeContext, x)
 #define VE        AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption svtjpegxs_enc_options[] = {
-    {"bpp", "Bits per pixel", OFFSET(bpp_str), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
+    {"bpp",
+     "Bits per pixel, can be passed as integer or float (example: 0.5, 3, 3.75, 5 etc.). "
+     "If not set, defaults to an uncompressed-equivalent value based on the input pixel format.",
+     OFFSET(bpp_str),
+     AV_OPT_TYPE_STRING,
+     {.str = NULL},
+     0,
+     0,
+     VE},
     {"slice_height",
      "Specify number of lines calculated in one thread",
      OFFSET(slice_height),

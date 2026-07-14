@@ -194,7 +194,7 @@ make -j10
 
 Name|mandatory/optional|Accepted values|description
 --|--|--|--
-bpp|mandatory|any integer/float greater than 0 (example: 0.5, 3, 3.75, 5 etc.)|Bits Per Pixel
+bpp|optional|any integer/float greater than 0 (example: 0.5, 3, 3.75, 5 etc.)|Bits Per Pixel. If not set, defaults to an uncompressed-equivalent value based on the input pixel format (a warning is logged with the auto-selected value)
 decomp_v|optional|0, 1, 2(default)|Number of Vertical decompositions
 decomp_h|optional|0, 1, 2, 3, 4, 5(default)|Number of Horizontal decompositions, have to be greater or equal to decomp_v
 threads|optional|Any integer in range< 1;64>|Number of threads encoder can create
