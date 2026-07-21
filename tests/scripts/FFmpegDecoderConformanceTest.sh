@@ -19,10 +19,15 @@
 # via diff/md5) to produce output identical to reference_decode/*.yuv for every supported file.
 #
 # KNOWN LIMITATION (confirmed by actually running all 85 test_bitsreams/*.jxs through this plugin):
-# 28 of the 85 official conformance files use pixel formats the ffmpeg plugin does not support
-# mapping to any AVPixelFormat (COMPONENTS_4 / 4-component and UNKNOWN_GRAY / monochrome streams -
-# fails with "Unsupported pixel format" from the plugin). This is a genuine plugin limitation, not
-# a test-harness bug, so those test ids are intentionally excluded below (see SKIPPED IDS comment).
+# 18 of the 85 official conformance files use COMPONENTS_4 (4-component, e.g. CMYK-like) pixel
+# formats the ffmpeg plugin does not support mapping to any AVPixelFormat (fails with "Unsupported
+# pixel format" from the plugin). This is a genuine plugin limitation, not a test-harness bug, so
+# those test ids are intentionally excluded below (see SKIPPED IDS comment).
+# NOTE: the 10 UNKNOWN_GRAY (monochrome) files were ALSO unsupported for the same reason, until
+# libsvtjpegxsdec.c's set_pix_fmt() was fixed to map COLOUR_FORMAT_GRAY/COLOUR_FORMAT_PLANAR_YUV400
+# to AV_PIX_FMT_GRAY8/9LE/10LE/12LE/14LE/16LE (mirroring the existing YUV420/422/444 branches).
+# Verified byte-identical to reference_decode/*.yuv for all 10 GRAY files after the fix, so they are
+# now included below like any other supported test id.
 
 echo "Run FFmpeg Decoder Conformance Test"
 source ./CommonLib.sh
@@ -139,7 +144,14 @@ function test_all {
     test_dec 025 12287x1743_12bit_YUV444
     test_dec 026 12191x2703_12bit_YUV444
     test_dec 027 12287x1743_12bit_YUV444
-    # 028-035 *_UNKNOWN_GRAY - SKIPPED, unsupported pixel format in ffmpeg plugin
+    test_dec 028 4073x1744_8bit_UNKNOWN_GRAY
+    test_dec 029 4095x1744_8bit_UNKNOWN_GRAY
+    test_dec 030 4095x1744_8bit_UNKNOWN_GRAY
+    test_dec 031 4073x1744_8bit_UNKNOWN_GRAY
+    test_dec 032 4073x1744_8bit_UNKNOWN_GRAY
+    test_dec 033 4073x1744_8bit_UNKNOWN_GRAY
+    test_dec 034 4073x1744_8bit_UNKNOWN_GRAY
+    test_dec 035 4073x1744_8bit_UNKNOWN_GRAY
     test_dec 036 32x2703_10bit_YUV422
     test_dec 037 32x2703_10bit_YUV422
     test_dec 038 16x2703_10bit_YUV444
@@ -149,7 +161,7 @@ function test_all {
     # 042-047 *_COMPONENTS_4 - SKIPPED, unsupported pixel format in ffmpeg plugin
     test_dec 048 4064x2704_8bit_YUV422
     test_dec 049 4064x2704_8bit_YUV422
-    # 050 4073x1744_8bit_UNKNOWN_GRAY - SKIPPED, unsupported pixel format in ffmpeg plugin
+    test_dec 050 4073x1744_8bit_UNKNOWN_GRAY
     test_dec 051 4064x2704_10bit_YUV422
     test_dec 052 4064x2704_8bit_YUV422
     test_dec 053 12287x1743_12bit_YUV444
@@ -176,7 +188,7 @@ function test_all {
     test_dec 207 976x650_12bit_YUV420
     test_dec 208 976x650_12bit_YUV420
     # 209-216, 218 *_COMPONENTS_4 - SKIPPED, unsupported pixel format in ffmpeg plugin
-    # 217 976x650_12bit_UNKNOWN_GRAY - SKIPPED, unsupported pixel format in ffmpeg plugin
+    test_dec 217 976x650_12bit_UNKNOWN_GRAY
 }
 
 test_all
