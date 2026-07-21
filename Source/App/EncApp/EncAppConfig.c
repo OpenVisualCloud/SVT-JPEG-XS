@@ -67,6 +67,8 @@ static void strncpy_local(char *dest, const char *src, size_t count) {
 #define CODING_RATE_CONTROL "--rc"
 #define CODING_RAW_TOKEN    "--coding-raw"
 #define CAP_COMPAT_TOKEN    "--cap-compat"
+#define STREAM_PROFILE_TOKEN "--stream-profile"
+#define STREAM_LEVEL_TOKEN   "--stream-level"
 #define SHOW_BANDS          "--show-bands"
 
 #define LIMIT_FPS_TOKEN "--limit-fps"
@@ -138,6 +140,86 @@ static void set_coding_raw(const char *value, EncoderConfig_t *cfg) {
 
 static void set_cap_compat(const char *value, EncoderConfig_t *cfg) {
     cfg->encoder.cap_compat = (uint8_t)strtoul(value, NULL, 0);
+}
+
+/* Stream profile (Ppih) name -> value map, mirrors ISO/IEC 21122-2 Annex A. Kept local to the App
+ * (not shared with the library's internal derivation table in Source/Lib/Encoder/Codec/ProfileLevel.h)
+ * since these values are advanced/manual overrides passed through the plain uint16_t API field. */
+static const struct {
+    const char *name;
+    uint16_t value;
+} stream_profile_names[] = {
+    {"auto", 0x0000},
+    {"light422", 0x1500},
+    {"light444", 0x1A00},
+    {"lightsubline422", 0x2500},
+    {"main420", 0x3240},
+    {"main422", 0x3540},
+    {"main444", 0x3A40},
+    {"main4444", 0x3E40},
+    {"high420", 0x4240},
+    {"high444", 0x4A40},
+    {"high4444", 0x4E40},
+};
+
+/* Stream level (Plev) name -> value map. Named entries only cover the resolution/level portion
+ * (bits [15:10]); sublevel and FBB-level bits are left at their "Unrestricted" (0) value. Use a raw
+ * hex value (e.g. 0x0810) instead of a name to also set an explicit sublevel. */
+static const struct {
+    const char *name;
+    uint16_t value;
+} stream_level_names[] = {
+    {"auto", 0xFFFF},
+    {"unrestricted", 0x0000},
+    {"1k-1", 0x0001 << 10},
+    {"2k-1", 0x0004 << 10},
+    {"4k-1", 0x0008 << 10},
+    {"4k-2", 0x0009 << 10},
+    {"4k-3", 0x000A << 10},
+    {"5k-1", 0x000B << 10},
+    {"8k-1", 0x000C << 10},
+    {"8k-2", 0x000D << 10},
+    {"8k-3", 0x000E << 10},
+    {"10k-1", 0x0010 << 10},
+};
+
+/* Sentinels for a value that failed to parse (never a real Ppih/Plev value, and distinct from the
+ * "auto-derive" sentinels 0x0000/0xFFFF respectively); verify_settings() rejects these. */
+#define STREAM_PROFILE_INVALID 0xFFFFu
+#define STREAM_LEVEL_INVALID   0xFFFEu
+
+static void set_stream_profile(const char *value, EncoderConfig_t *cfg) {
+    const uint32_t entries_num = sizeof(stream_profile_names) / sizeof(stream_profile_names[0]);
+    for (uint32_t i = 0; i < entries_num; ++i) {
+        if (strcmp(value, stream_profile_names[i].name) == 0) {
+            cfg->encoder.profile_ppih_override = stream_profile_names[i].value;
+            return;
+        }
+    }
+    char *end = NULL;
+    unsigned long parsed = strtoul(value, &end, 0);
+    if (end != value && *end == '\0' && parsed <= 0xFFFF) {
+        cfg->encoder.profile_ppih_override = (uint16_t)parsed;
+        return;
+    }
+    cfg->encoder.profile_ppih_override = STREAM_PROFILE_INVALID;
+}
+
+static void set_stream_level(const char *value, EncoderConfig_t *cfg) {
+    const uint32_t entries_num = sizeof(stream_level_names) / sizeof(stream_level_names[0]);
+    for (uint32_t i = 0; i < entries_num; ++i) {
+        if (strcmp(value, stream_level_names[i].name) == 0) {
+            cfg->encoder.level_plev_override = stream_level_names[i].value;
+            return;
+        }
+    }
+    char *end = NULL;
+    unsigned long parsed = strtoul(value, &end, 0);
+    if (end != value && *end == '\0' && parsed <= 0xFFFF) {
+        cfg->encoder.level_plev_override = (uint16_t)parsed;
+        return;
+    }
+    cfg->encoder.level_plev_override = STREAM_LEVEL_INVALID;
 }
 
 static void set_encoder_colour_format(const char *value, EncoderConfig_t *cfg) {
@@ -328,6 +410,8 @@ ConfigEntry config_entry[] = {
     {CODING_OPTIONS, CODING_RATE_CONTROL,   "Rate Control mode (CBR: budget per precinct: 0, CBR: budget per precinct with padding movement: 1, CBR: budget per slice: 2, CBR: budget per slice with max size RATE: 3, default 0)", 0, 1, set_rate_control_mode},
     {CODING_OPTIONS, CODING_RAW_TOKEN,      "Packet-based raw-mode coding (enabled:1, disabled:0, default:1). Disabling clears the raw-mode capability bit and never selects raw packet packing.", 0, 1, set_coding_raw},
     {CODING_OPTIONS, CAP_COMPAT_TOKEN,      "Legacy decoder CAP-marker compatibility (full CAP:0, empty CAP when no capability bit set:1, default:0)", 0, 1, set_cap_compat},
+    {CODING_OPTIONS, STREAM_PROFILE_TOKEN, "Stream profile (Ppih) to declare in the picture header (auto, light422, light444, lightsubline422, main420, main422, main444, main4444, high420, high444, high4444, or raw hex/decimal Ppih value, default:auto)", 0, 1, set_stream_profile},
+    {CODING_OPTIONS, STREAM_LEVEL_TOKEN,   "Stream level (Plev) to declare in the picture header (auto, unrestricted, 1k-1, 2k-1, 4k-1, 4k-2, 4k-3, 5k-1, 8k-1, 8k-2, 8k-3, 10k-1, or raw hex/decimal Plev value, default:auto)", 0, 1, set_stream_level},
     {THREAD_PERF_OPTIONS, ASM_TYPE_TOKEN,   "Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2, sse3, "
                                             "ssse3, sse4_1, sse4_2,"
                                             " avx, avx2, avx512, max], by default highest level supported by CPU", 0, 1,
@@ -400,6 +484,16 @@ SvtJxsErrorType_t verify_settings(EncoderConfig_t *config) {
 
     if (config->encoder.cpu_profile != 0 && config->encoder.cpu_profile != 1) {
         fprintf(stderr, "Error: Invalid profile [latency:0, cpu:1], your input: %d\n", config->encoder.cpu_profile);
+        return_error = SvtJxsErrorBadParameter;
+    }
+
+    if (config->encoder.profile_ppih_override == STREAM_PROFILE_INVALID) {
+        fprintf(stderr, "Error: Invalid --stream-profile value\n");
+        return_error = SvtJxsErrorBadParameter;
+    }
+
+    if (config->encoder.level_plev_override == STREAM_LEVEL_INVALID) {
+        fprintf(stderr, "Error: Invalid --stream-level value\n");
         return_error = SvtJxsErrorBadParameter;
     }
 

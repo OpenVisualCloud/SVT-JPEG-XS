@@ -53,8 +53,8 @@ void write_picture_header(bitstream_writer_t* bitstream, pi_t* pi, svt_jpeg_xs_e
     write_16_bits(bitstream, CODESTREAM_PIH);                              //PIH
     write_16_bits(bitstream, PICTURE_HEADER_SIZE_BYTES);                   //Lpih
     write_32_bits(bitstream, enc_common->picture_header_dynamic.hdr_Lcod); //Lcod
-    write_16_bits(bitstream, 0);                                           //Ppih
-    write_16_bits(bitstream, 0);                                           //Plev
+    write_16_bits(bitstream, enc_common->hdr_Ppih);                        //Ppih
+    write_16_bits(bitstream, enc_common->hdr_Plev);                        //Plev
     write_16_bits(bitstream, pi->width);                                   //Wf
     write_16_bits(bitstream, pi->height);                                  //Hf
     write_16_bits(bitstream, enc_common->Cw);                              //Cw

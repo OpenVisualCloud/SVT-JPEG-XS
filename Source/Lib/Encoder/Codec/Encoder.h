@@ -65,6 +65,9 @@ typedef struct svt_jpeg_xs_encoder_common {
     uint8_t bit_depth; // Pixel Bit Depth
     float compression_rate;
 
+    uint16_t hdr_Ppih; /* Profile this codestream complies to, written verbatim into the picture header. */
+    uint16_t hdr_Plev; /* Level and sub-level this codestream complies to, written verbatim into the picture header. */
+
     pi_t pi; /* Picture Information */
     picture_header_dynamic_t picture_header_dynamic;
     pi_enc_t pi_enc; /* Picture Information for encoder, allocate buffers pointers etc.*/
