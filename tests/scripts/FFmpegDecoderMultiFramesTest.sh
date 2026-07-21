@@ -39,16 +39,6 @@ echo "ffmpeg:       $exec_ffmpeg"
 echo "Path correct: $path_correct"
 echo "Path invalid: $path_invalid"
 
-# The `jpegxs_pipe` raw demuxer only exists natively in ffmpeg >= 8.1 (shipped upstream). Our own
-# patches for 6.1/7.0/7.1/8.0 only add codec type + mp4/mkv/mpegts container support, NOT the img2
-# pipe registration - so standalone .jxs elementary streams can't be fed to those versions via CLI.
-# Detect this once and skip (not fail) every test_dec/test_dec_invalid call on unsupported versions.
-ffmpeg_supports_jpegxs_pipe=1
-if ! $exec_ffmpeg -formats 2>/dev/null | grep -q "jpegxs_pipe"; then
-    ffmpeg_supports_jpegxs_pipe=0
-    echo "NOTE: this ffmpeg build has no jpegxs_pipe demuxer (expected for ffmpeg < 8.1) - all decoder tests will be SKIPPED (not failed)."
-fi
-
 error=0
 
 function end {
@@ -58,6 +48,29 @@ function end {
         exit $error
     fi
 }
+
+# `ffmpeg -formats` must actually run for us to know whether jpegxs_pipe is supported. If the
+# binary is missing/not built, not executable, or crashes (e.g. missing shared libs), that is a
+# hard test-harness failure - NOT the same as a properly-built ffmpeg that simply lacks jpegxs_pipe
+# support (see below). Failing here prevents silently SKIPPING (and reporting success on) every
+# test when ffmpeg was never actually invoked.
+ffmpeg_formats=$($exec_ffmpeg -formats 2>/dev/null)
+if [ $? -ne 0 ]; then
+    echo "FAIL Could not run ffmpeg binary: $exec_ffmpeg"
+    error=1
+    end
+fi
+
+# The `jpegxs_pipe` raw demuxer only exists natively in ffmpeg >= 8.1 (shipped upstream). Our own
+# patches for 6.1/7.0/7.1/8.0 only add codec type + mp4/mkv/mpegts container support, NOT the img2
+# pipe registration. There is no working fallback for genuinely multi-frame elementary streams on
+# those versions: `image2`/`image2pipe` have no JPEG-XS frame-boundary parser wired in, so they
+# hand the whole remaining stream to the decoder as a single oversized packet instead of one
+# packet per frame, which the plugin correctly rejects ("Single packet have data for more than one
+# frame."). So always use `jpegxs_pipe` here and let ffmpeg builds that lack it fail naturally -
+# we want to see those failures rather than silently skip or paper over them with a fallback that
+# doesn't actually work for multi-frame content.
+demuxer="-f jpegxs_pipe"
 
 # (1:expected error code) (2:name, without .jxs) (3:expected md5 of decoded yuv)
 function test_dec {
@@ -73,12 +86,7 @@ function test_dec {
         return
     fi
 
-    if [ $ffmpeg_supports_jpegxs_pipe -eq 0 ]; then
-        echo "SKIP (ffmpeg has no jpegxs_pipe demuxer)"
-        return
-    fi
-
-    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error -f jpegxs_pipe -i $bin_name $yuv_tmp"
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -i $bin_name $yuv_tmp"
     echo "run command: $cmd"
     ${cmd}
     ret=$?
@@ -111,13 +119,8 @@ function test_dec_invalid {
         return
     fi
 
-    if [ $ffmpeg_supports_jpegxs_pipe -eq 0 ]; then
-        echo "SKIP (ffmpeg has no jpegxs_pipe demuxer)"
-        return
-    fi
-
     rm -f $yuv_tmp
-    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error -f jpegxs_pipe -i $bin_name $yuv_tmp"
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -i $bin_name $yuv_tmp"
     echo "run command: $cmd"
     ${cmd}
     ret=$?
