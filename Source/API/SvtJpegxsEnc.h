@@ -101,12 +101,35 @@ typedef struct svt_jpeg_xs_encoder_api {
      * Optional, default 0 */
     uint8_t cap_compat;
 
+    /* Stream profile (Ppih) override.
+     * 0 = auto-derive (default): Ppih is computed from colour_format/input_bit_depth, matching the
+     *     closest ISO/IEC 21122-2 Annex A "Main" family profile (Main 420.12, Main 422.10, Main 444.12
+     *     or Main 4444.12). This is always a validly-defined profile codeword. 0x0000 is never a valid
+     *     Ppih value in the standard, so it safely doubles as the "auto-derive" sentinel here.
+     * Any other value = use verbatim instead of auto-deriving. Use this to declare a Light or High
+     *     family profile, or any other Annex A profile codeword, when the caller knows the encoder
+     *     configuration and downstream decoder both satisfy that profile's constraints.
+     * Optional, default 0 (auto-derive) */
+    uint16_t profile_ppih_override;
+
+    /* Stream level (Plev) override.
+     * 0xFFFF = auto-derive (default): Plev is computed from source_width/source_height/bpp_numerator/
+     *     bpp_denominator, picking the tightest ISO/IEC 21122-2 Annex A level/sublevel that is
+     *     guaranteed to bound the actual stream (falls back to the always-valid "Unrestricted"
+     *     level/sublevel when the resolution or bpp exceeds every defined bucket).
+     *     0xFFFF is used as the sentinel (instead of 0x0000) because Plev=0x0000 is itself a valid,
+     *     meaningful value (Unrestricted level/sublevel/FBB); 0xFFFF's top 6 bits do not correspond to
+     *     any level defined by the standard, so it can never be a real value.
+     * Any other value = use verbatim instead of auto-deriving.
+     * Optional, default 0xFFFF (auto-derive) */
+    uint16_t level_plev_override;
+
     /* This padding is used to avoid changing the size of the public configuration struct
      * when new parameters are added in the future please follow these steps:
      * 1. Insert the new parameter as a member of this structure before the padding array.
      * 2. Decrease the size of the padding array by the size of the new parameter to keep the struct size unchanged.
      */
-    uint8_t padding[62];
+    uint8_t padding[58];
 } svt_jpeg_xs_encoder_api_t;
 
 /* STEP 0 (Optional): Set default encoder parameters.

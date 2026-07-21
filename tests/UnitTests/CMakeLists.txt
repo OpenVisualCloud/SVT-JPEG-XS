@@ -57,7 +57,7 @@ if(MSVC)
 endif()
 
 #UT MAIN
-add_executable(SvtJpegxsUnitTests ${all_files})
+add_executable(SvtJpegxsUnitTests ${all_files} ${PROJECT_SOURCE_DIR}/Source/App/EncApp/EncAppConfig.c)
 
 target_link_libraries(SvtJpegxsUnitTests PUBLIC
     ${lib_list_all}

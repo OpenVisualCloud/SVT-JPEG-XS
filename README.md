@@ -184,6 +184,12 @@ Coding features used during Rate Calculation (quality/speed tradeoff):
 [--coding-vpred]           Enable Vertical Prediction coding (disable:0, zero prediction residuals:1, zero coefficients:2, default: 0)
 [--coding-raw]             Enable packet-based raw-mode coding (enabled:1, disable for legacy-decoder compatibility:0, default:1)
 [--cap-compat]             Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required (enabled:1, disable:0, default:0)
+[--stream-profile]         Stream profile (Ppih) to declare in the picture header (auto, light422,
+                            light444, lightsubline422, main420, main422, main444, main4444, high420,
+                            high444, high4444, or raw hex/decimal Ppih value, default:auto)
+[--stream-level]           Stream level (Plev) to declare in the picture header (auto, unrestricted,
+                            1k-1, 2k-1, 4k-1, 4k-2, 4k-3, 5k-1, 8k-1, 8k-2, 8k-3, 10k-1, or raw
+                            hex/decimal Plev value, default:auto)
 [--rc]                     Rate Control mode (
                             CBR: budget per precinct: 0,
                             CBR: budget per precinct with padding movement: 1,
