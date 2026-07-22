@@ -44,7 +44,20 @@ echo "=== 3. Download/Compile FFmpeg ==="
 cd "$PWD"
 # Shallow, branch-specific clone: avoids downloading the full ffmpeg git history (which is large
 # and slow) since only one release branch is ever needed here.
-git clone --branch "release/$FFMPEG_VERSION" --depth 1 https://git.ffmpeg.org/ffmpeg.git "ffmpeg-${FFMPEG_VERSION}"
+# Retry on transient network/server errors (e.g. HTTP 502 from git.ffmpeg.org), which are common
+# under load and not indicative of a real problem with the clone itself.
+clone_attempt=1
+max_clone_attempts=5
+until git clone --branch "release/$FFMPEG_VERSION" --depth 1 https://git.ffmpeg.org/ffmpeg.git "ffmpeg-${FFMPEG_VERSION}"; do
+    if [[ "$clone_attempt" -ge "$max_clone_attempts" ]]; then
+        echo "git clone failed after $max_clone_attempts attempts, giving up."
+        exit 1
+    fi
+    clone_attempt=$((clone_attempt + 1))
+    echo "git clone failed (attempt $((clone_attempt - 1))/$max_clone_attempts), retrying in 10s..."
+    rm -rf "ffmpeg-${FFMPEG_VERSION}"
+    sleep 10
+done
 cd "ffmpeg-${FFMPEG_VERSION}"
 
 echo "=== 4. Apply jpeg-xs plugin patches ==="

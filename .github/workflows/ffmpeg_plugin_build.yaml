@@ -52,7 +52,7 @@ jobs:
   ffmpeg-6-1-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -81,7 +81,7 @@ jobs:
   ffmpeg-7-0-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -111,7 +111,7 @@ jobs:
   ffmpeg-7-1-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -141,7 +141,7 @@ jobs:
   ffmpeg-8-0-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -171,7 +171,7 @@ jobs:
   ffmpeg-8-1-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -201,7 +201,7 @@ jobs:
   ffmpeg-9-0-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
