@@ -97,7 +97,7 @@ function test_dec {
         return
     fi
 
-    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -threads $PARAM_THREADS -i $bin_name $extra_args $yuv_tmp"
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -threads $PARAM_THREADS -i $bin_name $extra_args -f rawvideo $yuv_tmp"
     echo "run command: $cmd"
     ${cmd}
     ret=$?
@@ -136,7 +136,7 @@ function test_dec_invalid {
     fi
 
     rm -f $yuv_tmp
-    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -threads $PARAM_THREADS -i $bin_name $yuv_tmp"
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -threads $PARAM_THREADS -i $bin_name -f rawvideo $yuv_tmp"
     echo "run command: $cmd"
     ${cmd}
     ret=$?

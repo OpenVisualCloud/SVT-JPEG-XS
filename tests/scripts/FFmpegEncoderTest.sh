@@ -29,8 +29,10 @@
 #   which CLI wraps it. Beyond that axis, this script aims for at least one case per distinct
 #   AVOption value exposed by the plugin: coding-vpred (disable/no_residuals/no_coeffs),
 #   coding-signs (disable/fast/full), quantization (deadzone/uniform), slice_height, bpp
-#   (3/4/5/0.05), decomp_v (0/1/2), decomp_h (2/4/5), and all 3 supported pixel format/bit-depth
-#   combos (yuv420p 8bit, yuv422p 8/10bit, yuv420p 10bit).
+#   (3/4/5/0.05), decomp_v (0/1/2), decomp_h (2/4/5), threads (ffmpeg's standard -threads N
+#   pass-through), coding-raw (0/1), cap-compat (0/1, tested together with coding-raw=0 - see
+#   comment at that test_enc call for why cap-compat is otherwise unobservable), and all 3
+#   supported pixel format/bit-depth combos (yuv420p 8bit, yuv422p 8/10bit, yuv420p 10bit).
 
 echo "Run FFmpeg Encoder Test"
 source ./CommonLib.sh
@@ -92,8 +94,11 @@ function test_enc {
     bin_path="$tmp_dir/"$bin_name".jxs"
     out_yuv_path="$tmp_dir/"$bin_name".yuv"
 
-#   Encode raw yuv to a raw jpegxs elementary stream and check expected error code
-    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error -f rawvideo -pix_fmt $pix_fmt -s:v ${width}x${height} -r 25 -i $path_yuv -frames:v $frames -c:v jpegxs $encoder_parameters -f image2pipe $bin_path"
+#   Encode raw yuv to a raw jpegxs elementary stream and check expected error code.
+#   Explicitly named "-c:v libsvtjpegxs" (not the generic "-c:v jpegxs") so this always exercises
+#   the SVT plugin even on an ffmpeg build that also ships a native JPEG XS codec under the same
+#   codec ID - defensive/self-documenting, a no-op on the patched builds used by this CI.
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error -f rawvideo -pix_fmt $pix_fmt -s:v ${width}x${height} -r 25 -i $path_yuv -frames:v $frames -c:v libsvtjpegxs $encoder_parameters -f image2pipe $bin_path"
     echo "run command: $cmd"
     ${cmd}
 
@@ -115,7 +120,7 @@ function test_enc {
     if [ $decode_flag -ne 0 ]; then
 #       Check that the stream can be decoded back via the ffmpeg jpegxs_pipe demuxer/decoder
         if [ $ret -eq 0 ]; then
-            cmd="$exec_ffmpeg -y -hide_banner -loglevel error -f jpegxs_pipe -i $bin_path $out_yuv_path"
+            cmd="$exec_ffmpeg -y -hide_banner -loglevel error -f jpegxs_pipe -c:v libsvtjpegxs -i $bin_path -f rawvideo $out_yuv_path"
             echo "run command: $cmd"
             ${cmd}
             ret=$?
@@ -128,12 +133,12 @@ function test_enc {
     fi
 
 #   Check bitstream is as expected
-    if [ $md5 = "IGNORE" ]; then
+    if [ "$md5" = "IGNORE" ]; then
         echo "IGNORE TEST OUTPUT"
     else
         echo -n "Test MD5 Expect: $md5 "
         md5_t=`md5sum ${bin_path} | awk '{ print $1 }'`
-        if [ $md5 = $md5_t ]; then
+        if [ "$md5" = "$md5_t" ]; then
             echo "OK"
         else
             echo "FAIL get $md5_t"
@@ -180,6 +185,24 @@ function test_all {
 #   coding-signs=fast (mode 1). NEW md5, pinned from this ffmpeg build.
 #   Previously untested value of the coding-signs AVOption (only disable/full were covered above).
     test_enc 0 f0ca8a697076790fdce0d85c057e187c touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs fast"
+
+#   threads=4: ffmpeg's standard thread pass-through (-threads N), previously untested here.
+#   NEW md5, pinned from this ffmpeg build - verified (by actually running both) to be byte-
+#   identical to the same params without -threads (and with -threads 1), confirming thread count
+#   only affects parallelism, not the encoded bitstream.
+    test_enc 0 ce4a5f06daaf0e30dfaec28be84d8c1f touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-threads 4 -bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+
+#   coding-raw=0 (disable packet-based raw-mode coding, for legacy-decoder compatibility).
+#   NEW md5, pinned from this ffmpeg build - previously untested value of the coding-raw AVOption
+#   (default/unset is coding-raw=1/enabled, exercised implicitly by every other test above).
+    test_enc 0 b781b2b652e8e3efc2c8842ba48165d3 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -coding-raw 0"
+
+#   cap-compat=1 (emit an empty CAP marker when no capability bit is required), combined with
+#   coding-raw=0 so that no capability bit (raw-mode or 4:2:0) is actually set - this is the only
+#   way to make cap-compat observable (verified: with the default coding-raw=1, the raw-mode
+#   capability bit is always set, so cap-compat=1 produces byte-identical output to cap-compat=0
+#   and the test would not actually exercise anything). NEW md5, pinned from this ffmpeg build.
+    test_enc 0 32ca9913c1d3cd8312938d854b2e4f41 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -coding-raw 0 -cap-compat 1"
 
 #   quantization=uniform. NEW md5, pinned from this ffmpeg build.
 #   The quantization AVOption (deadzone/uniform) had zero coverage before.

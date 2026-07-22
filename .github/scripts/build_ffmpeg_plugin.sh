@@ -42,9 +42,10 @@ export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
 
 echo "=== 3. Download/Compile FFmpeg ==="
 cd "$PWD"
-git clone https://git.ffmpeg.org/ffmpeg.git "ffmpeg-${FFMPEG_VERSION}"
+# Shallow, branch-specific clone: avoids downloading the full ffmpeg git history (which is large
+# and slow) since only one release branch is ever needed here.
+git clone --branch "release/$FFMPEG_VERSION" --depth 1 https://git.ffmpeg.org/ffmpeg.git "ffmpeg-${FFMPEG_VERSION}"
 cd "ffmpeg-${FFMPEG_VERSION}"
-git checkout "release/$FFMPEG_VERSION"
 
 echo "=== 4. Apply jpeg-xs plugin patches ==="
 git config --global user.email "runner@github.com"

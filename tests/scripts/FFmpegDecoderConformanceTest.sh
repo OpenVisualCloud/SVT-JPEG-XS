@@ -105,7 +105,7 @@ function test_dec {
     fi
     tail -c +$((offset+1)) "$src_jxs" > "$stripped_jxs"
 
-    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -i $stripped_jxs $out_yuv"
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -i $stripped_jxs -f rawvideo $out_yuv"
     echo "run command: $cmd"
     ${cmd}
     ret=$?

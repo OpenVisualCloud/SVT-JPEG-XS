@@ -17,6 +17,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 env:
+  # Same conformance/functional test bitstreams (test_bitsreams/, reference_decode/,
+  # bitstream_multi_frames/, bitstream_invalid/, encoder_tests/) already used by base_build.yaml's
+  # linux-conformance-tests job, pre-staged on the self-hosted runners.
+  INPUT_FILES_PATH: /opt/samples
   LINUX_ARTIFACTS_6_1: linux-ffmpeg-6-1-build-${{ github.run_number }}
   LINUX_ARTIFACTS_7_0: linux-ffmpeg-7-0-build-${{ github.run_number }}
   LINUX_ARTIFACTS_7_1: linux-ffmpeg-7-1-build-${{ github.run_number }}
@@ -63,7 +67,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: 'install ffmpeg plugin'
-        run: .github/scripts/build_ffmpeg_plugin.sh 6.1 n
+        run: .github/scripts/build_ffmpeg_plugin.sh 6.1 y
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -71,7 +75,7 @@ jobs:
           name: "${{ env.LINUX_ARTIFACTS_6_1 }}"
           retention-days: 30
           path: |
-            install-dir/bin/
+            install-dir/
 
   ffmpeg-7-0-linux-build:
       needs: changes
@@ -93,7 +97,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: 'install ffmpeg plugin'
-        run: .github/scripts/build_ffmpeg_plugin.sh 7.0 n
+        run: .github/scripts/build_ffmpeg_plugin.sh 7.0 y
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -101,7 +105,7 @@ jobs:
           name: "${{ env.LINUX_ARTIFACTS_7_0 }}"
           retention-days: 30
           path: |
-            install-dir/bin/
+            install-dir/
 
   ffmpeg-7-1-linux-build:
       needs: changes
@@ -123,7 +127,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: 'install ffmpeg plugin'
-        run: .github/scripts/build_ffmpeg_plugin.sh 7.1 n
+        run: .github/scripts/build_ffmpeg_plugin.sh 7.1 y
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -131,7 +135,7 @@ jobs:
           name: "${{ env.LINUX_ARTIFACTS_7_1 }}"
           retention-days: 30
           path: |
-            install-dir/bin/
+            install-dir/
 
   ffmpeg-8-0-linux-build:
       needs: changes
@@ -153,7 +157,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: 'install ffmpeg plugin'
-        run: .github/scripts/build_ffmpeg_plugin.sh 8.0 n
+        run: .github/scripts/build_ffmpeg_plugin.sh 8.0 y
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -161,7 +165,7 @@ jobs:
           name: "${{ env.LINUX_ARTIFACTS_8_0 }}"
           retention-days: 30
           path: |
-            install-dir/bin/
+            install-dir/
 
   ffmpeg-8-1-linux-build:
       needs: changes
@@ -183,7 +187,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: 'install ffmpeg plugin'
-        run: .github/scripts/build_ffmpeg_plugin.sh 8.1 n n
+        run: .github/scripts/build_ffmpeg_plugin.sh 8.1 y n
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -191,7 +195,7 @@ jobs:
           name: "${{ env.LINUX_ARTIFACTS_8_1 }}"
           retention-days: 30
           path: |
-            install-dir/bin/
+            install-dir/
 
   ffmpeg-9-0-linux-build:
       needs: changes
@@ -213,7 +217,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: 'install ffmpeg plugin'
-        run: .github/scripts/build_ffmpeg_plugin.sh 9.0 n n
+        run: .github/scripts/build_ffmpeg_plugin.sh 9.0 y n
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -221,7 +225,263 @@ jobs:
           name: "${{ env.LINUX_ARTIFACTS_9_0 }}"
           retention-days: 30
           path: |
-            install-dir/bin/
+            install-dir/
+
+  # ---------------------------------------------------------------------------------------------
+  # ffmpeg plugin functional tests (tests/scripts/FFmpegDecoderConformanceTest.sh,
+  # FFmpegDecoderMultiFramesTest.sh, FFmpegEncoderTest.sh), run against the ffmpeg binary built by
+  # the corresponding *-linux-build job above, one job per Linux ffmpeg version. Runs on the same
+  # self-hosted runners (with the same pre-staged /opt/samples bitstream set) as base_build.yaml's
+  # linux-conformance-tests job, since these test scripts consume the exact same asset layout
+  # (test_bitsreams/, reference_decode/, bitstream_multi_frames/, bitstream_invalid/,
+  # encoder_tests/).
+  # ---------------------------------------------------------------------------------------------
+
+  ffmpeg-6-1-linux-tests:
+      needs: [changes, ffmpeg-6-1-linux-build]
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      timeout-minutes: 120
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: 'Setup: Download build artifacts'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_ARTIFACTS_6_1 }}"
+          path: install-dir
+
+      - name: 'Setup: Make ffmpeg executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'ffmpeg plugin tests: Decoder Conformance'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Encoder'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+
+  ffmpeg-7-0-linux-tests:
+      needs: [changes, ffmpeg-7-0-linux-build]
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      timeout-minutes: 120
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: 'Setup: Download build artifacts'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_ARTIFACTS_7_0 }}"
+          path: install-dir
+
+      - name: 'Setup: Make ffmpeg executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'ffmpeg plugin tests: Decoder Conformance'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Encoder'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+
+  ffmpeg-7-1-linux-tests:
+      needs: [changes, ffmpeg-7-1-linux-build]
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      timeout-minutes: 120
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: 'Setup: Download build artifacts'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_ARTIFACTS_7_1 }}"
+          path: install-dir
+
+      - name: 'Setup: Make ffmpeg executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'ffmpeg plugin tests: Decoder Conformance'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Encoder'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+
+  ffmpeg-8-0-linux-tests:
+      needs: [changes, ffmpeg-8-0-linux-build]
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      timeout-minutes: 120
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: 'Setup: Download build artifacts'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_ARTIFACTS_8_0 }}"
+          path: install-dir
+
+      - name: 'Setup: Make ffmpeg executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'ffmpeg plugin tests: Decoder Conformance'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Encoder'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+
+  ffmpeg-8-1-linux-tests:
+      needs: [changes, ffmpeg-8-1-linux-build]
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      timeout-minutes: 120
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: 'Setup: Download build artifacts'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_ARTIFACTS_8_1 }}"
+          path: install-dir
+
+      - name: 'Setup: Make ffmpeg executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'ffmpeg plugin tests: Decoder Conformance'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Encoder'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+
+  ffmpeg-9-0-linux-tests:
+      needs: [changes, ffmpeg-9-0-linux-build]
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      timeout-minutes: 120
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: 'Setup: Download build artifacts'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_ARTIFACTS_9_0 }}"
+          path: install-dir
+
+      - name: 'Setup: Make ffmpeg executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'ffmpeg plugin tests: Decoder Conformance'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
+
+      - name: 'ffmpeg plugin tests: Encoder'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
 
   ffmpeg-6-1-windows-build:
       needs: changes
