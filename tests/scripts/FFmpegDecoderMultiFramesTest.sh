@@ -25,9 +25,19 @@
 # - For genuinely invalid/corrupt bitstreams (bitstream_invalid/), ffmpeg DOES fail the conversion
 #   (non-zero exit, e.g. 69) and writes NO output bytes - this matches the spirit (if not the exact
 #   numeric exit code) of the native tests, so those are checked as "non-zero exit + empty output".
-# - The native "-n 2" partial-frame-count hang-decoder test (test_422_32x32_bpp6) has no ffmpeg
-#   equivalent option, so this script instead does a normal full decode of that file and pins a
-#   NEW md5 for the complete output.
+# - The native "-n 2" partial-frame-count hang-decoder test (test_422_32x32_bpp6) is reproduced
+#   using ffmpeg's "-frames:v 2" flag (same effect: decode only the first 2 frames).
+#
+# THREADING/ASM MATRIX (vs DecoderMultiFramesTest.sh's `test_all_correct/test_all_broken <asm> <lp>
+# [packetization]` sweep across c/avx2/max asm and 1/10/20 lp):
+# - `--asm` and `--packetization-mode` have NO ffmpeg equivalent: libsvtjpegxsdec.c hardcodes
+#   `use_cpu_flags = CPU_FLAGS_ALL` and `packetization_mode = 0` with no corresponding AVOption, so
+#   there is nothing to sweep for those two dimensions - always exactly one (fixed) value.
+# - `--lp` (thread count) DOES have a real equivalent: the plugin sets `threads_num` straight from
+#   `avctx->thread_count`, i.e. ffmpeg's standard `-threads N` flag. Verified this actually changes
+#   the library's internal thread count (logged as "Threads : N") and produces byte-identical
+#   output regardless of N, so test_all_correct/test_all_broken below are run once each for
+#   threads=1/10/20 (mirroring the native lp sweep), via a $PARAM_THREADS argument.
 
 echo "Run FFmpeg Decoder Multiple Frames Test"
 source ./CommonLib.sh
@@ -72,11 +82,12 @@ fi
 # doesn't actually work for multi-frame content.
 demuxer="-f jpegxs_pipe"
 
-# (1:expected error code) (2:name, without .jxs) (3:expected md5 of decoded yuv)
+# (1:expected error code) (2:name, without .jxs) (3:expected md5 of decoded yuv) (4:optional extra ffmpeg args)
 function test_dec {
     exit_code=$1
     name=$2
     md5=$3
+    extra_args=$4
     bin_name=$path_use"/"$name".jxs"
     yuv_tmp="./$tmp_dir/"$name".yuv"
 
@@ -86,7 +97,7 @@ function test_dec {
         return
     fi
 
-    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -i $bin_name $yuv_tmp"
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -threads $PARAM_THREADS -i $bin_name $extra_args $yuv_tmp"
     echo "run command: $cmd"
     ${cmd}
     ret=$?
@@ -97,7 +108,12 @@ function test_dec {
     fi
 
     echo -n "Test MD5 Expect: $md5 "
-    md5_t=`md5sum ${yuv_tmp} 2>/dev/null | awk '{ print $1 }'`
+    if [ ! -f "$yuv_tmp" ]; then
+        echo "FAIL: Output file was not created!"
+        error=1
+        end
+    fi
+    md5_t=$(md5sum "${yuv_tmp}" | awk '{ print $1 }')
     if [ "$md5" = "$md5_t" ]; then
         echo "OK"
     else
@@ -120,7 +136,7 @@ function test_dec_invalid {
     fi
 
     rm -f $yuv_tmp
-    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -i $bin_name $yuv_tmp"
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -threads $PARAM_THREADS -i $bin_name $yuv_tmp"
     echo "run command: $cmd"
     ${cmd}
     ret=$?
@@ -143,6 +159,7 @@ rm -fr $tmp_dir
 mkdir $tmp_dir
 
 function test_all_correct {
+    PARAM_THREADS=$1
     path_use=$path_correct
 
     # R2R Decoder with MT per Slice small resolution.
@@ -174,12 +191,14 @@ function test_all_correct {
     test_dec 0 RollerCoaster_3840x2160_8b_422_20f_v2_h2               550612cfe8797ea51fbc257158f319a3
     test_dec 0 RollerCoaster_3840x2160_8b_422_20f_v2_h3               2f9090271c68800014e15b88d08103aa
 
-    # Hang-decoder stress bitstream. NOTE: native test decodes only 2 frames via "-n 2" (no ffmpeg
-    # equivalent) - this does a full decode instead, NEW pinned md5.
-    test_dec 0 test_422_32x32_bpp6                                    2f9749279c126703adb5e07e1196f59c
+    # Regression test for a bitstream that used to HANG the decoder when decoding from the start
+    # of the stream. The native test only decodes the first 2 frames via SvtJpegxsDecApp's "-n 2" flag;
+    # ffmpeg has a direct equivalent (-frames:v N)
+    test_dec 0 test_422_32x32_bpp6                                    2f9749279c126703adb5e07e1196f59c "-frames:v 2"
 }
 
 function test_all_broken {
+    PARAM_THREADS=$1
     path_use=$path_correct
 
     # Bitstreams with a header change (resolution/bit-depth/decomp/weight-table) mid-stream, plus
@@ -199,6 +218,9 @@ function test_all_broken {
 
 function test_all_invalid {
     # Genuinely invalid/corrupt bitstreams: ffmpeg fails the conversion and writes no output.
+    # Not looped over PARAM_THREADS: rejection happens at demux/first-bad-packet time regardless of
+    # thread count, so a single fixed value (library default) is sufficient here.
+    PARAM_THREADS=0
     test_dec_invalid error_injection_422_broken_bitstream
     test_dec_invalid invalid_small_cfg_zero_band_01
     test_dec_invalid invalid_small_cfg_zero_band_02
@@ -212,8 +234,13 @@ function test_all_invalid {
     test_dec_invalid invalid_small_cfg_zero_band_10
 }
 
-test_all_correct
-test_all_broken
+# Threads sweep (mirrors DecoderMultiFramesTest.sh's asm/lp matrix - see note near the top of this
+# file for why only the thread-count dimension has a real ffmpeg equivalent). 0 = ffmpeg/library
+# default thread count (auto-detected from CPU count), plus a couple of explicit values.
+for PARAM_THREADS in 0 1 10 20; do
+    test_all_correct $PARAM_THREADS
+    test_all_broken $PARAM_THREADS
+done
 test_all_invalid
 
 
