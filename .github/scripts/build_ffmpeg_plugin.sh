@@ -56,7 +56,15 @@ fi
 git am --whitespace=fix "$JPEGXS_REPO/ffmpeg-plugin/$FFMPEG_VERSION/"*.patch
 
 echo "=== 5. Configure FFmpeg ==="
-./configure --enable-libsvtjpegxs --prefix="$INSTALL_DIR" --enable-shared
+# --disable-avdevice: we only ever decode/encode via libavcodec+libavformat (rawvideo/image2/
+# jpegxs_pipe/image2pipe); libavdevice's input/output devices (x11grab, alsa, sdl2, v4l2, ...) are
+# unused here but get auto-detected against whatever optional system libs happen to be installed
+# on the machine that RUNS `configure`/`make`. On a shared/dynamically-linked build, that produces
+# an `ffmpeg` binary that dynamically links against those libs (e.g. libxcb.so.1) and then fails
+# to start at all on a different machine (e.g. a self-hosted test runner) that doesn't have them
+# installed - disabling avdevice entirely removes this whole class of cross-machine runtime
+# dependency mismatches.
+./configure --enable-libsvtjpegxs --prefix="$INSTALL_DIR" --enable-shared --disable-avdevice
 echo "=== 6. Build and install FFmpeg ==="
 make -j"$(nproc)"
 if [[ "$INSTALL_FMPEG" == "y" ]]; then

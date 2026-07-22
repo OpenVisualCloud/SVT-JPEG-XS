@@ -21,6 +21,7 @@ env:
   # bitstream_multi_frames/, bitstream_invalid/, encoder_tests/) already used by base_build.yaml's
   # linux-conformance-tests job, pre-staged on the self-hosted runners.
   INPUT_FILES_PATH: /opt/samples
+  JOBS_NUM: 100
   LINUX_ARTIFACTS_6_1: linux-ffmpeg-6-1-build-${{ github.run_number }}
   LINUX_ARTIFACTS_7_0: linux-ffmpeg-7-0-build-${{ github.run_number }}
   LINUX_ARTIFACTS_7_1: linux-ffmpeg-7-1-build-${{ github.run_number }}
@@ -51,7 +52,7 @@ jobs:
   ffmpeg-6-1-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: 'ubuntu-22.04'
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -61,7 +62,7 @@ jobs:
       - name: 'Setup:  Install dependencies'
         run: |
             sudo apt-get update
-            sudo apt-get -y install nasm
+            sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -80,7 +81,7 @@ jobs:
   ffmpeg-7-0-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: 'ubuntu-22.04'
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -91,7 +92,7 @@ jobs:
       - name: 'Setup:  Install dependencies'
         run: |
             sudo apt-get update
-            sudo apt-get -y install nasm
+            sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -110,7 +111,7 @@ jobs:
   ffmpeg-7-1-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: 'ubuntu-22.04'
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -121,7 +122,7 @@ jobs:
       - name: 'Setup:  Install dependencies'
         run: |
             sudo apt-get update
-            sudo apt-get -y install nasm
+            sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -140,7 +141,7 @@ jobs:
   ffmpeg-8-0-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: 'ubuntu-22.04'
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -151,7 +152,7 @@ jobs:
       - name: 'Setup:  Install dependencies'
         run: |
             sudo apt-get update
-            sudo apt-get -y install nasm
+            sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -170,7 +171,7 @@ jobs:
   ffmpeg-8-1-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: 'ubuntu-22.04'
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -181,7 +182,7 @@ jobs:
       - name: 'Setup:  Install dependencies'
         run: |
             sudo apt-get update
-            sudo apt-get -y install nasm
+            sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -200,7 +201,7 @@ jobs:
   ffmpeg-9-0-linux-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: 'ubuntu-22.04'
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -211,7 +212,7 @@ jobs:
       - name: 'Setup:  Install dependencies'
         run: |
             sudo apt-get update
-            sudo apt-get -y install nasm
+            sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -260,23 +261,11 @@ jobs:
       - name: 'Setup: Make ffmpeg executable'
         run: sudo chmod -R 755 install-dir/
 
-      - name: 'ffmpeg plugin tests: Decoder Conformance'
+      - name: 'ffmpeg plugin tests: run all'
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Encoder'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
 
   ffmpeg-7-0-linux-tests:
       needs: [changes, ffmpeg-7-0-linux-build]
@@ -301,23 +290,11 @@ jobs:
       - name: 'Setup: Make ffmpeg executable'
         run: sudo chmod -R 755 install-dir/
 
-      - name: 'ffmpeg plugin tests: Decoder Conformance'
+      - name: 'ffmpeg plugin tests: run all'
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Encoder'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
 
   ffmpeg-7-1-linux-tests:
       needs: [changes, ffmpeg-7-1-linux-build]
@@ -342,23 +319,11 @@ jobs:
       - name: 'Setup: Make ffmpeg executable'
         run: sudo chmod -R 755 install-dir/
 
-      - name: 'ffmpeg plugin tests: Decoder Conformance'
+      - name: 'ffmpeg plugin tests: run all'
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Encoder'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
 
   ffmpeg-8-0-linux-tests:
       needs: [changes, ffmpeg-8-0-linux-build]
@@ -383,23 +348,11 @@ jobs:
       - name: 'Setup: Make ffmpeg executable'
         run: sudo chmod -R 755 install-dir/
 
-      - name: 'ffmpeg plugin tests: Decoder Conformance'
+      - name: 'ffmpeg plugin tests: run all'
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Encoder'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
 
   ffmpeg-8-1-linux-tests:
       needs: [changes, ffmpeg-8-1-linux-build]
@@ -424,23 +377,11 @@ jobs:
       - name: 'Setup: Make ffmpeg executable'
         run: sudo chmod -R 755 install-dir/
 
-      - name: 'ffmpeg plugin tests: Decoder Conformance'
+      - name: 'ffmpeg plugin tests: run all'
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Encoder'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
 
   ffmpeg-9-0-linux-tests:
       needs: [changes, ffmpeg-9-0-linux-build]
@@ -465,23 +406,11 @@ jobs:
       - name: 'Setup: Make ffmpeg executable'
         run: sudo chmod -R 755 install-dir/
 
-      - name: 'ffmpeg plugin tests: Decoder Conformance'
+      - name: 'ffmpeg plugin tests: run all'
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderConformanceTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Decoder Multi Frames'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegDecoderMultiFramesTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg"
-
-      - name: 'ffmpeg plugin tests: Encoder'
-        working-directory: ${{ github.workspace }}/tests/scripts
-        run: |
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./FFmpegEncoderTest.sh "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
 
   ffmpeg-6-1-windows-build:
       needs: changes
