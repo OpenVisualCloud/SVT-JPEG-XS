@@ -85,7 +85,7 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_image_config_t config)
         else if (config.bit_depth == 10) {
             avctx->pix_fmt = AV_PIX_FMT_GRAY10LE;
         }
-        else if (config.bit_depth == 12) {
+        else if (config.bit_depth <= 12) {
             avctx->pix_fmt = AV_PIX_FMT_GRAY12LE;
         }
         else if (config.bit_depth <= 14) {
