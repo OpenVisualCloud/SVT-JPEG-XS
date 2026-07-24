@@ -17,9 +17,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 env:
-  # Same conformance/functional test bitstreams (test_bitsreams/, reference_decode/,
-  # bitstream_multi_frames/, bitstream_invalid/, encoder_tests/) already used by base_build.yaml's
-  # linux-conformance-tests job, pre-staged on the self-hosted runners.
   INPUT_FILES_PATH: /opt/samples
   JOBS_NUM: 100
   LINUX_ARTIFACTS_6_1: linux-ffmpeg-6-1-build-${{ github.run_number }}
@@ -227,16 +224,6 @@ jobs:
           retention-days: 30
           path: |
             install-dir/
-
-  # ---------------------------------------------------------------------------------------------
-  # ffmpeg plugin functional tests (tests/scripts/FFmpegDecoderConformanceTest.sh,
-  # FFmpegDecoderMultiFramesTest.sh, FFmpegEncoderTest.sh), run against the ffmpeg binary built by
-  # the corresponding *-linux-build job above, one job per Linux ffmpeg version. Runs on the same
-  # self-hosted runners (with the same pre-staged /opt/samples bitstream set) as base_build.yaml's
-  # linux-conformance-tests job, since these test scripts consume the exact same asset layout
-  # (test_bitsreams/, reference_decode/, bitstream_multi_frames/, bitstream_invalid/,
-  # encoder_tests/).
-  # ---------------------------------------------------------------------------------------------
 
   ffmpeg-6-1-linux-tests:
       needs: [changes, ffmpeg-6-1-linux-build]

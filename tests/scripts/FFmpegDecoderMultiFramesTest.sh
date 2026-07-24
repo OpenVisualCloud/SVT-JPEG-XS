@@ -1,43 +1,10 @@
 #!/bin/bash
 #
-# Copyright(c) 2025 Intel Corporation
+# Copyright(c) 2026 Intel Corporation
 # SPDX - License - Identifier: BSD - 2 - Clause - Patent
 #
 #param 'help' print script params
-#
-# Functional test for the ffmpeg jpegxs decoder plugin, reusing the SAME multi-frame/error-
-# injection bitstreams as DecoderMultiFramesTest.sh (bitstream_multi_frames/, bitstream_invalid/).
-# Unlike test_bitsreams/ (see FFmpegDecoderConformanceTest.sh), these internal test bitstreams
-# already start directly with the JPEG-XS SOC+CAP marker (FF 10 FF 50) - NO ISOBMFF box wrapper -
-# so they can be fed to `ffmpeg -f jpegxs_pipe` without any preprocessing.
-#
-# KNOWN BEHAVIORAL DIFFERENCES vs SvtJpegxsDecApp (confirmed by actually running both tools):
-# - Two "correct" bitstreams using decomp_h=1 (Daylight_1280x720_{8b,10b}_422_20f_v1_h1) fail to
-#   decode cleanly through the ffmpeg plugin ("Capabilities marker not found!" / "Invalid Header
-#   frame" logged partway through the stream) even though SvtJpegxsDecApp decodes them without
-#   error. This looks like a genuine ffmpeg-plugin bug specific to decomp_h=1 packetization/frame
-#   boundary detection - flagged as a known limitation/follow-up, these 2 files are excluded below.
-# - For the "broken header" bitstreams (resolution/bit-depth/decomp/weight-table changing mid-
-#   stream), the ffmpeg plugin does NOT abort the whole conversion the way SvtJpegxsDecApp's exit
-#   code does (native returns exit 1); ffmpeg logs "SvtJxsErrorDecoderConfigChange"/"Input changed"
-#   per-packet but keeps running and exits 0. So these cases use NEW pinned md5s (self-recorded
-#   from an actual ffmpeg run) and exit_code 0, not the native app's md5/exit-1 semantics.
-# - For genuinely invalid/corrupt bitstreams (bitstream_invalid/), ffmpeg DOES fail the conversion
-#   (non-zero exit, e.g. 69) and writes NO output bytes - this matches the spirit (if not the exact
-#   numeric exit code) of the native tests, so those are checked as "non-zero exit + empty output".
-# - The native "-n 2" partial-frame-count hang-decoder test (test_422_32x32_bpp6) is reproduced
-#   using ffmpeg's "-frames:v 2" flag (same effect: decode only the first 2 frames).
-#
-# THREADING/ASM MATRIX (vs DecoderMultiFramesTest.sh's `test_all_correct/test_all_broken <asm> <lp>
-# [packetization]` sweep across c/avx2/max asm and 1/10/20 lp):
-# - `--asm` and `--packetization-mode` have NO ffmpeg equivalent: libsvtjpegxsdec.c hardcodes
-#   `use_cpu_flags = CPU_FLAGS_ALL` and `packetization_mode = 0` with no corresponding AVOption, so
-#   there is nothing to sweep for those two dimensions - always exactly one (fixed) value.
-# - `--lp` (thread count) DOES have a real equivalent: the plugin sets `threads_num` straight from
-#   `avctx->thread_count`, i.e. ffmpeg's standard `-threads N` flag. Verified this actually changes
-#   the library's internal thread count (logged as "Threads : N") and produces byte-identical
-#   output regardless of N, so test_all_correct/test_all_broken below are run once each for
-#   threads=1/10/20 (mirroring the native lp sweep), via a $PARAM_THREADS argument.
+
 
 echo "Run FFmpeg Decoder Multiple Frames Test"
 source ./CommonLib.sh
@@ -59,11 +26,7 @@ function end {
     fi
 }
 
-# `ffmpeg -formats` must actually run for us to know whether jpegxs_pipe is supported. If the
-# binary is missing/not built, not executable, or crashes (e.g. missing shared libs), that is a
-# hard test-harness failure - NOT the same as a properly-built ffmpeg that simply lacks jpegxs_pipe
-# support (see below). Failing here prevents silently SKIPPING (and reporting success on) every
-# test when ffmpeg was never actually invoked.
+
 ffmpeg_formats=$($exec_ffmpeg -formats 2>/dev/null)
 if [ $? -ne 0 ]; then
     echo "FAIL Could not run ffmpeg binary: $exec_ffmpeg"
@@ -71,15 +34,6 @@ if [ $? -ne 0 ]; then
     end
 fi
 
-# The `jpegxs_pipe` raw demuxer only exists natively in ffmpeg >= 8.1 (shipped upstream). Our own
-# patches for 6.1/7.0/7.1/8.0 only add codec type + mp4/mkv/mpegts container support, NOT the img2
-# pipe registration. There is no working fallback for genuinely multi-frame elementary streams on
-# those versions: `image2`/`image2pipe` have no JPEG-XS frame-boundary parser wired in, so they
-# hand the whole remaining stream to the decoder as a single oversized packet instead of one
-# packet per frame, which the plugin correctly rejects ("Single packet have data for more than one
-# frame."). So always use `jpegxs_pipe` here and let ffmpeg builds that lack it fail naturally -
-# we want to see those failures rather than silently skip or paper over them with a fallback that
-# doesn't actually work for multi-frame content.
 demuxer="-f jpegxs_pipe"
 
 # (1:expected error code) (2:name, without .jxs) (3:expected md5 of decoded yuv) (4:optional extra ffmpeg args)
@@ -201,14 +155,11 @@ function test_all_broken {
     PARAM_THREADS=$1
     path_use=$path_correct
 
-    # Bitstreams with a header change (resolution/bit-depth/decomp/weight-table) mid-stream, plus
-    # one with a genuinely corrupted mid-stream packet (broken_bitstream_*). ffmpeg does NOT abort
-    # the whole conversion on any of these decode errors (unlike SvtJpegxsDecApp, which returns
-    # exit 1) - it logs the error per-packet and continues, exiting 0. All 5 produce the SAME
-    # deterministic (41-frame) output, so they share one NEW pinned md5 (self-recorded from an
-    # actual ffmpeg run), not reused from DecoderMultiFramesTest.sh (which expects exit 1 and a
-    # different partial-output md5 for the header-change cases, and a hard failure for
-    # broken_bitstream_*).
+    # Bitstreams with a header change mid-stream, plus one with a genuinely corrupted
+    # mid-stream packet (broken_bitstream_*). ffmpeg does NOT abort the whole conversion 
+    # on any of these decode errors (unlike SvtJpegxsDecApp, which returns exit 1) 
+    # - it logs the error per-packet and continues, exiting 0. All 5 produce the SAME
+    # deterministic (41-frame) output, so they share one NEW pinned md5.
     test_dec 0 broken_decomh_Daylight_1280x720_8b_422_20fx1fx20f       2d658bef484f1de8bde1b0f233bcf6a6
     test_dec 0 broken_bit_depth_Daylight_1280x720_8b_422_20fx1fx20f    2d658bef484f1de8bde1b0f233bcf6a6
     test_dec 0 broken_resolution_Daylight_1280x720_8b_422_20fx1fx20f   2d658bef484f1de8bde1b0f233bcf6a6
@@ -234,9 +185,7 @@ function test_all_invalid {
     test_dec_invalid invalid_small_cfg_zero_band_10
 }
 
-# Threads sweep (mirrors DecoderMultiFramesTest.sh's asm/lp matrix - see note near the top of this
-# file for why only the thread-count dimension has a real ffmpeg equivalent). 0 = ffmpeg/library
-# default thread count (auto-detected from CPU count), plus a couple of explicit values.
+
 for PARAM_THREADS in 0 1 10 20; do
     test_all_correct $PARAM_THREADS
     test_all_broken $PARAM_THREADS
