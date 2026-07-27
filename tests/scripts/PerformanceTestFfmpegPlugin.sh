@@ -64,12 +64,14 @@ MATRIX=(
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|32|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|64|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|96|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
 
     # 1080p - 3.0 BPP Thread Scaling
     "1080p60_422p10|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|3.0|32|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|64|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|3.0|96|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
 
     # 4K - 1.5 BPP Thread Scaling
@@ -136,12 +138,16 @@ for test_case in "${MATRIX[@]}"; do
     cp -f "$source_path" "$RAMDISK_YUV"
     pix_fmt=$(get_ffmpeg_pix_fmt "$fmt" "$depth")
 
-    # --- Encode: produces the .jxs bitstream the decode step consumes ---
+    # --- Encode: -threads MUST come after -i so it applies to the output
+    # encoder (libsvtjpegxs), not the rawvideo input reader. Placing it
+    # before -i silently makes ffmpeg ignore it for the encoder and
+    # auto-detect all CPU cores instead. ---
     echo "Encoding: $name (bpp=$bpp, threads=$threads)"
     enc_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
-        "$FFMPEG_BIN" -threads "$threads" -y -hide_banner -loglevel info -nostats -benchmark \
+        "$FFMPEG_BIN" -y -hide_banner -loglevel info -nostats -benchmark \
         -stream_loop -1 -f rawvideo -pix_fmt "$pix_fmt" -s:v "${w}x${h}" -framerate "$target_fps" \
-        -i "$RAMDISK_YUV" -frames:v "$FRAMES" -c:v libsvtjpegxs -bpp "$bpp" \
+        -i "$RAMDISK_YUV" \
+        -threads "$threads" -frames:v "$FRAMES" -c:v libsvtjpegxs -bpp "$bpp" \
         -f image2pipe "$RAMDISK_JXS")
     enc_cmd=$(printf '%q ' "${enc_cmd_arr[@]}")
     enc_fps=$(run_measured "${enc_cmd_arr[@]}")
@@ -162,10 +168,13 @@ for test_case in "${MATRIX[@]}"; do
         continue
     fi
 
+    # --- Decode: -threads stays before -i since libsvtjpegxs is the input
+    # decoder here; placed next to -c:v for readability. ---
     echo "Decoding: $name (bpp=$bpp, threads=$threads)"
     dec_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
-        "$FFMPEG_BIN" -threads "$threads" -y -hide_banner -loglevel info -nostats -benchmark \
-        -f jpegxs_pipe -c:v libsvtjpegxs -i "$RAMDISK_JXS" -f rawvideo /dev/null)
+        "$FFMPEG_BIN" -y -hide_banner -loglevel info -nostats -benchmark \
+        -threads "$threads" -f jpegxs_pipe -c:v libsvtjpegxs -i "$RAMDISK_JXS" \
+        -f rawvideo /dev/null)
     dec_cmd=$(printf '%q ' "${dec_cmd_arr[@]}")
     dec_fps=$(run_measured "${dec_cmd_arr[@]}")
 

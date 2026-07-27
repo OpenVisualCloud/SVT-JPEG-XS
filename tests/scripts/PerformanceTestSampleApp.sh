@@ -54,12 +54,14 @@ MATRIX=(
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|32|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|64|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|96|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
 
     # 1080p - 3.0 BPP Thread Scaling
     "1080p60_422p10|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|3.0|32|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|64|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|3.0|96|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
 
     # 4K - 1.5 BPP Thread Scaling
