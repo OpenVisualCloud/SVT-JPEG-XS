@@ -50,19 +50,39 @@ trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"' EXIT
 
 # Ensure CSV header exists
 if [ ! -f "$CSV_FILE" ]; then
-    echo "Operation,StreamName,Resolution,BPP,TargetFPS,Result_FPS,Status,Command" > "$CSV_FILE"
+    echo "Operation,Command,StreamName,Resolution,BPP,Threads,TargetFPS,Result_FPS,Status" > "$CSV_FILE"
 fi
 
-# Matrix: Name|Width|Height|BitDepth|Format|TargetFPS|BPP|SourceFile
+# Matrix: Name|Width|Height|BitDepth|Format|TargetFPS|BPP|Threads|SourceFile
 # Identical to PerformanceTestSampleApp.sh's matrix (same streams, same BPP
-# values) so both harnesses' Result_FPS columns are directly comparable.
-# SourceFile is relative to SAMPLES_DIR. The 4k file is a single extracted
-# frame (see Conformance-tests/4k/) - `-stream_loop -1` loops it up to FRAMES.
+# values, same thread counts) so both harnesses' Result_FPS columns are
+# directly comparable. SourceFile is relative to SAMPLES_DIR. The 4k file is
+# a single extracted frame (see Conformance-tests/4k/) - `-stream_loop -1`
+# loops it up to FRAMES.
 MATRIX=(
-    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
-    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
-    #"4K60_422p10|3840|2160|10|yuv422|60|1.5|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
-    #"4K60_422p10|3840|2160|10|yuv422|60|3.0|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
+    # 1080p - 1.5 BPP Thread Scaling
+    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|32|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|96|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+
+    # 1080p - 3.0 BPP Thread Scaling
+    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|32|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|96|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+
+    # 4K - 1.5 BPP Thread Scaling
+   # "4K60_422p10|3840|2160|10|yuv422|60|1.5|1|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
+    #"4K60_422p10|3840|2160|10|yuv422|60|1.5|4|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
+   # "4K60_422p10|3840|2160|10|yuv422|60|1.5|8|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
+    #"4K60_422p10|3840|2160|10|yuv422|60|1.5|16|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
+
+    # 4K - 3.0 BPP Thread Scaling
+   # "4K60_422p10|3840|2160|10|yuv422|60|3.0|1|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
+   # "4K60_422p10|3840|2160|10|yuv422|60|3.0|4|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
+   # "4K60_422p10|3840|2160|10|yuv422|60|3.0|8|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
+    #"4K60_422p10|3840|2160|10|yuv422|60|3.0|16|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
 )
 
 # get_ffmpeg_pix_fmt  colour_format bit_depth
@@ -104,22 +124,22 @@ function run_measured() {
 }
 
 for test_case in "${MATRIX[@]}"; do
-    IFS='|' read -r name w h depth fmt target_fps bpp file <<< "$test_case"
+    IFS='|' read -r name w h depth fmt target_fps bpp threads file <<< "$test_case"
     source_path="$SAMPLES_DIR/$file"
 
     if [ ! -f "$source_path" ]; then
         echo "ERROR: File $source_path not found!"
-        echo "ENCODE,$name,${w}x${h},$bpp,$target_fps,N/A,FAIL,N/A" >> "$CSV_FILE"
-        echo "DECODE,$name,${w}x${h},$bpp,$target_fps,N/A,FAIL,N/A" >> "$CSV_FILE"
+        echo "ENCODE,N/A,$name,${w}x${h},$bpp,$threads,$target_fps,N/A,FAIL" >> "$CSV_FILE"
+        echo "DECODE,N/A,$name,${w}x${h},$bpp,$threads,$target_fps,N/A,FAIL" >> "$CSV_FILE"
         continue
     fi
     cp -f "$source_path" "$RAMDISK_YUV"
     pix_fmt=$(get_ffmpeg_pix_fmt "$fmt" "$depth")
 
     # --- Encode: produces the .jxs bitstream the decode step consumes ---
-    echo "Encoding: $name (bpp=$bpp)"
+    echo "Encoding: $name (bpp=$bpp, threads=$threads)"
     enc_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
-        "$FFMPEG_BIN" -y -hide_banner -loglevel info -nostats -benchmark \
+        "$FFMPEG_BIN" -threads "$threads" -y -hide_banner -loglevel info -nostats -benchmark \
         -stream_loop -1 -f rawvideo -pix_fmt "$pix_fmt" -s:v "${w}x${h}" -framerate "$target_fps" \
         -i "$RAMDISK_YUV" -frames:v "$FRAMES" -c:v libsvtjpegxs -bpp "$bpp" \
         -f image2pipe "$RAMDISK_JXS")
@@ -127,34 +147,34 @@ for test_case in "${MATRIX[@]}"; do
     enc_fps=$(run_measured "${enc_cmd_arr[@]}")
 
     if [ -n "$enc_fps" ]; then
-        echo "ENCODE,$name,${w}x${h},$bpp,$target_fps,$enc_fps,PASS,\"$enc_cmd\"" >> "$CSV_FILE"
-        echo "SUCCESS: ENCODE $name (bpp=$bpp) -> $enc_fps FPS"
+        echo "ENCODE,\"$enc_cmd\",$name,${w}x${h},$bpp,$threads,$target_fps,$enc_fps,PASS" >> "$CSV_FILE"
+        echo "SUCCESS: ENCODE $name (bpp=$bpp, threads=$threads) -> $enc_fps FPS"
     else
-        echo "ENCODE,$name,${w}x${h},$bpp,$target_fps,N/A,FAIL,\"$enc_cmd\"" >> "$CSV_FILE"
-        echo "FAILED: ENCODE $name (bpp=$bpp)"
+        echo "ENCODE,\"$enc_cmd\",$name,${w}x${h},$bpp,$threads,$target_fps,N/A,FAIL" >> "$CSV_FILE"
+        echo "FAILED: ENCODE $name (bpp=$bpp, threads=$threads)"
     fi
 
     # --- Decode: only meaningful if the bitstream was actually produced ---
     if [ ! -s "$RAMDISK_JXS" ]; then
         echo "ERROR: No bitstream produced by encode step, skipping decode."
-        echo "DECODE,$name,${w}x${h},$bpp,$target_fps,N/A,FAIL,N/A" >> "$CSV_FILE"
+        echo "DECODE,N/A,$name,${w}x${h},$bpp,$threads,$target_fps,N/A,FAIL" >> "$CSV_FILE"
         rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"
         continue
     fi
 
-    echo "Decoding: $name (bpp=$bpp)"
+    echo "Decoding: $name (bpp=$bpp, threads=$threads)"
     dec_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
-        "$FFMPEG_BIN" -y -hide_banner -loglevel info -nostats -benchmark \
+        "$FFMPEG_BIN" -threads "$threads" -y -hide_banner -loglevel info -nostats -benchmark \
         -f jpegxs_pipe -c:v libsvtjpegxs -i "$RAMDISK_JXS" -f rawvideo /dev/null)
     dec_cmd=$(printf '%q ' "${dec_cmd_arr[@]}")
     dec_fps=$(run_measured "${dec_cmd_arr[@]}")
 
     if [ -n "$dec_fps" ]; then
-        echo "DECODE,$name,${w}x${h},$bpp,$target_fps,$dec_fps,PASS,\"$dec_cmd\"" >> "$CSV_FILE"
-        echo "SUCCESS: DECODE $name (bpp=$bpp) -> $dec_fps FPS"
+        echo "DECODE,\"$dec_cmd\",$name,${w}x${h},$bpp,$threads,$target_fps,$dec_fps,PASS" >> "$CSV_FILE"
+        echo "SUCCESS: DECODE $name (bpp=$bpp, threads=$threads) -> $dec_fps FPS"
     else
-        echo "DECODE,$name,${w}x${h},$bpp,$target_fps,N/A,FAIL,\"$dec_cmd\"" >> "$CSV_FILE"
-        echo "FAILED: DECODE $name (bpp=$bpp)"
+        echo "DECODE,\"$dec_cmd\",$name,${w}x${h},$bpp,$threads,$target_fps,N/A,FAIL" >> "$CSV_FILE"
+        echo "FAILED: DECODE $name (bpp=$bpp, threads=$threads)"
     fi
 
     rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"
