@@ -126,69 +126,69 @@ function test_all {
 #   coding-signs full, 10 frames.
 #   NOTE: matches EncoderTest.sh test_rate_control()'s "--rc 1" row exactly (same expected md5),
 #   confirming ffmpeg's default rate-control mode == SvtJpegxsEncApp's --rc 1.
-    test_enc 0 3f268410cc008cbdcc73b3c2b863bb8b touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs full"
+    test_enc 0 3f24dcf3bdfd1184caacac7fa9989a78 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs full"
 
 #   Same input, coding-vpred/coding-signs disabled.
 #   NOTE: matches EncoderTest.sh test_rate_control()'s other "--rc 1" row exactly.
-    test_enc 0 f7e14efd78c00b7a379ff71e6fb79f80 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs disable"
+    test_enc 0 820a3890a0b7748802672f37e0f90565 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs disable"
 
 #   8bit 720p yuv420, bpp 4, decomp_v 2, decomp_h 5. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 df6deb36e8f31186ecd416e0f8012217 touchdown_720p_yuv420p_8_bit_60_frames 1280 720 yuv420p 5 "-bpp 4 -decomp_v 2 -decomp_h 5 -coding-sigf 0 -coding-vpred disable -coding-signs full"
+    test_enc 0 84cd5feebcc0651157afafa92cc2724e touchdown_720p_yuv420p_8_bit_60_frames 1280 720 yuv420p 5 "-bpp 4 -decomp_v 2 -decomp_h 5 -coding-sigf 0 -coding-vpred disable -coding-signs full"
 
 #   10bit(le) 1080p yuv422, bpp 3, decomp_v 2, decomp_h 5. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 3cee778d91ca4483441a76b4b8d3c6dd touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 1e5989607bd7412547d16e29fd2064e5 touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   10bit(le) 1080p yuv422 single frame. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 5ad84e608319f54d8fbded9fa76edff1 signal_1080p_yuv422p_10bit_le_1_frame 1920 1080 yuv422p10le 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 94806b522fbe0409f15b29847b95728e signal_1080p_yuv422p_10bit_le_1_frame 1920 1080 yuv422p10le 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   Uncommon (odd) resolution 8bit yuv422 1920x1081. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 dfeaa6b80837a161b3309ef227108007 uncommon_resolution_8bit_422_1920x1081 1920 1081 yuv422p 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 599c9b2c9b6f95d15a203e7a8f8e7c2f uncommon_resolution_8bit_422_1920x1081 1920 1081 yuv422p 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   Uncommon (odd) resolution 10bit(le) yuv420 1922x1082. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 1dbe68ba9111d444469c2ed548143bf5 uncommon_resolution_10bit_420_1922x1082 1922 1082 yuv420p10le 1 "-bpp 3 -decomp_v 1 -decomp_h 4 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 e582583486adc5cbd6aa80adebfae9c9 uncommon_resolution_10bit_420_1922x1082 1922 1082 yuv420p10le 1 "-bpp 3 -decomp_v 1 -decomp_h 4 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   coding-vpred=no_coeffs (mode 2, "VPRED FULL Mode 2" in EncoderTest.sh). NEW md5, pinned from this ffmpeg build.
 #   Previously untested value of the coding-vpred AVOption (only disable/no_residuals were covered above).
-    test_enc 0 7c033976b7550f9554e36615b6ef517a touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_coeffs -coding-signs full"
+    test_enc 0 38f36f8115333adecb4a3367a4ef46b4 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_coeffs -coding-signs full"
 
 #   coding-signs=fast (mode 1). NEW md5, pinned from this ffmpeg build.
 #   Previously untested value of the coding-signs AVOption (only disable/full were covered above).
-    test_enc 0 f0ca8a697076790fdce0d85c057e187c touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs fast"
+    test_enc 0 dab9a55934b4c46bb87cecf5d3efcc4b touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs fast"
 
 #   threads=4: ffmpeg's standard thread pass-through (-threads N), previously untested here.
 #   NEW md5, pinned from this ffmpeg build - verified (by actually running both) to be byte-
 #   identical to the same params without -threads (and with -threads 1), confirming thread count
 #   only affects parallelism, not the encoded bitstream.
-    test_enc 0 ce4a5f06daaf0e30dfaec28be84d8c1f touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-threads 4 -bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 91780e4e9d32683b0a11583d3c0accb5 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-threads 4 -bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   coding-raw=0 (disable packet-based raw-mode coding, for legacy-decoder compatibility).
 #   NEW md5, pinned from this ffmpeg build - previously untested value of the coding-raw AVOption
 #   (default/unset is coding-raw=1/enabled, exercised implicitly by every other test above).
-    test_enc 0 b781b2b652e8e3efc2c8842ba48165d3 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -coding-raw 0"
+    test_enc 0 9138e221e7e8d138ca56dd20bea64b3e touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -coding-raw 0"
 
 #   cap-compat=1 (emit an empty CAP marker when no capability bit is required), combined with
 #   coding-raw=0 so that no capability bit (raw-mode or 4:2:0) is actually set - this is the only
 #   way to make cap-compat observable (verified: with the default coding-raw=1, the raw-mode
 #   capability bit is always set, so cap-compat=1 produces byte-identical output to cap-compat=0
 #   and the test would not actually exercise anything). NEW md5, pinned from this ffmpeg build.
-    test_enc 0 32ca9913c1d3cd8312938d854b2e4f41 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -coding-raw 0 -cap-compat 1"
+    test_enc 0 e34aa650919f8c0c5cf380a836f6b736 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -coding-raw 0 -cap-compat 1"
 
 #   quantization=uniform. NEW md5, pinned from this ffmpeg build.
 #   The quantization AVOption (deadzone/uniform) had zero coverage before.
-    test_enc 0 e60442f420cc09d3e6aecbf4cdceeb3f touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -quantization uniform"
+    test_enc 0 69986efe852479b112898689b17e2784 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -quantization uniform"
 
 #   slice_height=120 (10bit yuv422). NEW md5, pinned from this ffmpeg build.
 #   The slice_height AVOption had zero coverage before.
-    test_enc 0 93b6a3bd74307ec5c33c5beb731e25f3 touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -slice_height 120"
+    test_enc 0 ce3a0a35dec2548897753e5e196ec653 touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -slice_height 120"
 
 #   decomp_v=0 path (only decomp_v 1/2 were covered above). NEW md5, pinned from this ffmpeg build.
-    test_enc 0 5569fb8b93f3e89554002d7b612ae244 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 4 -decomp_v 0 -decomp_h 2 -coding-sigf 1 -coding-vpred disable"
+    test_enc 0 ebbd8c89dbbf4faa14cbaea356003e99 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 4 -decomp_v 0 -decomp_h 2 -coding-sigf 1 -coding-vpred disable"
 
 #   bpp=5 (only bpp 3/4/0.05 were covered above). NEW md5, pinned from this ffmpeg build.
-    test_enc 0 48f81ec2f73f358f512d86a43fe54d28 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 5 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable"
+    test_enc 0 2a5b347a944e05f343b203573f881d4e touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 5 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable"
 
 #   10bit(le) yuv420 (only 8bit yuv420 and 10bit yuv422 were covered above). NEW md5, pinned from this ffmpeg build.
-    test_enc 0 2ed262645c8a7331c85c1d80b56626ad touchdown_1080p_yuv420p_10_bit_le_60_frames 1920 1080 yuv420p10le 5 "-bpp 4 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable"
+    test_enc 0 2e6eeef88bc70abe6f64db08babab398 touchdown_1080p_yuv420p_10_bit_le_60_frames 1920 1080 yuv420p10le 5 "-bpp 4 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable"
 
 #   Error path: invalid (too low) bpp must be rejected by the plugin (non-zero ffmpeg exit code).
     test_enc NONZERO IGNORE touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 2 "-bpp 0.05 -decomp_v 2 -decomp_h 5"
