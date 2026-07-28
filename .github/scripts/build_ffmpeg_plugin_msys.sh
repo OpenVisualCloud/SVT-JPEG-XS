@@ -41,9 +41,8 @@ cd "$PWD"
 git config --global user.email "runner@github.com"
 git config --global user.name "action-runner"
 
-git clone https://git.ffmpeg.org/ffmpeg.git "ffmpeg-$FFMPEG_VERSION"
+git clone --branch "release/$FFMPEG_VERSION" --depth 1 https://git.ffmpeg.org/ffmpeg.git "ffmpeg-$FFMPEG_VERSION"
 cd "ffmpeg-$FFMPEG_VERSION"
-git checkout "release/$FFMPEG_VERSION"
 
 # 4. Apply jpeg-xs plugin patches
 if [[ "$COPY_FILES" == "y" ]]; then

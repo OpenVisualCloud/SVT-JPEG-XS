@@ -75,6 +75,26 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_image_config_t config)
             avctx->pix_fmt = AV_PIX_FMT_YUV444P14LE;
         }
     }
+    else if (config.format == COLOUR_FORMAT_GRAY || config.format == COLOUR_FORMAT_PLANAR_YUV400) {
+        if (config.bit_depth == 8) {
+            avctx->pix_fmt = AV_PIX_FMT_GRAY8;
+        }
+        else if (config.bit_depth == 9) {
+            avctx->pix_fmt = AV_PIX_FMT_GRAY9LE;
+        }
+        else if (config.bit_depth == 10) {
+            avctx->pix_fmt = AV_PIX_FMT_GRAY10LE;
+        }
+        else if (config.bit_depth <= 12) {
+            avctx->pix_fmt = AV_PIX_FMT_GRAY12LE;
+        }
+        else if (config.bit_depth <= 14) {
+            avctx->pix_fmt = AV_PIX_FMT_GRAY14LE;
+        }
+        else {
+            avctx->pix_fmt = AV_PIX_FMT_GRAY16LE;
+        }
+    }
     else {
         av_log(avctx, AV_LOG_ERROR, "Unsupported pixel format.\n");
         return AVERROR_INVALIDDATA;
