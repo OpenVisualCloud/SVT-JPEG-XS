@@ -312,6 +312,93 @@ jobs:
         with:
           name: "${{ env.LINUX_ARTIFACTS_7_1 }}"
           path: install-dir
+          
+      - name: 'Setup: Make ffmpeg executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'ffmpeg plugin tests: run all'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+
+  ffmpeg-8-0-linux-tests:
+      needs: [changes, ffmpeg-8-0-linux-build]
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      timeout-minutes: 120
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: 'Setup: Download build artifacts'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_ARTIFACTS_8_0 }}"
+          path: install-dir
+
+      - name: 'Setup: Make ffmpeg executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'ffmpeg plugin tests: run all'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+
+  ffmpeg-8-1-linux-tests:
+      needs: [changes, ffmpeg-8-1-linux-build]
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      timeout-minutes: 120
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: 'Setup: Download build artifacts'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_ARTIFACTS_8_1 }}"
+          path: install-dir
+
+      - name: 'Setup: Make ffmpeg executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'ffmpeg plugin tests: run all'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+
+  ffmpeg-9-0-linux-tests:
+      needs: [changes, ffmpeg-9-0-linux-build]
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      timeout-minutes: 120
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: 'Setup: Download build artifacts'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_ARTIFACTS_9_0 }}"
+          path: install-dir
 
       - name: 'Setup: Make ffmpeg executable'
         run: sudo chmod -R 755 install-dir/
