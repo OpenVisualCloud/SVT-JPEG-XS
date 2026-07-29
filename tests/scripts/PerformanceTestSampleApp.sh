@@ -58,7 +58,7 @@ trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"' EXIT
 # StreamName/Resolution/BPP/Threads columns - a MATRIX entry can be copied
 # straight into this script with no reformatting.
 if [ ! -f "$CSV_FILE" ]; then
-    echo "Operation,TestCase,Command,Result_FPS,Status" > "$CSV_FILE"
+    echo "Operation,TestCase,Command,Result_FPS,Target_FPS,Percent_Of_Target,Status" > "$CSV_FILE"
 fi
 
 # Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS
@@ -131,6 +131,7 @@ function check_result() {
     # MATRIX row added without filling in its baseline target).
     if [ -z "$baseline_fps" ] || [ "$baseline_fps" = "N/A" ]; then
         STATUS="FAIL"
+        PERCENT="N/A"
         SCRIPT_FAILED=1
         echo "FAILED: $label - missing baseline FPS target in MATRIX"
         return
@@ -138,6 +139,7 @@ function check_result() {
 
     if [ -z "$measured_fps" ]; then
         STATUS="FAIL"
+        PERCENT="N/A"
         SCRIPT_FAILED=1
         echo "FAILED: $label - no FPS measured"
         return
@@ -145,14 +147,17 @@ function check_result() {
 
     local min_allowed
     min_allowed=$(awk -v b="$baseline_fps" -v t="$REGRESSION_THRESHOLD_PCT" 'BEGIN { printf "%.2f", b * (1 - t / 100) }')
+    # How the measured FPS compares to the MATRIX baseline target, e.g. 97.3 means
+    # 97.3% of baseline (a 2.7% drop) - reported regardless of pass/fail.
+    PERCENT=$(awk -v f="$measured_fps" -v b="$baseline_fps" 'BEGIN { printf "%.1f", (f / b) * 100 }')
 
     if awk -v f="$measured_fps" -v m="$min_allowed" 'BEGIN { exit !(f >= m) }'; then
         STATUS="PASS"
-        echo "SUCCESS: $label -> $measured_fps FPS (baseline=$baseline_fps FPS)"
+        echo "SUCCESS: $label -> $measured_fps FPS (baseline=$baseline_fps FPS, ${PERCENT}% of target)"
     else
         STATUS="FAIL"
         SCRIPT_FAILED=1
-        echo "FAIL (REGRESSION): $label -> $measured_fps FPS, below allowed min $min_allowed FPS (baseline=$baseline_fps FPS, -${REGRESSION_THRESHOLD_PCT}% threshold)"
+        echo "FAIL (REGRESSION): $label -> $measured_fps FPS, below allowed min $min_allowed FPS (baseline=$baseline_fps FPS, ${PERCENT}% of target, -${REGRESSION_THRESHOLD_PCT}% threshold)"
     fi
 }
 
@@ -163,8 +168,8 @@ for test_case in "${MATRIX[@]}"; do
     if [ ! -f "$source_path" ]; then
         echo "ERROR: File $source_path not found!"
         SCRIPT_FAILED=1
-        echo "ENCODE,$test_case,N/A,N/A,FAIL" >> "$CSV_FILE"
-        echo "DECODE,$test_case,N/A,N/A,FAIL" >> "$CSV_FILE"
+        echo "ENCODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
+        echo "DECODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
         continue
     fi
     cp -f "$source_path" "$RAMDISK_YUV"
@@ -178,13 +183,13 @@ for test_case in "${MATRIX[@]}"; do
     enc_fps=$(run_measured "${enc_cmd_arr[@]}")
 
     check_result "ENCODE $name (bpp=$bpp, threads=$threads)" "$enc_fps" "$baseline_enc_fps"
-    echo "ENCODE,$test_case,\"$enc_cmd\",${enc_fps:-N/A},$STATUS" >> "$CSV_FILE"
+    echo "ENCODE,$test_case,\"$enc_cmd\",${enc_fps:-N/A},${baseline_enc_fps:-N/A},$PERCENT,$STATUS" >> "$CSV_FILE"
 
     # --- Decode: only meaningful if the bitstream was actually produced ---
     if [ ! -s "$RAMDISK_JXS" ]; then
         echo "ERROR: No bitstream produced by encode step, skipping decode."
         SCRIPT_FAILED=1
-        echo "DECODE,$test_case,N/A,N/A,FAIL" >> "$CSV_FILE"
+        echo "DECODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
         rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"
         continue
     fi
@@ -196,7 +201,7 @@ for test_case in "${MATRIX[@]}"; do
     dec_fps=$(run_measured "${dec_cmd_arr[@]}")
 
     check_result "DECODE $name (bpp=$bpp, threads=$threads)" "$dec_fps" "$baseline_dec_fps"
-    echo "DECODE,$test_case,\"$dec_cmd\",${dec_fps:-N/A},$STATUS" >> "$CSV_FILE"
+    echo "DECODE,$test_case,\"$dec_cmd\",${dec_fps:-N/A},${baseline_dec_fps:-N/A},$PERCENT,$STATUS" >> "$CSV_FILE"
 
     rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"
 done
