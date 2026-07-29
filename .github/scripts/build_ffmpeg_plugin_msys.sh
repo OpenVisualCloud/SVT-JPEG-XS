@@ -41,8 +41,6 @@ cd "$PWD"
 git config --global user.email "runner@github.com"
 git config --global user.name "action-runner"
 
-# Shallow, branch-specific clone: avoids downloading the full ffmpeg git history (which is large
-# and slow) since only one release branch is ever needed here.
 git clone --branch "release/$FFMPEG_VERSION" --depth 1 https://git.ffmpeg.org/ffmpeg.git "ffmpeg-$FFMPEG_VERSION"
 cd "ffmpeg-$FFMPEG_VERSION"
 

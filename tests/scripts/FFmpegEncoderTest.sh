@@ -1,38 +1,10 @@
 #!/bin/bash
 #
-# Copyright(c) 2025 Intel Corporation
+# Copyright(c) 2026 Intel Corporation
 # SPDX - License - Identifier: BSD - 2 - Clause - Patent
 #
 #param 'help' print script params
-#
-# Functional test for the ffmpeg jpegxs encoder plugin (ffmpeg-plugin/libsvtjpegxsenc.c).
-# Modeled on EncoderTest.sh, but drives an `ffmpeg` binary built with --enable-libsvtjpegxs
-# instead of SvtJpegxsEncApp directly.
-#
-# Notes on parity with EncoderTest.sh:
-# - The ffmpeg plugin exposes a SMALLER option set than SvtJpegxsEncApp: bpp, decomp_v, decomp_h,
-#   slice_height, quantization, coding-signs, coding-sigf, coding-vpred, coding-raw, cap-compat,
-#   threads. There is NO --rc/--asm/--lp/--profile/--packetization-mode equivalent. The library's
-#   default rate-control mode (used whenever the plugin doesn't set it) has been confirmed, by
-#   actually running ffmpeg and diffing md5s, to match SvtJpegxsEncApp's "--rc 1" mode exactly.
-#   So two test cases below reuse EncoderTest.sh's existing committed "--rc 1" md5s verbatim
-#   (see comments at each test_enc call). All other cases use NEW md5s, recorded once by running
-#   this exact ffmpeg+plugin build against the same encoder_tests/*.yuv assets (pinned regression
-#   values, not reused from EncoderTest.sh, since those all use other --rc values).
-# - The raw elementary bitstream is extracted with `-f image2pipe` (NOT `-f data`, which rejects
-#   video streams entirely on the ffmpeg 9.0 build used to validate this script).
-# - EncoderTest.sh's huge test count (~2000 test_enc invocations) is dominated by two things that
-#   don't apply here: (1) the whole matrix repeated across --asm/--lp/--profile/--packetization-mode,
-#   none of which the ffmpeg plugin exposes as separate options, and (2) an exhaustive
-#   test_uncommon_resolution() sweep of ~200 off-by-one-pixel width/height edge cases, which
-#   stresses the encoder library's own padding/precinct-rounding logic and is independent of
-#   which CLI wraps it. Beyond that axis, this script aims for at least one case per distinct
-#   AVOption value exposed by the plugin: coding-vpred (disable/no_residuals/no_coeffs),
-#   coding-signs (disable/fast/full), quantization (deadzone/uniform), slice_height, bpp
-#   (3/4/5/0.05), decomp_v (0/1/2), decomp_h (2/4/5), threads (ffmpeg's standard -threads N
-#   pass-through), coding-raw (0/1), cap-compat (0/1, tested together with coding-raw=0 - see
-#   comment at that test_enc call for why cap-compat is otherwise unobservable), and all 3
-#   supported pixel format/bit-depth combos (yuv420p 8bit, yuv422p 8/10bit, yuv420p 10bit).
+
 
 echo "Run FFmpeg Encoder Test"
 source ./CommonLib.sh
@@ -95,9 +67,6 @@ function test_enc {
     out_yuv_path="$tmp_dir/"$bin_name".yuv"
 
 #   Encode raw yuv to a raw jpegxs elementary stream and check expected error code.
-#   Explicitly named "-c:v libsvtjpegxs" (not the generic "-c:v jpegxs") so this always exercises
-#   the SVT plugin even on an ffmpeg build that also ships a native JPEG XS codec under the same
-#   codec ID - defensive/self-documenting, a no-op on the patched builds used by this CI.
     cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error -f rawvideo -pix_fmt $pix_fmt -s:v ${width}x${height} -r 25 -i $path_yuv -frames:v $frames -c:v libsvtjpegxs $encoder_parameters -f image2pipe $bin_path"
     echo "run command: $cmd"
     ${cmd}

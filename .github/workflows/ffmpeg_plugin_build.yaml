@@ -17,9 +17,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 env:
-  # Same conformance/functional test bitstreams (test_bitsreams/, reference_decode/,
-  # bitstream_multi_frames/, bitstream_invalid/, encoder_tests/) already used by base_build.yaml's
-  # linux-conformance-tests job, pre-staged on the self-hosted runners.
   INPUT_FILES_PATH: /opt/samples
   JOBS_NUM: 100
   LINUX_ARTIFACTS_6_1: linux-ffmpeg-6-1-build-${{ github.run_number }}
@@ -228,12 +225,6 @@ jobs:
           path: |
             install-dir/
 
-  ffmpeg-9-0-performance-tests:
-      needs: ffmpeg-9-0-linux-build
-      uses: ./.github/workflows/performance-benchmark.yaml
-      with:
-        ffmpeg_plugin_artifact: ${{ env.LINUX_ARTIFACTS_9_0 }}
-
   # ---------------------------------------------------------------------------------------------
   # ffmpeg plugin functional tests (tests/scripts/FFmpegDecoderConformanceTest.sh,
   # FFmpegDecoderMultiFramesTest.sh, FFmpegEncoderTest.sh), run against the ffmpeg binary built by
@@ -417,7 +408,13 @@ jobs:
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
           ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
-
+   
+  ffmpeg-9-0-performance-tests:
+      needs: ffmpeg-9-0-linux-build
+      uses: ./.github/workflows/performance-benchmark.yaml
+      with:
+        ffmpeg_plugin_artifact: ${{ env.LINUX_ARTIFACTS_9_0 }}
+        
   ffmpeg-6-1-windows-build:
       needs: changes
       if: ${{ needs.changes.outputs.changed == 'true' }}

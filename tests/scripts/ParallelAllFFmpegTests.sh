@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright(c) 2025 Intel Corporation
+# Copyright(c) 2026 Intel Corporation
 # SPDX - License - Identifier: BSD - 2 - Clause - Patent
 #
 # Runs all ffmpeg jpegxs plugin functional tests in parallel.
@@ -29,16 +29,7 @@ chmod +x ./FFmpegDecoderConformanceTest.sh
 chmod +x ./FFmpegDecoderMultiFramesTest.sh
 chmod +x ./FFmpegEncoderTest.sh
 
-# The `jpegxs_pipe` raw demuxer only exists natively in ffmpeg >= 8.1 (shipped upstream). Our own
-# patches for 6.1/7.0/7.1/8.0 only add the codec type + mp4/mkv/mpegts container support, NOT the
-# img2 pipe registration, and there is no working fallback for genuinely multi-frame elementary
-# streams on those versions (see FFmpegDecoderMultiFramesTest.sh header comment). So detect support
-# once here and skip what can't work instead of letting it fail every run on those versions:
-#   - FFmpegDecoderMultiFramesTest.sh is skipped entirely (its whole test scenario needs
-#     jpegxs_pipe to feed multi-frame raw codestreams to ffmpeg).
-#   - FFmpegEncoderTest.sh's optional decode-verification step (triggered by a trailing "dec"
-#     argument) also needs jpegxs_pipe, so "dec" is dropped from its params when unsupported;
-#     the encode-side md5 checks still run either way.
+
 supports_jpegxs_pipe=1
 if ! $exec_ffmpeg -formats 2>/dev/null | grep -q "jpegxs_pipe"; then
     supports_jpegxs_pipe=0

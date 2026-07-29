@@ -42,10 +42,6 @@ export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
 
 echo "=== 3. Download/Compile FFmpeg ==="
 cd "$PWD"
-# Shallow, branch-specific clone: avoids downloading the full ffmpeg git history (which is large
-# and slow) since only one release branch is ever needed here.
-# Retry on transient network/server errors (e.g. HTTP 502 from git.ffmpeg.org), which are common
-# under load and not indicative of a real problem with the clone itself.
 clone_attempt=1
 max_clone_attempts=5
 until git clone --branch "release/$FFMPEG_VERSION" --depth 1 https://git.ffmpeg.org/ffmpeg.git "ffmpeg-${FFMPEG_VERSION}"; do
@@ -69,14 +65,6 @@ fi
 git am --whitespace=fix "$JPEGXS_REPO/ffmpeg-plugin/$FFMPEG_VERSION/"*.patch
 
 echo "=== 5. Configure FFmpeg ==="
-# --disable-avdevice: we only ever decode/encode via libavcodec+libavformat (rawvideo/image2/
-# jpegxs_pipe/image2pipe); libavdevice's input/output devices (x11grab, alsa, sdl2, v4l2, ...) are
-# unused here but get auto-detected against whatever optional system libs happen to be installed
-# on the machine that RUNS `configure`/`make`. On a shared/dynamically-linked build, that produces
-# an `ffmpeg` binary that dynamically links against those libs (e.g. libxcb.so.1) and then fails
-# to start at all on a different machine (e.g. a self-hosted test runner) that doesn't have them
-# installed - disabling avdevice entirely removes this whole class of cross-machine runtime
-# dependency mismatches.
 ./configure --enable-libsvtjpegxs --prefix="$INSTALL_DIR" --enable-shared --disable-avdevice
 echo "=== 6. Build and install FFmpeg ==="
 make -j"$(nproc)"
