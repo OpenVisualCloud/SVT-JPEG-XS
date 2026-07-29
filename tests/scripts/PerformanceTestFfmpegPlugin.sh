@@ -60,31 +60,29 @@ fi
 # a single extracted frame (see Conformance-tests/4k/) - `-stream_loop -1`
 # loops it up to FRAMES.
 MATRIX=(
-    # 1080p - 1.5 BPP Thread Scaling
+    # 1080p 422p 10-bit - 1.5 BPP Thread Scaling
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
-    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|32|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
-    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|64|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
-    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|96|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
 
-    # 1080p - 3.0 BPP Thread Scaling
+    # 1080p 422p 10-bit - 3.0 BPP Thread Scaling
     "1080p60_422p10|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
     "1080p60_422p10|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
-    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|32|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
-    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|64|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
-    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|96|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
 
-    # 4K - 1.5 BPP Thread Scaling
-   # "4K60_422p10|3840|2160|10|yuv422|60|1.5|1|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
-    #"4K60_422p10|3840|2160|10|yuv422|60|1.5|4|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
-   # "4K60_422p10|3840|2160|10|yuv422|60|1.5|8|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
-    #"4K60_422p10|3840|2160|10|yuv422|60|1.5|16|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
+    # 1080p 420p 10-bit - 1.5 BPP Thread Scaling
+    "1080p60_420p10|1920|1080|10|yuv420|60|1.5|1|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv"
+    "1080p60_420p10|1920|1080|10|yuv420|60|1.5|8|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv"
 
-    # 4K - 3.0 BPP Thread Scaling
-   # "4K60_422p10|3840|2160|10|yuv422|60|3.0|1|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
-   # "4K60_422p10|3840|2160|10|yuv422|60|3.0|4|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
-   # "4K60_422p10|3840|2160|10|yuv422|60|3.0|8|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
-    #"4K60_422p10|3840|2160|10|yuv422|60|3.0|16|4k/merged_stream_3840x2160_2997fps_10bit_422.yuv"
+    # 1080p 420p 10-bit - 3.0 BPP Thread Scaling
+    "1080p60_420p10|1920|1080|10|yuv420|60|3.0|1|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv"
+    "1080p60_420p10|1920|1080|10|yuv420|60|3.0|8|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv"
+
+    # 1080p 422p 8-bit - 1.5 BPP Thread Scaling
+    "1080p60_422p8|1920|1080|8|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+    "1080p60_422p8|1920|1080|8|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+
+    # 1080p 422p 8-bit - 3.0 BPP Thread Scaling
+    "1080p60_422p8|1920|1080|8|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+    "1080p60_422p8|1920|1080|8|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
 )
 
 # get_ffmpeg_pix_fmt  colour_format bit_depth
