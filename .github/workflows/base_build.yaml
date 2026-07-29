@@ -40,6 +40,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.changed == 'true' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    outputs:
+      artifact_name: ${{ env.LINUX_ARTIFACTS }}
     steps:
     - name: 'Harden Runner'
       uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
@@ -200,7 +202,7 @@ jobs:
     needs: linux-build
     uses: ./.github/workflows/performance-benchmark.yaml
     with:
-      sample_app_artifact: ${{ env.LINUX_ARTIFACTS }}
+      sample_app_artifact: ${{ needs.linux-build.outputs.artifact_name }}
 
   windows-build:
     needs: changes
