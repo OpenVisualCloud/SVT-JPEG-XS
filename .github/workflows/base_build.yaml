@@ -196,6 +196,12 @@ jobs:
         DEC_BIN_DIR: ${{ github.workspace }}/Bin/Release
         INPUT_FILES_PATH: /opt/samples
 
+  performance-tests:
+    needs: linux-build
+    uses: ./.github/workflows/performance-benchmark.yaml
+    with:
+      sample_app_artifact: ${{ env.LINUX_ARTIFACTS }}
+
   windows-build:
     needs: changes
     if: ${{ needs.changes.outputs.changed == 'true' }}

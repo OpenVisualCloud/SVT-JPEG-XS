@@ -228,6 +228,12 @@ jobs:
           path: |
             install-dir/
 
+  ffmpeg-9-0-performance-tests:
+      needs: ffmpeg-9-0-linux-build
+      uses: ./.github/workflows/performance-benchmark.yaml
+      with:
+        ffmpeg_plugin_artifact: ${{ env.LINUX_ARTIFACTS_9_0 }}
+
   # ---------------------------------------------------------------------------------------------
   # ffmpeg plugin functional tests (tests/scripts/FFmpegDecoderConformanceTest.sh,
   # FFmpegDecoderMultiFramesTest.sh, FFmpegEncoderTest.sh), run against the ffmpeg binary built by

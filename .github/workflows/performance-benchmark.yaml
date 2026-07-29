@@ -1,14 +1,22 @@
 name: Performance Benchmark
 
-# Runs on every push/PR commit (same as base_build.yaml), nightly on a schedule, and on-demand.
+# Reusable workflow: called by base_build.yaml (after linux-build) and ffmpeg_plugin_build.yaml
+# (after ffmpeg-9-0-linux-build) once their artifacts are ready, so builds are never duplicated
+# here. Each caller passes only the artifact(s) it built; the corresponding job below runs, the
+# other is skipped.
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-  schedule:
-    # 20:00 UTC every day.
-    - cron: '0 20 * * *'
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      sample_app_artifact:
+        description: 'Artifact name with Bin/Release (base_build.yaml linux-build). Runs sample-app-performance when set.'
+        type: string
+        required: false
+        default: ''
+      ffmpeg_plugin_artifact:
+        description: 'Artifact name with install-dir/ (ffmpeg_plugin_build.yaml ffmpeg-9-0-linux-build). Runs ffmpeg-plugin-performance when set.'
+        type: string
+        required: false
+        default: ''
 
 defaults:
   run:
@@ -17,105 +25,14 @@ defaults:
 permissions:
   contents: read
 
-concurrency:
-  # Same pattern as base_build.yaml/ffmpeg_plugin_build.yaml: group by PR number when present,
-  # falling back to the commit sha for push/schedule/workflow_dispatch runs (which have no PR
-  # number) - so only truly redundant runs (a newer push to the same PR) get cancelled.
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: true
-
 env:
   # Same pre-staged bitstream/YUV set used by base_build.yaml's linux-conformance-tests and
-  # ffmpeg_plugin_build.yaml's *-linux-tests jobs (test_bitsreams/, reference_decode/,
-  # bitstream_multi_frames/, bitstream_invalid/, encoder_tests/, 4k/). Nothing is downloaded in
-  # this workflow - passed straight through as the samples_dir argument to both performance
-  # scripts, since it only exists pre-staged on the self-hosted runners (see linux-build/
-  # ffmpeg-9-0-linux-build below).
+  # ffmpeg_plugin_build.yaml's *-linux-tests jobs.
   INPUT_FILES_PATH: /opt/samples
-  # ffmpeg release branch to build the plugin against. 9.0 ships libsvtjpegxs* upstream (see
-  # .github/scripts/build_ffmpeg_plugin.sh), so no local copy-patch-source-files step is needed.
-  FFMPEG_VERSION: '9.0'
-  LINUX_ARTIFACTS: perf-linux-build-${{ github.run_number }}
-  FFMPEG_ARTIFACTS: perf-ffmpeg-9-0-build-${{ github.run_number }}
 
 jobs:
-  # ---------------------------------------------------------------------------------------------
-  # Build jobs. Same split as base_build.yaml (linux-build) / ffmpeg_plugin_build.yaml
-  # (ffmpeg-9-0-linux-build): build once, upload the result as an artifact, so the run jobs below
-  # never rebuild - they just download-artifact and go. Each run job's `needs:` on these ensures
-  # it literally cannot start until the corresponding build succeeds.
-  # ---------------------------------------------------------------------------------------------
-
-  linux-build:
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
-    timeout-minutes: 120
-    steps:
-      - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
-        with:
-          egress-policy: audit
-
-      - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-
-      - name: 'Setup: Install dependencies'
-        working-directory: Build/linux
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install cmake nasm make gcc g++
-
-      - name: 'Build: SvtJpegxsEncApp / SvtJpegxsDecApp (Release)'
-        working-directory: Build/linux
-        run: ./build.sh --jobs=10 --release
-
-      - name: "Archive: upload artifacts"
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-        with:
-          name: "${{ env.LINUX_ARTIFACTS }}"
-          retention-days: 7
-          path: |
-            Bin/Release/
-
-  ffmpeg-9-0-linux-build:
-    runs-on: 'ubuntu-22.04'
-    timeout-minutes: 120
-    steps:
-      - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
-        with:
-          egress-policy: audit
-
-      - name: 'Setup: Install dependencies'
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install cmake nasm make gcc g++ pkg-config
-
-      - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-
-      - name: 'install ffmpeg plugin'
-        run: .github/scripts/build_ffmpeg_plugin.sh "${{ env.FFMPEG_VERSION }}" y n
-
-      - name: "Archive: upload artifacts"
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-        with:
-          name: "${{ env.FFMPEG_ARTIFACTS }}"
-          retention-days: 7
-          path: |
-            install-dir/
-
-  # ---------------------------------------------------------------------------------------------
-  # Run jobs. Each `needs:` its build job, so it only runs once that build has actually succeeded
-  # (mirrors ffmpeg_plugin_build.yaml's ffmpeg-*-linux-tests: needs: [..., ffmpeg-*-linux-build]).
-  # Both run on the same self-hosted pool (numactl NUMA pinning + pre-staged /opt/samples, same
-  # reasons base_build.yaml's linux-conformance-tests uses it). sample-app-performance runs first
-  # and ffmpeg-plugin-performance needs it too (in addition to its own build), so the two
-  # NUMA-pinned benchmarks never execute concurrently and contend for the same node/hardware if
-  # both build jobs happen to finish around the same time.
-  # ---------------------------------------------------------------------------------------------
-
   sample-app-performance:
-    needs: linux-build
+    if: ${{ inputs.sample_app_artifact != '' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
@@ -135,8 +52,7 @@ jobs:
       - name: 'Setup: Download build artifacts'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: "${{ env.LINUX_ARTIFACTS }}"
-          path: Bin/Release
+          name: "${{ inputs.sample_app_artifact }}"
 
       - name: 'Run: SvtJpegxsEncApp/SvtJpegxsDecApp performance'
         # Both scripts default SAMPLES_DIR to ../../Conformance-tests (a local-dev-only, git-
@@ -160,7 +76,7 @@ jobs:
             tests/scripts/sample_app_performance.log
 
   ffmpeg-plugin-performance:
-    needs: [ffmpeg-9-0-linux-build, sample-app-performance]
+    if: ${{ inputs.ffmpeg_plugin_artifact != '' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
     steps:
@@ -180,8 +96,7 @@ jobs:
       - name: 'Setup: Download build artifacts'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: "${{ env.FFMPEG_ARTIFACTS }}"
-          path: install-dir
+          name: "${{ inputs.ffmpeg_plugin_artifact }}"
 
       - name: 'Setup: Make ffmpeg executable'
         run: sudo chmod -R 755 install-dir/
@@ -190,7 +105,7 @@ jobs:
         working-directory: tests/scripts
         run: |
           export PATH="${{ github.workspace }}/install-dir/bin:$PATH"
-          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib:${LD_LIBRARY_PATH}"
+          export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           ffmpeg -hide_banner -encoders 2>&1 | grep -i libsvtjpegxs
           ./PerformanceTestFfmpegPlugin.sh "${{ env.INPUT_FILES_PATH }}" 2>&1 | tee ffmpeg_plugin_performance.log
 
