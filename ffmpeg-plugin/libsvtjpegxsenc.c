@@ -205,6 +205,12 @@ static uint32_t default_bpp_numerator(const svt_jpeg_xs_encoder_api_t* encoder) 
     }
 }
 
+/* Stream profile (Ppih) / level (Plev) are exposed via ffmpeg's generic "-profile"/"-level"
+ * AVCodecContext options (see avctx->profile / avctx->level below) rather than private options,
+ * matching the convention used by libsvtav1.c and most other encoders. Named values for both are
+ * registered as AV_OPT_TYPE_CONST entries against the shared "avctx.profile"/"avctx.level" units in
+ * svtjpegxs_enc_options[] below. */
+
 static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
     SvtJpegXsEncodeContext* svt_enc = avctx->priv_data;
     int ret;
@@ -279,6 +285,20 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
     }
     if (svt_enc->cap_compat != -1) {
         svt_enc->encoder.cap_compat = svt_enc->cap_compat ? 1 : 0;
+    }
+    if (avctx->profile != AV_PROFILE_UNKNOWN) {
+        if (avctx->profile < 0 || avctx->profile > 0xFFFF) {
+            av_log(avctx, AV_LOG_ERROR, "Invalid -profile value %d for libsvtjpegxs (must be 0-65535).\n", avctx->profile);
+            return AVERROR(EINVAL);
+        }
+        svt_enc->encoder.profile_ppih_override = (uint16_t)avctx->profile;
+    }
+    if (avctx->level != AV_LEVEL_UNKNOWN) {
+        if (avctx->level < 0 || avctx->level > 0xFFFF) {
+            av_log(avctx, AV_LOG_ERROR, "Invalid -level value %d for libsvtjpegxs (must be 0-65535).\n", avctx->level);
+            return AVERROR(EINVAL);
+        }
+        svt_enc->encoder.level_plev_override = (uint16_t)avctx->level;
     }
     if (svt_enc->slice_height > 0) {
         svt_enc->encoder.slice_height = svt_enc->slice_height;
@@ -363,6 +383,36 @@ static const AVOption svtjpegxs_enc_options[] = {
      -1,
      1,
      VE},
+    /* Named Ppih (profile) values for the generic "-profile" option (see avctx->profile in
+     * svt_jpegxs_enc_init()), matching ISO/IEC 21122-2 Annex A and the App's --stream-profile table
+     * (Source/App/EncApp/EncAppConfig.c). A raw 0-65535 value (e.g. -profile 0x3540) is also
+     * accepted. "-profile unknown" (the global default when unset) selects auto-derive from the
+     * input pixel format. */
+    {"light422", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x1500}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile"},
+    {"light444", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x1A00}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile"},
+    {"lightsubline422", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x2500}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile"},
+    {"main420", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x3240}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile"},
+    {"main422", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x3540}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile"},
+    {"main444", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x3A40}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile"},
+    {"main4444", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x3E40}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile"},
+    {"high420", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x4240}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile"},
+    {"high444", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x4A40}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile"},
+    {"high4444", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x4E40}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile"},
+    /* Named Plev (level) values for the generic "-level" option (see avctx->level in
+     * svt_jpegxs_enc_init()). Named entries only cover the resolution/level portion (bits [15:10]);
+     * use a raw value (e.g. -level 0x0810) instead of a name to also set an explicit sublevel.
+     * "-level unknown" (the global default when unset) selects auto-derive from resolution and bpp. */
+    {"unrestricted", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x0000}, INT_MIN, INT_MAX, VE, .unit = "avctx.level"},
+    {"1k-1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x0001 << 10}, INT_MIN, INT_MAX, VE, .unit = "avctx.level"},
+    {"2k-1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x0004 << 10}, INT_MIN, INT_MAX, VE, .unit = "avctx.level"},
+    {"4k-1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x0008 << 10}, INT_MIN, INT_MAX, VE, .unit = "avctx.level"},
+    {"4k-2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x0009 << 10}, INT_MIN, INT_MAX, VE, .unit = "avctx.level"},
+    {"4k-3", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x000A << 10}, INT_MIN, INT_MAX, VE, .unit = "avctx.level"},
+    {"5k-1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x000B << 10}, INT_MIN, INT_MAX, VE, .unit = "avctx.level"},
+    {"8k-1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x000C << 10}, INT_MIN, INT_MAX, VE, .unit = "avctx.level"},
+    {"8k-2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x000D << 10}, INT_MIN, INT_MAX, VE, .unit = "avctx.level"},
+    {"8k-3", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x000E << 10}, INT_MIN, INT_MAX, VE, .unit = "avctx.level"},
+    {"10k-1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x0010 << 10}, INT_MIN, INT_MAX, VE, .unit = "avctx.level"},
     {NULL},
 };
 

@@ -190,6 +190,33 @@ function test_all {
 #   10bit(le) yuv420 (only 8bit yuv420 and 10bit yuv422 were covered above). NEW md5, pinned from this ffmpeg build.
     test_enc 0 2e6eeef88bc70abe6f64db08babab398 touchdown_1080p_yuv420p_10_bit_le_60_frames 1920 1080 yuv420p10le 5 "-bpp 4 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable"
 
+#   -profile/-level unset (auto-derive Ppih/Plev from pixel format/resolution/bpp): same md5 as the
+#   "threads=4" test above with identical other parameters, confirming this feature is a no-op on
+#   the encoded bitstream when left unset (ffmpeg's generic -profile/-level AVOptions default to
+#   AV_PROFILE_UNKNOWN/AV_LEVEL_UNKNOWN, so profile_ppih_override/level_plev_override are never
+#   touched and the pre-existing auto-derive path in the library runs unchanged).
+    test_enc 0 91780e4e9d32683b0a11583d3c0accb5 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+
+#   -profile:v main444 -level:v 8k-1 (named override values, reused via ffmpeg's generic -profile/
+#   -level options and this encoder's own AV_OPT_TYPE_CONST entries against the shared
+#   "avctx.profile"/"avctx.level" units). NEW md5, pinned from this ffmpeg build - differs from the
+#   otherwise-identical auto test above only in the picture header's Ppih/Plev fields.
+    test_enc 0 85901a53ada08163b755eb7c7699392b touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -profile:v main444 -level:v 8k-1"
+
+#   Same override as above expressed as raw 16-bit values (0x3A40 = main444's Ppih, 0x3000 = 8k-1's
+#   Plev) instead of names: must produce a byte-identical bitstream to the named-value test above,
+#   confirming names and raw values are equivalent inputs to the same avctx->profile/avctx->level
+#   fields.
+    test_enc 0 85901a53ada08163b755eb7c7699392b touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -profile:v 0x3A40 -level:v 0x3000"
+
+#   Error path: -profile value outside the valid 0-65535 (Ppih is a 16-bit field) range must be
+#   rejected by the plugin at encoder init (non-zero ffmpeg exit code).
+    test_enc NONZERO IGNORE touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 2 "-bpp 3 -profile:v 100000"
+
+#   Error path: -level value outside the valid 0-65535 (Plev is a 16-bit field) range must be
+#   rejected by the plugin at encoder init (non-zero ffmpeg exit code).
+    test_enc NONZERO IGNORE touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 2 "-bpp 3 -level:v 100000"
+
 #   Error path: invalid (too low) bpp must be rejected by the plugin (non-zero ffmpeg exit code).
     test_enc NONZERO IGNORE touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 2 "-bpp 0.05 -decomp_v 2 -decomp_h 5"
 }
