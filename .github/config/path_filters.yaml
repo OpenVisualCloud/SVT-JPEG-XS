@@ -10,3 +10,8 @@ ffmpeg_plugin_build: &ffmpeg_plugin_build
   - 'ffmpeg-plugin/**'
   - '.github/scripts/build_ffmpeg_plugin*'
   - 'Source/API/**'
+
+gstreamer_plugin_build: &gstreamer_plugin_build
+  - '.github/scripts/build_gstreamer_plugin.sh'
+  - 'tests/scripts/GstreamerPluginTest.sh'
+  - 'Source/API/**'
