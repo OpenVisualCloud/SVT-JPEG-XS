@@ -200,7 +200,7 @@ jobs:
 
   performance-tests:
     needs: linux-build
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
     timeout-minutes: 120
     env:
       INPUT_FILES_PATH: /opt/samples

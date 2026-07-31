@@ -413,7 +413,7 @@ jobs:
    
   ffmpeg-9-0-performance-tests:
       needs: ffmpeg-9-0-linux-build
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
       timeout-minutes: 120
       steps:
         - name: 'Harden Runner'
