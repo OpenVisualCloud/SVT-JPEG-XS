@@ -1,12 +1,8 @@
 #!/bin/bash
 #
-# Copyright(c) 2025 Intel Corporation
+# Copyright(c) 2026 Intel Corporation
 # SPDX - License - Identifier: BSD - 2 - Clause - Patent
-#
-# Phase 2 performance harness for the ffmpeg jpegxs plugin (sibling of
-# PerformanceTestSampleApp.sh - same matrix/CSV format, ffmpeg commands
-# instead of the sample apps).
-# Usage: ./PerformanceTestFfmpegPlugin.sh [samples_dir]
+
 
 set -eo pipefail
 
@@ -32,7 +28,6 @@ if [ ! -f "$CSV_FILE" ]; then
 fi
 
 # Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS
-# Same streams/BPP/threads as PerformanceTestSampleApp.sh, different baselines (ffmpeg overhead differs).
 MATRIX=(
     # 1080p 422p 10-bit - 1.5 BPP Thread Scaling
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|74|128"
