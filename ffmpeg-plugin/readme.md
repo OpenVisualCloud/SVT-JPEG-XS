@@ -205,6 +205,7 @@ coding-sigf|optional|(default:on), 0(off), 1(on)|Coding feature: Significance co
 coding-vpred|optional|(default:off), 0(off), 1(on)|Coding feature: Vertical-prediction
 coding-raw|optional|(default:auto/enabled), true(enabled), false(disable for legacy-decoder compatibility)|Coding feature: packet-based raw-mode coding
 cap-compat|optional|(default:auto/disabled), true(enabled), false(disabled)|Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required
+msb_aligned|optional|(default:false), true, false|Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. Must match the decoder's msb_aligned setting
 
 ### Stream profile (Ppih) and level (Plev)
 
@@ -245,6 +246,10 @@ Name|mandatory/optional|Accepted values|description
 --|--|--|--
 threads|optional|Any integer in range< 1;64>|Number of threads decoder can create
 proxy-mode|optional|(default:full), 0(full), 1(half), 2(quarter)|Specify resolution scaling mode
+msb_aligned|optional|(default:false), true, false|Non-standard: output 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. Must match the encoder's msb_aligned setting
+
+Note: private decoder options (e.g. `-msb_aligned`, `-threads`) must be placed BEFORE `-i`, not
+after - placed after `-i` they are silently ignored (ffmpeg only logs a warning, no error).
 
 ### Encoding raw video
 

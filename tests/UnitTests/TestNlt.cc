@@ -12,6 +12,7 @@
 
 #include "NltEnc_avx2.h"
 #include "NltDec_AVX2.h"
+#include "NltDec_avx512.h"
 #include "NltDec.h"
 #include "NltEnc.h"
 #include "Enc_avx512.h"
@@ -335,4 +336,152 @@ TEST(Nlt_Linear_Input_16bit, AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         test_linear_input_scaling_line_16bit(linear_input_scaling_line_16bit_avx512);
     }
+}
+
+void test_linear_input_scaling_line_16bit_msb(void (*test_fn)(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift,
+                                                              int32_t offset, uint8_t bit_depth)) {
+    const uint32_t w = 1999;
+    const uint8_t param_Bw = 20;
+    const uint8_t shift = param_Bw - 16; /* MSB-aligned: constant, depth-independent shift = Bw-16 = 4 */
+    const int32_t offset = 1 << (param_Bw - 1);
+
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    uint16_t* src = (uint16_t*)malloc(w * sizeof(uint16_t));
+    int32_t* dst_ref = (int32_t*)malloc(w * sizeof(int32_t));
+    int32_t* dst_mod = (int32_t*)malloc(w * sizeof(int32_t));
+
+    for (uint8_t input_bit_depth = 10; input_bit_depth <= 12; input_bit_depth += 2) {
+        for (uint32_t j = 0; j < w; j++) {
+            uint16_t pixel = rnd->Rand16() % (1 << input_bit_depth);
+            src[j] = (uint16_t)(pixel << (16 - input_bit_depth)); /* MSB-align */
+        }
+
+        memset(dst_ref, 0, w * sizeof(int32_t));
+        memset(dst_mod, 0, w * sizeof(int32_t));
+        linear_input_scaling_line_16bit_msb_c(src, dst_ref, w, shift, offset, input_bit_depth);
+        test_fn(src, dst_mod, w, shift, offset, input_bit_depth);
+        ASSERT_EQ(memcmp(dst_ref, dst_mod, sizeof(int32_t) * w), 0);
+
+        /* Cross-check against the LSB kernel operating on the equivalent LSB-packed value:
+         * result must match exactly, proving the MSB path is a pure re-alignment, not a different scale. */
+        uint16_t* src_lsb = (uint16_t*)malloc(w * sizeof(uint16_t));
+        for (uint32_t j = 0; j < w; j++) {
+            src_lsb[j] = src[j] >> (16 - input_bit_depth);
+        }
+        int32_t* dst_lsb = (int32_t*)malloc(w * sizeof(int32_t));
+        const uint8_t shift_lsb = param_Bw - input_bit_depth;
+        linear_input_scaling_line_16bit_c(src_lsb, dst_lsb, w, shift_lsb, offset, input_bit_depth);
+        ASSERT_EQ(memcmp(dst_ref, dst_lsb, sizeof(int32_t) * w), 0);
+        free(src_lsb);
+        free(dst_lsb);
+    }
+
+    free(src);
+    free(dst_ref);
+    free(dst_mod);
+    delete rnd;
+}
+
+TEST(Nlt_Linear_Input_16bit_MSB, AVX2) {
+    test_linear_input_scaling_line_16bit_msb(linear_input_scaling_line_16bit_msb_avx2);
+}
+
+TEST(Nlt_Linear_Input_16bit_MSB, AVX512) {
+    if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
+        test_linear_input_scaling_line_16bit_msb(linear_input_scaling_line_16bit_msb_avx512);
+    }
+}
+
+void test_linear_output_scaling_16bit_line_msb(void (*test_fn)(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out,
+                                                               uint32_t w)) {
+    const uint32_t w = 1999;
+    const uint32_t bw = 20;
+
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    int32_t* in = (int32_t*)malloc(w * sizeof(int32_t));
+    uint16_t* out_ref = (uint16_t*)malloc(w * sizeof(uint16_t));
+    uint16_t* out_mod = (uint16_t*)malloc(w * sizeof(uint16_t));
+
+    for (uint32_t j = 0; j < w; j++) {
+        in[j] = rnd->Rand16();
+    }
+
+    for (uint32_t depth = 10; depth <= 12; depth += 2) {
+        memset(out_ref, 0xcd, w * sizeof(uint16_t));
+        memset(out_mod, 0xcd, w * sizeof(uint16_t));
+
+        linear_output_scaling_16bit_line_msb_c(in, bw, depth, out_ref, w);
+        test_fn(in, bw, depth, out_mod, w);
+        ASSERT_EQ(memcmp(out_ref, out_mod, sizeof(uint16_t) * w), 0);
+
+        /* MSB-alignment must hold: low (16-depth) bits are always zero. */
+        for (uint32_t j = 0; j < w; j++) {
+            uint16_t low_bits_mask = (uint16_t)((1 << (16 - depth)) - 1);
+            ASSERT_EQ(out_ref[j] & low_bits_mask, 0) << "pixel " << j << " depth=" << depth << " not MSB-aligned";
+        }
+
+        /* Cross-check against the LSB kernel: MSB result right-shifted must equal the LSB result exactly. */
+        uint16_t* out_lsb = (uint16_t*)malloc(w * sizeof(uint16_t));
+        linear_output_scaling_16bit_line_c(in, bw, depth, out_lsb, w);
+        for (uint32_t j = 0; j < w; j++) {
+            ASSERT_EQ((uint16_t)(out_ref[j] >> (16 - depth)), out_lsb[j]);
+        }
+        free(out_lsb);
+    }
+
+    free(in);
+    free(out_ref);
+    free(out_mod);
+    delete rnd;
+}
+
+TEST(Nlt_Linear_Output_16bit_MSB, AVX2) {
+    test_linear_output_scaling_16bit_line_msb(linear_output_scaling_16bit_line_msb_avx2);
+}
+
+TEST(Nlt_Linear_Output_16bit_MSB, AVX512) {
+    if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
+        test_linear_output_scaling_16bit_line_msb(linear_output_scaling_16bit_line_msb_avx512);
+    }
+}
+
+/* Covers the Tnlt=1/2 gap: the msb_aligned post-shift must apply regardless of transfer curve. */
+TEST(Nlt_Inverse_Transform_Line_16bit_MSB, QuadraticAndExtended) {
+    const int32_t w = 257;
+    const uint32_t depth = 10;
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+
+    int32_t* in = (int32_t*)malloc(w * sizeof(int32_t));
+    uint16_t* out_lsb = (uint16_t*)malloc(w * sizeof(uint16_t));
+    uint16_t* out_msb = (uint16_t*)malloc(w * sizeof(uint16_t));
+    for (int32_t j = 0; j < w; j++) {
+        in[j] = rnd->Rand16();
+    }
+
+    picture_header_dynamic_t hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.hdr_Bw = 20;
+
+    for (uint8_t tnlt = 1; tnlt <= 2; tnlt++) {
+        hdr.hdr_Tnlt = tnlt;
+        hdr.hdr_Tnlt_alpha = 1 << 14;
+        hdr.hdr_Tnlt_sigma = 0;
+        hdr.hdr_Tnlt_t1 = 1 << 10;
+        hdr.hdr_Tnlt_t2 = 1 << 18;
+        hdr.hdr_Tnlt_e = 4;
+
+        nlt_inverse_transform_line_16bit(in, depth, &hdr, out_lsb, w, 0);
+        nlt_inverse_transform_line_16bit(in, depth, &hdr, out_msb, w, 1);
+
+        for (int32_t j = 0; j < w; j++) {
+            ASSERT_EQ((uint16_t)(out_msb[j] >> (16 - depth)), out_lsb[j]) << "tnlt=" << (int)tnlt << " pixel " << j;
+            uint16_t low_bits_mask = (uint16_t)((1 << (16 - depth)) - 1);
+            ASSERT_EQ(out_msb[j] & low_bits_mask, 0) << "tnlt=" << (int)tnlt << " pixel " << j << " not MSB-aligned";
+        }
+    }
+
+    free(in);
+    free(out_lsb);
+    free(out_msb);
+    delete rnd;
 }

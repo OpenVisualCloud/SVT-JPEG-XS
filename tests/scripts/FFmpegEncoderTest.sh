@@ -219,6 +219,15 @@ function test_all {
 
 #   Error path: invalid (too low) bpp must be rejected by the plugin (non-zero ffmpeg exit code).
     test_enc NONZERO IGNORE touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 2 "-bpp 0.05 -decomp_v 2 -decomp_h 5"
+
+#   msb_aligned=1 on 10bit(le) content: encoder must accept the option and produce a valid,
+#   deterministic, decodable bitstream. NEW md5, pinned from this ffmpeg build.
+    test_enc 0 6b8c07cd7625f46c3941f35443179531 touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -msb_aligned 1"
+
+#   msb_aligned=1 on 8bit content must be a no-op (the library only applies msb-alignment above
+#   8bit): same md5 as the very first test_all row above with otherwise identical parameters,
+#   confirming the option is safely ignored for 8bit input rather than corrupting it.
+    test_enc 0 3f24dcf3bdfd1184caacac7fa9989a78 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs full -msb_aligned 1"
 }
 
 test_all

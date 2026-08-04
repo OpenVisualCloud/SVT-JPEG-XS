@@ -330,6 +330,25 @@ function test_rate_control_signs {
     test_enc 0 2b72c16c35f5f76ea1cc9d3c9a273dcb signal_1080p_yuv422p_10bit_le_1_frame       "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --coding-sigf 1 --coding-vpred 1  --quantization 1 --rc 0   --coding-signs 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
 }
 
+#RUN input-msb-aligned Parameters (1:asm) (2:lp number)
+function test_msb_aligned {
+    asm=$1
+    lp=$2
+    cpu_profile=$3
+    packetization_mode=$4
+
+#   Explicit msb-aligned=0 must be byte-identical to the default (untouched) path
+    test_enc 0 62764838a69b79251eae1a63d97402e4 touchdown_1080p_yuv422p_10_bit_le_60_frames "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --coding-sigf 1 --coding-vpred 0 --rc 0 -n 5 --input-msb-aligned 0   --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+
+#   msb-aligned=1 must produce a valid, decodable, deterministic bitstream
+    test_enc 0 a24b2fa13a7524749d7de47e443d9f0b touchdown_1080p_yuv422p_10_bit_le_60_frames "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --coding-sigf 1 --coding-vpred 0 --rc 0 -n 5 --input-msb-aligned 1   --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    test_enc 0 3d5e7f00ce52f93006f3633fd2530671 signal_1080p_yuv422p_10bit_le_1_frame       "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --coding-sigf 1 --coding-vpred 0 --rc 0      --input-msb-aligned 1   --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+
+#   Reject any value other than 0/1
+    test_enc 5 IGNORE                           signal_1080p_yuv422p_10bit_le_1_frame       "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --input-msb-aligned 2     --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    test_enc 5 IGNORE                           signal_1080p_yuv422p_10bit_le_1_frame       "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --input-msb-aligned 255   --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+}
+
 function test_uncommon_resolution {
     asm=$1
     lp=$2
@@ -740,6 +759,12 @@ exec_enc=$exec_enc_rel
 [[ $run_fast -eq 0 ]] && test_rate_control_signs avx2 5 cpu 0
                          test_rate_control_signs max 7 latency 0
                          test_rate_control_signs max 7 latency 1
+
+echo Test MSB-aligned input
+[[ $run_fast -eq 0 ]] && test_msb_aligned c 10 latency 0
+[[ $run_fast -eq 0 ]] && test_msb_aligned avx2 5 cpu 0
+                         test_msb_aligned max 7 latency 0
+                         test_msb_aligned max 7 latency 1
 
 #echo RUN DEBUG TEST C
 #exec_enc=$exec_enc_dbg

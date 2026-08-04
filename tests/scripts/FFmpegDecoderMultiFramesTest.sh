@@ -36,12 +36,15 @@ fi
 
 demuxer="-f jpegxs_pipe"
 
-# (1:expected error code) (2:name, without .jxs) (3:expected md5 of decoded yuv) (4:optional extra ffmpeg args)
+# (1:expected error code) (2:name, without .jxs) (3:expected md5 of decoded yuv) (4:optional extra ffmpeg args,
+#  placed after -i / applied as output options) (5:optional decoder AVOptions, placed before -i so ffmpeg
+#  actually associates them with the libsvtjpegxs decoder instead of silently ignoring them - e.g. "-msb_aligned 1")
 function test_dec {
     exit_code=$1
     name=$2
     md5=$3
     extra_args=$4
+    decoder_opts=$5
     bin_name=$path_use"/"$name".jxs"
     yuv_tmp="./$tmp_dir/"$name".yuv"
 
@@ -51,7 +54,7 @@ function test_dec {
         return
     fi
 
-    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -threads $PARAM_THREADS -i $bin_name $extra_args -f rawvideo $yuv_tmp"
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -threads $PARAM_THREADS $decoder_opts -i $bin_name $extra_args -f rawvideo $yuv_tmp"
     echo "run command: $cmd"
     ${cmd}
     ret=$?
@@ -135,6 +138,18 @@ function test_all_correct {
     # Correct bitstreams.
     test_dec 0 Cyclist_1920x1080_10b_422_20f_v1_h5                    f65f42c074fa6fbdc3e9136ec86b9828
     test_dec 0 Cyclist_1920x1080_10b_422_20f_v2_h3                    39983e5e039da3917e5f7bf7ef9a87bf
+
+    # output_bit_depth_msb_aligned: decode the SAME bitstream as above with -msb_aligned 1/0.
+    # NOTE: the decoder AVOption must be placed BEFORE -i (see decoder_opts param on test_dec) -
+    # placing it after -i (as a plain extra_args) is silently ignored by ffmpeg with only a
+    # warning ("has not been used for any stream"), NOT an error - a real pitfall hit while writing
+    # this test, verified by comparing decoded output byte-for-byte with/without the option.
+    # msb_aligned=1: pinned md5, verified (via a matching plain decode, right-shifted by 6) to be
+    # the exact MSB-aligned re-packing of the msb_aligned=0/default output above.
+    test_dec 0 Cyclist_1920x1080_10b_422_20f_v2_h3                    d0c6fb35abb322a2b3b8904595d63e55 "" "-msb_aligned 1"
+    # msb_aligned=0 explicit must be byte-identical to the untouched default path above.
+    test_dec 0 Cyclist_1920x1080_10b_422_20f_v2_h3                    39983e5e039da3917e5f7bf7ef9a87bf "" "-msb_aligned 0"
+
     test_dec 0 Cyclist_1920x1080_8b_422_20f_v1_h4                     281a046a4d0c9bcb554e828d2a8084ef
     test_dec 0 Cyclist_1920x1080_8b_422_20f_v2_h2                     e71c8400a4f3a636408b48450bae92d3
     test_dec 0 Daylight_1280x720_10b_422_20f_v1_h1                    db9a6c952daf5e9c7b108e61b6d0e056
@@ -157,8 +172,8 @@ function test_all_broken {
     path_use=$path_correct
 
     # Bitstreams with a header change mid-stream, plus one with a genuinely corrupted
-    # mid-stream packet (broken_bitstream_*). ffmpeg does NOT abort the whole conversion 
-    # on any of these decode errors (unlike SvtJpegxsDecApp, which returns exit 1) 
+    # mid-stream packet (broken_bitstream_*). ffmpeg does NOT abort the whole conversion
+    # on any of these decode errors (unlike SvtJpegxsDecApp, which returns exit 1)
     # - it logs the error per-packet and continues, exiting 0. All 5 produce the SAME
     # deterministic (41-frame) output, so they share one NEW pinned md5.
     test_dec 0 broken_decomh_Daylight_1280x720_8b_422_20fx1fx20f       2d658bef484f1de8bde1b0f233bcf6a6

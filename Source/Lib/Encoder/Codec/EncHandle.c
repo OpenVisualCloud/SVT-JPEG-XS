@@ -140,6 +140,14 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         }
         return SvtJxsErrorBadParameter;
     }
+    enc_common->picture_header_dynamic.hdr_input_msb_aligned = config_struct->input_bit_depth_msb_aligned;
+    if (enc_common->picture_header_dynamic.hdr_input_msb_aligned != 0 &&
+        enc_common->picture_header_dynamic.hdr_input_msb_aligned != 1) {
+        if (config_struct->verbose >= VERBOSE_ERRORS) {
+            fprintf(stderr, "Unrecognized input_bit_depth_msb_aligned, expected: 0 or 1\n");
+        }
+        return SvtJxsErrorBadParameter;
+    }
     enc_common->colour_format = config_struct->colour_format;
     SvtJxsErrorType_t return_error = format_get_sampling_factory(
         enc_common->colour_format, &num_comp, sx, sy, config_struct->verbose);

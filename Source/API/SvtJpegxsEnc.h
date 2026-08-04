@@ -124,12 +124,21 @@ typedef struct svt_jpeg_xs_encoder_api {
      * Optional, default 0xFFFF (auto-derive) */
     uint16_t level_plev_override;
 
+    /* Non-standard, host-side buffer layout convention only - not signalled in the bitstream.
+     * Both encoder and decoder must be configured consistently by the caller.
+     * 0 = LSB-aligned (default, current behavior): 10/12-bit samples occupy the low bits of each
+     *     16-bit input word (value `v`), high bits are don't-care/masked off.
+     * 1 = MSB-aligned: 10/12-bit samples occupy the high bits of each 16-bit input word
+     *     (value `v << (16 - input_bit_depth)`), low bits must be zero. Only affects input_bit_depth > 8.
+     * Optional, default 0 */
+    uint8_t input_bit_depth_msb_aligned;
+
     /* This padding is used to avoid changing the size of the public configuration struct
      * when new parameters are added in the future please follow these steps:
      * 1. Insert the new parameter as a member of this structure before the padding array.
      * 2. Decrease the size of the padding array by the size of the new parameter to keep the struct size unchanged.
      */
-    uint8_t padding[58];
+    uint8_t padding[57];
 } svt_jpeg_xs_encoder_api_t;
 
 /* STEP 0 (Optional): Set default encoder parameters.

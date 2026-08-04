@@ -10,7 +10,11 @@ echo "Run Decoder Conformance Test"
 source ./CommonLib.sh
 
 path_bitstreams=$path_global
+#Encoder binary next to $exec_dec, used to generate a temp MSB-aligned bitstream from real sample YUV
+exec_enc="${exec_dec//SvtJpegxsDecApp/SvtJpegxsEncApp}"
+
 echo "Decoder:         $exec_dec"
+echo "Encoder:         $exec_enc"
 echo "PATH BITSTERAMS: $path_bitstreams"
 
 error=0
@@ -55,6 +59,68 @@ function test_dec {
 
 rm -fr $tmp_dir
 mkdir $tmp_dir
+
+#Prepare a temp bitstream from real sample YUV using EncApp, to test decoder output_bit_depth_msb_aligned
+#without needing a pre-baked fixture file. Decoded twice below (msb-aligned 0 and 1) from this single bitstream.
+bitstream_msb_prep="$tmp_dir/msb_prep.jxs"
+cmd_prep="$exec_enc -i $path_bitstreams/encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv -w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --coding-sigf 1 --coding-vpred 0 --rc 0 -n 5 --asm max --lp 7 --profile latency --packetization-mode 0 -b $bitstream_msb_prep"
+echo "run command: $cmd_prep"
+${cmd_prep}
+
+#RUN output_bit_depth_msb_aligned tests: decode the same self-generated bitstream twice (msb-aligned 0 and 1)
+#Parameters (1:asm) (2:lp number) (3:packetization mode)
+function test_msb_aligned_output {
+    PARAM_ASM=$1
+    PARAM_LP_NUM=$2
+    PARAM_PACKETIZATION=$3
+
+    #(1:expect exit code) (2:expected md5, or IGNORE) (3:extra decoder params)
+    function test_msb_dec {
+        exit_code=$1
+        md5=$2
+        params=$3
+        yuv_tmp="./$tmp_dir/msb_prep_out.yuv"
+
+        common_lib_update_test_id_run_return_1_to_ignore
+        ignore=$?
+        if [ $ignore -ne 0 ]; then
+            return
+        fi
+
+        cmd="$valgrind$exec_dec -i $bitstream_msb_prep -o $yuv_tmp --lp $PARAM_LP_NUM --asm $PARAM_ASM --packetization-mode $PARAM_PACKETIZATION "$params
+        echo "run command: $cmd"
+        ${cmd}
+
+        ret=$?
+        if [ $ret -ne $exit_code ]; then
+            echo "FAIL Invalid error code: $ret expected: $exit_code"
+            error=1
+            end
+        fi
+
+        if [ $md5 = "IGNORE" ]; then
+            echo "IGNORE TEST OUTPUT"
+        else
+            echo -n "Test MD5 Expect: $md5 "
+            md5_t=`md5sum ${yuv_tmp} | awk '{ print $1 }'`
+            if [ $md5 = $md5_t ]; then
+                echo "OK"
+            else
+                echo "FAIL get $md5_t"
+                error=1
+                end
+            fi
+        fi
+    }
+
+    #Default (LSB) and MSB-aligned outputs of the SAME bitstream, pinned md5 (verified: msb == lsb << (16-depth))
+    test_msb_dec 0 f48a73066e7a78d0207d3419b37097f4 "--output-msb-aligned 0"
+    test_msb_dec 0 984080ab17c11c747da832b3b7be6eab "--output-msb-aligned 1"
+
+    #Reject any value other than 0/1
+    test_msb_dec 2 d41d8cd98f00b204e9800998ecf8427e "--output-msb-aligned 2"
+    test_msb_dec 2 d41d8cd98f00b204e9800998ecf8427e "--output-msb-aligned 255"
+}
 
 function test_all {
     PARAM_ASM=$1
@@ -154,6 +220,10 @@ function test_all {
 [[ $run_fast -eq 0 ]] && test_all max 1 0
                          test_all max 1 1
 
+echo Test output_bit_depth_msb_aligned
+[[ $run_fast -eq 0 ]] && test_msb_aligned_output c 10 0
+                         test_msb_aligned_output avx2 20 0
+                         test_msb_aligned_output max 1 1
 
 
 common_lib_end_summary

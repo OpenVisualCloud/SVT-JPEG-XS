@@ -263,6 +263,20 @@ void linear_output_scaling_16bit_line_c(int32_t* in, uint32_t bw, uint32_t depth
     }
 }
 
+/* MSB-aligned: sample stored in the high bits (v << (16-depth)), fused into the same pass. */
+void linear_output_scaling_16bit_line_msb_c(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w) {
+    int32_t dzeta = bw - depth;
+    int32_t m = (1 << depth) - 1;
+    int32_t msb_shift = 16 - depth;
+
+    for (uint32_t x = 0; x < w; x++) {
+        int32_t v = in[x];
+        v += (1 << bw) >> 1;
+        v = (v + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
+        out[x] = (uint16_t)nlt_clamp(v, m) << msb_shift;
+    }
+}
+
 void quadratic_output_scaling_8bit_line(int32_t* in, uint32_t bw, int32_t dco, uint32_t depth, uint8_t* out, uint32_t w) {
     int32_t dzeta = 2 * bw - depth;
     int32_t m = (1 << depth) - 1;
@@ -385,20 +399,37 @@ void nlt_inverse_transform_line_8bit(int32_t* in, uint32_t depth, const picture_
 }
 
 void nlt_inverse_transform_line_16bit(int32_t* in, uint32_t depth, const picture_header_dynamic_t* picture_header_dynamic,
-                                      uint16_t* out, int32_t w) {
+                                      uint16_t* out, int32_t w, uint8_t msb_aligned) {
     if (picture_header_dynamic->hdr_Tnlt == 0) {
-        linear_output_scaling_16bit_line(in, picture_header_dynamic->hdr_Bw, depth, out, w);
+        if (msb_aligned) {
+            linear_output_scaling_16bit_line_msb(in, picture_header_dynamic->hdr_Bw, depth, out, w);
+        }
+        else {
+            linear_output_scaling_16bit_line(in, picture_header_dynamic->hdr_Bw, depth, out, w);
+        }
     }
     else if (picture_header_dynamic->hdr_Tnlt == 1) {
         int32_t dco = (int32_t)picture_header_dynamic->hdr_Tnlt_alpha -
             ((int32_t)picture_header_dynamic->hdr_Tnlt_sigma * (1 << 15));
         quadratic_output_scaling_16bit_line(in, picture_header_dynamic->hdr_Bw, dco, depth, out, w);
+        if (msb_aligned) {
+            const int32_t msb_shift = 16 - depth;
+            for (int32_t x = 0; x < w; x++) {
+                out[x] = (uint16_t)(out[x] << msb_shift);
+            }
+        }
     }
     else if (picture_header_dynamic->hdr_Tnlt == 2) {
         int32_t t1 = picture_header_dynamic->hdr_Tnlt_t1;
         int32_t t2 = picture_header_dynamic->hdr_Tnlt_t2;
         uint8_t e = picture_header_dynamic->hdr_Tnlt_e;
         extended_output_scaling_16bit_line(in, picture_header_dynamic->hdr_Bw, t1, t2, e, depth, out, w);
+        if (msb_aligned) {
+            const int32_t msb_shift = 16 - depth;
+            for (int32_t x = 0; x < w; x++) {
+                out[x] = (uint16_t)(out[x] << msb_shift);
+            }
+        }
     }
     else {
         assert(0);

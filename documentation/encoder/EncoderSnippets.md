@@ -7,6 +7,7 @@ param | description | mandatory/optional | default | Accepted values
 source_width | Width of the image in sample grid positions | mandatory | N/A | <64; 65 535>
 source_height | Height of the image in sample   grid positions | mandatory | N/A | <64; 65 535>
 input_bit_depth | Specifies the bit depth of input video. | mandatory | N/A | 8(8 bit), 10(10 bit)
+input_bit_depth_msb_aligned | Non-standard, host-side only (not signalled in bitstream): when set, 10/12-bit input samples are MSB-aligned in each 16-bit word (`v << (16-input_bit_depth)`) instead of LSB-aligned (`v`). Must match the decoder's output_bit_depth_msb_aligned setting. | optional | 0 | 0(LSB-aligned), 1(MSB-aligned)
 colour_format | Specifies the format of input video,   please refer to ColourFormat_t enum | mandatory | N/A | Tested: (COLOUR_FORMAT_PLANAR_YUV420, COLOUR_FORMAT_PLANAR_YUV422, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB),   experimental: (COLOUR_FORMAT_YUV400)
 bpp_numerator | Bitrate: bits per pixel numerator,   BPP=(bpp_numerator/bpp_denominator), Per frame bitrate is equal to (width \* height \* bpp_numerator / bpp_denominator) | mandatory | N/A | <1;N/A>
 bpp_denominator | Bitrate: bits per pixel denominator, required if non-integer   BPP is required | optional | 1 | <1; N/A>

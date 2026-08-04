@@ -30,6 +30,7 @@
 #define LIMIT_FPS_TOKEN              "--limit-fps"
 #define PACKETIZATION_MODE           "--packetization-mode"
 #define PROXY_MODE                   "--proxy-mode"
+#define OUTPUT_MSB_ALIGNED_TOKEN     "--output-msb-aligned"
 #define MAX_NUM_TOKENS               200
 
 static void strncpy_local(char* dest, const char* src, size_t count) {
@@ -128,6 +129,10 @@ static void set_packetization_mode(const char* value, DecoderConfig_t* cfg) {
     cfg->decoder.packetization_mode = (uint8_t)strtoul(value, NULL, 0);
 };
 
+static void set_output_msb_aligned(const char* value, DecoderConfig_t* cfg) {
+    cfg->decoder.output_bit_depth_msb_aligned = (uint8_t)strtoul(value, NULL, 0);
+};
+
 static void set_proxy_mode(const char* value, DecoderConfig_t* cfg) {
     uint8_t proxy_mode = (uint8_t)strtoul(value, NULL, 0);
     if (proxy_mode == 0) {
@@ -175,6 +180,7 @@ ConfigEntry config_entry[] = {
     {INPUT_OPTIONS, PACKETIZATION_MODE,          "Specify how bitstream is passed to decoder(multiple packets per frame:1, single packet per frame:0, default:0)", 0, 1, set_packetization_mode},
     {OUTPUT_OPTIONS, OUTPUT_FILE_TOKEN,         "Output Filename", 0, 1, set_cfg_output_file},
     {OUTPUT_OPTIONS, PROXY_MODE,                "Resolution scaling mode(disabled: 0, scale 1/2: 1, scale 1/4: 2, default: 0)", 0, 1, set_proxy_mode},
+    {OUTPUT_OPTIONS, OUTPUT_MSB_ALIGNED_TOKEN,  "Non-standard: 10/12-bit output samples are MSB-aligned in each 16-bit word instead of LSB-aligned (enabled:1, disabled:0, default:0)", 0, 1, set_output_msb_aligned},
     {THREAD_PERF_OPTIONS, ASM_TYPE_TOKEN,       "Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2, sse3, "
                                                 "ssse3, sse4_1, sse4_2,"
                                                 " avx, avx2, avx512, max], by default highest level supported by CPU", 0, 1,
