@@ -44,7 +44,7 @@ echo "=== 3. Download/Compile FFmpeg ==="
 cd "$PWD"
 clone_attempt=1
 max_clone_attempts=5
-until git clone --branch "release/$FFMPEG_VERSION" --depth 1 https://git.ffmpeg.org/ffmpeg.git "ffmpeg-${FFMPEG_VERSION}"; do
+until git clone --branch "release/$FFMPEG_VERSION" --depth 1 https://github.com/FFmpeg/FFmpeg.git "ffmpeg-${FFMPEG_VERSION}"; do
     if [[ "$clone_attempt" -ge "$max_clone_attempts" ]]; then
         echo "git clone failed after $max_clone_attempts attempts, giving up."
         exit 1
