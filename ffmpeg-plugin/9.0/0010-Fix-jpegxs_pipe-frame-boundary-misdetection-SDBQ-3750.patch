@@ -1,0 +1,213 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Grzegorz Rys <grzegorz.rys@intel.com>
+Date: Thu, 30 Jul 2026 09:49:44 +0200
+Subject: [PATCH] avcodec/jpegxs_parser: use Lcod for authoritative frame
+ length
+
+jpegxs_find_frame_end() previously determined frame boundaries purely by
+scanning for a literal EOC marker (0xFF11) immediately followed by a literal
+SOC marker (0xFF10) anywhere in the raw byte stream, with zero awareness of
+the bitstream's actual structure.
+
+Raw/uncompressed packet-based precinct coding (used opportunistically by
+SVT-JPEG-XS's coding-raw feature whenever entropy coding a precinct would
+cost more than storing it raw) has no marker-emulation prevention, so a
+literal EOC+SOC byte sequence can legitimately occur inside a frame's own
+payload data and fool this scan into splitting one frame into two malformed
+packets. This is most likely to trigger with low decomposition levels
+(little compression headroom, more raw-mode fallback) and bright/flat
+content (more near-0xFF sample values), e.g. Daylight_*_v1_h1.jxs.
+
+Fix: parse Lcod ("size of the entire codestream in bytes from SOC to EOC,
+including all markers", from the picture header) as soon as it streams in,
+and use it as the authoritative frame length once known - this is exactly
+the same field SVT-JPEG-XS's own decoder relies on for framing in slice
+packetization mode, so results now agree with the reference decoder. Falls
+back to the previous marker-byte scan when Lcod is 0 (variable-bitrate
+codestreams, where no fixed frame size is available), when the expected
+CAP/PIH header structure isn't found, or when Lcod is smaller than the
+header bytes already consumed to parse it (all cases of a malformed/
+corrupt stream) - the last check specifically guards against a corrupt
+too-small Lcod otherwise making the frame's true end permanently
+unreachable (frame_pos only ever increases), which would hang the parser
+returning END_NOT_FOUND forever instead of falling back to the scan.
+
+Same fix as ffmpeg-plugin/8.1/0009-*.patch, applied to the 9.0 patch chain.
+
+Verified against every multi-frame test file in
+/opt/samples/bitstream_multi_frames/ (8/10-bit, decomp_h 1-5, various
+resolutions): output is byte-for-byte identical to SvtJpegxsDecApp,
+including the exact SDBQ-3750 repro
+(Daylight_1280x720_8b_422_20f_v1_h1.jxs), which previously produced a
+corrupted 21-frame output (2 decode errors + 2 duplicated frames) and now
+produces the correct 20 frames matching the native decoder exactly.
+Genuinely malformed streams (the broken_*.jxs test vectors, which exercise
+an unrelated frame-20 config-change check) are unaffected and still
+correctly report their pre-existing errors. Also ran the full
+tests/scripts/ParallelAllFFmpegTests.sh suite (decoder conformance,
+decoder multi-frames, encoder) against /opt/samples with no failures.
+---
+ libavcodec/jpegxs_parser.c | 130 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 130 insertions(+)
+
+diff --git a/libavcodec/jpegxs_parser.c b/libavcodec/jpegxs_parser.c
+index c7c5a83b9a..4cc51d214d 100644
+--- a/libavcodec/jpegxs_parser.c
++++ b/libavcodec/jpegxs_parser.c
+@@ -24,12 +24,114 @@
+ #include "parser.h"
+ #include "parser_internal.h"
+ 
++enum {
++    JPX_HDR_WAIT_CAP,  // collecting the 2-byte CAP marker code
++    JPX_HDR_WAIT_LCAP, // collecting the 2-byte Lcap size field
++    JPX_HDR_SKIP_CAP,  // skipping the remaining Lcap-2 CAP marker payload bytes
++    JPX_HDR_WAIT_PIH,  // collecting the 2-byte PIH marker code
++    JPX_HDR_WAIT_LPIH, // collecting (and discarding) the 2-byte Lpih size field
++    JPX_HDR_WAIT_LCOD, // collecting the 4-byte Lcod field
++    JPX_HDR_DONE,
++    JPX_HDR_FAILED,
++};
++
+ typedef struct JPEGXSParseContext {
+     ParseContext pc;
+ 
+     int eoc_found;
++
++    /* Lcod-based frame length tracking. Lcod ("size of the entire codestream in
++     * bytes from SOC to EOC, including all markers", read from the picture header)
++     * gives an authoritative frame length that takes priority over the EOC/SOC
++     * marker-byte scan below once known: raw/uncompressed packet-based precinct
++     * coding has no marker-emulation prevention, so a literal EOC+SOC byte sequence
++     * can legitimately occur inside a frame's own payload (most likely with bright/
++     * flat content at low decomposition levels, where raw-mode packing is used more)
++     * and fool a pure byte-pattern scan into splitting a single frame in two. lcod
++     * == 0 means "not yet determined for the current frame" (also the value used by
++     * encoders producing variable-bitrate codestreams, where no fixed frame size is
++     * available - falls back to the marker-byte scan in that case, same as before). */
++    uint32_t lcod;
++    int64_t frame_pos;
++    int hdr_state;
++    uint32_t hdr_val;
++    int hdr_need;
+ } JPEGXSParseContext;
+ 
++/* Feed one payload byte (a byte following the SOC marker) into the small header
++ * parser that extracts Lcod from the CAP/PIH markers. Populates jpegxs->lcod once
++ * done (0 if the header doesn't look as expected, e.g. a malformed stream). */
++static void jpegxs_feed_header_byte(JPEGXSParseContext *jpegxs, uint8_t byte)
++{
++    switch (jpegxs->hdr_state) {
++    case JPX_HDR_WAIT_CAP:
++        jpegxs->hdr_val = (jpegxs->hdr_val << 8) | byte;
++        if (++jpegxs->hdr_need == 2) {
++            if ((uint16_t)jpegxs->hdr_val != JPEGXS_MARKER_CAP)
++                goto failed;
++            jpegxs->hdr_state = JPX_HDR_WAIT_LCAP;
++            jpegxs->hdr_val = jpegxs->hdr_need = 0;
++        }
++        return;
++    case JPX_HDR_WAIT_LCAP:
++        jpegxs->hdr_val = (jpegxs->hdr_val << 8) | byte;
++        if (++jpegxs->hdr_need == 2) {
++            int skip = (int)jpegxs->hdr_val - 2;
++            jpegxs->hdr_val = jpegxs->hdr_need = 0;
++            if (skip < 0)
++                goto failed;
++            if (skip == 0)
++                jpegxs->hdr_state = JPX_HDR_WAIT_PIH;
++            else {
++                jpegxs->hdr_state = JPX_HDR_SKIP_CAP;
++                jpegxs->hdr_need = skip; // remaining bytes to skip
++            }
++        }
++        return;
++    case JPX_HDR_SKIP_CAP:
++        if (--jpegxs->hdr_need == 0)
++            jpegxs->hdr_state = JPX_HDR_WAIT_PIH;
++        return;
++    case JPX_HDR_WAIT_PIH:
++        jpegxs->hdr_val = (jpegxs->hdr_val << 8) | byte;
++        if (++jpegxs->hdr_need == 2) {
++            if ((uint16_t)jpegxs->hdr_val != JPEGXS_MARKER_PIH)
++                goto failed;
++            jpegxs->hdr_state = JPX_HDR_WAIT_LPIH;
++            jpegxs->hdr_val = jpegxs->hdr_need = 0;
++        }
++        return;
++    case JPX_HDR_WAIT_LPIH:
++        // Lpih's value is unused: Lcod always immediately follows it, just consume.
++        if (++jpegxs->hdr_need == 2) {
++            jpegxs->hdr_state = JPX_HDR_WAIT_LCOD;
++            jpegxs->hdr_val = jpegxs->hdr_need = 0;
++        }
++        return;
++    case JPX_HDR_WAIT_LCOD:
++        jpegxs->hdr_val = (jpegxs->hdr_val << 8) | byte;
++        if (++jpegxs->hdr_need == 4) {
++            /* Lcod must be large enough to cover at least the header bytes already
++             * consumed to parse it (this byte included, i.e. > frame_pos). A stream
++             * claiming a smaller Lcod is definitely corrupt: frame_pos only ever
++             * increases, so trusting such a value would make it permanently
++             * unreachable, hanging the parser (returning END_NOT_FOUND forever)
++             * instead of falling back to the marker-byte scan below. */
++            if (jpegxs->hdr_val <= (uint32_t)jpegxs->frame_pos)
++                goto failed;
++            jpegxs->lcod = jpegxs->hdr_val;
++            jpegxs->hdr_state = JPX_HDR_DONE;
++        }
++        return;
++    default:
++        return;
++    }
++
++failed:
++    jpegxs->hdr_state = JPX_HDR_FAILED;
++    jpegxs->lcod = 0;
++}
++
+ /**
+  * Find the end of the current frame in the bitstream.
+  * @return the position of the first byte of the next frame, or -1
+@@ -50,6 +152,10 @@ static int jpegxs_find_frame_end(JPEGXSParseContext *jpegxs, const uint8_t *buf,
+             if ((uint16_t)state == JPEGXS_MARKER_SOC) {
+                 i++;
+                 pic_found = 1;
++                jpegxs->lcod = 0;
++                jpegxs->frame_pos = 2; // the SOC marker's own 2 bytes
++                jpegxs->hdr_state = JPX_HDR_WAIT_CAP;
++                jpegxs->hdr_val = jpegxs->hdr_need = 0;
+                 break;
+             }
+         }
+@@ -63,6 +169,30 @@ static int jpegxs_find_frame_end(JPEGXSParseContext *jpegxs, const uint8_t *buf,
+         return 0;
+     }
+ 
++    if (pic_found) {
++        for (int j = i; j < buf_size; j++) {
++            if (jpegxs->hdr_state != JPX_HDR_DONE && jpegxs->hdr_state != JPX_HDR_FAILED)
++                jpegxs_feed_header_byte(jpegxs, buf[j]);
++            jpegxs->frame_pos++;
++            if (jpegxs->lcod && jpegxs->frame_pos == jpegxs->lcod) {
++                pc->frame_start_found = jpegxs->eoc_found = 0;
++                pc->state = -1;
++                return j + 1;
++            }
++        }
++
++        /* Lcod is known but this call's buffer ran out before reaching it: the
++         * true frame end is guaranteed to be in a later call. Do NOT fall through
++         * to the EOC/SOC marker-byte scan below - it can misfire on a coincidental
++         * marker-like byte sequence inside this frame's own payload data (see
++         * SDBQ-3750), and it is unnecessary since Lcod already gives the answer. */
++        if (jpegxs->lcod) {
++            pc->frame_start_found = pic_found;
++            pc->state = state;
++            return END_NOT_FOUND;
++        }
++    }
++
+     while (pic_found && i < buf_size) {
+         if (jpegxs->eoc_found) {
+             for(; i < buf_size; i++) {
