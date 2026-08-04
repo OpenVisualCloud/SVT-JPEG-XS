@@ -419,6 +419,7 @@ void transform_component_test_V0(const pi_t* pi, const pi_enc_t* pi_enc, uint32_
     int decom_v = component->decom_v;
 
     picture_header_dynamic_t hdr_dynamic;
+    memset(&hdr_dynamic, 0, sizeof(hdr_dynamic));
     hdr_dynamic.hdr_Tnlt = 0; //linear
     hdr_dynamic.hdr_Bw = param_Bw;
     hdr_dynamic.hdr_Fq = param_Fq;
@@ -546,6 +547,7 @@ void transform_component_test_V1(const pi_t* pi, const pi_enc_t* pi_enc, uint32_
         line_x[2] = (int32_t*)malloc(pi->width * sizeof(int32_t));
 
         picture_header_dynamic_t hdr_dynamic;
+        memset(&hdr_dynamic, 0, sizeof(hdr_dynamic));
         hdr_dynamic.hdr_Tnlt = 0; //linear
         hdr_dynamic.hdr_Bw = param_Bw;
         hdr_dynamic.hdr_Fq = param_Fq;
@@ -742,6 +744,7 @@ void transform_component_test_V2(const pi_t* pi, const pi_enc_t* pi_enc, uint32_
         int32_t* line_6 = line_x[4]; //buffers_input_unpack + (0 + 0) * plane_width;
 
         picture_header_dynamic_t hdr_dynamic;
+        memset(&hdr_dynamic, 0, sizeof(hdr_dynamic));
         hdr_dynamic.hdr_Tnlt = 0; //linear
         hdr_dynamic.hdr_Bw = param_Bw;
         hdr_dynamic.hdr_Fq = param_Fq;

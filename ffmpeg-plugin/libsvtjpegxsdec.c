@@ -29,6 +29,7 @@ typedef struct SvtJpegXsDecodeContext {
     uint32_t buffer_filled_len;
     uint8_t* bitstream_buffer;
     int proxy_mode;
+    int msb_aligned;
 } SvtJpegXsDecodeContext;
 
 
@@ -272,6 +273,7 @@ static av_cold int svt_jpegxs_dec_init(AVCodecContext* avctx) {
     svt_dec->decoder.threads_num = FFMIN(avctx->thread_count ? avctx->thread_count : av_cpu_count(), 64);
     svt_dec->decoder.use_cpu_flags = CPU_FLAGS_ALL;
     svt_dec->decoder.packetization_mode = 0;
+    svt_dec->decoder.output_bit_depth_msb_aligned = svt_dec->msb_aligned ? 1 : 0;
 
     av_log(NULL, AV_LOG_DEBUG, "svt_jpegxs_dec_init called\n");
 
@@ -282,6 +284,15 @@ static av_cold int svt_jpegxs_dec_init(AVCodecContext* avctx) {
 #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_DECODING_PARAM
 static const AVOption svtjpegxs_dec_options[] = {
     {"proxy-mode", "Resolution scaling mode: 0-full, 1-half, 2-quarter", OFFSET(proxy_mode), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 2, VE},
+    {"msb_aligned",
+     "Non-standard: output 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. "
+     "Must match the encoder's msb_aligned setting.",
+     OFFSET(msb_aligned),
+     AV_OPT_TYPE_BOOL,
+     {.i64 = 0},
+     0,
+     1,
+     VE},
     {NULL},
 };
 

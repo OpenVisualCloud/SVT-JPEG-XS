@@ -154,6 +154,8 @@ Input Options:
 --colour-format            Set encoder colour format (yuv420, yuv422,  yuv444, rgb(planar), rgbp(packed))
                             (Experimental: yuv400)
 --input-depth              Input depth
+[--input-msb-aligned]      Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit
+                            word instead of LSB-aligned (enabled:1, disabled:0, default:0)
 --bpp                      Bits Per Pixel, can be passed as integer or float
                             (example: 0.5, 3, 3.75, 5 etc.)
 [-n]                       Number of frames to encode
@@ -262,6 +264,8 @@ Input Options:
 [--packetization-mode]     Specify how bitstream is passed to decoder
                             (multiple packets per frame:1, single packet per frame:0, default:0)
 [--proxy-mode]             Resolution scaling mode(disabled: 0, scale 1/2: 1, scale 1/4: 2, default: 0)
+[--output-msb-aligned]     Non-standard: 10/12-bit output samples are MSB-aligned in each 16-bit
+                            word instead of LSB-aligned (enabled:1, disabled:0, default:0)
 ```
 
 Output Options:

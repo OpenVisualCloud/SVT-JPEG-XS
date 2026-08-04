@@ -23,6 +23,7 @@ typedef struct svt_jpeg_xs_decoder_common {
 
     // max_frame_bitstream_size is used only when packetization_mode is enabled
     uint32_t max_frame_bitstream_size;
+    uint8_t output_bit_depth_msb_aligned;
 } svt_jpeg_xs_decoder_common_t;
 
 typedef struct svt_jpeg_xs_decoder_thread_context {

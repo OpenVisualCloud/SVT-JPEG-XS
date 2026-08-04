@@ -49,6 +49,7 @@ static void strncpy_local(char *dest, const char *src, size_t count) {
 #define SLICE_HEIGHT_TOKEN      "--slice-height"
 #define ENCODER_COLOUR_FORMAT   "--colour-format"
 #define INPUT_DEPTH_TOKEN       "--input-depth"
+#define INPUT_MSB_ALIGNED_TOKEN "--input-msb-aligned"
 
 #define OUTPUT_BITSTREAM_TOKEN "-b"
 #define NO_PROGRESS_TOKEN      "--no-progress" // tbd if it should be removed
@@ -115,6 +116,10 @@ static void set_no_progress(const char *value, EncoderConfig_t *cfg) {
 
 static void set_input_bit_depth(const char *value, EncoderConfig_t *cfg) {
     cfg->encoder.input_bit_depth = (uint8_t)strtoul(value, NULL, 0);
+}
+
+static void set_input_msb_aligned(const char *value, EncoderConfig_t *cfg) {
+    cfg->encoder.input_bit_depth_msb_aligned = (uint8_t)strtoul(value, NULL, 0);
 }
 
 static void coding_signs_handling(const char *value, EncoderConfig_t *cfg) {
@@ -394,6 +399,7 @@ ConfigEntry config_entry[] = {
     {INPUT_OPTIONS, HEIGHT_TOKEN,           "Frame height", 1, 1, set_cfg_source_height},
     {INPUT_OPTIONS, ENCODER_COLOUR_FORMAT,  "Set encoder colour format (yuv420, yuv422) (Experimental: yuv400, yuv444, rgb(planar), rgbp(packed))", 1, 1, set_encoder_colour_format},
     {INPUT_OPTIONS, INPUT_DEPTH_TOKEN,      "Input depth", 1, 1, set_input_bit_depth},
+    {INPUT_OPTIONS, INPUT_MSB_ALIGNED_TOKEN,"Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit word instead of LSB-aligned (enabled:1, disabled:0, default:0)", 0, 1, set_input_msb_aligned},
     {INPUT_OPTIONS, COMPRESS_BPP_LONG_TOKEN,"Bits Per Pixel, can be passed as integer or float (example: 0.5, 3, 3.75, 5 etc.)", 1, 1, set_encoder_bpp},
     {INPUT_OPTIONS, FRAMES_COUNT_TOKEN,     "Number of frames to encode", 0, 1, set_cfg_frames_count},
     {INPUT_OPTIONS, LIMIT_FPS_TOKEN,        "Limit number of frames per second (disabled: 0, enabled [1-240])", 0, 1, set_limit_fps},

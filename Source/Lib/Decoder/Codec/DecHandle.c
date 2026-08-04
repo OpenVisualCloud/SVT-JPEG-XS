@@ -139,6 +139,15 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         return SvtJxsErrorBadParameter;
     }
 
+    dec_api_prv->dec_common.output_bit_depth_msb_aligned = dec_api->output_bit_depth_msb_aligned;
+    if (dec_api_prv->dec_common.output_bit_depth_msb_aligned != 0 && dec_api_prv->dec_common.output_bit_depth_msb_aligned != 1) {
+        if (dec_api->verbose >= VERBOSE_ERRORS) {
+            fprintf(stderr, "Unrecognized output_bit_depth_msb_aligned, expected: 0 or 1\n");
+        }
+        svt_jpeg_xs_decoder_close(dec_api);
+        return SvtJxsErrorBadParameter;
+    }
+
     if (dec_api->proxy_mode >= proxy_mode_max) {
         if (dec_api->verbose >= VERBOSE_ERRORS) {
             fprintf(stderr, "Unrecognized proxy mode\n");

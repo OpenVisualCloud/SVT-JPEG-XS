@@ -87,6 +87,10 @@ typedef struct picture_header_dynamic {
 
     uint16_t hdr_Xcrg[MAX_COMPONENTS_NUM];
     uint16_t hdr_Ycrg[MAX_COMPONENTS_NUM];
+
+    /* Non-standard: not parsed from/written to the bitstream. Mirrors
+     * svt_jpeg_xs_encoder_api_t::input_bit_depth_msb_aligned, set once at encoder init. */
+    uint8_t hdr_input_msb_aligned;
 } picture_header_dynamic_t;
 
 typedef struct precinct_band_info {

@@ -101,6 +101,10 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
                     linear_output_scaling_16bit_line_c,
                     linear_output_scaling_16bit_line_avx2,
                     linear_output_scaling_16bit_line_avx512);
+    SET_AVX2_AVX512(linear_output_scaling_16bit_line_msb,
+                    linear_output_scaling_16bit_line_msb_c,
+                    linear_output_scaling_16bit_line_msb_avx2,
+                    linear_output_scaling_16bit_line_msb_avx512);
 
     SET_AVX2(inv_sign, inv_sign_c, inv_sign_avx2);
     SET_AVX2(unpack_data, unpack_data_c, unpack_data_avx2);

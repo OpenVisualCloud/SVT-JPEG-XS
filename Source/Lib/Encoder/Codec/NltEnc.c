@@ -44,6 +44,15 @@ void linear_input_scaling_line_16bit_c(const uint16_t* src, int32_t* dst, uint32
     }
 }
 
+/* MSB-aligned: sample occupies the high bits (v << (16-bit_depth)), no masking needed. */
+void linear_input_scaling_line_16bit_msb_c(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
+                                           uint8_t bit_depth) {
+    (void)bit_depth;
+    for (uint32_t j = 0; j < w; j++) {
+        dst[j] = ((uint32_t)src[j] << shift) - offset;
+    }
+}
+
 void linear_input_scaling_line(const void* src, int32_t* dst, uint32_t width, uint8_t input_bit_depth, uint8_t shift,
                                int32_t offset) {
     if (input_bit_depth <= 8) {
@@ -57,6 +66,23 @@ void linear_input_scaling_line(const void* src, int32_t* dst, uint32_t width, ui
 
 void nlt_input_scaling_line(const void* src, int32_t* dst, uint32_t width, picture_header_dynamic_t* hdr,
                             uint8_t input_bit_depth) {
+    if (hdr->hdr_input_msb_aligned && input_bit_depth > 8) {
+        /* Bw is fixed (WAVELET_IN_DEPTH_BW_DEFAULT=20), so shift=Bw-16 is a constant, depth-independent
+         * value: v_msb = v << (16-depth), so (v_msb << (Bw-16)) == (v << (Bw-depth)), matching the LSB path. */
+        const uint8_t shift = hdr->hdr_Bw - 16;
+        const int32_t offset = 1 << (hdr->hdr_Bw - 1);
+        switch (hdr->hdr_Tnlt) {
+        case 0:
+            linear_input_scaling_line_16bit_msb((const uint16_t*)src, dst, width, shift, offset, input_bit_depth);
+            break;
+        case 1:
+        case 2:
+        default:
+            assert(0);
+            break;
+        }
+        return;
+    }
     const uint8_t shift = hdr->hdr_Bw - input_bit_depth;
     const int32_t offset = 1 << (hdr->hdr_Bw - 1);
     switch (hdr->hdr_Tnlt) {

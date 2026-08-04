@@ -165,7 +165,62 @@ function test_all {
     test_dec 217
 }
 
+#RUN output_bit_depth_msb_aligned tests: decode the same stripped conformance bitstream twice
+#(msb-aligned 0 and 1). NOTE: the decoder AVOption must be placed BEFORE -i, not passed as an
+#extra_args-style option after -i, or ffmpeg silently ignores it (only a warning, no error) -
+#a real pitfall hit while writing this test.
+function test_msb_aligned {
+    name=011
+    src_jxs=$path_bitstreams/test_bitsreams/$name.jxs
+    stripped_jxs=./$tmp_dir/$name"_stripped.jxs"
+
+    #(1:expect exit code) (2:expected md5) (3:msb_aligned value)
+    function test_msb_dec {
+        exit_code=$1
+        md5=$2
+        msb_aligned=$3
+        out_yuv=./$tmp_dir/$name"_msb$msb_aligned.yuv"
+
+        common_lib_update_test_id_run_return_1_to_ignore
+        ignore=$?
+        if [ $ignore -ne 0 ]; then
+            return
+        fi
+
+        cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -msb_aligned $msb_aligned -i $stripped_jxs -f rawvideo $out_yuv"
+        echo "run command: $cmd"
+        ${cmd}
+        ret=$?
+        if [ $ret -ne $exit_code ]; then
+            echo "FAIL Invalid error code: $ret expected: $exit_code"
+            error=1
+            end
+        fi
+
+        echo -n "Test MD5 Expect: $md5 "
+        md5_t=$(md5sum "${out_yuv}" | awk '{ print $1 }')
+        if [ "$md5" = "$md5_t" ]; then
+            echo "OK"
+        else
+            echo "FAIL get $md5_t"
+            error=1
+            end
+        fi
+    }
+
+    offset=$(find_bitstream_header_offset "$src_jxs")
+    tail -c +$((offset+1)) "$src_jxs" > "$stripped_jxs"
+
+    #msb_aligned=0 explicit must be byte-identical to the existing reference_decode/011_*.yuv
+    #(the untouched default path).
+    test_msb_dec 0 e379a376d704e3e0100f748fd4dd1bdd 0
+    #msb_aligned=1: pinned md5, verified (via a matching plain decode, right-shifted by 6) to be
+    #the exact MSB-aligned re-packing of the msb_aligned=0/default output above.
+    test_msb_dec 0 58df668b531f53cbf4666c9a116d553e 1
+}
+
 test_all
+test_msb_aligned
 
 
 common_lib_end_summary

@@ -1,21 +1,22 @@
-### Decoder configuration parameters overview (svt_jpeg_xs_decoder_api_t)
+# Decoder configuration parameters overview (svt_jpeg_xs_decoder_api_t)
 
 param | description | mandatory/optional | default | Accepted values
 -- | -- | -- | -- | --
 use_cpu_flags | Performance: limit assembly instruction set used by decoder,   please refer to CPU_FLAGS | optional | CPU_FLAGS_ALL | CPU_FLAGS_C, CPU_FLAGS_MMX, CPU_FLAGS_SSE ,CPU_FLAGS_SSE2 ,CPU_FLAGS_SSE3 ,CPU_FLAGS_SSSE3 ,CPU_FLAGS_SSE4_1 ,CPU_FLAGS_SSE4_2 ,CPU_FLAGS_AVX ,CPU_FLAGS_AVX2 ,CPU_FLAGS_ALL (avx512)
 threads_num | Performance: Number of thread decoder can create, 0 mean   minimum number of threads is created | optional | 0 | <0;N/A>
 verbose | Limit number of logs in console, please refer to VerboseMessages enum | optional | VERBOSE_SYSTEM_INFO | VERBOSE_NONE, VERBOSE_ERRORS, VERBOSE_SYSTEM_INFO, VERBOSE_SYSTEM_INFO_ALL, VERBOSE_WARNINGS, VERBOSE_INFO_MULTITHREADING,VERBOSE_INFO_FULL
-packetization_mode | Specify how bitstream is passed to decoder | optional| 0 | 1(multiple packets per frame), 0(single packet per frame)
-callback_send_data_available |   | optional | NULL | function pointer
-callback_send_data_available_context |   | optional | NULL |  
-callback_get_data_available |   | optional | NULL | function pointer
-callback_get_data_available_context |   | optional | NULL |  
+packetization_mode | Specify how bitstream is passed to decoder | optional | 0 | 1(multiple packets per frame), 0(single packet per frame)
+output_bit_depth_msb_aligned | Non-standard, host-side only (not signalled in bitstream): when set, 10/12-bit output samples are MSB-aligned in each 16-bit word (`v << (16-output_bit_depth)`) instead of LSB-aligned (`v`). Must match the encoder's input_bit_depth_msb_aligned setting. | optional | 0 | 0(LSB-aligned), 1(MSB-aligned)
+callback_send_data_available | Callback invoked when the decoder can accept new input data | optional | NULL | function pointer
+callback_send_data_available_context | User context pointer passed to callback_send_data_available | optional | NULL | N/A
+callback_get_data_available | Callback invoked when a decoded frame is available | optional | NULL | function pointer
+callback_get_data_available_context | User context pointer passed to callback_get_data_available | optional | NULL | N/A
 
-### Decoder simplified usage
+## Decoder simplified usage
 
-Code listed below is also kept [here](../../Source/App/SampleDecoder/main.c)
+Code listed below is also kept in [Source/App/SampleDecoder/main.c](../../Source/App/SampleDecoder/main.c)
 
-```
+```c
 #include <SvtJpegxsDec.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -143,6 +144,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 ## Notes
 
-The information in this document was compiled at <mark>v0.10</mark> of the code and may not
+The information in this document was compiled at `v0.10` of the code and may not
 reflect the latest status of the design. For the most up-to-date
 settings and implementation, it's recommended to visit the specific section of the code.
