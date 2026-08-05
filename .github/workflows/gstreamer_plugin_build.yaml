@@ -33,23 +33,25 @@ jobs:
           filters: .github/config/path_filters.yaml
 
   gstreamer-linux-build-test:
-      needs: changes
-      if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
-      timeout-minutes: 120
-      steps:
+    needs: changes
+    # Skip on fork PRs: self-hosted runners are restricted to internal use
+    # and forked-repo PRs can't reach them, so the job would just hang.
+    if: ${{ needs.changes.outputs.changed == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    timeout-minutes: 120
+    steps:
       - name: 'Harden Runner'
         uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: 'Setup: Install dependencies'
         run: |
             sudo apt-get update
-            sudo apt-get -y install cmake make gcc g++ nasm ninja-build python3-venv pkg-config flex bison
+            sudo apt-get -y install cmake make gcc g++ nasm ninja-build python3-venv pkg-config flex bison libglib2.0-dev
 
       - name: 'Build: SVT-JPEG-XS and minimal GStreamer with the svtjpegxs plugin'
         run: .github/scripts/build_gstreamer_plugin.sh

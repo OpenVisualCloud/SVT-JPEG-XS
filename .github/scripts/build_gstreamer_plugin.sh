@@ -23,6 +23,7 @@ GST_COMMIT=${1:-8ca913845a142ebbea86eede74292d840f12a046}
 
 echo "=== 0. Create installation directory and export env variable ==="
 export INSTALL_DIR="$JPEGXS_REPO/install-dir"
+rm -rf "$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 
 echo "=== 1. Compile and install svt-jpegxs ==="
@@ -57,7 +58,7 @@ rm -rf "$JPEGXS_REPO/gst-build"
 mkdir -p "$JPEGXS_REPO/gst-build"
 cd "$JPEGXS_REPO/gst-build"
 git init -q
-git fetch --depth 1 https://gitlab.freedesktop.org/gstreamer/gstreamer.git "$GST_COMMIT"
+git fetch --depth 1 --no-tags https://gitlab.freedesktop.org/gstreamer/gstreamer.git "$GST_COMMIT"
 git checkout -q FETCH_HEAD
 
 echo "=== 5. Configure a minimal build: core + base essentials + svtjpegxs plugin only ==="
