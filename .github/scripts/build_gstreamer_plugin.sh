@@ -31,7 +31,15 @@ cd "$JPEGXS_REPO/Build/linux"
 cd "$JPEGXS_REPO"
 
 echo "=== 2. Make the SvtJpegxs.pc pkg-config file discoverable ==="
-export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+# CMAKE_INSTALL_LIBDIR (via GNUInstallDirs) is "lib" on Debian/Ubuntu but
+# "lib64" on Fedora/RHEL - don't assume, find the actual install location.
+SVT_PC_FILE=$(find "$INSTALL_DIR" -name 'SvtJpegxs.pc' | head -1)
+if [ -z "$SVT_PC_FILE" ]; then
+    echo "FATAL: SvtJpegxs.pc not found under $INSTALL_DIR" >&2
+    exit 1
+fi
+SVT_LIBDIR=$(dirname "$(dirname "$SVT_PC_FILE")")
+export PKG_CONFIG_PATH="$SVT_LIBDIR/pkgconfig:${PKG_CONFIG_PATH:-}"
 pkg-config --modversion SvtJpegxs
 
 echo "=== 3. Ensure a new-enough Meson is available (repo's packaged one is usually too old) ==="
@@ -39,11 +47,13 @@ export PATH="$HOME/.local/bin:$PATH"
 python3 -m pip install --user --upgrade "meson>=1.4"
 meson --version
 
-echo "=== 4. Clone GStreamer monorepo (main branch, pinned commit) ==="
+echo "=== 4. Fetch GStreamer monorepo at the pinned commit (shallow, no full-history clone) ==="
 rm -rf "$JPEGXS_REPO/gst-build"
-git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git "$JPEGXS_REPO/gst-build"
+mkdir -p "$JPEGXS_REPO/gst-build"
 cd "$JPEGXS_REPO/gst-build"
-git checkout "$GST_COMMIT"
+git init -q
+git fetch --depth 1 https://gitlab.freedesktop.org/gstreamer/gstreamer.git "$GST_COMMIT"
+git checkout -q FETCH_HEAD
 
 echo "=== 5. Configure a minimal build: core + base essentials + svtjpegxs plugin only ==="
 # -Dlibdir=lib pins a predictable install layout (some distros default to
@@ -73,7 +83,7 @@ cat > "$JPEGXS_REPO/gst-plugin-env.sh" <<EOF
 # Source this file to run gst-launch-1.0/gst-inspect-1.0 against the
 # svtjpegxs plugin built by build_gstreamer_plugin.sh.
 export PATH="$GST_PREFIX/bin:\$PATH"
-export LD_LIBRARY_PATH="$GST_PREFIX/lib:$INSTALL_DIR/lib:\${LD_LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="$GST_PREFIX/lib:$SVT_LIBDIR:\${LD_LIBRARY_PATH:-}"
 export GST_PLUGIN_PATH="$GST_PREFIX/lib/gstreamer-1.0"
 EOF
 
