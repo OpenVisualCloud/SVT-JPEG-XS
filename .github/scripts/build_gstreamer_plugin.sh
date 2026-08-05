@@ -43,8 +43,13 @@ export PKG_CONFIG_PATH="$SVT_LIBDIR/pkgconfig:${PKG_CONFIG_PATH:-}"
 pkg-config --modversion SvtJpegxs
 
 echo "=== 3. Ensure a new-enough Meson is available (repo's packaged one is usually too old) ==="
-export PATH="$HOME/.local/bin:$PATH"
-python3 -m pip install --user --upgrade "meson>=1.4"
+# Recent Debian/Ubuntu (PEP 668 "externally-managed-environment") refuse
+# `pip install --user` outright. Use an isolated venv instead - works the
+# same everywhere and doesn't touch system/user site-packages.
+MESON_VENV="$JPEGXS_REPO/.meson-venv"
+python3 -m venv "$MESON_VENV"
+export PATH="$MESON_VENV/bin:$PATH"
+python3 -m pip install --upgrade "meson>=1.4"
 meson --version
 
 echo "=== 4. Fetch GStreamer monorepo at the pinned commit (shallow, no full-history clone) ==="
