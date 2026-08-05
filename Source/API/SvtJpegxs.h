@@ -11,6 +11,7 @@ extern "C" {
 #endif // __cplusplus
 
 #include <stdint.h>
+#include <stdarg.h>
 
 /* API Version */
 #define SVT_JPEGXS_API_VER_MAJOR (0)
@@ -188,6 +189,46 @@ typedef uint64_t CPU_FLAGS;
 #define CPU_FLAGS_AVX512VL (1 << 15)
 #define CPU_FLAGS_ALL      ((CPU_FLAGS_AVX512VL << 1) - 1)
 #define CPU_FLAGS_INVALID  (1ULL << (sizeof(CPU_FLAGS) * 8ULL - 1ULL))
+
+/**
+ * @brief Log severity levels
+ */
+typedef enum {
+    SVT_LOG_ALL = -1,
+    SVT_LOG_FATAL = 0,
+    SVT_LOG_ERROR = 1,
+    SVT_LOG_WARN = 2,
+    SVT_LOG_INFO = 3,
+    SVT_LOG_DEBUG = 4,
+} SvtLogLevel;
+
+/**
+ * @brief Log callback function signature.
+ *
+ * Applications can register a callback to intercept log messages from the library.
+ * The callback receives every log call unfiltered (no level gating is applied before dispatch),
+ * so it is the callback's own responsibility to filter by `level` if desired.
+ *
+ * @param[in] context Opaque user-provided context pointer (may be NULL)
+ * @param[in] level   Severity level of the log message
+ * @param[in] tag     Optional log tag (may be NULL)
+ * @param[in] fmt     printf-style format string
+ * @param[in] args    Variable argument list corresponding to the format string
+ */
+typedef void (*SvtJxsLogCallback)(void *context, SvtLogLevel level, const char *tag, const char *fmt, va_list args);
+
+/**
+ * Register a callback for intercepting log messages.
+ *
+ * When a callback is registered, all log messages are dispatched to it instead of the default
+ * stderr/file output, for all encoder/decoder instances (this is a global setting). Must be called
+ * before the first log call happens (i.e. before any encoder/decoder init) to take effect - calling
+ * it later is a no-op. Passing a NULL callback is also a no-op.
+ *
+ * @param[in] callback Callback function pointer. Has no effect if NULL.
+ * @param[in] context  Opaque context pointer passed back to the callback. Ignored if callback is NULL.
+ */
+PREFIX_API void svt_jpeg_xs_set_log_callback(SvtJxsLogCallback callback, void *context);
 
 #ifdef __cplusplus
 }
