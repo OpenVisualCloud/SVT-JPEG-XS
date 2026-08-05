@@ -16,4 +16,6 @@ ffmpeg_plugin_build: &ffmpeg_plugin_build
 gstreamer_plugin_build: &gstreamer_plugin_build
   - '.github/scripts/build_gstreamer_plugin.sh'
   - 'tests/scripts/Gstreamer*.sh'
+  - 'tests/scripts/ParallelAllGstreamerTests.sh'
   - 'Source/API/**'
+  - .github/workflows/gstreamer_plugin_build.yaml
