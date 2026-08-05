@@ -58,7 +58,7 @@ PackInput_t* pre_rc_send_frame_to_pack_slices(PictureControlSet* pcs_ptr, Fifo_t
             output_wrapper_ptr = output_wrapper_ptr_next;
             if (output_wrapper_ptr == NULL) {
                 /*This path should never happen!*/
-                fprintf(stderr, "Fatal Error: Pre RC Stage Process, Invalid next slice pointer!\n");
+                SVT_FATAL("Fatal Error: Pre RC Stage Process, Invalid next slice pointer!\n");
                 return NULL;
             }
             pack_input = (PackInput_t*)output_wrapper_ptr->object_ptr;

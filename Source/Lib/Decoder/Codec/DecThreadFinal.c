@@ -7,6 +7,7 @@
 #include "DecThreadFinal.h"
 #include "Threads/SvtThreads.h"
 #include "DecHandle.h"
+#include "SvtLog.h"
 
 SvtJxsErrorType_t final_sync_creator(void_ptr* object_dbl_ptr, void_ptr object_init_data_ptr) {
     UNUSED(object_init_data_ptr);
@@ -43,7 +44,7 @@ void* thread_final_stage_kernel(void* input_ptr) {
         ObjectWrapper_t* input_wrapper_ptr;
         // Get the Next svt Input Buffer [BLOCKING]
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(stderr, "[%s] Before SVT_GET_FULL_OBJECT\n", __FUNCTION__);
+            SVT_DEBUG("[%s] Before SVT_GET_FULL_OBJECT\n", __FUNCTION__);
         }
         SVT_GET_FULL_OBJECT(dec_api_prv->final_consumer_fifo_ptr, &input_wrapper_ptr);
         TaskFinalSync* input_buffer_ptr = (TaskFinalSync*)input_wrapper_ptr->object_ptr;
@@ -126,7 +127,7 @@ void* thread_final_stage_kernel(void* input_ptr) {
             svt_jxs_release_object(wrapper_ptr_decoder_ctx);
 
             if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-                fprintf(stderr, "[%s] Get frame  %i Final thread\n", __FUNCTION__, (int)item->frame_num);
+                SVT_DEBUG("[%s] Get frame  %i Final thread\n", __FUNCTION__, (int)item->frame_num);
             }
         }
 
@@ -153,7 +154,7 @@ void* thread_final_stage_kernel(void* input_ptr) {
             buffer_output->frame_error = item->frame_error;
 
             if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-                fprintf(stderr, "[%s] Send frame  %i Final thread\n", __FUNCTION__, (int)item->frame_num);
+                SVT_DEBUG("[%s] Send frame  %i Final thread\n", __FUNCTION__, (int)item->frame_num);
             }
 
             svt_jxs_post_full_object(final_wrapper_ptr);

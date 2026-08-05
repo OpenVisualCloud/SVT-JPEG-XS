@@ -6,6 +6,7 @@
 #include "ProfileLevel.h"
 
 #include <stdio.h>
+#include "SvtLog.h"
 
 uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_depth, uint32_t verbose) {
     uint16_t ppih;
@@ -35,12 +36,11 @@ uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_de
      * Keep declaring the closest Main profile (still a validly-defined codeword, unlike Ppih=0) but
      * make the limitation visible. */
     if (bit_depth > 12 && verbose >= VERBOSE_WARNINGS) {
-        fprintf(stderr,
-                "Warning: bit depth %u exceeds the maximum (12) defined by any ISO/IEC 21122-2 lossy profile; "
-                "declaring the closest Main profile (Ppih=0x%04X). Use profile_override_enable if a different "
-                "declaration is required.\n",
-                bit_depth,
-                ppih);
+        SVT_WARN("Warning: bit depth %u exceeds the maximum (12) defined by any ISO/IEC 21122-2 lossy profile; "
+                 "declaring the closest Main profile (Ppih=0x%04X). Use profile_override_enable if a different "
+                 "declaration is required.\n",
+                 bit_depth,
+                 ppih);
     }
 
     return ppih;

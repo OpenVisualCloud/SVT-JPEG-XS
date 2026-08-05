@@ -9,6 +9,7 @@
 #include "SvtUtility.h"
 #include "Codestream.h"
 #include "SvtJpegxsImageBufferTools.h"
+#include "SvtLog.h"
 
 SvtJxsErrorType_t input_bitstream_creator(void_ptr* object_dbl_ptr, void_ptr object_init_data_ptr) {
     UNUSED(object_init_data_ptr);
@@ -181,11 +182,11 @@ static void send_slices_tasks(svt_jpeg_xs_decoder_api_prv_t* dec_api_prv, TaskIn
                     if (dec_ctx->picture_header_dynamic.hdr_Lcod != 0 &&
                         dec_ctx->picture_header_dynamic.hdr_Lcod != frame_bitstream_size) {
                         if (dec_api_prv->verbose >= VERBOSE_ERRORS) {
-                            fprintf(stderr,
-                                    "Warning: Frame decoded but may be broken! Decoded different stream size than expected from "
-                                    "header get=%u, expected=%u\n",
-                                    frame_bitstream_size,
-                                    dec_ctx->picture_header_dynamic.hdr_Lcod);
+                            SVT_WARN(
+                                "Warning: Frame decoded but may be broken! Decoded different stream size than expected from "
+                                "header get=%u, expected=%u\n",
+                                frame_bitstream_size,
+                                dec_ctx->picture_header_dynamic.hdr_Lcod);
                         }
                     }
                 }
@@ -226,18 +227,17 @@ void* thread_init_stage_kernel(void* input_ptr) {
         ObjectWrapper_t* input_wrapper_ptr;
 
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(stderr, "[%s] Before SVT_GET_FULL_OBJECT\n", __FUNCTION__);
+            SVT_DEBUG("[%s] Before SVT_GET_FULL_OBJECT\n", __FUNCTION__);
         }
 
         SVT_GET_FULL_OBJECT(dec_api_prv->input_consumer_fifo_ptr, &input_wrapper_ptr);
         TaskInputBitstream* input_buffer_ptr = (TaskInputBitstream*)input_wrapper_ptr->object_ptr;
 
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(stderr,
-                    "\n[%s] Send frame to Lib, Item: %p frame %lu\n",
-                    __FUNCTION__,
-                    input_wrapper_ptr,
-                    (unsigned long)frame_num);
+            SVT_DEBUG("\n[%s] Send frame to Lib, Item: %p frame %lu\n",
+                      __FUNCTION__,
+                      input_wrapper_ptr,
+                      (unsigned long)frame_num);
         }
 
         if (dec_api_prv->verbose >= VERBOSE_WARNINGS && (input_buffer_ptr->flags != SvtJxsDecoderEndOfCodestream)) {
@@ -251,23 +251,22 @@ void* thread_init_stage_kernel(void* input_ptr) {
                 dec_api_prv->proxy_mode);
             if ((ret != SvtJxsErrorNone) && input_buffer_ptr->dec_input.bitstream.used_size != read_size) {
                 //TODO: Hard to test this case and in future this problem should be removed
-                fprintf(stderr,
-                        "[%s] %p, %i Invalid frame, HOW TO HANDLE ERROR????\n",
-                        __FUNCTION__,
-                        input_buffer_ptr->dec_input.bitstream.buffer,
-                        (int32_t)input_buffer_ptr->dec_input.bitstream.used_size);
+                SVT_WARN("[%s] %p, %i Invalid frame, HOW TO HANDLE ERROR????\n",
+                         __FUNCTION__,
+                         input_buffer_ptr->dec_input.bitstream.buffer,
+                         (int32_t)input_buffer_ptr->dec_input.bitstream.used_size);
             }
         }
 
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(stderr, "[%s] Before svt_jxs_get_empty_object(dec_api_prv->universal_producer_fifo_ptr\n", __FUNCTION__);
+            SVT_DEBUG("[%s] Before svt_jxs_get_empty_object(dec_api_prv->universal_producer_fifo_ptr\n", __FUNCTION__);
         }
 
         ObjectWrapper_t* wrapper_ptr_decoder_ctx = NULL;
 
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(
-                stderr, "[%s] Before svt_jxs_get_empty_object(dec_api_prv->internal_pool_frame_context_fifo_ptr\n", __FUNCTION__);
+            SVT_DEBUG(
+                "[%s] Before svt_jxs_get_empty_object(dec_api_prv->internal_pool_frame_context_fifo_ptr\n", __FUNCTION__);
         }
         SvtJxsErrorType_t err = svt_jxs_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr,
                                                          &wrapper_ptr_decoder_ctx);
@@ -276,7 +275,7 @@ void* thread_init_stage_kernel(void* input_ptr) {
         }
 
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(stderr, "[%s] Send frame  %i from Init thread\n", __FUNCTION__, (int)frame_num);
+            SVT_DEBUG("[%s] Send frame  %i from Init thread\n", __FUNCTION__, (int)frame_num);
         }
 
         svt_jpeg_xs_decoder_instance_t* dec_ctx = wrapper_ptr_decoder_ctx->object_ptr;
@@ -308,11 +307,11 @@ void* thread_init_stage_kernel(void* input_ptr) {
             if (dec_api_prv->verbose >= VERBOSE_ERRORS) {
                 if (input_buffer_ptr->flags == SvtJxsDecoderEndOfCodestream) {
                     if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-                        fprintf(stderr, "[%s] Send EOC frame: %i\n", __FUNCTION__, (int)dec_ctx->frame_num);
+                        SVT_DEBUG("[%s] Send EOC frame: %i\n", __FUNCTION__, (int)dec_ctx->frame_num);
                     }
                 }
                 else {
-                    fprintf(stderr, "[%s] Invalid Header frame: %i\n", __FUNCTION__, (int)dec_ctx->frame_num);
+                    SVT_ERROR("[%s] Invalid Header frame: %i\n", __FUNCTION__, (int)dec_ctx->frame_num);
                 }
             }
             ObjectWrapper_t* universal_wrapper_ptr = NULL;
