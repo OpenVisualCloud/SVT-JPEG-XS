@@ -132,12 +132,13 @@ function test_all_correct {
     test_dec 0 test-zero-sign-4-minus-zero                            fde93442420ef3048a3481bf1449ba59
     test_dec 0 test-zero-sign-4-plus-zero                             fde93442420ef3048a3481bf1449ba59
 
-    # Correct bitstreams (h1/decomp_h=1 variants excluded - see plugin limitation note at top).
+    # Correct bitstreams.
     test_dec 0 Cyclist_1920x1080_10b_422_20f_v1_h5                    f65f42c074fa6fbdc3e9136ec86b9828
     test_dec 0 Cyclist_1920x1080_10b_422_20f_v2_h3                    39983e5e039da3917e5f7bf7ef9a87bf
     test_dec 0 Cyclist_1920x1080_8b_422_20f_v1_h4                     281a046a4d0c9bcb554e828d2a8084ef
     test_dec 0 Cyclist_1920x1080_8b_422_20f_v2_h2                     e71c8400a4f3a636408b48450bae92d3
-    # Daylight_1280x720_{10b,8b}_422_20f_v1_h1 SKIPPED - ffmpeg plugin decode error (decomp_h=1)
+    test_dec 0 Daylight_1280x720_10b_422_20f_v1_h1                    db9a6c952daf5e9c7b108e61b6d0e056
+    test_dec 0 Daylight_1280x720_8b_422_20f_v1_h1                     d0c8097ead80367ffb50c33553b51795
     test_dec 0 Daylight_1280x720_10b_422_20f_v2_h5                    b543cacde0d9a3fdeb6a123875f2868d
     test_dec 0 Daylight_1280x720_8b_422_20f_v1_h5                     f9b705a3ac20daeea8ce21af5f0bf908
     test_dec 0 RollerCoaster_3840x2160_10b_422_20f_v1_h4              e3e91a199bbd8096a8cfd2c0109829ff
