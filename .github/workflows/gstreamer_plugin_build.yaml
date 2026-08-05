@@ -71,3 +71,11 @@ jobs:
           ./GstreamerDecoderConformanceTest.sh "$INPUT_FILES_PATH"
         env:
           INPUT_FILES_PATH: /opt/samples
+
+      - name: 'Test: GStreamer decoder multi-frames test suite'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          source ${{ github.workspace }}/gst-plugin-env.sh
+          ./GstreamerDecoderMultiFramesTest.sh "$INPUT_FILES_PATH"
+        env:
+          INPUT_FILES_PATH: /opt/samples
