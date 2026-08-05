@@ -49,7 +49,7 @@ jobs:
       - name: 'Setup: Install dependencies'
         run: |
             sudo apt-get update
-            sudo apt-get -y install cmake make gcc g++ nasm ninja-build python3-venv pkg-config
+            sudo apt-get -y install cmake make gcc g++ nasm ninja-build python3-venv pkg-config flex bison
 
       - name: 'Build: SVT-JPEG-XS and minimal GStreamer with the svtjpegxs plugin'
         run: .github/scripts/build_gstreamer_plugin.sh
