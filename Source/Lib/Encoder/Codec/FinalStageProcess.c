@@ -110,7 +110,7 @@ void *final_stage_kernel(void *input_ptr) {
         pack_result = (PackOutput *)input_wrapper_ptr->object_ptr;
 
         if (pack_result->pcs_wrapper_ptr == NULL) {
-            fprintf(stderr, "FATAL ERROR [%s:%i] Final thread pcs_wrapper_ptr is NULL\n", __func__, __LINE__);
+            SVT_FATAL("FATAL ERROR [%s:%i] Final thread pcs_wrapper_ptr is NULL\n", __func__, __LINE__);
             svt_jxs_release_object(input_wrapper_ptr);
             continue;
         }
@@ -135,7 +135,7 @@ void *final_stage_kernel(void *input_ptr) {
             PictureControlSet *pcs_ringbuffer_ptr = (PictureControlSet *)pcs_ringbuffer_obj->object_ptr;
             if ((pcs_ringbuffer_obj != pack_result->pcs_wrapper_ptr) ||
                 (pcs_ringbuffer_ptr->frame_number != pcs_ptr->frame_number)) {
-                fprintf(stderr, "FATAL ERROR [%s:%i] Final thread ring is full\n", __func__, __LINE__);
+                SVT_FATAL("FATAL ERROR [%s:%i] Final thread ring is full\n", __func__, __LINE__);
                 // TODO: Return internal error
                 continue;
             }

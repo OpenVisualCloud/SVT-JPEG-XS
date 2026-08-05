@@ -6,6 +6,7 @@
 #include "Mct.h"
 #include "Definitions.h"
 #include "Pi.h"
+#include "SvtLog.h"
 
 #define MAX_COMPONENTS 4
 #define MAX_CFA_TYPE   2
@@ -195,7 +196,7 @@ void mct_inverse_transform(int32_t* out_comps[MAX_COMPONENTS_NUM], const pi_t* p
                             h);
     }
     else {
-        fprintf(stderr, "Unknown color transform!!\n");
+        SVT_ERROR("Unknown color transform!!\n");
         assert(0);
     }
 }
@@ -218,7 +219,7 @@ void mct_inverse_transform_precinct(int32_t* out_comps[MAX_COMPONENTS_NUM],
                             h);
     }
     else {
-        fprintf(stderr, "Unknown color transform!!\n");
+        SVT_ERROR("Unknown color transform!!\n");
         assert(0);
     }
 }

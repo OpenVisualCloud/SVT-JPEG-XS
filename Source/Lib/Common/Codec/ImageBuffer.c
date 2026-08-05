@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include "SvtJpegxsImageBufferTools.h"
 #include "Threads/SystemResourceManager.h"
+#include "SvtLog.h"
 
 struct svt_jpeg_xs_frame_pool {
     uint8_t use_image_buffer;
@@ -21,14 +22,13 @@ struct svt_jpeg_xs_frame_pool {
 
 PREFIX_API svt_jpeg_xs_image_buffer_t* svt_jpeg_xs_image_buffer_alloc(svt_jpeg_xs_image_config_t* image_config) {
     if (!image_config) {
-        fprintf(stderr, "Invalid image config: NULL pointer\n");
+        SVT_ERROR("Invalid image config: NULL pointer\n");
         return NULL;
     }
     if (image_config->components_num > MAX_COMPONENTS_NUM) {
-        fprintf(stderr,
-                "Invalid image config: components_num (%u) exceeds maximum (%u)\n",
-                image_config->components_num,
-                MAX_COMPONENTS_NUM);
+        SVT_ERROR("Invalid image config: components_num (%u) exceeds maximum (%u)\n",
+                  image_config->components_num,
+                  MAX_COMPONENTS_NUM);
         return NULL;
     }
 
@@ -46,13 +46,13 @@ PREFIX_API svt_jpeg_xs_image_buffer_t* svt_jpeg_xs_image_buffer_alloc(svt_jpeg_x
     if (image_config->format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
         const uint64_t stride64 = (uint64_t)image_config->components[0].width * 3;
         if (stride64 > UINT32_MAX) {
-            fprintf(stderr, "Image buffer alloc overflow: stride %" PRIu64 " exceeds uint32 max\n", stride64);
+            SVT_ERROR("Image buffer alloc overflow: stride %" PRIu64 " exceeds uint32 max\n", stride64);
             svt_jpeg_xs_image_buffer_free(image_buffer);
             return NULL;
         }
         const uint64_t alloc64 = stride64 * image_config->components[0].height * pixel_size;
         if (alloc64 > UINT32_MAX) {
-            fprintf(stderr, "Image buffer alloc overflow: alloc_size %" PRIu64 " exceeds uint32 max\n", alloc64);
+            SVT_ERROR("Image buffer alloc overflow: alloc_size %" PRIu64 " exceeds uint32 max\n", alloc64);
             svt_jpeg_xs_image_buffer_free(image_buffer);
             return NULL;
         }
@@ -70,8 +70,7 @@ PREFIX_API svt_jpeg_xs_image_buffer_t* svt_jpeg_xs_image_buffer_alloc(svt_jpeg_x
             const uint64_t alloc64 = (uint64_t)image_config->components[c].width * image_config->components[c].height *
                 pixel_size;
             if (alloc64 > UINT32_MAX) {
-                fprintf(
-                    stderr, "Image buffer alloc overflow: component %u alloc_size %" PRIu64 " exceeds uint32 max\n", c, alloc64);
+                SVT_ERROR("Image buffer alloc overflow: component %u alloc_size %" PRIu64 " exceeds uint32 max\n", c, alloc64);
                 svt_jpeg_xs_image_buffer_free(image_buffer);
                 return NULL;
             }
@@ -185,10 +184,9 @@ PREFIX_API svt_jpeg_xs_frame_pool_t* svt_jpeg_xs_frame_pool_alloc(const svt_jpeg
             frame_pool->use_image_buffer = 0;
         }
         else if (image_config->components_num > MAX_COMPONENTS_NUM) {
-            fprintf(stderr,
-                    "Invalid image config: components_num (%u) exceeds maximum (%u)\n",
-                    image_config->components_num,
-                    MAX_COMPONENTS_NUM);
+            SVT_ERROR("Invalid image config: components_num (%u) exceeds maximum (%u)\n",
+                      image_config->components_num,
+                      MAX_COMPONENTS_NUM);
             svt_jpeg_xs_frame_pool_free(frame_pool);
             return NULL;
         }

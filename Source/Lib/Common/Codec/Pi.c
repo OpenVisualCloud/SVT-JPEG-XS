@@ -10,6 +10,7 @@
 #include <string.h>
 #include "SvtJpegxs.h"
 #include "SvtUtility.h"
+#include "SvtLog.h"
 
 void set_precinct(pi_t* pi, precinct_band_info_t* b_info, uint32_t width, uint32_t height) {
     b_info->width = width;
@@ -591,11 +592,10 @@ SvtJxsErrorType_t pi_update_proxy_mode(pi_t* pi, proxy_mode_t proxy_mode, uint32
 
     if (proxy_subsampling > pi->decom_v || proxy_subsampling > pi->decom_h) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr,
-                    "Cannot use proxy-mode=%d for stream with decomp_v=%d decomp_h=%d\n",
-                    proxy_mode,
-                    pi->decom_v,
-                    pi->decom_h);
+            SVT_ERROR("Cannot use proxy-mode=%d for stream with decomp_v=%d decomp_h=%d\n",
+                      proxy_mode,
+                      pi->decom_v,
+                      pi->decom_h);
         }
         return SvtJxsErrorBadParameter;
     }

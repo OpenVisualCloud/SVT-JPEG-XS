@@ -12,6 +12,7 @@
 #include "PackPrecinct.h"
 #include "SvtUtility.h"
 #include "encoder_dsp_rtcd.h"
+#include "SvtLog.h"
 
 #define PRINT_RECALC_VPRED 0
 
@@ -866,7 +867,7 @@ static SvtJxsErrorType_t rate_control_find_best_quantization_refinement(svt_jpeg
     ret = rate_control_find_best_quantization(
         enc_common, budget_bytes, precinct, out_quantization, coding_vertical_prediction_mode, coding_signs_handling);
     if (ret) {
-        fprintf(stderr, "[%s[%d]] RC precinct error not found quantization\n", __FUNCTION__, __LINE__);
+        SVT_ERROR("[%s[%d]] RC precinct error not found quantization\n", __FUNCTION__, __LINE__);
         return ret;
     }
 #if PRINT_RECALC_VPRED
@@ -881,7 +882,7 @@ static SvtJxsErrorType_t rate_control_find_best_quantization_refinement(svt_jpeg
                                             coding_vertical_prediction_mode,
                                             coding_signs_handling);
     if (ret) {
-        fprintf(stderr, "[%s[%d]] RC precinct error not found refinement\n", __FUNCTION__, __LINE__);
+        SVT_ERROR("[%s[%d]] RC precinct error not found refinement\n", __FUNCTION__, __LINE__);
     }
     return ret;
 }
@@ -1218,7 +1219,7 @@ static SvtJxsErrorType_t rate_control_find_best_quantization_refinement_binary_s
         enc_common, budget_bytes, precinct, out_quantization, coding_vertical_prediction_mode, coding_signs_handling);
     if (ret) {
 #ifndef NDEBUG
-        fprintf(stderr, "[%s[%d]] RC precinct error not found quantization\n", __FUNCTION__, __LINE__);
+        SVT_ERROR("[%s[%d]] RC precinct error not found quantization\n", __FUNCTION__, __LINE__);
 #endif
         return ret;
     }
@@ -1235,7 +1236,7 @@ static SvtJxsErrorType_t rate_control_find_best_quantization_refinement_binary_s
                                                           coding_signs_handling);
 #ifndef NDEBUG
     if (ret) {
-        fprintf(stderr, "[%s[%d]] RC precinct error not found refinement\n", __FUNCTION__, __LINE__);
+        SVT_ERROR("[%s[%d]] RC precinct error not found refinement\n", __FUNCTION__, __LINE__);
     }
 #endif
     return ret;
@@ -1265,7 +1266,7 @@ SvtJxsErrorType_t rate_control_precinct(struct PictureControlSet *pcs_ptr, preci
 
     if (budget_bytes > PRECINCT_MAX_BYTES_SIZE) {
 #ifndef NDEBUG
-        fprintf(stderr, "[%s[%d]] RC precinct error Precinct size is Too BIG, use smaller bpp value!!\n", __FUNCTION__, __LINE__);
+        SVT_ERROR("[%s[%d]] RC precinct error Precinct size is Too BIG, use smaller bpp value!!\n", __FUNCTION__, __LINE__);
 #endif
         return SvtJxsErrorEncodeFrameError;
     }
@@ -1273,7 +1274,7 @@ SvtJxsErrorType_t rate_control_precinct(struct PictureControlSet *pcs_ptr, preci
     uint32_t headers_bytes = rate_control_get_headers_bytes(enc_common, precinct);
     if (budget_bytes <= headers_bytes) {
 #ifndef NDEBUG
-        fprintf(stderr, "Impossible compression. Please use bigger bpp param!\n");
+        SVT_ERROR("Impossible compression. Please use bigger bpp param!\n");
 #endif
         return SvtJxsErrorUndefined;
     }
@@ -1346,7 +1347,7 @@ SvtJxsErrorType_t rate_control_slice_quantization_fast_no_vpred_no_sign_full(str
 
     if (DIV_ROUND_UP(budget_slice_bytes, prec_num) > PRECINCT_MAX_BYTES_SIZE) {
 #ifndef NDEBUG
-        fprintf(stderr, "[%s[%d]] RC precinct error Precinct size is Too BIG, use smaller bpp value!!\n", __FUNCTION__, __LINE__);
+        SVT_ERROR("[%s[%d]] RC precinct error Precinct size is Too BIG, use smaller bpp value!!\n", __FUNCTION__, __LINE__);
 #endif
         return SvtJxsErrorEncodeFrameError;
     }
@@ -1358,7 +1359,7 @@ SvtJxsErrorType_t rate_control_slice_quantization_fast_no_vpred_no_sign_full(str
     }
     if (budget_slice_bytes <= headers_bytes) {
 #ifndef NDEBUG
-        fprintf(stderr, "Impossible compression. Please use bigger bpp param!\n");
+        SVT_ERROR("Impossible compression. Please use bigger bpp param!\n");
 #endif
         return SvtJxsErrorUndefined;
     }
@@ -1376,7 +1377,7 @@ SvtJxsErrorType_t rate_control_slice_quantization_fast_no_vpred_no_sign_full(str
         enc_common, budget_slice_to_data_bytes, precincts, prec_num, &quantization, coding_signs_handling);
     if (ret) {
 #ifndef NDEBUG
-        fprintf(stderr, "[%s[%d]] RC precinct error not found quantization\n", __FUNCTION__, __LINE__);
+        SVT_ERROR("[%s[%d]] RC precinct error not found quantization\n", __FUNCTION__, __LINE__);
 #endif
         return ret;
     }
@@ -1390,7 +1391,7 @@ SvtJxsErrorType_t rate_control_slice_quantization_fast_no_vpred_no_sign_full(str
                                                                                      coding_signs_handling);
     if (ret) {
 #ifndef NDEBUG
-        fprintf(stderr, "[%s[%d]] RC precinct error not found refinement\n", __FUNCTION__, __LINE__);
+        SVT_ERROR("[%s[%d]] RC precinct error not found refinement\n", __FUNCTION__, __LINE__);
 #endif
         return ret;
     }
@@ -1405,7 +1406,7 @@ SvtJxsErrorType_t rate_control_slice_quantization_fast_no_vpred_no_sign_full(str
         int empty = precinct_encoder_compute_truncation(&enc_common->pi, &precincts[i], quantization, refinement);
         if (empty) {
 #ifndef NDEBUG
-            fprintf(stderr, "[%s[%d]] RC Invalid recalculate truncation!\n", __FUNCTION__, __LINE__);
+            SVT_ERROR("[%s[%d]] RC Invalid recalculate truncation!\n", __FUNCTION__, __LINE__);
 #endif
             return SvtJxsErrorEncodeFrameError;
         }

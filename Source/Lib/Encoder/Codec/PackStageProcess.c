@@ -310,7 +310,7 @@ static SvtJxsErrorType_t process_precinct(PictureControlSet* pcs_ptr, svt_jpeg_x
 
     if (error) {
 #ifndef NDEBUG
-        fprintf(stderr, "Error calculate RC for precinct: %i\n", prec_idx);
+        SVT_ERROR("Error calculate RC for precinct: %i\n", prec_idx);
 #endif
         return error;
     }
@@ -373,7 +373,7 @@ static SvtJxsErrorType_t process_slice(PictureControlSet* pcs_ptr, svt_jpeg_xs_e
         pcs_ptr, precincts, prec_num, slice_budget_bytes, enc_common->coding_signs_handling);
     if (error) {
 #ifndef NDEBUG
-        fprintf(stderr, "Error calculate RC for slice: %i\n", pack_input->slice_idx);
+        SVT_ERROR("Error calculate RC for slice: %i\n", pack_input->slice_idx);
 #endif
         return error;
     }
@@ -521,7 +521,7 @@ static SvtJxsErrorType_t process_slice(PictureControlSet* pcs_ptr, svt_jpeg_xs_e
                                       enc_common->coding_signs_handling);
         if (error) {
 #ifndef NDEBUG
-            fprintf(stderr, "Error pack  precinct: %i\n", prec_first_idx + i);
+            SVT_ERROR("Error pack  precinct: %i\n", prec_first_idx + i);
 #endif
             return error;
         }
@@ -549,7 +549,7 @@ static SvtJxsErrorType_t process_slice(PictureControlSet* pcs_ptr, svt_jpeg_xs_e
         error = pack_precinct(bitstream, pi, &precincts[i], enc_common->coding_signs_handling);
         if (error) {
 #ifndef NDEBUG
-            fprintf(stderr, "Error pack  precinct: %i\n", prec_first_idx + i);
+            SVT_ERROR("Error pack  precinct: %i\n", prec_first_idx + i);
 #endif
             return error;
         }
@@ -677,7 +677,7 @@ void* pack_stage_kernel(void* input_ptr) {
                                          &budget_padding_left_bytes);
                 if (error) {
 #ifndef NDEBUG
-                    fprintf(stderr, "err happen when pack prec\n");
+                    SVT_ERROR("err happen when pack prec\n");
 #endif
                     break;
                 }
@@ -696,7 +696,7 @@ void* pack_stage_kernel(void* input_ptr) {
                                   &bitstream);
 #ifndef NDEBUG
             if (error) {
-                fprintf(stderr, "Error calculate RC or pack for slice: %i\n", pack_input->slice_idx);
+                SVT_ERROR("Error calculate RC or pack for slice: %i\n", pack_input->slice_idx);
             }
 #endif
         }
@@ -706,11 +706,10 @@ void* pack_stage_kernel(void* input_ptr) {
             uint32_t used_bytes = bitstream_writer_get_used_bytes(&bitstream);
             uint32_t used_bytes_expected = pack_input->out_bytes_end - pack_input->out_bytes_begin;
             if (used_bytes_expected != used_bytes) {
-                fprintf(stderr,
-                        "Error pack slice: %i, Expected write to bitstream: %u Get: %u\n",
-                        pack_input->slice_idx,
-                        used_bytes_expected,
-                        used_bytes);
+                SVT_ERROR("Error pack slice: %i, Expected write to bitstream: %u Get: %u\n",
+                          pack_input->slice_idx,
+                          used_bytes_expected,
+                          used_bytes);
                 assert(0);
             }
         }

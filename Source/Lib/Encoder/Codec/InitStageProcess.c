@@ -105,14 +105,14 @@ static int32_t validate_yuv_range(pi_t *pi, svt_jpeg_xs_image_buffer_t *image_bu
                 }
                 for (uint32_t x = 0; x < width; ++x) {
                     if (plane_buffer_in[x] & test_input_range) {
-                        fprintf(stderr,
-                                "Warning: Invalid YUV have values out of a range %u bits!! Frame: %lu, Component: %u, x: %u, y: "
-                                "%u!!\n",
-                                input_bit_depth,
-                                (unsigned long)frame,
-                                component_id,
-                                x,
-                                y);
+                        SVT_WARN(
+                            "Warning: Invalid YUV have values out of a range %u bits!! Frame: %lu, Component: %u, x: %u, y: "
+                            "%u!!\n",
+                            input_bit_depth,
+                            (unsigned long)frame,
+                            component_id,
+                            x,
+                            y);
                         return -1;
                     }
                 }

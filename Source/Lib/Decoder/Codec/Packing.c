@@ -9,6 +9,7 @@
 #include "EncDec.h"
 #include "Codestream.h"
 #include "decoder_dsp_rtcd.h"
+#include "SvtLog.h"
 
 typedef struct vlc_reader {
     uint8_t const* mem;
@@ -536,7 +537,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
         coding_modes[band] = read_2_bit(bitstream);
         if (prec_top == NULL && (coding_modes[band] & CODING_MODE_FLAG_VERTICAL_PRED)) {
             if (verbose >= VERBOSE_ERRORS) {
-                fprintf(stderr, "Error: First precinct in Slice could not have Vertical Prediction!\n");
+                SVT_ERROR("Error: First precinct in Slice could not have Vertical Prediction!\n");
             }
             return SvtJxsErrorDecoderInvalidBitstream;
         }
@@ -660,7 +661,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                                 &precinct_bits_left);
                             if (ret) {
                                 if (verbose >= VERBOSE_ERRORS) {
-                                    fprintf(stderr,
+                                    SVT_ERROR(
                                             "Error: Invalid Variable Length Coding, Vertical Prediction Significance!!!\n");
                                 }
                                 return SvtJxsErrorDecoderInvalidBitstream;
@@ -672,7 +673,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                                 bitstream, &prec->bands[c][b], &prec->p_info->b_info[c][b], ypos, &precinct_bits_left);
                             if (ret) {
                                 if (verbose >= VERBOSE_ERRORS) {
-                                    fprintf(stderr, "Error: Invalid Variable Length Coding, Predict from zero Significance!!!\n");
+                                    SVT_ERROR("Error: Invalid Variable Length Coding, Predict from zero Significance!!!\n");
                                 }
                                 return SvtJxsErrorDecoderInvalidBitstream;
                             }
@@ -691,7 +692,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                                 &precinct_bits_left);
                             if (ret) {
                                 if (verbose >= VERBOSE_ERRORS) {
-                                    fprintf(stderr,
+                                    SVT_ERROR(
                                             "Error: Invalid Variable Length Coding, Vertical Prediction Non Significance!!!\n");
                                 }
                                 return SvtJxsErrorDecoderInvalidBitstream;
@@ -703,7 +704,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                                 bitstream, &prec->bands[c][b], &prec->p_info->b_info[c][b], ypos, &precinct_bits_left);
                             if (ret) {
                                 if (verbose >= VERBOSE_ERRORS) {
-                                    fprintf(stderr,
+                                    SVT_ERROR(
                                             "Error: Invalid Variable Length Coding, Predict from zero Non Significance!!!\n");
                                 }
                                 return SvtJxsErrorDecoderInvalidBitstream;
@@ -722,7 +723,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
             int32_t leftover = (int32_t)pkt_header.gcli_len - (int32_t)subpkt_len_bytes;
             if (leftover > 0 && bitstream_reader_is_enough_bytes(bitstream, leftover)) {
                 if (verbose >= VERBOSE_WARNINGS) {
-                    fprintf(stderr, "WARNING: (GCLI) skipped=%d\n", leftover);
+                    SVT_WARN("WARNING: (GCLI) skipped=%d\n", leftover);
                 }
                 bitstream_reader_add_padding(bitstream, leftover);
                 // Fix: Deduct padding from budget to prevent drift between
@@ -731,7 +732,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
             }
             else {
                 if (verbose >= VERBOSE_ERRORS) {
-                    fprintf(stderr,
+                    SVT_ERROR(
                             "Error: (GCLI) corruption detected - unpacked=%d , expected=%d\n",
                             subpkt_len_bytes,
                             pkt_header.gcli_len);
@@ -765,7 +766,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
 
                 if (ret) {
                     if (verbose >= VERBOSE_ERRORS) {
-                        fprintf(stderr, "Error: unpack_data, invalid bitstream!!!\n");
+                        SVT_ERROR("Error: unpack_data, invalid bitstream!!!\n");
                     }
                     return SvtJxsErrorDecoderInvalidBitstream;
                 }
@@ -780,7 +781,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
             int32_t leftover = (int32_t)pkt_header.data_len - (int32_t)subpkt_len_bytes;
             if (leftover > 0 && bitstream_reader_is_enough_bytes(bitstream, leftover)) {
                 if (verbose >= VERBOSE_WARNINGS) {
-                    fprintf(stderr, "WARNING: (DATA) skipped=%d\n", leftover);
+                    SVT_WARN("WARNING: (DATA) skipped=%d\n", leftover);
                 }
                 bitstream_reader_add_padding(bitstream, leftover);
                 // Fix: Deduct padding from budget to prevent drift between
@@ -789,7 +790,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
             }
             else {
                 if (verbose >= VERBOSE_ERRORS) {
-                    fprintf(stderr,
+                    SVT_ERROR(
                             "Error: (DATA) corruption detected - unpacked=%d , expected=%d\n",
                             subpkt_len_bytes,
                             pkt_header.data_len);
@@ -817,7 +818,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                                                         &precinct_bits_left);
                     if (ret) {
                         if (verbose >= VERBOSE_ERRORS) {
-                            fprintf(stderr, "Error: unpack_sign, invalid bitstream!!!\n");
+                            SVT_ERROR("Error: unpack_sign, invalid bitstream!!!\n");
                         }
                         return SvtJxsErrorDecoderInvalidBitstream;
                     }
@@ -831,7 +832,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                 int32_t leftover = (int32_t)pkt_header.sign_len - (int32_t)subpkt_len_bytes;
                 if (leftover > 0 && bitstream_reader_is_enough_bytes(bitstream, leftover)) {
                     if (verbose >= VERBOSE_WARNINGS) {
-                        fprintf(stderr, "WARNING: (SIGN) skipped=%d\n", leftover);
+                        SVT_WARN("WARNING: (SIGN) skipped=%d\n", leftover);
                     }
                     bitstream_reader_add_padding(bitstream, leftover);
                     // Fix: Deduct padding from budget to prevent drift between
@@ -840,7 +841,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                 }
                 else {
                     if (verbose >= VERBOSE_ERRORS) {
-                        fprintf(stderr,
+                        SVT_ERROR(
                                 "Error: (SIGN) corruption detected - unpacked=%d , expected=%d\n",
                                 subpkt_len_bytes,
                                 pkt_header.sign_len);
@@ -855,7 +856,7 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
         ((int32_t)bitstream_reader_get_used_bytes(bitstream) - (int32_t)byte_pos_precinct);
     if (padding_len_bytes < 0) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr,
+            SVT_ERROR(
                     "Error: (PRECINCT) corruption detected size, expected max =%d , get=%d\n",
                     precinct_len_bytes,
                     bitstream_reader_get_used_bytes(bitstream) + (int32_t)byte_pos_precinct);

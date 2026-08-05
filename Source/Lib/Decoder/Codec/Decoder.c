@@ -10,6 +10,7 @@
 #include "Packing.h"
 #include "Precinct.h"
 #include "Mct.h"
+#include "SvtLog.h"
 
 #include "NltDec.h"
 
@@ -527,7 +528,7 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_slice(svt_jpeg_xs_decoder_instance_t* ctx, 
     }
     if (slice_idx != slice) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: (slice index) corruption detected  index=%d , expected=%d\n", slice_idx, slice);
+            SVT_ERROR("Error: (slice index) corruption detected  index=%d , expected=%d\n", slice_idx, slice);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
