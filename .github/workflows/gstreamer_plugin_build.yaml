@@ -56,9 +56,18 @@ jobs:
       - name: 'Build: SVT-JPEG-XS and minimal GStreamer with the svtjpegxs plugin'
         run: .github/scripts/build_gstreamer_plugin.sh
 
-      - name: 'Test: gst-launch svtjpegxsenc/svtjpegxsdec round-trip pipelines'
+      - name: 'Test: GStreamer encoder test suite'
+        working-directory: ${{ github.workspace }}/tests/scripts
         run: |
-          source gst-plugin-env.sh
-          tests/scripts/GstreamerPluginTest.sh "$INPUT_FILES_PATH"
+          source ${{ github.workspace }}/gst-plugin-env.sh
+          ./GstreamerEncodeTest.sh "$INPUT_FILES_PATH"
+        env:
+          INPUT_FILES_PATH: /opt/samples
+
+      - name: 'Test: GStreamer decoder conformance test suite'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          source ${{ github.workspace }}/gst-plugin-env.sh
+          ./GstreamerDecoderConformanceTest.sh "$INPUT_FILES_PATH"
         env:
           INPUT_FILES_PATH: /opt/samples
