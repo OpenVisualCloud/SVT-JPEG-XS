@@ -8,3 +8,8 @@ Build/coverage_linux
 *.patch
 *.raw
 *.log
+
+.mcp/
+.vscode/
+.github/skills/
+.github/instructions/

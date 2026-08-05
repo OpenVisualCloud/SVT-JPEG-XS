@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000a Mon Sep 17 00:00:00 2001
+From: SVT-JPEG-XS Contributors <noreply@openvisualcloud.org>
+Date: Wed, 22 Jul 2026 00:00:00 +0000
+Subject: [PATCH] avcodec/libsvtjpegxsdec: add GRAY format support
+
+FFmpeg >= 8.1 ships its own copy of libavcodec/libsvtjpegxsdec.c
+(patched in-tree by 0003-Add-GBR-formats-and-chunk-decoding-to-SVT-JPEG-XS-codec.patch),
+so it never picks up the out-of-tree fix already present in
+ffmpeg-plugin/libsvtjpegxsdec.c that maps COLOUR_FORMAT_GRAY and
+COLOUR_FORMAT_PLANAR_YUV400 to the AV_PIX_FMT_GRAY* family.
+
+Without this, decoding any GRAY/mono bitstream fails with
+"Unsupported pixel format." / set_pix_fmt failed, since set_pix_fmt()
+falls through to the default error branch for that colour_format.
+
+Add the missing branch, mirroring ffmpeg-plugin/libsvtjpegxsdec.c.
+---
+ libavcodec/libsvtjpegxsdec.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/libavcodec/libsvtjpegxsdec.c b/libavcodec/libsvtjpegxsdec.c
+index 325bef76f0..a1b2c3d4e5 100644
+--- a/libavcodec/libsvtjpegxsdec.c
++++ b/libavcodec/libsvtjpegxsdec.c
+@@ -94,10 +94,30 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_image_config_t config) {
+         else {
+             avctx->pix_fmt = AV_PIX_FMT_YUV444P14LE;
+         }
+     }
++    else if (config.format == COLOUR_FORMAT_GRAY || config.format == COLOUR_FORMAT_PLANAR_YUV400) {
++        if (config.bit_depth == 8) {
++            avctx->pix_fmt = AV_PIX_FMT_GRAY8;
++        }
++        else if (config.bit_depth == 9) {
++            avctx->pix_fmt = AV_PIX_FMT_GRAY9LE;
++        }
++        else if (config.bit_depth == 10) {
++            avctx->pix_fmt = AV_PIX_FMT_GRAY10LE;
++        }
++        else if (config.bit_depth == 12) {
++            avctx->pix_fmt = AV_PIX_FMT_GRAY12LE;
++        }
++        else if (config.bit_depth <= 14) {
++            avctx->pix_fmt = AV_PIX_FMT_GRAY14LE;
++        }
++        else {
++            avctx->pix_fmt = AV_PIX_FMT_GRAY16LE;
++        }
++    }
+     else {
+         av_log(avctx, AV_LOG_ERROR, "Unsupported pixel format.\n");
+         return AVERROR_INVALIDDATA;
+     }
+     return 0;
+ }
+-- 
+2.53.0

@@ -206,6 +206,39 @@ coding-vpred|optional|(default:off), 0(off), 1(on)|Coding feature: Vertical-pred
 coding-raw|optional|(default:auto/enabled), true(enabled), false(disable for legacy-decoder compatibility)|Coding feature: packet-based raw-mode coding
 cap-compat|optional|(default:auto/disabled), true(enabled), false(disabled)|Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required
 
+### Stream profile (Ppih) and level (Plev)
+
+The picture header's profile (Ppih) and level (Plev) fields are normally derived automatically from
+the input pixel format, resolution and `-bpp`. To override them, use ffmpeg's generic `-profile`/
+`-level` options (these are not libsvtjpegxs-private options, they are the same options every ffmpeg
+encoder exposes) - do not use a plugin-specific flag for this.
+
+```text
+./ffmpeg -y -i <input> -c:v libsvtjpegxs -bpp 8 -profile:v main444 -level:v 8k-1 out.mov
+```
+
+Use `-profile:v`/`-level:v` (with the `:v` stream specifier) rather than bare `-profile`/`-level`:
+ffmpeg prints `-profile is ambiguous` and warns when the specifier is omitted, even though the value
+is still applied correctly in a video-only pipeline.
+
+Name|mandatory/optional|Accepted values|description
+--|--|--|--
+profile|optional|(default: unset/auto-derive), a name (light422, light444, lightsubline422, main420, main422, main444, main4444, high420, high444, high4444) or a raw 0-65535 value (e.g. 0x3540)|Override the auto-derived stream profile (Ppih) written into the picture header
+level|optional|(default: unset/auto-derive), a name (unrestricted, 1k-1, 2k-1, 4k-1, 4k-2, 4k-3, 5k-1, 8k-1, 8k-2, 8k-3, 10k-1) or a raw 0-65535 value (e.g. 0x0810) to also set an explicit sublevel|Override the auto-derived stream level (Plev) written into the picture header
+
+Notes:
+
+- Leaving `-profile`/`-level` unset (the default) keeps the existing auto-derive behavior: the
+  encoder always signals a validly-defined ISO/IEC 21122-2 Annex A codeword based on the actual
+  encoder configuration.
+- Named values only cover the "Main" profile family and the resolution/level portion of Plev (bits
+  [15:10]); use a raw hex/decimal value instead of a name for Light/High family profiles or to also
+  set an explicit sublevel/FBB-level.
+- These names and values mirror the SvtJpegxsEncApp's `--stream-profile`/`--stream-level` CLI options
+  (see [documentation/encoder/EncoderSnippets.md](../documentation/encoder/EncoderSnippets.md) and
+  `Source/App/EncApp/EncAppConfig.c`) and `Source/Lib/Encoder/Codec/ProfileLevel.h`.
+- Out-of-range values (outside 0-65535) are rejected with an error at encoder init.
+
 ## libsvtjpegxs decoder available params
 
 Name|mandatory/optional|Accepted values|description

@@ -41,9 +41,19 @@ cd "$PWD"
 git config --global user.email "runner@github.com"
 git config --global user.name "action-runner"
 
-git clone https://git.ffmpeg.org/ffmpeg.git "ffmpeg-$FFMPEG_VERSION"
+clone_attempt=1
+max_clone_attempts=5
+until git clone --branch "release/$FFMPEG_VERSION" --depth 1 https://git.ffmpeg.org/ffmpeg.git "ffmpeg-${FFMPEG_VERSION}"; do
+    if [[ "$clone_attempt" -ge "$max_clone_attempts" ]]; then
+        echo "git clone failed after $max_clone_attempts attempts, giving up."
+        exit 1
+    fi
+    clone_attempt=$((clone_attempt + 1))
+    echo "git clone failed (attempt $((clone_attempt - 1))/$max_clone_attempts), retrying in 10s..."
+    rm -rf "ffmpeg-${FFMPEG_VERSION}"
+    sleep 10
+done
 cd "ffmpeg-$FFMPEG_VERSION"
-git checkout "release/$FFMPEG_VERSION"
 
 # 4. Apply jpeg-xs plugin patches
 if [[ "$COPY_FILES" == "y" ]]; then
