@@ -12,18 +12,15 @@
 #ifndef _SVT_LOG_H_
 #define _SVT_LOG_H_
 
+#include "SvtJpegxs.h" // SvtLogLevel, SvtJxsLogCallback
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 #ifndef LOG_TAG
 #define LOG_TAG "Svt"
 #endif
-
-typedef enum {
-    SVT_LOG_ALL = -1,
-    SVT_LOG_FATAL = 0,
-    SVT_LOG_ERROR = 1,
-    SVT_LOG_WARN = 2,
-    SVT_LOG_INFO = 3,
-    SVT_LOG_DEBUG = 4,
-} SvtLogLevel;
 
 // define this to turn off all library log
 //#define SVT_LOG_QUIET
@@ -63,5 +60,9 @@ typedef enum {
 
 void svt_jxs_log_init();
 void svt_jxs_log(SvtLogLevel level, const char *tag, const char *format, ...);
+
+#ifdef __cplusplus
+}
+#endif // __cplusplus
 
 #endif /*_SVT_LOG_H_*/

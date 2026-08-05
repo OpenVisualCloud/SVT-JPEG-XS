@@ -307,6 +307,21 @@ Please see [Encoder snippet](documentation/encoder/EncoderSnippets.md) for encod
 
 Please see [Decoder snippet](documentation/decoder/DecoderSnippets.md) for decoder structure overview and simplified decoder usage.
 
+## Logging
+
+By default, library log messages (errors, warnings, info) are printed to `stderr`. This can be
+controlled with two environment variables:
+
+- `SVT_LOG` - minimum log level to print: `-1`(all), `0`(fatal), `1`(error), `2`(warn), `3`(info,
+  default), `4`(debug). Out-of-range values are ignored and the default is kept.
+- `SVT_LOG_FILE` - path to a file to write log messages to instead of `stderr`.
+
+Host applications can also register a callback to intercept all log messages (e.g. to route them
+into an application-specific logger) via `svt_jpeg_xs_set_log_callback()`, declared in
+[Source/API/SvtJpegxs.h](Source/API/SvtJpegxs.h). This is a global, process-wide setting shared by
+all encoder/decoder instances, and must be called before the first log call happens (i.e. before any
+encoder/decoder init) to take effect.
+
 ## Notes
 
 The information in this document was compiled at `v0.10` of the code and may not
