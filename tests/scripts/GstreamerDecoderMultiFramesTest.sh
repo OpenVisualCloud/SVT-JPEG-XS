@@ -307,10 +307,13 @@ function test_all_broken {
     # broken_resolution_* is a distinct, GStreamer-chunking-specific case.
     test_dec 0 broken_decomh_Daylight_1280x720_8b_422_20fx1fx20f       560d305916e20f010098bc31ece5d5b6 1280 720 8 422 41
     test_dec 0 broken_bit_depth_Daylight_1280x720_8b_422_20fx1fx20f    560d305916e20f010098bc31ece5d5b6 1280 720 8 422 41
-    # broken_resolution_*: mid-stream resolution change desyncs the fixed-blocksize
-    # chunking strategy from that point on (see note 3) - only 1 frame's worth of
-    # valid output survives; this is the pinned, GStreamer-specific result.
-    test_dec 0 broken_resolution_Daylight_1280x720_8b_422_20fx1fx20f   1b47ea4294ac7b142a17c7c1e10d3dca 1280 720 8 422 41
+    # broken_resolution_*: the mid-stream resolution-change frame has a different
+    # byte size from the other 40, so the file is NOT uniformly splittable into 41
+    # equal chunks (file_size % 41 != 0). To avoid a false divisibility-check FAIL,
+    # nframes=1 is used: the entire file is pushed as one buffer; svtjpegxsdec parses
+    # one complete JPEG XS codestream from the buffer start and decodes only the first
+    # frame, silently ignoring the rest - the same 1-frame output as before (see note 3).
+    test_dec 0 broken_resolution_Daylight_1280x720_8b_422_20fx1fx20f   1b47ea4294ac7b142a17c7c1e10d3dca 1280 720 8 422 1
     test_dec 0 broken_weight_table_Daylight_1280x720_8b_422_20fx1fx20f 560d305916e20f010098bc31ece5d5b6 1280 720 8 422 41
     test_dec 0 broken_bitstream_Daylight_1280x720_8b_422_20fx1fx20f    560d305916e20f010098bc31ece5d5b6 1280 720 8 422 41
 }
