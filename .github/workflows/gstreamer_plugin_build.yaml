@@ -19,6 +19,7 @@ concurrency:
 
 env:
   JOBS_NUM: 100
+  INPUT_FILES_PATH: /opt/samples
 
 jobs:
   changes:
@@ -59,10 +60,21 @@ jobs:
       - name: 'Build: SVT-JPEG-XS and minimal GStreamer with the svtjpegxs plugin'
         run: .github/scripts/build_gstreamer_plugin.sh
 
+      - name: 'Build: Cleanup build tree (gst-build/ and .meson-venv/) to free disk space'
+        run: |
+          rm -rf "${{ github.workspace }}/gst-build"
+          rm -rf "${{ github.workspace }}/.meson-venv"
+
       - name: 'Test: GStreamer plugin test suites (parallel)'
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           source ${{ github.workspace }}/gst-plugin-env.sh
-          ./ParallelAllGstreamerTests.sh ${{ env.JOBS_NUM }} "$INPUT_FILES_PATH"
-        env:
-          INPUT_FILES_PATH: /opt/samples
+          ./ParallelAllGstreamerTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}"
+
+      - name: 'Upload test logs on failure'
+        if: failure()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: gstreamer-test-logs-${{ github.run_number }}
+          retention-days: 14
+          path: tests/scripts/tmp/

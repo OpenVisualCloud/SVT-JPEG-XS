@@ -162,6 +162,12 @@ function test_dec {
     esac
 
     file_size=$(stat -c%s "$bin_name")
+    if (( file_size % nframes != 0 )); then
+        echo "FAIL $name: file_size=$file_size is not divisible by nframes=$nframes - fixed-blocksize framing would desync"
+        error=1
+        end
+        return
+    fi
     frame_size=$((file_size / nframes))
 
 #   NOTE: uses eval (not a plain ${cmd} word-split call like the ffmpeg script) because

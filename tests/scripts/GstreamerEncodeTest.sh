@@ -164,13 +164,16 @@ function test_enc {
 
     if [ $decode_flag -ne 0 ]; then
 #       Check that the stream can be decoded back via svtjpegxsdec.
-#       NOTE: filesrc needs an exact "blocksize" (the full codestream size)
-#       and the capsfilter must be fully specified (including width/height/
-#       framerate) or the pipeline will not preroll - see
-#       tests/scripts/GstreamerPluginTest.sh / repo notes for details.
+#       NOTE: filesrc blocksize must be the PER-FRAME codestream size, not the
+#       total file size - svtjpegxsdec expects alignment=frame (one codestream
+#       per buffer). Using the full file size would only decode the first frame,
+#       silently masking failures in frames 2..N. CBR produces equal-size frames,
+#       so (total_size / frames) is exact. The capsfilter must also be fully
+#       specified (including width/height/framerate) or the pipeline won't preroll.
         if [ $ret -eq 0 ]; then
             jxsc_size=$(stat -c%s "$bin_path")
-            cmd="$exec_gst -q filesrc location=$bin_path blocksize=$jxsc_size ! \"image/x-jxsc,alignment=(string)frame,interlace-mode=(string)progressive,sampling=(string)$sampling,depth=(int)$depth,width=(int)$width,height=(int)$height,framerate=(fraction)25/1\" ! svtjpegxsdec ! filesink location=$out_yuv_path"
+            frame_jxsc_size=$((jxsc_size / frames))
+            cmd="$exec_gst -q filesrc location=$bin_path blocksize=$frame_jxsc_size ! \"image/x-jxsc,alignment=(string)frame,interlace-mode=(string)progressive,sampling=(string)$sampling,depth=(int)$depth,width=(int)$width,height=(int)$height,framerate=(fraction)25/1\" ! svtjpegxsdec ! filesink location=$out_yuv_path"
             echo "run command: $cmd"
             eval "$cmd"
             ret=$?

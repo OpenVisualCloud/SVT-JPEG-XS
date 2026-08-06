@@ -16,7 +16,7 @@
 #   1: git commit SHA on the GStreamer monorepo "main" branch to build
 #      (optional, defaults to the pinned commit below)
 
-set -e
+set -eu
 
 JPEGXS_REPO=$(pwd)
 GST_COMMIT=${1:-8ca913845a142ebbea86eede74292d840f12a046}
@@ -48,9 +48,12 @@ echo "=== 3. Ensure a new-enough Meson is available (repo's packaged one is usua
 # `pip install --user` outright. Use an isolated venv instead - works the
 # same everywhere and doesn't touch system/user site-packages.
 MESON_VENV="$JPEGXS_REPO/.meson-venv"
+# Always start from a clean venv so stale Meson/pip state on a persisted
+# self-hosted runner workspace cannot cause non-reproducible builds.
+rm -rf "$MESON_VENV"
 python3 -m venv "$MESON_VENV"
 export PATH="$MESON_VENV/bin:$PATH"
-python3 -m pip install --upgrade "meson>=1.4"
+python3 -m pip install --upgrade "meson==1.6.1"
 meson --version
 
 echo "=== 4. Fetch GStreamer monorepo at the pinned commit (shallow, no full-history clone) ==="
