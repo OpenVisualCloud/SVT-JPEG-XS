@@ -13,37 +13,13 @@ exec_gst="gst-launch-1.0"
 echo "gst-launch:       $exec_gst"
 echo "PATH BITSTERAMS:  $path_bitstreams"
 
-# NOTE on parity with FFmpegDecoderConformanceTest.sh:
-# The upstream GStreamer "svtjpegxs" plugin (svtjpegxsdec, in gst-plugins-bad,
-# see .github/scripts/build_gstreamer_plugin.sh) has a smaller supported
-# surface than the ffmpeg plugin, confirmed against the actual element (its
-# GST_STATIC_CAPS sink template and its ColourFormat_t -> GstVideoFormat
-# switch in gst_svt_jpeg_xs_dec_init_decoder()):
-#   - sink caps only allow "sampling = { YCbCr-4:4:4, YCbCr-4:2:2,
-#     YCbCr-4:2:0 }" and "depth = { 8, 10, 12 }". There is no "Grayscale"
-#     sampling value and no case for COLOUR_FORMAT_GRAY in the format switch,
-#     and no 4-component / COMPONENTS_4 support at all (same gap the ffmpeg
-#     plugin has). Depths other than 8/10/12 (e.g. 11-bit, 13-bit, 14-bit)
-#     are rejected by the sink caps outright ("can't handle caps" pad link
-#     failure). Test cases exercising those are skipped below.
-#   - Separately (and unlike the ffmpeg plugin), decoding a codestream whose
-#     height is ODD succeeds, but the raw bytes written to filesink will NOT
-#     be byte-identical to the tightly-packed reference_decode/*.yuv file:
-#     GStreamer's default raw-video buffer allocation pads the row count of
-#     every plane up to an even number (one extra, uninitialized-content
-#     padding row per plane) whenever height is odd. This was confirmed by
-#     manually decoding several odd-height streams (e.g. name 020, height
-#     2703): the pipeline exits 0 and the *content* up to that point matches,
-#     but the output file is larger than the reference and `diff` reports a
-#     mismatch starting exactly at the plane boundary. This is a buffer
-#     allocation/stride artifact of raw video sinks, not a decode
-#     correctness bug, so those cases are skipped too (rather than reporting
-#     a false FAIL). videoconvert does not help here since it also
-#     negotiates/copies using the same default (even-row-padded) buffer
-#     layout.
-# All other (non-skipped) test cases below were verified to decode
-# successfully via gst-launch-1.0 and produce output that is byte-identical
-# (diff-clean) against the corresponding reference_decode/*.yuv file.
+# svtjpegxsdec limitations vs ffmpeg (reason for skipped test cases below):
+#   - Depth: only 8/10/12-bit accepted; 11/13/14-bit fail at caps negotiation.
+#   - Sampling: no Grayscale; no 4-component (COMPONENTS_4) support.
+#   - Odd heights: GStreamer's raw-video buffer allocator pads odd row counts to even,
+#     so filesink output is larger than the reference YUV and diff always fails.
+#     The decode itself succeeds; this is a buffer layout artifact, not a decoder bug.
+# All other test cases produce diff-clean output against reference_decode/*.yuv.
 
 error=0
 
@@ -81,11 +57,6 @@ function test_dec {
     fi
     out_yuv=./$tmp_dir/$(basename "$ref_yuv")
 
-#   Caps parsing: reference_decode filenames encode the exact stream
-#   properties, e.g. "021_12192x2703_10bit_YUV422.yuv" -> width=12192
-#   height=2703 depth=10 format=YUV422. GStreamer needs those spelled out
-#   explicitly in the sink caps (unlike ffmpeg's jpegxs_pipe demuxer, which
-#   probes the bitstream header itself), or the pipeline fails to preroll.
     ref_base=$(basename "$ref_yuv" .yuv)
     rest=${ref_base#*_}
     wh=${rest%%_*}
@@ -117,10 +88,7 @@ function test_dec {
     tail -c +$((offset+1)) "$src_jxs" > "$stripped_jxs"
     jxsc_size=$(stat -c%s "$stripped_jxs")
 
-#   NOTE: uses eval (not a plain ${cmd} word-split call like the ffmpeg
-#   script) because the caps string below contains parentheses (e.g.
-#   "(fraction)"), which need real shell quoting to avoid being
-#   misinterpreted as shell syntax.
+#   eval is used because the caps string contains parentheses that confuse plain word-splitting.
     cmd="$valgrind$exec_gst -q filesrc location=$stripped_jxs blocksize=$jxsc_size ! \"image/x-jxsc,alignment=(string)frame,interlace-mode=(string)progressive,sampling=(string)$sampling,depth=(int)$depth,width=(int)$width,height=(int)$height,framerate=(fraction)25/1\" ! svtjpegxsdec ! filesink location=$out_yuv"
     echo "run command: $cmd"
     eval "$cmd"

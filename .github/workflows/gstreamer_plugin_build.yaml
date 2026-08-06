@@ -38,9 +38,7 @@ jobs:
 
   gstreamer-linux-build-test:
     needs: changes
-    # Skip on fork PRs: self-hosted runners are restricted to internal use
-    # and forked-repo PRs can't reach them, so the job would just hang.
-    if: ${{ needs.changes.outputs.changed == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    if: ${{ needs.changes.outputs.changed == 'true' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind']
     timeout-minutes: 120
     steps:

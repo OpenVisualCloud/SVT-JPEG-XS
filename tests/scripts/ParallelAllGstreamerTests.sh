@@ -4,12 +4,7 @@
 # SPDX - License - Identifier: BSD - 2 - Clause - Patent
 #
 # Runs all GStreamer svtjpegxs plugin functional tests in parallel.
-# Unlike ParallelAllTests.sh/ParallelAllFFmpegTests.sh, no decoder/encoder
-# binary path is needed as a parameter: all Gstreamer*.sh scripts invoke
-# "gst-launch-1.0" found via $PATH, so the caller only needs to have sourced
-# gst-plugin-env.sh (produced by .github/scripts/build_gstreamer_plugin.sh)
-# before running this script, exactly like the Gstreamer*.sh scripts
-# themselves are run directly in gstreamer_plugin_build.yaml.
+# Requires gst-plugin-env.sh to be sourced first (sets PATH/LD_LIBRARY_PATH/GST_PLUGIN_PATH).
 
 
 echo "Example: $0 parallel_number path_to_conformance_tests [...]"

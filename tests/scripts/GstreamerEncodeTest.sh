@@ -15,39 +15,11 @@ echo "Decode:          $decode_flag"
 echo "Path correct:    $path_correct"
 echo "gst-launch:      $exec_gst"
 
-# NOTE on parity with FFmpegEncoderTest.sh/EncoderTest.sh:
-# The upstream GStreamer "svtjpegxs" plugin (svtjpegxsenc/svtjpegxsdec, in
-# gst-plugins-bad, see .github/scripts/build_gstreamer_plugin.sh) does NOT
-# expose every AVOption the ffmpeg plugin has. Checked against the actual
-# element properties (gst-inspect-1.0 svtjpegxsenc/svtjpegxsdec):
-#   - "coding-vpred" (visual/coefficient prediction) and "coding-sigf"
-#     (significance flag) have NO equivalent GStreamer property at all -
-#     they are not settable from svtjpegxsenc, so no test below can
-#     exercise them and no MD5 parity claim is made for those knobs.
-#   - "-profile:v"/"-level:v" (Ppih/Plev override) likewise have no
-#     svtjpegxsenc property - omitted.
-#   - "-bpp" is the "bits-per-pixel" property (double), not "bpp".
-#   - "-quantization deadzone|uniform" is the "quant-mode" enum property
-#     (values: deadzone, uniform), not "quantization".
-#   - "-coding-raw 0|1" is the "coding-raw" BOOLEAN property (true/false),
-#     inverted sense is the same (true = raw-mode coding enabled). Only
-#     available when built against SVT-JPEG-XS API >= 0.10 (conditionally
-#     available property).
-#   - "-cap-compat 1" is the "cap-compat" BOOLEAN property (true/false),
-#     same conditional-availability caveat as coding-raw.
-#   - "-decomp_v"/"-decomp_h" map to "decomp-v"/"decomp-h" (unchanged
-#     semantics/range).
-#   - "-slice_height" maps to "slice-height", but the GStreamer property's
-#     valid range is only 1-16 (vs. ffmpeg's much larger range) - this is a
-#     real difference in the plugin's property definition, not a script
-#     bug, so no attempt is made to reuse ffmpeg's "-slice_height 120"
-#     value here.
-# All MD5s below were measured directly against this plugin build (not
-# copied from ffmpeg_encode_test.sh/EncoderTest.sh) - they are the actual
-# output of gst-launch-1.0 for each parameter combination. A couple of them
-# happen to be byte-identical to specific EncoderTest.sh/FFmpegEncoderTest.sh
-# rows (called out in comments below) which is expected: same library, same
-# effective parameters, so same bitstream.
+# svtjpegxsenc property mapping vs ffmpeg (not exposed in GStreamer: coding-vpred,
+# coding-sigf, -profile:v, -level:v). Name differences: bpp→bits-per-pixel,
+# quantization→quant-mode, slice_height→slice-height (range 1-16 only),
+# coding-raw 0/1→coding-raw false/true, cap-compat 1→cap-compat true.
+# All MD5s are measured from this plugin build.
 
 error=0
 
@@ -100,10 +72,8 @@ function test_enc {
     bin_path="$tmp_dir/"$bin_name".jxs"
     out_yuv_path="$tmp_dir/"$bin_name".yuv"
 
-#   Translate the ffmpeg-style pix_fmt into a rawvideoparse format nick and
-#   the exact byte size of one raw frame (rawvideoparse has no "encode only
-#   N frames" property, so the exact byte count for N frames has to be fed
-#   in via "head -c" instead).
+#   Map ffmpeg pix_fmt to GStreamer format nick; compute total bytes for N frames
+#   (rawvideoparse has no frame-count limit, so frame count is enforced via head -c).
     local gst_fmt sampling depth bytes_per_frame
     case $pix_fmt in
         yuv422p)
@@ -139,10 +109,7 @@ function test_enc {
     esac
     local total_bytes=$((bytes_per_frame * frames))
 
-#   Encode raw yuv to a raw jpegxs elementary stream and check expected error code.
-#   NOTE: uses eval (not a plain ${cmd} word-split call like the ffmpeg/App
-#   scripts) because this command line contains a shell pipe ("head -c ... |
-#   gst-launch-1.0 ..."), which needs real shell parsing to work.
+#   Encode to raw jpegxs; eval is used because the command contains a shell pipe.
     cmd="head -c $total_bytes $path_yuv | $valgrind$exec_gst -q fdsrc ! rawvideoparse format=$gst_fmt width=$width height=$height framerate=25/1 ! svtjpegxsenc $encoder_parameters ! filesink location=$bin_path"
     echo "run command: $cmd"
     eval "$cmd"
@@ -163,13 +130,8 @@ function test_enc {
     fi
 
     if [ $decode_flag -ne 0 ]; then
-#       Check that the stream can be decoded back via svtjpegxsdec.
-#       NOTE: filesrc blocksize must be the PER-FRAME codestream size, not the
-#       total file size - svtjpegxsdec expects alignment=frame (one codestream
-#       per buffer). Using the full file size would only decode the first frame,
-#       silently masking failures in frames 2..N. CBR produces equal-size frames,
-#       so (total_size / frames) is exact. The capsfilter must also be fully
-#       specified (including width/height/framerate) or the pipeline won't preroll.
+#       Decode back via svtjpegxsdec: blocksize=total/frames (alignment=frame;
+#       full file would decode only the first frame). Capsfilter must be fully specified.
         if [ $ret -eq 0 ]; then
             jxsc_size=$(stat -c%s "$bin_path")
             frame_jxsc_size=$((jxsc_size / frames))

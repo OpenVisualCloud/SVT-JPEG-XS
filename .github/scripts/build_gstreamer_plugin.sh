@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright(c) 2025 Intel Corporation
+# Copyright(c) 2026 Intel Corporation
 # SPDX - License - Identifier: BSD - 2 - Clause - Patent
 #
 # Builds SVT-JPEG-XS and a minimal GStreamer subset (core + gst-plugins-base
@@ -32,8 +32,6 @@ cd "$JPEGXS_REPO/Build/linux"
 cd "$JPEGXS_REPO"
 
 echo "=== 2. Make the SvtJpegxs.pc pkg-config file discoverable ==="
-# CMAKE_INSTALL_LIBDIR (via GNUInstallDirs) is "lib" on Debian/Ubuntu but
-# "lib64" on Fedora/RHEL - don't assume, find the actual install location.
 SVT_PC_FILE=$(find "$INSTALL_DIR" -name 'SvtJpegxs.pc' | head -1)
 if [ -z "$SVT_PC_FILE" ]; then
     echo "FATAL: SvtJpegxs.pc not found under $INSTALL_DIR" >&2
@@ -44,12 +42,7 @@ export PKG_CONFIG_PATH="$SVT_LIBDIR/pkgconfig:${PKG_CONFIG_PATH:-}"
 pkg-config --modversion SvtJpegxs
 
 echo "=== 3. Ensure a new-enough Meson is available (repo's packaged one is usually too old) ==="
-# Recent Debian/Ubuntu (PEP 668 "externally-managed-environment") refuse
-# `pip install --user` outright. Use an isolated venv instead - works the
-# same everywhere and doesn't touch system/user site-packages.
 MESON_VENV="$JPEGXS_REPO/.meson-venv"
-# Always start from a clean venv so stale Meson/pip state on a persisted
-# self-hosted runner workspace cannot cause non-reproducible builds.
 rm -rf "$MESON_VENV"
 python3 -m venv "$MESON_VENV"
 export PATH="$MESON_VENV/bin:$PATH"
@@ -65,8 +58,6 @@ git fetch --depth 1 --no-tags https://gitlab.freedesktop.org/gstreamer/gstreamer
 git checkout -q FETCH_HEAD
 
 echo "=== 5. Configure a minimal build: core + base essentials + svtjpegxs plugin only ==="
-# -Dlibdir=lib pins a predictable install layout (some distros default to
-# lib64/lib/x86_64-linux-gnu depending on multiarch detection).
 meson setup build \
   -Dlibdir=lib \
   -Dauto_features=disabled -Dtools=enabled \
