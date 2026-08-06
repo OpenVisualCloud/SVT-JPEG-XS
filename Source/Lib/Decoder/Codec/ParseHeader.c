@@ -169,10 +169,9 @@ SvtJxsErrorType_t get_picture_header(bitstream_reader_t* bitstream, picture_head
     picture_header_const->hdr_comps_num = read_8_bits(bitstream);
     if (picture_header_const->hdr_comps_num < 1 || picture_header_const->hdr_comps_num > JPEGXS_SPEC_MAX_COMPONENTS_NUM) {
         if (verbose >= VERBOSE_ERRORS) {
-            SVT_ERROR(
-                    "Picture header invalid number of components expected 1-%d, read=%d!\n",
-                    JPEGXS_SPEC_MAX_COMPONENTS_NUM,
-                    picture_header_const->hdr_comps_num);
+            SVT_ERROR("Picture header invalid number of components expected 1-%d, read=%d!\n",
+                      JPEGXS_SPEC_MAX_COMPONENTS_NUM,
+                      picture_header_const->hdr_comps_num);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -189,9 +188,8 @@ SvtJxsErrorType_t get_picture_header(bitstream_reader_t* bitstream, picture_head
     picture_header_const->hdr_significance_group_size = read_8_bits(bitstream);
     if (picture_header_const->hdr_significance_group_size != 8) {
         if (verbose >= VERBOSE_ERRORS) {
-            SVT_ERROR(
-                    "Picture header invalid coeff group expected 8, read=%d!\n",
-                    picture_header_const->hdr_significance_group_size);
+            SVT_ERROR("Picture header invalid coeff group expected 8, read=%d!\n",
+                      picture_header_const->hdr_significance_group_size);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -779,7 +777,10 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
 
             if (precinct_headers_begin == 0) {
                 precinct_headers_begin = 1;
-                if (comps_num < 1 || decomp_h < 0 || decomp_v < 0 || Sd >= comps_num) {
+                //comps_num was only bounded against JPEGXS_SPEC_MAX_COMPONENTS_NUM(8) above; but
+                //out_image_config->components[] below is sized MAX_COMPONENTS_NUM(4) - reject
+                //here too, or a crafted comps_num in [5..8] writes out of bounds.
+                if (comps_num < 1 || comps_num > MAX_COMPONENTS_NUM || decomp_h < 0 || decomp_v < 0 || Sd >= comps_num) {
                     return SvtJxsErrorDecoderInvalidBitstream;
                 }
                 bands_num_exists = Sd;
@@ -834,10 +835,7 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
                         const uint64_t byte_size64 = (uint64_t)out_image_config->components[c].width *
                             out_image_config->components[c].height * pixel_size;
                         if (byte_size64 > UINT32_MAX) {
-                            SVT_ERROR(
-                                    "Image component %d byte_size overflow: %" PRIu64 " exceeds uint32 max\n",
-                                    c,
-                                    byte_size64);
+                            SVT_ERROR("Image component %d byte_size overflow: %" PRIu64 " exceeds uint32 max\n", c, byte_size64);
                             return SvtJxsErrorDecoderInvalidBitstream;
                         }
                         out_image_config->components[c].byte_size = (uint32_t)byte_size64;

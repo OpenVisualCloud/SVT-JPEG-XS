@@ -68,7 +68,16 @@ ColourFormat_t svt_jpeg_xs_get_format_from_params(uint32_t comps_num, uint32_t s
         }
     }
     else if (comps_num == 4) {
-        format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
+        if (sx[0] == 1 && sx[1] == 1 && sx[2] == 1 && sx[3] == 1 && sy[0] == 1 && sy[1] == 1 && sy[2] == 1 && sy[3] == 1) {
+            format = COLOUR_FORMAT_PLANAR_4_COMPONENTS; //4:4:4:4 - RGBA/GBRA/YUVA444, all components full resolution
+        }
+        else if (sx[0] == 1 && sx[1] == 2 && sx[2] == 2 && sx[3] == 1 && sy[0] == 1 && sy[1] == 1 && sy[2] == 1 && sy[3] == 1) {
+            format =
+                COLOUR_FORMAT_PLANAR_YUV422_ALPHA; //4:2:2:4 - Y/Cb/Cr at 4:2:2 (comp 1,2 half horizontal res), alpha full res
+        }
+        else {
+            format = COLOUR_FORMAT_INVALID; //Unrecognized 4-component sampling shape
+        }
     }
     else if (comps_num == 1) {
         format = COLOUR_FORMAT_GRAY;

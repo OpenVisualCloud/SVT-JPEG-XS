@@ -68,7 +68,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     copy_fuzzer_params(&config_fuzzer, &encoder);
     //Enforce verbose to minimum to not to flood the console/logs
     encoder.verbose = VERBOSE_NONE;
-    encoder.threads_num = encoder.threads_num > 64 ? 64: encoder.threads_num;
+    encoder.threads_num = encoder.threads_num > 64 ? 64 : encoder.threads_num;
     encoder.source_width = encoder.source_width > 8000 ? 8000 : encoder.source_width;
     encoder.source_height = encoder.source_height > 8000 ? 8000 : encoder.source_height;
 
@@ -89,6 +89,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
     //allocate input buffers
     uint32_t pixel_size = encoder.input_bit_depth <= 8 ? 1 : 2;
+    uint8_t num_components = 3; //overridden to 4 for the two 4-component formats below
     svt_jpeg_xs_image_buffer_t in_buf;
 
     if (encoder.colour_format == COLOUR_FORMAT_PLANAR_YUV420) {
@@ -115,7 +116,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
         in_buf.alloc_size[1] = in_buf.stride[1] * encoder.source_height * pixel_size;
         in_buf.alloc_size[2] = in_buf.stride[2] * encoder.source_height * pixel_size;
     }
-    else if (encoder.colour_format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB){
+    else if (encoder.colour_format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
         in_buf.stride[0] = encoder.source_width * 3;
         in_buf.stride[1] = 0;
         in_buf.stride[2] = 0;
@@ -123,19 +124,38 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
         in_buf.alloc_size[1] = 0;
         in_buf.alloc_size[2] = 0;
     }
-    else{
+    else if (encoder.colour_format == COLOUR_FORMAT_PLANAR_4_COMPONENTS) {
+        //4:4:4:4 - RGBA/GBRA/YUVA444, all 4 components full resolution
+        num_components = 4;
+        for (uint8_t i = 0; i < num_components; ++i) {
+            in_buf.stride[i] = encoder.source_width;
+            in_buf.alloc_size[i] = in_buf.stride[i] * encoder.source_height * pixel_size;
+        }
+    }
+    else if (encoder.colour_format == COLOUR_FORMAT_PLANAR_YUV422_ALPHA) {
+        //4:2:2:4 - Y/Cb/Cr at 4:2:2 (comp 1,2 half horizontal res), alpha (comp 3) full resolution
+        num_components = 4;
+        in_buf.stride[0] = encoder.source_width;
+        in_buf.stride[1] = encoder.source_width / 2;
+        in_buf.stride[2] = encoder.source_width / 2;
+        in_buf.stride[3] = encoder.source_width;
+        for (uint8_t i = 0; i < num_components; ++i) {
+            in_buf.alloc_size[i] = in_buf.stride[i] * encoder.source_height * pixel_size;
+        }
+    }
+    else {
         svt_jpeg_xs_encoder_close(&encoder);
         return 0;
     }
 
-    if (encoder.colour_format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB){
+    if (encoder.colour_format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
         //Buffer is intentionally allocated without clearing it
         in_buf.data_yuv[0] = malloc(in_buf.alloc_size[0]);
         in_buf.data_yuv[1] = NULL;
         in_buf.data_yuv[2] = NULL;
     }
-    else{
-        for (uint8_t i = 0; i < 3; ++i) {
+    else {
+        for (uint8_t i = 0; i < num_components; ++i) {
             //Buffer is intentionally allocated without clearing it
             in_buf.data_yuv[i] = malloc(in_buf.alloc_size[i]);
             if (!in_buf.data_yuv[i]) {
@@ -150,7 +170,10 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
     //allocate output buffers
     svt_jpeg_xs_bitstream_buffer_t out_buf;
-    uint32_t bitstream_size =(uint32_t)(((uint64_t)encoder.source_width * encoder.source_height * encoder.bpp_numerator / encoder.bpp_denominator + 7) / 8);
+    uint32_t bitstream_size = (uint32_t)(((uint64_t)encoder.source_width * encoder.source_height * encoder.bpp_numerator /
+                                              encoder.bpp_denominator +
+                                          7) /
+                                         8);
     out_buf.allocation_size = bitstream_size;
     out_buf.used_size = 0;
     out_buf.buffer = malloc(out_buf.allocation_size);
@@ -174,11 +197,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     } while (enc_output.bitstream.last_packet_in_frame == 0);
 
 fail:
-    for (uint8_t i = 0; i < 3; ++i) {
+    for (uint8_t i = 0; i < num_components; ++i) {
         free(in_buf.data_yuv[i]);
     }
     free(out_buf.buffer);
 
-     svt_jpeg_xs_encoder_close(&encoder);
+    svt_jpeg_xs_encoder_close(&encoder);
     return 0; // Values other than 0 and -1 are reserved for future use.
 }

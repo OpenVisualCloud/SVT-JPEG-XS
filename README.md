@@ -84,6 +84,10 @@ Supported OS versions:
 | YUV 444 10/12/14-bit | yuv444 + 10/12/14 | yuv444p{10/12/14}le | Tested, working properly |
 | RGB 8-bit | rgb  + 8 | gbrp | Tested, working properly |
 | RGB 10/12/14-bit | rgb + 10/12/14 | gbrp{10/12/14}le | Tested, working properly |
+| YUV 422 + Alpha (4:2:2:4) 8-bit | yuva422 + 8 | - | Tested, working properly |
+| YUV 422 + Alpha (4:2:2:4) 10/12/14-bit | yuva422 + 10/12/14 | - | Tested, working properly |
+| RGBA/YUVA444 (4:4:4:4) 8-bit | rgba/yuva444 + 8 | - | Tested, working properly |
+| RGBA/YUVA444 (4:4:4:4) 10/12/14-bit | rgba/yuva444 + 10/12/14 | - | Tested, working properly |
 | YUV 400 8-bit | yuv400 + 8 | - | Unsupported |
 | YUV 400 10-bit | yuv400 + 10/12/14 | - | Unsupported |
 
@@ -91,8 +95,8 @@ Supported OS versions:
 
 | format | EncApp: format + input-depth | ffmpeg name | status |
 | -- | -- | -- | -- |
-| RGB 8bit | rgbp + 8 | rgb24/bgr24 | Tested, working properly, __decoder decodes to planar format only__ |
-| RGB 10/12/14bit | rgbp + 10/12/14 | - | Tested, working properly, __decoder decodes to planar format only__ |
+| RGB 8bit | rgbp + 8 | rgb24/bgr24 | Tested, working properly, __decoder decodes to planar format only__, __`--profile cpu` (CPU_PROFILE_CPU) not implemented for this format, use the default Low latency profile__ |
+| RGB 10/12/14bit | rgbp + 10/12/14 | - | Tested, working properly, __decoder decodes to planar format only__, __`--profile cpu` (CPU_PROFILE_CPU) not implemented for this format, use the default Low latency profile__ |
 
 ### Usage examples
 
@@ -151,7 +155,8 @@ Input Options:
 -i                         Input Filename
 -w                         Frame width
 -h                         Frame height
---colour-format            Set encoder colour format (yuv420, yuv422,  yuv444, rgb(planar), rgbp(packed))
+--colour-format            Set encoder colour format (yuv420, yuv422,  yuv444, rgb(planar), rgbp(packed),
+                            rgba/yuva444 (4:4:4:4 planar, 4 components), yuva422 (4:2:2:4 planar, YUV422 + alpha))
                             (Experimental: yuv400)
 --input-depth              Input depth
 [--input-msb-aligned]      Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit
