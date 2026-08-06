@@ -550,6 +550,15 @@ SvtJxsErrorType_t format_get_sampling_factory(ColourFormat_t format, uint32_t* o
         *out_comp_num = 4;
         break;
     }
+    case COLOUR_FORMAT_PLANAR_YUV422_ALPHA: {
+        //4:2:2:4: same Y/Cb/Cr sampling as COLOUR_FORMAT_PLANAR_YUV422, plus a full-resolution alpha (comp 3)
+        out_sx[0] = 1;
+        out_sy[0] = out_sy[1] = out_sy[2] = out_sy[3] = 1;
+        out_sx[1] = out_sx[2] = 2;
+        out_sx[3] = 1;
+        *out_comp_num = 4;
+        break;
+    }
     case COLOUR_FORMAT_GRAY: {
         out_sx[0] = 1;
         out_sy[0] = 1;
@@ -592,10 +601,7 @@ SvtJxsErrorType_t pi_update_proxy_mode(pi_t* pi, proxy_mode_t proxy_mode, uint32
 
     if (proxy_subsampling > pi->decom_v || proxy_subsampling > pi->decom_h) {
         if (verbose >= VERBOSE_ERRORS) {
-            SVT_ERROR("Cannot use proxy-mode=%d for stream with decomp_v=%d decomp_h=%d\n",
-                      proxy_mode,
-                      pi->decom_v,
-                      pi->decom_h);
+            SVT_ERROR("Cannot use proxy-mode=%d for stream with decomp_v=%d decomp_h=%d\n", proxy_mode, pi->decom_v, pi->decom_h);
         }
         return SvtJxsErrorBadParameter;
     }

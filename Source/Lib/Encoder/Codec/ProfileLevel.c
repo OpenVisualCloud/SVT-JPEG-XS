@@ -16,6 +16,10 @@ uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_de
         ppih = JXS_PPIH_MAIN_420_12;
         break;
     case COLOUR_FORMAT_PLANAR_4_COMPONENTS:
+    case COLOUR_FORMAT_PLANAR_YUV422_ALPHA:
+        /* Both 4-component sampling shapes (4:4:4:4 and 4:2:2:4) are covered by the same Main
+         * 4444.12 profile - see ISO/IEC 21122-2:2022 Annex A Table A.1 chroma sampling formats
+         * list for that profile. */
         ppih = JXS_PPIH_MAIN_4444_12;
         break;
     case COLOUR_FORMAT_PLANAR_YUV444_OR_RGB:
@@ -36,11 +40,12 @@ uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_de
      * Keep declaring the closest Main profile (still a validly-defined codeword, unlike Ppih=0) but
      * make the limitation visible. */
     if (bit_depth > 12 && verbose >= VERBOSE_WARNINGS) {
-        SVT_WARN("Warning: bit depth %u exceeds the maximum (12) defined by any ISO/IEC 21122-2 lossy profile; "
-                 "declaring the closest Main profile (Ppih=0x%04X). Use profile_override_enable if a different "
-                 "declaration is required.\n",
-                 bit_depth,
-                 ppih);
+        SVT_WARN(
+            "Warning: bit depth %u exceeds the maximum (12) defined by any ISO/IEC 21122-2 lossy profile; "
+            "declaring the closest Main profile (Ppih=0x%04X). Use profile_override_enable if a different "
+            "declaration is required.\n",
+            bit_depth,
+            ppih);
     }
 
     return ppih;
@@ -106,6 +111,6 @@ static uint16_t derive_sublevel_bits(uint32_t bpp_numerator, uint32_t bpp_denomi
 uint16_t derive_stream_level_plev(uint32_t width, uint32_t height, uint32_t bpp_numerator, uint32_t bpp_denominator) {
     uint16_t level_bits = derive_level_bits(width, height);
     uint16_t sublevel_bits = (bpp_denominator == 0) ? JXS_PLEV_SUBLEVEL_UNRESTRICTED
-                                                     : derive_sublevel_bits(bpp_numerator, bpp_denominator);
+                                                    : derive_sublevel_bits(bpp_numerator, bpp_denominator);
     return (uint16_t)(level_bits | sublevel_bits);
 }

@@ -89,7 +89,10 @@ const char* svt_jpeg_xs_get_format_name(ColourFormat_t format) {
         return "PLANAR YUV444 OR RGB";
     }
     else if (COLOUR_FORMAT_PLANAR_4_COMPONENTS == format) {
-        return "UNKNOWN FORMAT COMPONENTS 4";
+        return "PLANAR 4:4:4:4 (RGBA/YUVA444)";
+    }
+    else if (COLOUR_FORMAT_PLANAR_YUV422_ALPHA == format) {
+        return "PLANAR YUV422 + ALPHA (4:2:2:4)";
     }
     else if (COLOUR_FORMAT_GRAY == format) {
         return "UNKNOWN GRAY";

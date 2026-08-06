@@ -22,7 +22,29 @@ REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
 
 # Cleanup on exit
-trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"' EXIT
+SYNTH_YUVA422="$(mktemp --suffix=.yuv /dev/shm/synth_yuva422_XXXXXX)"
+SYNTH_YUVA444="$(mktemp --suffix=.yuv /dev/shm/synth_yuva444_XXXXXX)"
+trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS" "$SYNTH_YUVA422" "$SYNTH_YUVA444"' EXIT
+
+# No real 4-component (alpha) sample YUV exists in $SAMPLES_DIR. Synthesize small multi-frame
+# yuva422/yuva444 raw files on the fly from the real touchdown 8bit 422 sample (same technique as
+# tests/scripts/EncoderTest.sh) - the app rewinds/loops the input file to satisfy -n $FRAMES, so a
+# short synthesized file is enough. Real Y/Cb/Cr planes kept as-is, alpha/extra planes are Y duplicates.
+SYNTH_SRC="$SAMPLES_DIR/encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+if [ -f "$SYNTH_SRC" ]; then
+    SYNTH_FRAMES=5
+    SYNTH_Y_SIZE=$((1920 * 1080))
+    SYNTH_C_SIZE=$((1920 * 1080 / 2))
+    SYNTH_422_FRAME_SIZE=$((SYNTH_Y_SIZE + 2 * SYNTH_C_SIZE))
+    for ((f = 0; f < SYNTH_FRAMES; f++)); do
+        off=$((f * SYNTH_422_FRAME_SIZE))
+        tail -c +$((off + 1)) "$SYNTH_SRC" | head -c $SYNTH_422_FRAME_SIZE >> "$SYNTH_YUVA422" || true
+        tail -c +$((off + 1)) "$SYNTH_SRC" | head -c $SYNTH_Y_SIZE >> "$SYNTH_YUVA422" || true
+        for ((p = 0; p < 4; p++)); do
+            tail -c +$((off + 1)) "$SYNTH_SRC" | head -c $SYNTH_Y_SIZE >> "$SYNTH_YUVA444" || true
+        done
+    done
+fi
 
 # Ensure CSV header exists. TestCase is the matching MATRIX line below.
 if [ ! -f "$CSV_FILE" ]; then
@@ -30,6 +52,8 @@ if [ ! -f "$CSV_FILE" ]; then
 fi
 
 # Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS|ExtraEncArgs(optional)|ExtraDecArgs(optional)
+# SourceFile "SYNTH:yuva422"/"SYNTH:yuva444" is a sentinel meaning "use the on-the-fly synthesized file above",
+# since no real 4-component sample fixture exists in $SAMPLES_DIR.
 MATRIX=(
     # 1080p 422p 10-bit - 1.5 BPP Thread Scaling
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|77|145"
@@ -58,6 +82,18 @@ MATRIX=(
     # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output: same baseline as the equivalent
     # LSB row above (msb-aligned kernels have same perf as LSB, verified separately).
     "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|359|571|--input-msb-aligned 1|--output-msb-aligned 1"
+
+    # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling. Baselines calibrated from the CI
+    # runner's own measurements (dev-sandbox numbers were faster/slower than this host and tripped
+    # false regressions).
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH:yuva422|39|40"
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|8|SYNTH:yuva422|235|146"
+
+    # 1080p rgba/yuva444 (4:4:4:4) 8-bit - 5.0 BPP Thread Scaling. Baselines calibrated from the CI
+    # runner's own measurements (dev-sandbox numbers were faster/slower than this host and tripped
+    # false regressions).
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|1|SYNTH:yuva444|30|33"
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|8|SYNTH:yuva444|180|210"
 )
 
 # run_measured cmd...: single run, prints parsed FPS (empty if unparseable).
@@ -105,10 +141,15 @@ function check_result() {
 
 for test_case in "${MATRIX[@]}"; do
     IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
-    source_path="$SAMPLES_DIR/$file"
 
-    if [ ! -f "$source_path" ]; then
-        echo "ERROR: File $source_path not found!"
+    case "$file" in
+        SYNTH:yuva422) source_path="$SYNTH_YUVA422" ;;
+        SYNTH:yuva444) source_path="$SYNTH_YUVA444" ;;
+        *) source_path="$SAMPLES_DIR/$file" ;;
+    esac
+
+    if [ ! -s "$source_path" ]; then
+        echo "ERROR: File $source_path not found or empty!"
         SCRIPT_FAILED=1
         echo "ENCODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
         echo "DECODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"

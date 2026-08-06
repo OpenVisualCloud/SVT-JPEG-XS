@@ -62,15 +62,15 @@ static void strncpy_local(char *dest, const char *src, size_t count) {
 // double dash
 #define PRESET_TOKEN "--preset"
 
-#define CODING_SIGNS_TOKEN  "--coding-signs"
-#define CODING_SIGF_TOKEN   "--coding-sigf"
-#define CODING_PRED_TOKEN   "--coding-vpred"
-#define CODING_RATE_CONTROL "--rc"
-#define CODING_RAW_TOKEN    "--coding-raw"
-#define CAP_COMPAT_TOKEN    "--cap-compat"
+#define CODING_SIGNS_TOKEN   "--coding-signs"
+#define CODING_SIGF_TOKEN    "--coding-sigf"
+#define CODING_PRED_TOKEN    "--coding-vpred"
+#define CODING_RATE_CONTROL  "--rc"
+#define CODING_RAW_TOKEN     "--coding-raw"
+#define CAP_COMPAT_TOKEN     "--cap-compat"
 #define STREAM_PROFILE_TOKEN "--stream-profile"
 #define STREAM_LEVEL_TOKEN   "--stream-level"
-#define SHOW_BANDS          "--show-bands"
+#define SHOW_BANDS           "--show-bands"
 
 #define LIMIT_FPS_TOKEN "--limit-fps"
 #define VERBOSE_TOKEN   "-v"
@@ -246,6 +246,12 @@ static void set_encoder_colour_format(const char *value, EncoderConfig_t *cfg) {
     else if (!strcmp(value, "rgbp")) {
         cfg->encoder.colour_format = COLOUR_FORMAT_PACKED_YUV444_OR_RGB;
     }
+    else if (!strcmp(value, "rgba") || !strcmp(value, "yuva444")) {
+        cfg->encoder.colour_format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
+    }
+    else if (!strcmp(value, "yuva422")) {
+        cfg->encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV422_ALPHA;
+    }
     else {
         cfg->encoder.colour_format = COLOUR_FORMAT_INVALID;
     }
@@ -397,7 +403,7 @@ ConfigEntry config_entry[] = {
     {INPUT_OPTIONS, INPUT_FILE_TOKEN,       "Input Filename", 1, 1, set_cfg_input_file},
     {INPUT_OPTIONS, WIDTH_TOKEN,            "Frame width", 1, 1, set_cfg_source_width},
     {INPUT_OPTIONS, HEIGHT_TOKEN,           "Frame height", 1, 1, set_cfg_source_height},
-    {INPUT_OPTIONS, ENCODER_COLOUR_FORMAT,  "Set encoder colour format (yuv420, yuv422) (Experimental: yuv400, yuv444, rgb(planar), rgbp(packed))", 1, 1, set_encoder_colour_format},
+    {INPUT_OPTIONS, ENCODER_COLOUR_FORMAT,  "Set encoder colour format (yuv420, yuv422) (Experimental: yuv400, yuv444, rgb(planar), rgbp(packed), rgba/yuva444 (4:4:4:4 planar, 4 components), yuva422 (4:2:2:4 planar, YUV422 + alpha))", 1, 1, set_encoder_colour_format},
     {INPUT_OPTIONS, INPUT_DEPTH_TOKEN,      "Input depth", 1, 1, set_input_bit_depth},
     {INPUT_OPTIONS, INPUT_MSB_ALIGNED_TOKEN,"Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit word instead of LSB-aligned (enabled:1, disabled:0, default:0)", 0, 1, set_input_msb_aligned},
     {INPUT_OPTIONS, COMPRESS_BPP_LONG_TOKEN,"Bits Per Pixel, can be passed as integer or float (example: 0.5, 3, 3.75, 5 etc.)", 1, 1, set_encoder_bpp},
