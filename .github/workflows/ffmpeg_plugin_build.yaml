@@ -264,7 +264,45 @@ jobs:
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec 2>&1 | tee ffmpeg_functional_tests.log
+
+      - name: 'Publish: FFmpeg functional test summary'
+        if: always()
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          {
+            echo "## FFmpeg Plugin Functional Tests"
+            echo ""
+            if [ ! -f ffmpeg_functional_tests.log ]; then
+              echo "> ⚠️ Test log not found — the test may not have run."
+            else
+              echo "| Suite | Executed | Passed | Failed | Status |"
+              echo "|-------|----------|--------|--------|--------|"
+              awk '
+                /^RUN FFMPEG DECODER CONFORMANCE TEST/ { flush(); suite="Decoder Conformance" }
+                /^RUN FFMPEG DECODER MULTI FRAMES TEST/ { flush(); suite="Decoder Multi-Frames" }
+                /^RUN FFMPEG ENCODER TEST/             { flush(); suite="Encoder" }
+                /Tests execute:/  { total += $3 }
+                /^FAIL [^!]/      { fails++ }
+                END {
+                  flush()
+                  print ""
+                  if (grand_fails == 0)
+                    print "**Result: ✅ All " grand_total " tests passed**"
+                  else
+                    print "**Result: ❌ " grand_fails " test(s) failed, " (grand_total - grand_fails) " passed**"
+                }
+                function flush() {
+                  if (suite != "") {
+                    icon = (fails == 0) ? "✅" : "❌"
+                    printf "| %s | %d | %d | %d | %s |\n", suite, total, total-fails, fails, icon
+                    grand_total += total; grand_fails += fails
+                    total=0; fails=0; suite=""
+                  }
+                }
+              ' ffmpeg_functional_tests.log
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   ffmpeg-7-0-linux-tests:
       needs: [changes, ffmpeg-7-0-linux-build]
@@ -293,7 +331,45 @@ jobs:
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec 2>&1 | tee ffmpeg_functional_tests.log
+
+      - name: 'Publish: FFmpeg functional test summary'
+        if: always()
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          {
+            echo "## FFmpeg Plugin Functional Tests"
+            echo ""
+            if [ ! -f ffmpeg_functional_tests.log ]; then
+              echo "> ⚠️ Test log not found — the test may not have run."
+            else
+              echo "| Suite | Executed | Passed | Failed | Status |"
+              echo "|-------|----------|--------|--------|--------|"
+              awk '
+                /^RUN FFMPEG DECODER CONFORMANCE TEST/ { flush(); suite="Decoder Conformance" }
+                /^RUN FFMPEG DECODER MULTI FRAMES TEST/ { flush(); suite="Decoder Multi-Frames" }
+                /^RUN FFMPEG ENCODER TEST/             { flush(); suite="Encoder" }
+                /Tests execute:/  { total += $3 }
+                /^FAIL [^!]/      { fails++ }
+                END {
+                  flush()
+                  print ""
+                  if (grand_fails == 0)
+                    print "**Result: ✅ All " grand_total " tests passed**"
+                  else
+                    print "**Result: ❌ " grand_fails " test(s) failed, " (grand_total - grand_fails) " passed**"
+                }
+                function flush() {
+                  if (suite != "") {
+                    icon = (fails == 0) ? "✅" : "❌"
+                    printf "| %s | %d | %d | %d | %s |\n", suite, total, total-fails, fails, icon
+                    grand_total += total; grand_fails += fails
+                    total=0; fails=0; suite=""
+                  }
+                }
+              ' ffmpeg_functional_tests.log
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   ffmpeg-7-1-linux-tests:
       needs: [changes, ffmpeg-7-1-linux-build]
@@ -322,7 +398,45 @@ jobs:
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec 2>&1 | tee ffmpeg_functional_tests.log
+
+      - name: 'Publish: FFmpeg functional test summary'
+        if: always()
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          {
+            echo "## FFmpeg Plugin Functional Tests"
+            echo ""
+            if [ ! -f ffmpeg_functional_tests.log ]; then
+              echo "> ⚠️ Test log not found — the test may not have run."
+            else
+              echo "| Suite | Executed | Passed | Failed | Status |"
+              echo "|-------|----------|--------|--------|--------|"
+              awk '
+                /^RUN FFMPEG DECODER CONFORMANCE TEST/ { flush(); suite="Decoder Conformance" }
+                /^RUN FFMPEG DECODER MULTI FRAMES TEST/ { flush(); suite="Decoder Multi-Frames" }
+                /^RUN FFMPEG ENCODER TEST/             { flush(); suite="Encoder" }
+                /Tests execute:/  { total += $3 }
+                /^FAIL [^!]/      { fails++ }
+                END {
+                  flush()
+                  print ""
+                  if (grand_fails == 0)
+                    print "**Result: ✅ All " grand_total " tests passed**"
+                  else
+                    print "**Result: ❌ " grand_fails " test(s) failed, " (grand_total - grand_fails) " passed**"
+                }
+                function flush() {
+                  if (suite != "") {
+                    icon = (fails == 0) ? "✅" : "❌"
+                    printf "| %s | %d | %d | %d | %s |\n", suite, total, total-fails, fails, icon
+                    grand_total += total; grand_fails += fails
+                    total=0; fails=0; suite=""
+                  }
+                }
+              ' ffmpeg_functional_tests.log
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   ffmpeg-8-0-linux-tests:
       needs: [changes, ffmpeg-8-0-linux-build]
@@ -351,7 +465,45 @@ jobs:
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec 2>&1 | tee ffmpeg_functional_tests.log
+
+      - name: 'Publish: FFmpeg functional test summary'
+        if: always()
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          {
+            echo "## FFmpeg Plugin Functional Tests"
+            echo ""
+            if [ ! -f ffmpeg_functional_tests.log ]; then
+              echo "> ⚠️ Test log not found — the test may not have run."
+            else
+              echo "| Suite | Executed | Passed | Failed | Status |"
+              echo "|-------|----------|--------|--------|--------|"
+              awk '
+                /^RUN FFMPEG DECODER CONFORMANCE TEST/ { flush(); suite="Decoder Conformance" }
+                /^RUN FFMPEG DECODER MULTI FRAMES TEST/ { flush(); suite="Decoder Multi-Frames" }
+                /^RUN FFMPEG ENCODER TEST/             { flush(); suite="Encoder" }
+                /Tests execute:/  { total += $3 }
+                /^FAIL [^!]/      { fails++ }
+                END {
+                  flush()
+                  print ""
+                  if (grand_fails == 0)
+                    print "**Result: ✅ All " grand_total " tests passed**"
+                  else
+                    print "**Result: ❌ " grand_fails " test(s) failed, " (grand_total - grand_fails) " passed**"
+                }
+                function flush() {
+                  if (suite != "") {
+                    icon = (fails == 0) ? "✅" : "❌"
+                    printf "| %s | %d | %d | %d | %s |\n", suite, total, total-fails, fails, icon
+                    grand_total += total; grand_fails += fails
+                    total=0; fails=0; suite=""
+                  }
+                }
+              ' ffmpeg_functional_tests.log
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   ffmpeg-8-1-linux-tests:
       needs: [changes, ffmpeg-8-1-linux-build]
@@ -380,7 +532,45 @@ jobs:
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec 2>&1 | tee ffmpeg_functional_tests.log
+
+      - name: 'Publish: FFmpeg functional test summary'
+        if: always()
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          {
+            echo "## FFmpeg Plugin Functional Tests"
+            echo ""
+            if [ ! -f ffmpeg_functional_tests.log ]; then
+              echo "> ⚠️ Test log not found — the test may not have run."
+            else
+              echo "| Suite | Executed | Passed | Failed | Status |"
+              echo "|-------|----------|--------|--------|--------|"
+              awk '
+                /^RUN FFMPEG DECODER CONFORMANCE TEST/ { flush(); suite="Decoder Conformance" }
+                /^RUN FFMPEG DECODER MULTI FRAMES TEST/ { flush(); suite="Decoder Multi-Frames" }
+                /^RUN FFMPEG ENCODER TEST/             { flush(); suite="Encoder" }
+                /Tests execute:/  { total += $3 }
+                /^FAIL [^!]/      { fails++ }
+                END {
+                  flush()
+                  print ""
+                  if (grand_fails == 0)
+                    print "**Result: ✅ All " grand_total " tests passed**"
+                  else
+                    print "**Result: ❌ " grand_fails " test(s) failed, " (grand_total - grand_fails) " passed**"
+                }
+                function flush() {
+                  if (suite != "") {
+                    icon = (fails == 0) ? "✅" : "❌"
+                    printf "| %s | %d | %d | %d | %s |\n", suite, total, total-fails, fails, icon
+                    grand_total += total; grand_fails += fails
+                    total=0; fails=0; suite=""
+                  }
+                }
+              ' ffmpeg_functional_tests.log
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   ffmpeg-9-0-linux-tests:
       needs: [changes, ffmpeg-9-0-linux-build]
@@ -409,7 +599,45 @@ jobs:
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib"
-          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec
+          ./ParallelAllFFmpegTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" "${{ github.workspace }}/install-dir/bin/ffmpeg" dec 2>&1 | tee ffmpeg_functional_tests.log
+
+      - name: 'Publish: FFmpeg functional test summary'
+        if: always()
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          {
+            echo "## FFmpeg Plugin Functional Tests"
+            echo ""
+            if [ ! -f ffmpeg_functional_tests.log ]; then
+              echo "> ⚠️ Test log not found — the test may not have run."
+            else
+              echo "| Suite | Executed | Passed | Failed | Status |"
+              echo "|-------|----------|--------|--------|--------|"
+              awk '
+                /^RUN FFMPEG DECODER CONFORMANCE TEST/ { flush(); suite="Decoder Conformance" }
+                /^RUN FFMPEG DECODER MULTI FRAMES TEST/ { flush(); suite="Decoder Multi-Frames" }
+                /^RUN FFMPEG ENCODER TEST/             { flush(); suite="Encoder" }
+                /Tests execute:/  { total += $3 }
+                /^FAIL [^!]/      { fails++ }
+                END {
+                  flush()
+                  print ""
+                  if (grand_fails == 0)
+                    print "**Result: ✅ All " grand_total " tests passed**"
+                  else
+                    print "**Result: ❌ " grand_fails " test(s) failed, " (grand_total - grand_fails) " passed**"
+                }
+                function flush() {
+                  if (suite != "") {
+                    icon = (fails == 0) ? "✅" : "❌"
+                    printf "| %s | %d | %d | %d | %s |\n", suite, total, total-fails, fails, icon
+                    grand_total += total; grand_fails += fails
+                    total=0; fails=0; suite=""
+                  }
+                }
+              ' ffmpeg_functional_tests.log
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
    
   ffmpeg-9-0-performance-tests:
       needs: ffmpeg-9-0-linux-build
@@ -445,6 +673,41 @@ jobs:
             export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
             ffmpeg -hide_banner -encoders 2>&1 | grep -i libsvtjpegxs
             ./PerformanceTestFfmpegPlugin.sh "${{ env.INPUT_FILES_PATH }}" 2>&1 | tee ffmpeg_plugin_performance.log
+
+        - name: 'Publish: ffmpeg plugin performance summary'
+          if: always()
+          working-directory: tests/scripts
+          run: |
+            {
+              echo "## FFmpeg Plugin Performance Results"
+              echo ""
+              if [ ! -f ffmpeg_results.csv ]; then
+                echo "> ⚠️ Results CSV not found — the test may not have produced output."
+              else
+                echo "| Op | Resolution / Config | Result FPS | Baseline FPS | % of Target | Status |"
+                echo "|----|---------------------|-----------|--------------|-------------|--------|"
+                awk -F',' '
+                  NR == 1 { next }
+                  {
+                    op=$1; tc=$2; status=$NF; pct=$(NF-1); target=$(NF-2); result=$(NF-3)
+                    n=split(tc, a, "|")
+                    label = (n > 7) ? a[1] " bpp=" a[7] " t=" a[8] : tc
+                    icon = (status == "PASS") ? "✅" : "❌"
+                    printf "| %s | %s | %s | %s | %s%% | %s %s |\n", op, label, result, target, pct, icon, status
+                    if (status == "PASS") pass++; else fail++
+                  }
+                  END {
+                    print ""
+                    if (fail+pass == 0)
+                      print "_No test results found in CSV._"
+                    else if (fail == 0)
+                      print "**Result: ✅ All " pass " tests passed**"
+                    else
+                      print "**Result: ❌ " fail " test(s) failed, " pass " passed**"
+                  }
+                ' ffmpeg_results.csv
+              fi
+            } >> "$GITHUB_STEP_SUMMARY"
 
         - name: "Archive: upload performance results"
           if: always()
