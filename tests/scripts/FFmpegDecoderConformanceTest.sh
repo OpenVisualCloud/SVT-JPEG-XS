@@ -109,7 +109,10 @@ function test_all {
     test_dec 016
     test_dec 017
     test_dec 018
-    # 019 4096x1743_13bit_COMPONENTS_4 - SKIPPED, unsupported pixel format in ffmpeg plugin
+    # 019 4096x1743_13bit_COMPONENTS_4 (4:4:4:4, SDBQ-3776): verified byte-identical to
+    # reference_decode/019_*.yuv now that the ffmpeg plugin maps COLOUR_FORMAT_PLANAR_4_COMPONENTS
+    # to gbrap14le for bit depths above 12 (no upstream 13/14-bit yuva444p pix_fmt exists).
+    test_dec 019
     test_dec 020
     test_dec 021
     test_dec 022
@@ -132,7 +135,14 @@ function test_all {
     test_dec 039
     test_dec 040
     test_dec 041
-    # 042-047 *_COMPONENTS_4 - SKIPPED, unsupported pixel format in ffmpeg plugin
+    # 042-047 *_COMPONENTS_4 (4:4:4:4, SDBQ-3776): verified byte-identical to their
+    # reference_decode/*.yuv now that the ffmpeg plugin supports COLOUR_FORMAT_PLANAR_4_COMPONENTS.
+    test_dec 042
+    test_dec 043
+    test_dec 044
+    test_dec 045
+    test_dec 046
+    test_dec 047
     test_dec 048
     test_dec 049
     test_dec 050
@@ -144,12 +154,16 @@ function test_all {
     test_dec 056
     test_dec 057
     test_dec 058
-    # 059 4095x1743_10bit_COMPONENTS_4 - SKIPPED, unsupported pixel format in ffmpeg plugin
+    # 059 4095x1743_10bit_COMPONENTS_4 (4:4:4:4, SDBQ-3776): verified byte-identical to
+    # reference_decode/059_*.yuv now that the ffmpeg plugin supports COLOUR_FORMAT_PLANAR_4_COMPONENTS.
+    test_dec 059
     test_dec 060
     test_dec 061
     test_dec 062
     test_dec 063
-    # 064 4095x1743_10bit_COMPONENTS_4 - SKIPPED, unsupported pixel format in ffmpeg plugin
+    # 064 4095x1743_10bit_COMPONENTS_4 (4:4:4:4, SDBQ-3776): verified byte-identical to
+    # reference_decode/064_*.yuv now that the ffmpeg plugin supports COLOUR_FORMAT_PLANAR_4_COMPONENTS.
+    test_dec 064
     test_dec 065
     test_dec 066
     test_dec 200
@@ -161,16 +175,27 @@ function test_all {
     test_dec 206
     test_dec 207
     test_dec 208
-    # 209-216, 218 *_COMPONENTS_4 - SKIPPED, unsupported pixel format in ffmpeg plugin
+    # 209-216, 218 *_COMPONENTS_4 (4:4:4:4, SDBQ-3776): verified byte-identical to their
+    # reference_decode/*.yuv now that the ffmpeg plugin supports COLOUR_FORMAT_PLANAR_4_COMPONENTS.
+    test_dec 209
+    test_dec 210
+    test_dec 211
+    test_dec 212
+    test_dec 213
+    test_dec 214
+    test_dec 215
+    test_dec 216
     test_dec 217
+    test_dec 218
 }
 
 #RUN output_bit_depth_msb_aligned tests: decode the same stripped conformance bitstream twice
 #(msb-aligned 0 and 1). NOTE: the decoder AVOption must be placed BEFORE -i, not passed as an
 #extra_args-style option after -i, or ffmpeg silently ignores it (only a warning, no error) -
 #a real pitfall hit while writing this test.
+#(1:bitstream name, without .jxs)
 function test_msb_aligned {
-    name=011
+    name=$1
     src_jxs=$path_bitstreams/test_bitsreams/$name.jxs
     stripped_jxs=./$tmp_dir/$name"_stripped.jxs"
 
@@ -211,16 +236,22 @@ function test_msb_aligned {
     offset=$(find_bitstream_header_offset "$src_jxs")
     tail -c +$((offset+1)) "$src_jxs" > "$stripped_jxs"
 
-    #msb_aligned=0 explicit must be byte-identical to the existing reference_decode/011_*.yuv
+    #msb_aligned=0 explicit must be byte-identical to the existing reference_decode/<name>_*.yuv
     #(the untouched default path).
-    test_msb_dec 0 e379a376d704e3e0100f748fd4dd1bdd 0
-    #msb_aligned=1: pinned md5, verified (via a matching plain decode, right-shifted by 6) to be
-    #the exact MSB-aligned re-packing of the msb_aligned=0/default output above.
-    test_msb_dec 0 58df668b531f53cbf4666c9a116d553e 1
+    test_msb_dec 0 "$2" 0
+    #msb_aligned=1: pinned md5, verified (via a matching plain decode, right-shifted by the
+    #(16 - bit_depth) msb-shift amount) to be the exact MSB-aligned re-packing of the
+    #msb_aligned=0/default output above.
+    test_msb_dec 0 "$3" 1
 }
 
+#(name, without .jxs) (msb_aligned=0 expected md5) (msb_aligned=1 expected md5)
 test_all
-test_msb_aligned
+test_msb_aligned 011 e379a376d704e3e0100f748fd4dd1bdd 58df668b531f53cbf4666c9a116d553e
+#4:4:4:4 (12bit COMPONENTS_4, SDBQ-3776): confirms msb_aligned composes correctly with the new
+#4-component colour formats, following the exact same "same bitstream, decoded 2 ways" pattern
+#as the 011 (3-component) case above.
+test_msb_aligned 209 1952fd773841c005c35d904d0891094e d3b4fb93cecc5562209ebc2b47ca4d21
 
 
 common_lib_end_summary

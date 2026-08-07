@@ -14,13 +14,30 @@ SAMPLES_DIR="${1:-$SCRIPT_DIR/../../Conformance-tests}"
 CSV_FILE="$SCRIPT_DIR/ffmpeg_results.csv"
 RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_ffmpeg_XXXXXX)
 RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_ffmpeg_XXXXXX)
+SYNTH_YUVA422=$(mktemp --suffix=.yuv /dev/shm/synth_yuva422_ffmpeg_XXXXXX)
+SYNTH_YUVA444=$(mktemp --suffix=.yuv /dev/shm/synth_yuva444_ffmpeg_XXXXXX)
 NUMA_NODE=1
 FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
 
 # Cleanup on exit
-trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"' EXIT
+trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS" "$SYNTH_YUVA422" "$SYNTH_YUVA444"' EXIT
+
+# No real 4-component (alpha) sample YUV exists in $SAMPLES_DIR. Synthesize a single-frame fixture
+# (ffmpeg's -stream_loop -1 below repeats it to reach $FRAMES) from the existing 1080p 8bit yuv422
+# fixture: real Y/Cb/Cr planes kept as-is, alpha/extra-chroma planes are Y duplicates.
+SYNTH_SRC="$SAMPLES_DIR/encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+if [ -f "$SYNTH_SRC" ]; then
+    SYNTH_Y_SIZE=$((1920 * 1080))
+    SYNTH_C_SIZE=$((1920 * 1080 / 2))
+    head -c $SYNTH_Y_SIZE "$SYNTH_SRC" > "${SYNTH_YUVA422}.y"
+    tail -c +$((SYNTH_Y_SIZE + 1)) "$SYNTH_SRC" | head -c $SYNTH_C_SIZE > "${SYNTH_YUVA422}.cb" || true
+    tail -c +$((SYNTH_Y_SIZE + SYNTH_C_SIZE + 1)) "$SYNTH_SRC" | head -c $SYNTH_C_SIZE > "${SYNTH_YUVA422}.cr" || true
+    cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr" "${SYNTH_YUVA422}.y" > "$SYNTH_YUVA422"
+    cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" > "$SYNTH_YUVA444"
+    rm -f "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr"
+fi
 
 # Ensure CSV header exists. TestCase is the matching MATRIX line below.
 if [ ! -f "$CSV_FILE" ]; then
@@ -56,6 +73,18 @@ MATRIX=(
     # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output: same baseline as the equivalent
     # LSB row above (msb-aligned kernels have same perf as LSB, verified separately).
     "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|313|480|-msb_aligned 1|-msb_aligned 1"
+
+    # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling (SDBQ-3776). SourceFile "SYNTH" is a
+    # sentinel meaning "use the on-the-fly synthesized $SYNTH_YUVA422 file above". Baselines
+    # measured locally on this sandbox - re-calibrate on the real target CI hardware.
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH|40|37"
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|8|SYNTH|185|124"
+
+    # 1080p rgba/yuva444 (4:4:4:4) 8-bit - 5.0 BPP Thread Scaling (SDBQ-3776). SourceFile "SYNTH" is
+    # a sentinel meaning "use the on-the-fly synthesized $SYNTH_YUVA444 file above". Baselines
+    # measured locally on this sandbox - re-calibrate on the real target CI hardware.
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|1|SYNTH|32|38"
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|8|SYNTH|152|110"
 )
 
 # get_ffmpeg_pix_fmt colour_format bit_depth: maps to the ffmpeg pix_fmt name.
@@ -66,6 +95,8 @@ function get_ffmpeg_pix_fmt() {
     case "$colour_format" in
         yuv420) echo "yuv420p${suffix}" ;;
         yuv444) echo "yuv444p${suffix}" ;;
+        yuva422) echo "yuva422p${suffix}" ;;
+        rgba) echo "gbrap${suffix}" ;;
         yuv422|*) echo "yuv422p${suffix}" ;;
     esac
 }
@@ -118,7 +149,15 @@ function check_result() {
 
 for test_case in "${MATRIX[@]}"; do
     IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
-    source_path="$SAMPLES_DIR/$file"
+    case "$file" in
+        SYNTH)
+            case "$fmt" in
+                yuva422) source_path="$SYNTH_YUVA422" ;;
+                rgba) source_path="$SYNTH_YUVA444" ;;
+            esac
+            ;;
+        *) source_path="$SAMPLES_DIR/$file" ;;
+    esac
 
     if [ ! -f "$source_path" ]; then
         echo "ERROR: File $source_path not found!"
