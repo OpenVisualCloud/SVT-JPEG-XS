@@ -190,6 +190,18 @@ make -j10
 
 # How to use ffmpeg with jpeg-xs
 
+## Supported pixel formats
+
+Name|Bit depths|Notes
+--|--|--
+yuv420p(le)|8, 10, 12, 14|-
+yuv422p(le)|8, 10, 12, 14|-
+yuv444p(le), gbrp(le)|8, 10, 12, 14|-
+gray(le)|8, 9, 10, 12, 14|decode only
+rgb24, bgr24|8|packed
+yuva422p(le)|8, 10, 12|4:2:2:4 (YUV422 + alpha)
+yuva444p(le), gbrap(le)|8, 10, 12, 14|4:4:4:4 (RGBA/GBRA/YUVA444). No upstream ffmpeg `yuva444p14`/`yuva422p14` pix_fmt exists, so 14-bit 4:4:4:4 is only reachable via `gbrap14le`, and 14-bit 4:2:2:4 is not reachable through this plugin at all.
+
 ## libsvtjpegxs encoder available params
 
 Name|mandatory/optional|Accepted values|description

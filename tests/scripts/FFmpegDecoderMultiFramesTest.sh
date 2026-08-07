@@ -48,6 +48,9 @@ function test_dec {
     extra_args=$4
     decoder_opts=$5
     bin_name=$path_use"/"$name".jxs"
+    case "$name" in
+        SYNTH:yuva422p10mf) bin_name="$SYNTH_YUVA422P10MF_JXS" ;;
+    esac
     yuv_tmp="./$tmp_dir/"$name".yuv"
 
     common_lib_update_test_id_run_return_1_to_ignore
@@ -117,6 +120,29 @@ function test_dec_invalid {
 rm -fr $tmp_dir
 mkdir $tmp_dir
 
+# No real 4-component (alpha) multi-frame .jxs fixture exists in bitstream_multi_frames/ (external
+# sample corpus, not part of this repo). Self-generate one: synthesize a 3-frame 10bit(le) 4:2:2:4
+# (YUVA422) raw fixture from the existing yuv422 10bit fixture (real Y/Cb/Cr planes kept as-is per
+# frame, alpha plane is a Y duplicate), then encode it via this same ffmpeg build/plugin - mirrors
+# how the msb_aligned coverage below reuses one real bitstream decoded two ways, except here the
+# bitstream itself has to be produced locally since no such 4-component fixture exists upstream.
+SYNTH_YUVA422P10MF_SRC="$path_global/encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+SYNTH_YUVA422P10MF_RAW="$tmp_dir/synth_yuva422p10mf.yuv"
+SYNTH_YUVA422P10MF_JXS="$tmp_dir/synth_yuva422p10mf.jxs"
+if [ -f "$SYNTH_YUVA422P10MF_SRC" ]; then
+    SYNTH_FRAMES=3
+    SYNTH_Y_SIZE=$((1920 * 1080 * 2))
+    SYNTH_C_SIZE=$((1920 * 1080))
+    SYNTH_FRAME_SIZE=$((SYNTH_Y_SIZE + 2 * SYNTH_C_SIZE))
+    for ((f = 0; f < SYNTH_FRAMES; f++)); do
+        off=$((f * SYNTH_FRAME_SIZE))
+        tail -c +$((off + 1)) "$SYNTH_YUVA422P10MF_SRC" | head -c $SYNTH_FRAME_SIZE >> "$SYNTH_YUVA422P10MF_RAW" || true
+        tail -c +$((off + 1)) "$SYNTH_YUVA422P10MF_SRC" | head -c $SYNTH_Y_SIZE >> "$SYNTH_YUVA422P10MF_RAW" || true
+    done
+    $exec_ffmpeg -y -hide_banner -loglevel error -f rawvideo -pix_fmt yuva422p10le -s:v 1920x1080 -i "$SYNTH_YUVA422P10MF_RAW" \
+        -frames:v $SYNTH_FRAMES -c:v libsvtjpegxs -bpp 6 -f image2pipe "$SYNTH_YUVA422P10MF_JXS"
+fi
+
 function test_all_correct {
     PARAM_THREADS=$1
     path_use=$path_correct
@@ -151,6 +177,17 @@ function test_all_correct {
     test_dec 0 Cyclist_1920x1080_10b_422_20f_v2_h3                    d0c6fb35abb322a2b3b8904595d63e55 "" "-msb_aligned 1"
     # msb_aligned=0 explicit must be byte-identical to the untouched default path above.
     test_dec 0 Cyclist_1920x1080_10b_422_20f_v2_h3                    39983e5e039da3917e5f7bf7ef9a87bf "" "-msb_aligned 0"
+
+    # 4:2:2:4 (YUVA422, 10bit, 3 frames, self-generated - SDBQ-3776): same "one bitstream, decoded
+    # multiple ways" pattern as the msb_aligned block above, applied to the new alpha format to
+    # confirm it composes correctly with msb_aligned and with multi-frame decoding through
+    # jpegxs_pipe (frame-boundary handling, see SDBQ-3750).
+    test_dec 0 SYNTH:yuva422p10mf                                     7e32b37335ee1b8f933f9130ca66bd59
+    # msb_aligned=1: pinned md5, verified (via a matching plain decode, right-shifted by 6) to be
+    # the exact MSB-aligned re-packing of the msb_aligned=0/default output above.
+    test_dec 0 SYNTH:yuva422p10mf                                     eb3ae577f331fd54c3760209727427d9 "" "-msb_aligned 1"
+    # msb_aligned=0 explicit must be byte-identical to the untouched default path above.
+    test_dec 0 SYNTH:yuva422p10mf                                     7e32b37335ee1b8f933f9130ca66bd59 "" "-msb_aligned 0"
 
     test_dec 0 Cyclist_1920x1080_8b_422_20f_v1_h4                     281a046a4d0c9bcb554e828d2a8084ef
     test_dec 0 Cyclist_1920x1080_8b_422_20f_v2_h2                     e71c8400a4f3a636408b48450bae92d3

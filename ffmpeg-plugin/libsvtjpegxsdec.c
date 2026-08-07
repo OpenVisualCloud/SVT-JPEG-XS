@@ -76,6 +76,39 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_image_config_t config)
             avctx->pix_fmt = AV_PIX_FMT_YUV444P14LE;
         }
     }
+    else if (config.format == COLOUR_FORMAT_PLANAR_YUV422_ALPHA) {
+        if (config.bit_depth == 8) {
+            avctx->pix_fmt = AV_PIX_FMT_YUVA422P;
+        }
+        else if (config.bit_depth == 10) {
+            avctx->pix_fmt = AV_PIX_FMT_YUVA422P10LE;
+        }
+        else if (config.bit_depth == 12) {
+            avctx->pix_fmt = AV_PIX_FMT_YUVA422P12LE;
+        }
+        else {
+            // no upstream YUVA422P14LE exists.
+            av_log(avctx, AV_LOG_ERROR, "Unsupported bit depth %d for 4:2:2:4.\n", config.bit_depth);
+            return AVERROR_INVALIDDATA;
+        }
+    }
+    else if (config.format == COLOUR_FORMAT_PLANAR_4_COMPONENTS) {
+        // no bitstream signal distinguishes RGB/YUV colour family, matching the existing
+        // COLOUR_FORMAT_PLANAR_YUV444_OR_RGB -> AV_PIX_FMT_YUV444P convention below.
+        if (config.bit_depth == 8) {
+            avctx->pix_fmt = AV_PIX_FMT_YUVA444P;
+        }
+        else if (config.bit_depth == 10) {
+            avctx->pix_fmt = AV_PIX_FMT_YUVA444P10LE;
+        }
+        else if (config.bit_depth == 12) {
+            avctx->pix_fmt = AV_PIX_FMT_YUVA444P12LE;
+        }
+        else {
+            // no upstream YUVA444P14LE exists; GBRAP14LE is the only 14-bit 4-component pix_fmt.
+            avctx->pix_fmt = AV_PIX_FMT_GBRAP14LE;
+        }
+    }
     else if (config.format == COLOUR_FORMAT_GRAY || config.format == COLOUR_FORMAT_PLANAR_YUV400) {
         if (config.bit_depth == 8) {
             avctx->pix_fmt = AV_PIX_FMT_GRAY8;
