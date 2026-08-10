@@ -1,0 +1,123 @@
+name: Sanitizer Tests
+
+on:
+  schedule:
+    - cron: '0 18 * * 5'  # Weekly: Friday 18:00 UTC (20:00 CEST / 19:00 CET)
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Lower shard count than regular CI: sanitizer-instrumented binaries use more
+# memory and CPU, so fewer parallel shards avoid OOM on self-hosted runners.
+env:
+  JOBS_NUM: 16
+
+jobs:
+  # ── Address / Thread / Undefined / Integer sanitizers ──────────────────────
+  # All built as Release with clang; unit tests run via parrallelUT.sh.
+  sanitizer-unit-tests:
+    name: "Unit tests: ${{ matrix.sanitizer }} sanitizer"
+    runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind']
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sanitizer: address
+          - sanitizer: thread
+          - sanitizer: undefined
+          - sanitizer: integer
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    - name: 'Setup: Install dependencies'
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install cmake nasm clang make
+
+    - name: 'Fix workspace permissions'
+      if: always()
+      run: |
+        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
+
+    - name: 'Build: release with ${{ matrix.sanitizer }} sanitizer'
+      working-directory: Build/linux
+      run: |
+        ./build.sh release test sanitizer=${{ matrix.sanitizer }} cc=clang cxx=clang++ jobs=$(nproc)
+
+    - name: 'Unit tests: ${{ matrix.sanitizer }} sanitizer (release)'
+      env:
+        # Passed for UBSan-family (undefined, integer); silently ignored by ASan/TSan.
+        UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1"
+      run: |
+        cd Bin/Release/
+        chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
+        chmod +x ./*
+        export LD_LIBRARY_PATH=$(pwd)
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }}
+
+  # ── Memory sanitizer ────────────────────────────────────────────────────────
+  # Must be Debug (release does not build with MSan).
+  # Unit tests CANNOT run under MSan: googletest triggers a false positive in
+  # libc++ ios_base::precision during global init. Use encoder/decoder apps instead.
+  # Use --asm avx2 to avoid AVX-512 SIMD false positives in MSan instrumentation.
+  sanitizer-memory:
+    name: "App tests: memory sanitizer"
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    timeout-minutes: 180
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    - name: 'Setup: Install dependencies'
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install cmake nasm clang make
+
+    - name: 'Fix workspace permissions'
+      if: always()
+      run: |
+        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
+
+    - name: 'Build: debug with memory sanitizer'
+      working-directory: Build/linux
+      run: |
+        ./build.sh debug test sanitizer=memory cc=clang cxx=clang++ jobs=$(nproc)
+
+    - name: 'App tests: memory sanitizer (debug)'
+      run: |
+        cd Bin/Debug/
+        chmod +x ./*
+        export LD_LIBRARY_PATH=$(pwd)
+        # 1920x1080 8-bit YUV422: width * height * 2 bytes
+        dd if=/dev/urandom of=/tmp/msan_test_input.yuv bs=$((1920 * 1080 * 2)) count=1
+        # Encode — avx2 avoids AVX-512 paths that produce MSan false positives
+        ./SvtJpegxsEncApp \
+          -i /tmp/msan_test_input.yuv -w 1920 -h 1080 \
+          --input-depth 8 --colour-format yuv422 \
+          -b /tmp/msan_test.jxs --bpp 3 --asm avx2
+        # Decode
+        ./SvtJpegxsDecApp \
+          -i /tmp/msan_test.jxs -o /tmp/msan_test_dec.yuv --asm avx2

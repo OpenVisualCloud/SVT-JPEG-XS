@@ -1,0 +1,13 @@
+# UBSan/IntSan suppression file for known false positives in libstdc++ headers.
+# These are intentional unsigned arithmetic patterns in the C++ standard library
+# that cannot be fixed in project code.
+
+# std::string::npos is size_t(-1); comparisons against it use intentional unsigned wrap
+unsigned-integer-overflow:*bits/basic_string.h*
+
+# Mersenne Twister PRNG uses deliberate unsigned modular arithmetic
+unsigned-integer-overflow:*bits/random.tcc*
+
+# uniform_int_distribution rejection sampling uses unsigned negation (-range)
+unsigned-integer-overflow:*bits/uniform_int_dist.h*
+implicit-integer-sign-change:*bits/uniform_int_dist.h*
