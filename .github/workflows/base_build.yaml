@@ -193,10 +193,48 @@ jobs:
         sudo chmod -R 755 ${GITHUB_WORKSPACE}/tests/scripts/
         sudo chmod -R 755 ${DEC_BIN_DIR}/
         export LD_LIBRARY_PATH=${DEC_BIN_DIR}
-        ./ParallelAllTests.sh ${{ env.JOBS_NUM }}  ${INPUT_FILES_PATH} ${DEC_BIN_DIR}/SvtJpegxsDecApp
+        ./ParallelAllTests.sh ${{ env.JOBS_NUM }}  ${INPUT_FILES_PATH} ${DEC_BIN_DIR}/SvtJpegxsDecApp 2>&1 | tee conformance_tests.log
       env:
         DEC_BIN_DIR: ${{ github.workspace }}/Bin/Release
         INPUT_FILES_PATH: /opt/samples
+
+    - name: 'Publish: sample app functional test summary'
+      if: always()
+      working-directory: ${{ github.workspace }}/tests/scripts
+      run: |
+        {
+          echo "## SVT-JPEG-XS App Functional Tests"
+          echo ""
+          if [ ! -f conformance_tests.log ]; then
+            echo "> ⚠️ Test log not found — the test may not have run."
+          else
+            echo "| Suite | Executed | Passed | Failed | Status |"
+            echo "|-------|----------|--------|--------|--------|"
+            awk '
+              /^RUN DECODER CONFORMANCE TEST/ { flush(); suite="Decoder Conformance" }
+              /^RUN DECODER MULTI FRAMES TEST/ { flush(); suite="Decoder Multi-Frames" }
+              /^RUN ENOCDER TEST/             { flush(); suite="Encoder" }
+              /Tests execute:/  { total += $3 }
+              /^FAIL [^!]/      { fails++ }
+              END {
+                flush()
+                print ""
+                if (grand_fails == 0)
+                  print "**Result: ✅ All " grand_total " tests passed**"
+                else
+                  print "**Result: ❌ " grand_fails " test(s) failed, " (grand_total - grand_fails) " passed**"
+              }
+              function flush() {
+                if (suite != "") {
+                  icon = (fails == 0) ? "✅" : "❌"
+                  printf "| %s | %d | %d | %d | %s |\n", suite, total, total-fails, fails, icon
+                  grand_total += total; grand_fails += fails
+                  total=0; fails=0; suite=""
+                }
+              }
+            ' conformance_tests.log
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
 
   performance-tests:
     needs: linux-build
@@ -228,6 +266,41 @@ jobs:
         run: |
           chmod +x "${{ github.workspace }}/Bin/Release/"*
           ./PerformanceTestSampleApp.sh "${{ env.INPUT_FILES_PATH }}" 2>&1 | tee sample_app_performance.log
+
+      - name: 'Publish: sample app performance summary'
+        if: always()
+        working-directory: tests/scripts
+        run: |
+          {
+            echo "## SVT-JPEG-XS Sample App Performance Results"
+            echo ""
+            if [ ! -f svt_app_results.csv ]; then
+              echo "> ⚠️ Results CSV not found — the test may not have produced output."
+            else
+              echo "| Op | Resolution / Config | Result FPS | Baseline FPS | % of Target | Status |"
+              echo "|----|---------------------|-----------|--------------|-------------|--------|"
+              awk -F',' '
+                NR == 1 { next }
+                {
+                  op=$1; tc=$2; status=$NF; pct=$(NF-1); target=$(NF-2); result=$(NF-3)
+                  n=split(tc, a, "|")
+                  label = (n > 7) ? a[1] " bpp=" a[7] " t=" a[8] : tc
+                  icon = (status == "PASS") ? "✅" : "❌"
+                  printf "| %s | %s | %s | %s | %s%% | %s %s |\n", op, label, result, target, pct, icon, status
+                  if (status == "PASS") pass++; else fail++
+                }
+                END {
+                  print ""
+                  if (fail+pass == 0)
+                    print "_No test results found in CSV._"
+                  else if (fail == 0)
+                    print "**Result: ✅ All " pass " tests passed**"
+                  else
+                    print "**Result: ❌ " fail " test(s) failed, " pass " passed**"
+                }
+              ' svt_app_results.csv
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: "Archive: upload performance results"
         if: always()
