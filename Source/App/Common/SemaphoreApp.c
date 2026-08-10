@@ -9,6 +9,7 @@
 
 #ifdef __APPLE__
 #include <dispatch/dispatch.h>
+#include "Definitions.h"
 #endif
 #ifdef _WIN32
 #include <windows.h>
@@ -85,10 +86,9 @@ SvtJxsErrorType_t semaphore_block(void* semaphore_handle, int32_t timout_ms) {
         ? SvtJxsErrorSemaphoreUnresponsive
         : SvtJxsErrorNone;
 #elif defined(__APPLE__)
-#ERROR Implement timeout for dispatch_semaphore_wait() !
-    return_error = dispatch_semaphore_wait((dispatch_semaphore_t)semaphore_handle, DISPATCH_TIME_FOREVER)
-        ? SvtJxsErrorSemaphoreUnresponsive
-        : SvtJxsErrorNone;
+    dispatch_time_t timeout = (timout_ms < 0) ? DISPATCH_TIME_FOREVER
+                                            : dispatch_time(DISPATCH_TIME_NOW, (int64_t)timout_ms * NSEC_PER_MSEC);
+    return_error = dispatch_semaphore_wait((dispatch_semaphore_t)semaphore_handle, timeout);
 #else
     int ret;
     if (timout_ms < 0) {
