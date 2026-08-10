@@ -75,27 +75,27 @@ PREFIX_API void svt_jpeg_xs_decoder_close(svt_jpeg_xs_decoder_api_t* dec_api) {
  **********************************/
 SvtJxsErrorType_t decoder_allocate_handle(svt_jpeg_xs_decoder_api_t* dec_api) {
     if (dec_api->verbose >= VERBOSE_SYSTEM_INFO) {
-        fprintf(stderr, "-------------------------------------------\n");
-        fprintf(stderr, "SVT [version]:\tSVT-JPEGXS Decoder Lib v%i.%i\n", SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR);
+        SVT_LOG("-------------------------------------------\n");
+        SVT_LOG("SVT [version]:\tSVT-JPEGXS Decoder Lib v%i.%i\n", SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR);
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1930)
-        fprintf(stderr, "SVT [build]  :\tVisual Studio 2022");
+        SVT_LOG("SVT [build]  :\tVisual Studio 2022");
 #elif defined(_MSC_VER) && (_MSC_VER >= 1920)
-        fprintf(stderr, "SVT [build]  :\tVisual Studio 2019");
+        SVT_LOG("SVT [build]  :\tVisual Studio 2019");
 #elif defined(_MSC_VER) && (_MSC_VER >= 1910)
-        fprintf(stderr, "SVT [build]  :\tVisual Studio 2017");
+        SVT_LOG("SVT [build]  :\tVisual Studio 2017");
 #elif defined(_MSC_VER) && (_MSC_VER >= 1900)
-        fprintf(stderr, "SVT [build]  :\tVisual Studio 2015");
+        SVT_LOG("SVT [build]  :\tVisual Studio 2015");
 #elif defined(_MSC_VER)
-        fprintf(stderr, "SVT [build]  :\tVisual Studio (old)");
+        SVT_LOG("SVT [build]  :\tVisual Studio (old)");
 #elif defined(__GNUC__)
-        fprintf(stderr, "SVT [build]  :\tGCC %s\t", __VERSION__);
+        SVT_LOG("SVT [build]  :\tGCC %s\t", __VERSION__);
 #else
-        fprintf(stderr, "SVT [build]  :\tunknown compiler");
+        SVT_LOG("SVT [build]  :\tunknown compiler");
 #endif
-        fprintf(stderr, " %zu bit\n", sizeof(void*) * 8);
-        fprintf(stderr, "LIB Build date: %s %s\n", __DATE__, __TIME__);
-        fprintf(stderr, "-------------------------------------------\n");
+        SVT_LOG(" %zu bit\n", sizeof(void*) * 8);
+        SVT_LOG("LIB Build date: %s %s\n", __DATE__, __TIME__);
+        SVT_LOG("-------------------------------------------\n");
     }
 
     SVT_CALLOC(dec_api->private_ptr, 1, sizeof(svt_jpeg_xs_decoder_api_prv_t));
@@ -133,7 +133,16 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
     dec_api_prv->packetization_mode = dec_api->packetization_mode;
     if (dec_api_prv->packetization_mode != 0 && dec_api_prv->packetization_mode != 1) {
         if (dec_api->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unrecognized packetization mode\n");
+            SVT_ERROR("Unrecognized packetization mode\n");
+        }
+        svt_jpeg_xs_decoder_close(dec_api);
+        return SvtJxsErrorBadParameter;
+    }
+
+    dec_api_prv->dec_common.output_bit_depth_msb_aligned = dec_api->output_bit_depth_msb_aligned;
+    if (dec_api_prv->dec_common.output_bit_depth_msb_aligned != 0 && dec_api_prv->dec_common.output_bit_depth_msb_aligned != 1) {
+        if (dec_api->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Unrecognized output_bit_depth_msb_aligned, expected: 0 or 1\n");
         }
         svt_jpeg_xs_decoder_close(dec_api);
         return SvtJxsErrorBadParameter;
@@ -141,7 +150,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
 
     if (dec_api->proxy_mode >= proxy_mode_max) {
         if (dec_api->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unrecognized proxy mode\n");
+            SVT_ERROR("Unrecognized proxy mode\n");
         }
         svt_jpeg_xs_decoder_close(dec_api);
         return SvtJxsErrorBadParameter;
@@ -151,8 +160,8 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
     const CPU_FLAGS cpu_flags = get_cpu_flags();
     dec_api->use_cpu_flags &= cpu_flags;
     if (dec_api_prv->verbose >= VERBOSE_SYSTEM_INFO) {
-        fprintf(stderr, "[asm level on system : up to %s]\n", get_asm_level_name_str(cpu_flags));
-        fprintf(stderr, "[asm level selected : up to %s]\n", get_asm_level_name_str(dec_api->use_cpu_flags));
+        SVT_LOG("[asm level on system : up to %s]\n", get_asm_level_name_str(cpu_flags));
+        SVT_LOG("[asm level selected : up to %s]\n", get_asm_level_name_str(dec_api->use_cpu_flags));
     }
 
     setup_common_rtcd_internal(dec_api->use_cpu_flags);
@@ -160,7 +169,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
 
     //Init queue
     if (dec_api_prv->verbose >= VERBOSE_SYSTEM_INFO) {
-        fprintf(stderr, "[Threads            : %i]\n", dec_api->threads_num);
+        SVT_LOG("[Threads            : %i]\n", dec_api->threads_num);
     }
 
     //Zeroed handle memory
@@ -196,7 +205,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
     }
     if (dec_api_prv->packetization_mode == 1 && header_dynamic.hdr_Lcod == 0) {
         if (dec_api->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Packetization mode(multiple packets per frame) not supported with variable bitrate coding\n");
+            SVT_ERROR("Packetization mode(multiple packets per frame) not supported with variable bitrate coding\n");
         }
         svt_jpeg_xs_decoder_close(dec_api);
         return SvtJxsErrorBadParameter;
@@ -218,19 +227,16 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
                                                                    dec_api_prv->dec_common.picture_header_const.hdr_Sx,
                                                                    dec_api_prv->dec_common.picture_header_const.hdr_Sy);
         const char* color_format_name = svt_jpeg_xs_get_format_name(format);
-        fprintf(stderr, "-------------------------------------------\n");
-        fprintf(stderr,
-                "SVT [config]: Stream Resolution [width x height]     \t: %d x %d\n",
+        SVT_LOG("-------------------------------------------\n");
+        SVT_LOG("SVT [config]: Stream Resolution [width x height]     \t: %d x %d\n",
                 dec_api_prv->dec_common.picture_header_const.hdr_width,
                 dec_api_prv->dec_common.picture_header_const.hdr_height);
         if (dec_api_prv->proxy_mode != proxy_mode_full) {
-            fprintf(stderr,
-                    "SVT [config]: Decoding Resolution [width x height]     \t: %d x %d\n",
+            SVT_LOG("SVT [config]: Decoding Resolution [width x height]     \t: %d x %d\n",
                     out_image_config->width,
                     out_image_config->height);
         }
-        fprintf(stderr,
-                "SVT [config]: DecoderBitDepth / DecoderColorFormat\t: %d / %s\n",
+        SVT_LOG("SVT [config]: DecoderBitDepth / DecoderColorFormat\t: %d / %s\n",
                 dec_api_prv->dec_common.picture_header_const.hdr_bit_depth[0],
                 color_format_name);
     }
@@ -251,12 +257,12 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         20; //Should be more that pool_decoders_instances_count to not reduce performance
 
     if (dec_api_prv->verbose >= VERBOSE_SYSTEM_INFO_ALL) {
-        fprintf(stderr, "-------------------------------------------\n");
-        fprintf(stderr, "[%s] universal_threads_num: %i\n", __FUNCTION__, (int)dec_api_prv->universal_threads_num);
-        fprintf(stderr, "[%s] TaskInputBitstreamQueueCount: %i\n", __FUNCTION__, (int)input_bitstream_queue_count);
-        fprintf(stderr, "[%s] OutoutBitstreamQueueCount: %i\n", __FUNCTION__, (int)output_bitsteram_queue_count);
-        fprintf(stderr, "[%s] sync_output_ringbuffer_size: %i\n", __FUNCTION__, (int)dec_api_prv->sync_output_ringbuffer_size);
-        fprintf(stderr, "[%s] PoolDecContextsNum: %i\n", __FUNCTION__, (int)pool_decoders_instances_count);
+        SVT_DEBUG("-------------------------------------------\n");
+        SVT_DEBUG("[%s] universal_threads_num: %i\n", __FUNCTION__, (int)dec_api_prv->universal_threads_num);
+        SVT_DEBUG("[%s] TaskInputBitstreamQueueCount: %i\n", __FUNCTION__, (int)input_bitstream_queue_count);
+        SVT_DEBUG("[%s] OutoutBitstreamQueueCount: %i\n", __FUNCTION__, (int)output_bitsteram_queue_count);
+        SVT_DEBUG("[%s] sync_output_ringbuffer_size: %i\n", __FUNCTION__, (int)dec_api_prv->sync_output_ringbuffer_size);
+        SVT_DEBUG("[%s] PoolDecContextsNum: %i\n", __FUNCTION__, (int)pool_decoders_instances_count);
     }
 
     if (!dec_api_prv->packetization_mode) {
@@ -348,11 +354,11 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
     SVT_CREATE_THREAD(dec_api_prv->final_stage_thread_handle, thread_final_stage_kernel, dec_api_prv);
 
     if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-        fprintf(stderr, "[%s] End\n", __FUNCTION__);
+        SVT_DEBUG("[%s] End\n", __FUNCTION__);
     }
 
     if (dec_api_prv->verbose >= VERBOSE_ERRORS) {
-        fprintf(stderr, "-------------------------------------------\n");
+        SVT_LOG("-------------------------------------------\n");
         svt_jxs_log_init();
         svt_jxs_print_memory_usage();
     }
@@ -370,8 +376,8 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
 
     if (dec_api_prv->packetization_mode) {
         if (dec_api->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "\nDecoder initialized for packet-based input, but svt_jpeg_xs_decoder_send_frame() is called\n");
-            fprintf(stderr, "Please use svt_jpeg_xs_decoder_send_packet() instead\n");
+            SVT_ERROR("\nDecoder initialized for packet-based input, but svt_jpeg_xs_decoder_send_frame() is called\n");
+            SVT_ERROR("Please use svt_jpeg_xs_decoder_send_packet() instead\n");
         }
         return SvtJxsErrorUndefined;
     }
@@ -381,7 +387,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
     uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     for (uint8_t c = 0; c < pi->comps_num; ++c) {
         if (dec_input->image.data_yuv[c] == NULL) {
-            fprintf(stderr, "Invalid input: data_yuv[%u] is NULL\n", c);
+            SVT_ERROR("Invalid input: data_yuv[%u] is NULL\n", c);
             return SvtJxsErrorBadParameter;
         }
         uint32_t min_size;
@@ -410,7 +416,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
     }
 
     if (dec_api->verbose >= VERBOSE_INFO_MULTITHREADING) {
-        fprintf(stderr, "\n[%s] Send frame to Lib, Item: %p\n", __FUNCTION__, input_wrapper_ptr);
+        SVT_DEBUG("\n[%s] Send frame to Lib, Item: %p\n", __FUNCTION__, input_wrapper_ptr);
     }
 
     if ((input_wrapper_ptr != NULL) && (ret == SvtJxsErrorNone)) {
@@ -517,7 +523,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
         }
 
         if (dec_api->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(stderr, "\n[%s] Send EOC to Lib, Item: %p\n", __FUNCTION__, input_wrapper_ptr);
+            SVT_DEBUG("\n[%s] Send EOC to Lib, Item: %p\n", __FUNCTION__, input_wrapper_ptr);
         }
 
         if (input_wrapper_ptr != NULL) {

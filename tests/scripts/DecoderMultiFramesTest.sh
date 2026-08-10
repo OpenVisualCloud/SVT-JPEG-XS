@@ -10,8 +10,12 @@ echo "Run Decoder Multiple Frames Test"
 source ./CommonLib.sh
 path_correct="$path_global/bitstream_multi_frames"
 path_invalid="$path_global/bitstream_invalid"
+path_encoder_tests="$path_global/encoder_tests"
+#Encoder binary next to $exec_dec, used to generate temp MSB-aligned bitstreams from real sample YUV
+exec_enc="${exec_dec//SvtJpegxsDecApp/SvtJpegxsEncApp}"
 
 echo "DECODER : $exec_dec"
+echo "ENCODER : $exec_enc"
 echo "Path correct: $path_correct"
 echo "Path change: $path_change"
 
@@ -86,6 +90,13 @@ function test_dec {
 
 rm -fr $tmp_dir
 mkdir $tmp_dir
+
+#Prepare a temp bitstream from real sample YUV using EncApp, to test decoder output_bit_depth_msb_aligned
+#without needing a pre-baked fixture file. Decoded twice below (msb-aligned 0 and 1) from this single bitstream.
+bitstream_msb_prep="$tmp_dir/msb_prep.jxs"
+cmd_prep="$exec_enc -i $path_encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv -w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --coding-sigf 1 --coding-vpred 0 --rc 0 -n 5 --asm max --lp 7 --profile latency --packetization-mode 0 -b $bitstream_msb_prep"
+echo "run command: $cmd_prep"
+${cmd_prep}
 
 
 function test_all_correct {
@@ -183,6 +194,23 @@ function test_all_broken {
     test_dec 2 invalid_small_cfg_zero_band_10                          d41d8cd98f00b204e9800998ecf8427e
 }
 
+#RUN output_bit_depth_msb_aligned tests: decode the same self-generated bitstream twice (msb-aligned 0 and 1)
+#Parameters (1:asm) (2:lp number) (3:packetization mode)
+function test_msb_aligned_output {
+    PARAM_ASM=$1
+    PARAM_LP_NUM=$2
+    PARAM_PACKETIZATION=$3
+
+    path_use=$tmp_dir
+    #Default (LSB) and MSB-aligned outputs of the SAME bitstream, pinned md5 (verified: msb == lsb << (16-depth))
+    test_dec 0 msb_prep f48a73066e7a78d0207d3419b37097f4 "--output-msb-aligned 0"
+    test_dec 0 msb_prep 984080ab17c11c747da832b3b7be6eab "--output-msb-aligned 1"
+
+    #Reject any value other than 0/1
+    test_dec 2 msb_prep d41d8cd98f00b204e9800998ecf8427e "--output-msb-aligned 2"
+    test_dec 2 msb_prep d41d8cd98f00b204e9800998ecf8427e "--output-msb-aligned 255"
+}
+
 [[ $run_fast -eq 0 ]] && test_all_correct c 10 0
                          test_all_broken c 10
                          test_all_correct avx2 20 0
@@ -191,6 +219,11 @@ function test_all_broken {
 [[ $run_fast -eq 0 ]] && test_all_correct max 1 0
                          test_all_broken max 1
                          test_all_correct max 1 1
+
+echo Test output_bit_depth_msb_aligned
+[[ $run_fast -eq 0 ]] && test_msb_aligned_output c 10 0
+                         test_msb_aligned_output avx2 20 0
+                         test_msb_aligned_output max 1 1
 
 
 common_lib_end_summary

@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "encoder_dsp_rtcd.h"
+#include "SvtLog.h"
 
 void pack_significance(bitstream_writer_t* bitstream, uint8_t gtli, uint8_t* significance_data_max_ptr, uint32_t width) {
     for (uint32_t i = 0; i < width; i++) {
@@ -331,7 +332,7 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
             align_bitstream_writer_to_next_byte(bitstream);
             if (((int)bitstream_writer_get_used_bits(bitstream) - bits_pos_last) !=
                 (int)(precinct->packet_size_gcli_bytes[packet_idx] << 3)) {
-                fprintf(stderr,
+                SVT_ERROR(
                         "Error[%s:%i]: Pack Raw Coding length mismatch: rate control=%d packing=%d\n",
                         __FUNCTION__,
                         __LINE__,
@@ -371,7 +372,7 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
             align_bitstream_writer_to_next_byte(bitstream);
             if (((int)bitstream_writer_get_used_bits(bitstream) - bits_pos_last) !=
                 (int)(precinct->packet_size_significance_bytes[packet_idx] << 3)) {
-                fprintf(stderr,
+                SVT_ERROR(
                         "Error[%s:%i]: Pack Significance length mismatch: rate control=%d packing=%d\n",
                         __FUNCTION__,
                         __LINE__,
@@ -427,7 +428,7 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
             align_bitstream_writer_to_next_byte(bitstream);
             if (((int)bitstream_writer_get_used_bits(bitstream) - bits_pos_last) !=
                 (int)(precinct->packet_size_gcli_bytes[packet_idx] << 3)) {
-                fprintf(stderr,
+                SVT_ERROR(
                         "Error[%s:%i]: Pack bit-plane count length mismatch: rate control=%d packing=%d\n",
                         __FUNCTION__,
                         __LINE__,
@@ -461,7 +462,7 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
         align_bitstream_writer_to_next_byte(bitstream);
         if (((int)bitstream_writer_get_used_bits(bitstream) - bits_pos_last) !=
             (int)(precinct->packet_size_data_bytes[packet_idx] << 3)) {
-            fprintf(stderr,
+            SVT_ERROR(
                     "Error[%s:%i]: Pack %i data length mismatch: rate control=%d packing=%d\n",
                     __FUNCTION__,
                     __LINE__,
@@ -499,7 +500,7 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
             if (SIGN_HANDLING_STRATEGY_FULL == coding_signs_handling) {
                 if (((int)bitstream_writer_get_used_bits(bitstream) - bits_pos_last) !=
                     (int)(precinct->packet_size_signs_handling_bytes[packet_idx] << 3)) {
-                    fprintf(stderr,
+                    SVT_ERROR(
                             "Error[%s:%i]: Pack %i SIGN length mismatch: rate control=%d packing=%d\n",
                             __FUNCTION__,
                             __LINE__,
@@ -513,7 +514,7 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
                 //Lazy calculate PACK
                 assert(SIGN_HANDLING_STRATEGY_FAST == coding_signs_handling);
                 if (packet_signs_size_bytes > precinct->packet_size_signs_handling_bytes[packet_idx]) {
-                    fprintf(stderr,
+                    SVT_ERROR(
                             "Error[%s:%i]: Pack %i SIGN length too big: rate control=%d packing=%d\n",
                             __FUNCTION__,
                             __LINE__,
@@ -540,7 +541,7 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
     int bits_pos_end = bitstream_writer_get_used_bits(bitstream);
     if (bits_pos_end - bits_pos_begin !=
         (int)((precinct->pack_total_bytes - precinct->pack_padding_bytes - precinct_signs_retrieve_bytes) << 3)) {
-        fprintf(stderr,
+        SVT_ERROR(
                 "Error[%s:%i]: Precinct size invalid  Precinct=%d expected=%d\n",
                 __FUNCTION__,
                 __LINE__,
@@ -549,7 +550,7 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
         return SvtJxsErrorEncodeFrameError;
     }
     if (bits_pos_end % 8) {
-        fprintf(stderr, "Error[%s:%i]: Precinct invalid alignment to 8 bits\n", __FUNCTION__, __LINE__);
+        SVT_ERROR("Error[%s:%i]: Precinct invalid alignment to 8 bits\n", __FUNCTION__, __LINE__);
         return SvtJxsErrorEncodeFrameError;
     }
 

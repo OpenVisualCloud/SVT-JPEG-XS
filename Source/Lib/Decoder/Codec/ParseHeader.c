@@ -13,6 +13,7 @@
 #include "Pi.h"
 #include "Codestream.h"
 #include "SvtJpegxsDec.h"
+#include "SvtLog.h"
 
 /* Maximum number of components allowed by the JPEG XS spec (ISO/IEC 21122) */
 #define JPEGXS_SPEC_MAX_COMPONENTS_NUM (8)
@@ -78,7 +79,7 @@ SvtJxsErrorType_t get_capabilities(bitstream_reader_t* bitstream, picture_header
                                    uint32_t verbose) {
     if (picture_header_const->marker_exist_CAP) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unexpected Capabilities marker!\n");
+            SVT_ERROR("Unexpected Capabilities marker!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -90,7 +91,7 @@ SvtJxsErrorType_t get_capabilities(bitstream_reader_t* bitstream, picture_header
     uint16_t val = read_16_bits(bitstream);
     if (val != CODESTREAM_CAP) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Capabilities marker not found!\n");
+            SVT_ERROR("Capabilities marker not found!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -118,13 +119,13 @@ SvtJxsErrorType_t get_picture_header(bitstream_reader_t* bitstream, picture_head
                                      picture_header_dynamic_t* picture_header_dynamic, uint32_t verbose) {
     if (picture_header_const->marker_exist_CAP == 0) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Capabilities marker Not found!\n");
+            SVT_ERROR("Capabilities marker Not found!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
     if (picture_header_const->marker_exist_PIH) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unexpected Picture header!\n");
+            SVT_ERROR("Unexpected Picture header!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -137,14 +138,14 @@ SvtJxsErrorType_t get_picture_header(bitstream_reader_t* bitstream, picture_head
     uint16_t val = read_16_bits(bitstream);
     if (val != CODESTREAM_PIH) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Picture header marker not found!\n");
+            SVT_ERROR("Picture header marker not found!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
     uint16_t size_bytes = read_16_bits(bitstream);
     if (size_bytes != PICTURE_HEADER_SIZE_BYTES) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Picture header size invalid, expected=26, read=%d!\n", size_bytes);
+            SVT_ERROR("Picture header size invalid, expected=26, read=%d!\n", size_bytes);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -160,7 +161,7 @@ SvtJxsErrorType_t get_picture_header(bitstream_reader_t* bitstream, picture_head
     picture_header_const->hdr_Hsl = read_16_bits(bitstream);
     if (picture_header_const->hdr_Hsl < 1) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Picture header invalid Height of a slice in precincts, read=%d!\n", picture_header_const->hdr_Hsl);
+            SVT_ERROR("Picture header invalid Height of a slice in precincts, read=%d!\n", picture_header_const->hdr_Hsl);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -168,7 +169,7 @@ SvtJxsErrorType_t get_picture_header(bitstream_reader_t* bitstream, picture_head
     picture_header_const->hdr_comps_num = read_8_bits(bitstream);
     if (picture_header_const->hdr_comps_num < 1 || picture_header_const->hdr_comps_num > JPEGXS_SPEC_MAX_COMPONENTS_NUM) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr,
+            SVT_ERROR(
                     "Picture header invalid number of components expected 1-%d, read=%d!\n",
                     JPEGXS_SPEC_MAX_COMPONENTS_NUM,
                     picture_header_const->hdr_comps_num);
@@ -188,7 +189,7 @@ SvtJxsErrorType_t get_picture_header(bitstream_reader_t* bitstream, picture_head
     picture_header_const->hdr_significance_group_size = read_8_bits(bitstream);
     if (picture_header_const->hdr_significance_group_size != 8) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr,
+            SVT_ERROR(
                     "Picture header invalid coeff group expected 8, read=%d!\n",
                     picture_header_const->hdr_significance_group_size);
         }
@@ -208,7 +209,7 @@ SvtJxsErrorType_t get_picture_header(bitstream_reader_t* bitstream, picture_head
 
     if (picture_header_dynamic->hdr_Br != 4) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Picture header invalid Br expected 4, read=%d!\n", picture_header_dynamic->hdr_Br);
+            SVT_ERROR("Picture header invalid Br expected 4, read=%d!\n", picture_header_dynamic->hdr_Br);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -259,21 +260,21 @@ SvtJxsErrorType_t get_component_table(bitstream_reader_t* bitstream, picture_hea
 
     if (picture_header_const->marker_exist_CAP == 0) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Capabilities marker Not found!\n");
+            SVT_ERROR("Capabilities marker Not found!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
 
     if (picture_header_const->marker_exist_PIH == 0) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Picture header Not found!\n");
+            SVT_ERROR("Picture header Not found!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
 
     if (picture_header_const->marker_exist_CDT) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unexpected Component table!\n");
+            SVT_ERROR("Unexpected Component table!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -294,7 +295,7 @@ SvtJxsErrorType_t get_component_table(bitstream_reader_t* bitstream, picture_hea
         picture_header_const->hdr_comps_num > sizeof(picture_header_const->hdr_Sx) / sizeof(picture_header_const->hdr_Sx[0]) ||
         picture_header_const->hdr_comps_num > sizeof(picture_header_const->hdr_Sy) / sizeof(picture_header_const->hdr_Sy[0])) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Not supported number of components! Max: %u\n", MAX_COMPONENTS_NUM);
+            SVT_ERROR("Not supported number of components! Max: %u\n", MAX_COMPONENTS_NUM);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -315,21 +316,21 @@ SvtJxsErrorType_t get_weights_table(bitstream_reader_t* bitstream, picture_heade
                                     uint32_t verbose) {
     if (picture_header_const->marker_exist_CAP == 0) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Capabilities marker Not found!\n");
+            SVT_ERROR("Capabilities marker Not found!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
 
     if (picture_header_const->marker_exist_PIH == 0) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Picture header Not found!\n");
+            SVT_ERROR("Picture header Not found!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
 
     if (picture_header_const->marker_exist_WGT) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unexpected Component table!\n");
+            SVT_ERROR("Unexpected Component table!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -344,7 +345,7 @@ SvtJxsErrorType_t get_weights_table(bitstream_reader_t* bitstream, picture_heade
 
     if (size_bytes & 1) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Invalid Odd bytes in weight table !\n");
+            SVT_ERROR("Invalid Odd bytes in weight table !\n");
         }
         return SvtJxsErrorDecoderBitstreamTooShort;
     }
@@ -354,7 +355,7 @@ SvtJxsErrorType_t get_weights_table(bitstream_reader_t* bitstream, picture_heade
         bands_exist > sizeof(picture_header_const->hdr_gain) / sizeof(picture_header_const->hdr_gain[0]) ||
         bands_exist > sizeof(picture_header_const->hdr_priority) / sizeof(picture_header_const->hdr_priority[0])) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Not supported elements in weight table! Max: %u\n", MAX_BANDS_NUM);
+            SVT_ERROR("Not supported elements in weight table! Max: %u\n", MAX_BANDS_NUM);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -396,7 +397,7 @@ SvtJxsErrorType_t get_nonlinearity(bitstream_reader_t* bitstream, picture_header
     }
     else {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unrecognized nonlinearity type=%d\n", picture_header_dynamic->hdr_Tnlt);
+            SVT_ERROR("Unrecognized nonlinearity type=%d\n", picture_header_dynamic->hdr_Tnlt);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -418,7 +419,7 @@ SvtJxsErrorType_t get_cwd(bitstream_reader_t* bitstream, picture_header_const_t*
 SvtJxsErrorType_t get_cts(bitstream_reader_t* bitstream, picture_header_dynamic_t* picture_header_dynamic, uint32_t verbose) {
     if (picture_header_dynamic->marker_exist_CTS) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unexpected Colour transformation specification marker!\n");
+            SVT_ERROR("Unexpected Colour transformation specification marker!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -447,7 +448,7 @@ SvtJxsErrorType_t get_crg(bitstream_reader_t* bitstream, picture_header_const_t*
                           picture_header_dynamic_t* picture_header_dynamic, uint32_t verbose) {
     if (picture_header_dynamic->marker_exist_CRG) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unexpected Component registration marker!\n");
+            SVT_ERROR("Unexpected Component registration marker!\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -467,7 +468,7 @@ SvtJxsErrorType_t get_crg(bitstream_reader_t* bitstream, picture_header_const_t*
         picture_header_const->hdr_comps_num >
             sizeof(picture_header_dynamic->hdr_Ycrg) / sizeof(picture_header_dynamic->hdr_Ycrg[0])) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Not supported number of components! Max: %u\n", MAX_COMPONENTS_NUM);
+            SVT_ERROR("Not supported number of components! Max: %u\n", MAX_COMPONENTS_NUM);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -519,7 +520,7 @@ SvtJxsErrorType_t get_header(bitstream_reader_t* bitstream, picture_header_const
     val = read_16_bits(bitstream);
     if (val != CODESTREAM_SOC) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Start of codestream marker not found\n");
+            SVT_ERROR("Start of codestream marker not found\n");
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }
@@ -576,7 +577,7 @@ SvtJxsErrorType_t get_header(bitstream_reader_t* bitstream, picture_header_const
             if (picture_header_const->marker_exist_CAP == 0 || picture_header_const->marker_exist_PIH == 0 ||
                 picture_header_const->marker_exist_CDT == 0 || picture_header_const->marker_exist_WGT == 0) {
                 if (verbose >= VERBOSE_ERRORS) {
-                    fprintf(stderr, "Mandatory markers not found!\n");
+                    SVT_ERROR("Mandatory markers not found!\n");
                 }
                 return SvtJxsErrorDecoderInvalidBitstream;
             }
@@ -586,7 +587,7 @@ SvtJxsErrorType_t get_header(bitstream_reader_t* bitstream, picture_header_const
                     if (picture_header_const->hdr_Sx[c] != picture_header_const->hdr_Sx[0] ||
                         picture_header_const->hdr_Sy[c] != picture_header_const->hdr_Sy[0]) {
                         if (verbose >= VERBOSE_ERRORS) {
-                            fprintf(stderr, "Invalid YUV format for filter Color Transform!\n");
+                            SVT_ERROR("Invalid YUV format for filter Color Transform!\n");
                         }
                         return SvtJxsErrorDecoderInvalidBitstream;
                     }
@@ -596,7 +597,7 @@ SvtJxsErrorType_t get_header(bitstream_reader_t* bitstream, picture_header_const
             if (picture_header_const->hdr_Cpih == 3) {
                 if (picture_header_dynamic->marker_exist_CTS == 0 || picture_header_dynamic->marker_exist_CRG == 0) {
                     if (verbose >= VERBOSE_ERRORS) {
-                        fprintf(stderr, "Mandatory markers not found!\n");
+                        SVT_ERROR("Mandatory markers not found!\n");
                     }
                     return SvtJxsErrorDecoderInvalidBitstream;
                 }
@@ -605,7 +606,7 @@ SvtJxsErrorType_t get_header(bitstream_reader_t* bitstream, picture_header_const
             return SvtJxsErrorNone;
         default:
             if (verbose >= VERBOSE_ERRORS) {
-                fprintf(stderr, "Unrecognized marker found!\n");
+                SVT_ERROR("Unrecognized marker found!\n");
             }
             return SvtJxsErrorDecoderInvalidBitstream;
         }
@@ -833,7 +834,7 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
                         const uint64_t byte_size64 = (uint64_t)out_image_config->components[c].width *
                             out_image_config->components[c].height * pixel_size;
                         if (byte_size64 > UINT32_MAX) {
-                            fprintf(stderr,
+                            SVT_ERROR(
                                     "Image component %d byte_size overflow: %" PRIu64 " exceeds uint32 max\n",
                                     c,
                                     byte_size64);

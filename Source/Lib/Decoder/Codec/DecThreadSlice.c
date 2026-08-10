@@ -6,6 +6,7 @@
 #include "DecThreads.h"
 #include "DecThreadSlice.h"
 #include "DecThreadFinal.h"
+#include "SvtLog.h"
 
 /*Create input buffer item.*/
 SvtJxsErrorType_t universal_frame_task_creator(void_ptr* object_dbl_ptr, void_ptr object_init_data_ptr) {
@@ -65,7 +66,7 @@ void* thread_universal_stage_kernel(void* input_ptr) {
     for (;;) {
         ObjectWrapper_t* input_wrapper_ptr;
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(stderr, "[%s][ThreadId %i] Before SVT_GET_FULL_OBJECT\n", __FUNCTION__, universal_ctx->process_idx);
+            SVT_DEBUG("[%s][ThreadId %i] Before SVT_GET_FULL_OBJECT\n", __FUNCTION__, universal_ctx->process_idx);
         }
         SVT_GET_FULL_OBJECT(/*dec_api_prv->universal_consumer_fifo_ptr*/ universal_ctx->universal_consumer_fifo_ptr,
                             &input_wrapper_ptr);
@@ -73,11 +74,10 @@ void* thread_universal_stage_kernel(void* input_ptr) {
         svt_jpeg_xs_decoder_instance_t* dec_ctx = input_buffer_ptr->wrapper_ptr_decoder_ctx->object_ptr;
 
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(stderr,
-                    "[%s][ThreadId %i] Get frame  %i from work thread\n",
-                    __FUNCTION__,
-                    universal_ctx->process_idx,
-                    (int)dec_ctx->frame_num);
+            SVT_DEBUG("[%s][ThreadId %i] Get frame  %i from work thread\n",
+                      __FUNCTION__,
+                      universal_ctx->process_idx,
+                      (int)dec_ctx->frame_num);
         }
 
         SvtJxsErrorType_t ret_decode = SvtJxsErrorNone;
@@ -99,25 +99,23 @@ void* thread_universal_stage_kernel(void* input_ptr) {
 
         if (dec_api_prv->verbose >= VERBOSE_WARNINGS) {
             if (ret_decode >= 0 && ret_decode != (int)input_buffer_ptr->bitstream_buf_size) {
-                fprintf(stderr,
-                        "[%s:Process ID: %i] WARNING frame %i !!! Unexpected size of frame, expected: %i get: %i\n",
-                        __FUNCTION__,
-                        universal_ctx->process_idx,
-                        (int)dec_ctx->frame_num,
-                        (int)input_buffer_ptr->bitstream_buf_size,
-                        ret_decode);
+                SVT_WARN("[%s:Process ID: %i] WARNING frame %i !!! Unexpected size of frame, expected: %i get: %i\n",
+                         __FUNCTION__,
+                         universal_ctx->process_idx,
+                         (int)dec_ctx->frame_num,
+                         (int)input_buffer_ptr->bitstream_buf_size,
+                         ret_decode);
             }
         }
 
         if (ret_decode < 0) {
             if (dec_api_prv->verbose >= VERBOSE_ERRORS) {
-                fprintf(stderr,
-                        "[%s:Process ID: %i] %i, %p, %i HANDLE ERROR!!!\n",
-                        __FUNCTION__,
-                        universal_ctx->process_idx,
-                        (int)dec_ctx->frame_num,
-                        input_buffer_ptr->bitstream_buf,
-                        (int)input_buffer_ptr->bitstream_buf_size);
+                SVT_ERROR("[%s:Process ID: %i] %i, %p, %i HANDLE ERROR!!!\n",
+                          __FUNCTION__,
+                          universal_ctx->process_idx,
+                          (int)dec_ctx->frame_num,
+                          input_buffer_ptr->bitstream_buf,
+                          (int)input_buffer_ptr->bitstream_buf_size);
             }
         }
 
@@ -133,11 +131,10 @@ void* thread_universal_stage_kernel(void* input_ptr) {
         buffer_output->frame_error = input_buffer_ptr->frame_error;
 
         if (dec_api_prv->verbose >= VERBOSE_INFO_MULTITHREADING) {
-            fprintf(stderr,
-                    "[%s][ThreadId %i] Send frame  %i from work thread\n",
-                    __FUNCTION__,
-                    universal_ctx->process_idx,
-                    (int)dec_ctx->frame_num);
+            SVT_DEBUG("[%s][ThreadId %i] Send frame  %i from work thread\n",
+                      __FUNCTION__,
+                      universal_ctx->process_idx,
+                      (int)dec_ctx->frame_num);
         }
 
         svt_jxs_post_full_object(universal_wrapper_ptr);

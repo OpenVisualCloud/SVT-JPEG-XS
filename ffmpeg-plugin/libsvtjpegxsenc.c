@@ -29,6 +29,7 @@ typedef struct SvtJpegXsEncodeContext {
     int coding_vpred;
     int coding_raw;
     int cap_compat;
+    int msb_aligned;
 
     svt_jpeg_xs_encoder_api_t encoder;
     int bitstream_frame_size;
@@ -300,6 +301,7 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
         }
         svt_enc->encoder.level_plev_override = (uint16_t)avctx->level;
     }
+    svt_enc->encoder.input_bit_depth_msb_aligned = svt_enc->msb_aligned ? 1 : 0;
     if (svt_enc->slice_height > 0) {
         svt_enc->encoder.slice_height = svt_enc->slice_height;
     }
@@ -381,6 +383,15 @@ static const AVOption svtjpegxs_enc_options[] = {
      AV_OPT_TYPE_BOOL,
      {.i64 = -1},
      -1,
+     1,
+     VE},
+    {"msb_aligned",
+     "Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. "
+     "Must match the decoder's msb_aligned setting.",
+     OFFSET(msb_aligned),
+     AV_OPT_TYPE_BOOL,
+     {.i64 = 0},
+     0,
      1,
      VE},
     /* Named Ppih (profile) values for the generic "-profile" option (see avctx->profile in

@@ -136,7 +136,15 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     enc_common->bit_depth = config_struct->input_bit_depth;
     if (enc_common->bit_depth < 8 || enc_common->bit_depth > 14) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Incorrect bit_depth, expected: 8 to 14,  provided: %d\n", enc_common->bit_depth);
+            SVT_ERROR("Incorrect bit_depth, expected: 8 to 14,  provided: %d\n", enc_common->bit_depth);
+        }
+        return SvtJxsErrorBadParameter;
+    }
+    enc_common->picture_header_dynamic.hdr_input_msb_aligned = config_struct->input_bit_depth_msb_aligned;
+    if (enc_common->picture_header_dynamic.hdr_input_msb_aligned != 0 &&
+        enc_common->picture_header_dynamic.hdr_input_msb_aligned != 1) {
+        if (config_struct->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Unrecognized input_bit_depth_msb_aligned, expected: 0 or 1\n");
         }
         return SvtJxsErrorBadParameter;
     }
@@ -149,7 +157,7 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
 
     if (config_struct->ndecomp_v == 0 && config_struct->colour_format == COLOUR_FORMAT_PLANAR_YUV420) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr,
+            SVT_ERROR(
                     "Error: The input format YUV420 requires vertical decomposition level 1 or 2, provided %d\n",
                     config_struct->ndecomp_v);
         }
@@ -158,40 +166,40 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
 
     if (config_struct->slice_height == 0) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: slice_height cannot be 0\n");
+            SVT_ERROR("Error: slice_height cannot be 0\n");
         }
         return SvtJxsErrorBadParameter;
     }
     if (config_struct->slice_height >= config_struct->source_height) {
         if (config_struct->verbose >= VERBOSE_SYSTEM_INFO) {
-            fprintf(stderr, "Warning: slice_height is limited to source_height %d\n", config_struct->source_height);
+            SVT_WARN("Warning: slice_height is limited to source_height %d\n", config_struct->source_height);
         }
         config_struct->slice_height = config_struct->source_height;
     }
     else if (config_struct->slice_height % ((uint32_t)1 << config_struct->ndecomp_v)) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: slice_height have to be multiple of 2^(decomp_v)\n");
+            SVT_ERROR("Error: slice_height have to be multiple of 2^(decomp_v)\n");
         }
         return SvtJxsErrorBadParameter;
     }
 
     if (config_struct->quantization != QUANT_TYPE_DEADZONE && config_struct->quantization != QUANT_TYPE_UNIFORM) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unrecognized quantization method provided, expected 0 or 1\n");
+            SVT_ERROR("Unrecognized quantization method provided, expected 0 or 1\n");
         }
         return SvtJxsErrorBadParameter;
     }
 
     if (config_struct->bpp_denominator == 0) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "bpp_denominator cannot be 0!\n");
+            SVT_ERROR("bpp_denominator cannot be 0!\n");
         }
         return SvtJxsErrorBadParameter;
     }
 
     if (config_struct->bpp_numerator == 0) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "bpp_numerator cannot be 0!\n");
+            SVT_ERROR("bpp_numerator cannot be 0!\n");
         }
         return SvtJxsErrorBadParameter;
     }
@@ -203,14 +211,14 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
 
     if (bytes_per_frame >= (((uint64_t)1) << 32)) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Impossible compression. Please use smaller bpp param!\n");
+            SVT_ERROR("Impossible compression. Please use smaller bpp param!\n");
         }
         return SvtJxsErrorBadParameter;
     }
 
     if (bytes_per_frame == 0) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Impossible compression. Please use bigger bpp param!\n");
+            SVT_ERROR("Impossible compression. Please use bigger bpp param!\n");
         }
         return SvtJxsErrorBadParameter;
     }
@@ -233,14 +241,14 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     enc_common->cpu_profile = config_struct->cpu_profile;
     if (enc_common->cpu_profile != CPU_PROFILE_LOW_LATENCY && enc_common->cpu_profile != CPU_PROFILE_CPU) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unrecognized cpu_profile provided!\n");
+            SVT_ERROR("Unrecognized cpu_profile provided!\n");
         }
         return SvtJxsErrorBadParameter;
     }
 
     if (enc_common->rate_control_mode >= RC_MODE_SIZE) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Unrecognized rc mode provided!\n");
+            SVT_ERROR("Unrecognized rc mode provided!\n");
         }
         return SvtJxsErrorBadParameter;
     }
@@ -253,7 +261,7 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     if (config_struct->coding_vertical_prediction_mode >= METHOD_PRED_SIZE) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
             //Invalid VPrediction mode
-            fprintf(stderr, "Error: Invalid Vertical Prediction Mode!\n");
+            SVT_ERROR("Error: Invalid Vertical Prediction Mode!\n");
         }
         return SvtJxsErrorBadParameter;
     }
@@ -271,13 +279,13 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
 
     if (config_struct->coding_signs_handling > SIGN_HANDLING_STRATEGY_FULL) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: Invalid coding_signs_handling mode!\n");
+            SVT_ERROR("Error: Invalid coding_signs_handling mode!\n");
         }
         return SvtJxsErrorBadParameter;
     }
     if (config_struct->coding_signs_handling == SIGN_HANDLING_STRATEGY_FAST) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr,
+            SVT_WARN(
                     "Warning: coding_signs_handling PACK mode in this RC mode do not have any quality benefits. Only slow down "
                     "performance!\n");
         }
@@ -297,7 +305,7 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
 
     if (config_struct->source_width < 4) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: Minimum Width is 4!\n");
+            SVT_ERROR("Error: Minimum Width is 4!\n");
         }
         return SvtJxsErrorBadParameter;
     }
@@ -305,7 +313,7 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     if ((COLOUR_FORMAT_PLANAR_YUV422 == enc_common->colour_format || COLOUR_FORMAT_PLANAR_YUV420 == enc_common->colour_format) &&
         (config_struct->source_width % 2 != 0)) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: The input format requires a width divisible by 2!\n");
+            SVT_ERROR("Error: The input format requires a width divisible by 2!\n");
         }
         return SvtJxsErrorBadParameter;
     }
@@ -313,13 +321,13 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     if (COLOUR_FORMAT_PLANAR_YUV420 == enc_common->colour_format) {
         if (config_struct->source_height % 2 != 0) {
             if (config_struct->verbose >= VERBOSE_ERRORS) {
-                fprintf(stderr, "Error: The input format YUV420 requires a height divisible by 2!\n");
+                SVT_ERROR("Error: The input format YUV420 requires a height divisible by 2!\n");
             }
             return SvtJxsErrorBadParameter;
         }
         if (config_struct->ndecomp_v == 0) {
             if (config_struct->verbose >= VERBOSE_ERRORS) {
-                fprintf(stderr, "Error: The input format YUV420 requires not zeroed Vertical Decomposition!\n");
+                SVT_ERROR("Error: The input format YUV420 requires not zeroed Vertical Decomposition!\n");
             }
             return SvtJxsErrorBadParameter;
         }
@@ -328,35 +336,35 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     if (enc_common->colour_format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB && enc_common->cpu_profile == CPU_PROFILE_CPU) {
         //TODO: Implement packed RGB/YUV444 in threading model CPU_PROFILE_CPU
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: The input format packed YUV/RGB works only in Low latency threading model!\n");
+            SVT_ERROR("Error: The input format packed YUV/RGB works only in Low latency threading model!\n");
         }
         return SvtJxsErrorBadParameter;
     }
 
     if (config_struct->ndecomp_v > 2) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: Vertical Decomposition is too big (range 0-2)!\n");
+            SVT_ERROR("Error: Vertical Decomposition is too big (range 0-2)!\n");
         }
         return SvtJxsErrorBadParameter;
     }
 
     if (config_struct->ndecomp_h > 5) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: Horizontal Decomposition is too big (range 0-5)!\n");
+            SVT_ERROR("Error: Horizontal Decomposition is too big (range 0-5)!\n");
         }
         return SvtJxsErrorBadParameter;
     }
 
     if (config_struct->ndecomp_h < config_struct->ndecomp_v) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: The horizontal decomposition must be greater or equal to the vertical decomposition!\n");
+            SVT_ERROR("Error: The horizontal decomposition must be greater or equal to the vertical decomposition!\n");
         }
         return SvtJxsErrorBadParameter;
     }
 
     if (config_struct->ndecomp_h == 0 && config_struct->ndecomp_v == 0) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: Zero decomposition not supported now yet!\n");
+            SVT_ERROR("Error: Zero decomposition not supported now yet!\n");
         }
         return SvtJxsErrorBadParameter;
     }
@@ -398,14 +406,14 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
 
     if (min_width_band == 0) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "The width is too small for this format, use less Horizontal Decomposition!\n");
+            SVT_ERROR("The width is too small for this format, use less Horizontal Decomposition!\n");
         }
         return SvtJxsErrorBadParameter;
     }
 
     if (min_height_band == 0) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "The height is too small for this format, use less Vertical Decomposition!\n");
+            SVT_ERROR("The height is too small for this format, use less Vertical Decomposition!\n");
         }
         return SvtJxsErrorBadParameter;
     }
@@ -441,7 +449,7 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     return_error = weight_table_calculate(pi, config_struct->verbose, enc_common->colour_format);
     if (return_error) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: Error calculate Weight Tables for this configuration\n");
+            SVT_ERROR("Error: Error calculate Weight Tables for this configuration\n");
         }
         return SvtJxsErrorBadParameter;
     }
@@ -507,7 +515,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_load_default_parameters(uint64_
     }
 
     if (!enc_api) {
-        fprintf(stderr, "Error: svt_jpeg_xs_encoder_api_t parameter cannot be NULL!\n");
+        SVT_ERROR("Error: svt_jpeg_xs_encoder_api_t parameter cannot be NULL!\n");
         return SvtJxsErrorBadParameter;
     }
 
@@ -570,7 +578,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
     out_image_config->format = enc_api->colour_format;
     if (out_image_config->bit_depth < 8 || out_image_config->bit_depth > 14) {
         if (enc_api->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Incorrect bit_depth, expected: 8 to 14,  provided: %d\n", out_image_config->bit_depth);
+            SVT_ERROR("Incorrect bit_depth, expected: 8 to 14,  provided: %d\n", out_image_config->bit_depth);
         }
         return SvtJxsErrorBadParameter;
     }
@@ -592,7 +600,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
         //Single plane of size w*h*3
         const uint64_t byte_size64 = (uint64_t)enc_api->source_width * enc_api->source_height * 3 * pixel_size;
         if (byte_size64 > UINT32_MAX) {
-            fprintf(stderr, "Image component 0 byte_size overflow: %" PRIu64 " exceeds uint32 max\n", byte_size64);
+            SVT_ERROR("Image component 0 byte_size overflow: %" PRIu64 " exceeds uint32 max\n", byte_size64);
             return SvtJxsErrorBadParameter;
         }
         out_image_config->components[0].byte_size = (uint32_t)byte_size64;
@@ -609,7 +617,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
             const uint64_t byte_size64 = (uint64_t)out_image_config->components[c].width *
                 out_image_config->components[c].height * pixel_size;
             if (byte_size64 > UINT32_MAX) {
-                fprintf(stderr, "Image component %d byte_size overflow: %" PRIu64 " exceeds uint32 max\n", c, byte_size64);
+                SVT_ERROR("Image component %d byte_size overflow: %" PRIu64 " exceeds uint32 max\n", c, byte_size64);
                 return SvtJxsErrorBadParameter;
             }
             out_image_config->components[c].byte_size = (uint32_t)byte_size64;
@@ -619,7 +627,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
     if (out_bytes_per_frame) {
         if (enc_api->bpp_denominator == 0) {
             if (enc_api->verbose >= VERBOSE_ERRORS) {
-                fprintf(stderr, "bpp_denominator cannot be 0!\n");
+                SVT_ERROR("bpp_denominator cannot be 0!\n");
             }
             return SvtJxsErrorBadParameter;
         }
@@ -768,7 +776,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_init(uint64_t version_api_major
         SLICE_HEADER_SIZE_BYTES * enc_common->pi.slice_num;
     if (headers_len_per_frame >= enc_common->picture_header_dynamic.hdr_Lcod) {
         if (enc_api->verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Impossible compression. Please use bigger bpp param!\n");
+            SVT_ERROR("Impossible compression. Please use bigger bpp param!\n");
         }
         svt_jpeg_xs_encoder_close(enc_api);
         return SvtJxsErrorBadParameter;
@@ -981,7 +989,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_send_picture(svt_jpeg_xs_encode
         return SvtJxsErrorBadParameter;
     }
     if (enc_input->bitstream.buffer == NULL) {
-        fprintf(stderr, "Invalid input: bitstream buffer is NULL\n");
+        SVT_ERROR("Invalid input: bitstream buffer is NULL\n");
         return SvtJxsErrorBadParameter;
     }
 
@@ -990,7 +998,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_send_picture(svt_jpeg_xs_encode
     uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     for (uint8_t c = 0; c < pi->comps_num; ++c) {
         if (enc_input->image.data_yuv[c] == NULL) {
-            fprintf(stderr, "Invalid input: data_yuv[%u] is NULL\n", c);
+            SVT_ERROR("Invalid input: data_yuv[%u] is NULL\n", c);
             return SvtJxsErrorBadParameter;
         }
         uint32_t min_size;

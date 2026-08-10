@@ -84,10 +84,12 @@ SvtJxsErrorType_t init_stage_context_ctor(ThreadContext_t *thread_contxt_ptr, sv
 
 #ifndef NDEBUG
 static int32_t validate_yuv_range(pi_t *pi, svt_jpeg_xs_image_buffer_t *image_buffer, uint8_t input_bit_depth, uint64_t frame,
-                                  ColourFormat_t format) {
+                                  ColourFormat_t format, uint8_t msb_aligned) {
     /*Check input YUV*/
     if (input_bit_depth > 8) {
-        uint32_t test_input_range = ~(((uint32_t)1 << input_bit_depth) - 1);
+        /* LSB-aligned: bits above input_bit_depth must be zero. MSB-aligned: bits below (16-input_bit_depth) must be zero. */
+        uint32_t test_input_range = msb_aligned ? (((uint32_t)1 << (16 - input_bit_depth)) - 1)
+                                                 : ~(((uint32_t)1 << input_bit_depth) - 1);
         uint32_t comps_num = pi->comps_num;
         if (format > COLOUR_FORMAT_PACKED_MIN && format < COLOUR_FORMAT_PACKED_MAX) {
             comps_num = 1;
@@ -103,14 +105,14 @@ static int32_t validate_yuv_range(pi_t *pi, svt_jpeg_xs_image_buffer_t *image_bu
                 }
                 for (uint32_t x = 0; x < width; ++x) {
                     if (plane_buffer_in[x] & test_input_range) {
-                        fprintf(stderr,
-                                "Warning: Invalid YUV have values out of a range %u bits!! Frame: %lu, Component: %u, x: %u, y: "
-                                "%u!!\n",
-                                input_bit_depth,
-                                (unsigned long)frame,
-                                component_id,
-                                x,
-                                y);
+                        SVT_WARN(
+                            "Warning: Invalid YUV have values out of a range %u bits!! Frame: %lu, Component: %u, x: %u, y: "
+                            "%u!!\n",
+                            input_bit_depth,
+                            (unsigned long)frame,
+                            component_id,
+                            x,
+                            y);
                         return -1;
                     }
                 }
@@ -204,8 +206,12 @@ void *init_stage_kernel(void *input_ptr) {
         uint8_t input_bit_depth = (uint8_t)enc_api_prv->enc_common.bit_depth;
         if (input_bit_depth > 8) {
             svt_jpeg_xs_image_buffer_t *image_buffer = &pcs_ptr->enc_input.image;
-            validate_yuv_range(
-                pi, image_buffer, input_bit_depth, input_item->frame_number, enc_api_prv->enc_common.colour_format);
+            validate_yuv_range(pi,
+                               image_buffer,
+                               input_bit_depth,
+                               input_item->frame_number,
+                               enc_api_prv->enc_common.colour_format,
+                               enc_api_prv->enc_common.picture_header_dynamic.hdr_input_msb_aligned);
         }
 #endif
 

@@ -10,6 +10,7 @@
 #include "Packing.h"
 #include "Precinct.h"
 #include "Mct.h"
+#include "SvtLog.h"
 
 #include "NltDec.h"
 
@@ -499,7 +500,8 @@ void transform_precinct(const pi_t* pi, svt_jpeg_xs_decoder_instance_t* ctx, uin
         }
         else {
             uint16_t* out_buf_16 = ((uint16_t*)out_buf) + component_line_idx * out_stride;
-            nlt_inverse_transform_line_16bit(in, bit_depth, &ctx->picture_header_dynamic, out_buf_16, width);
+            nlt_inverse_transform_line_16bit(
+                in, bit_depth, &ctx->picture_header_dynamic, out_buf_16, width, ctx->dec_common->output_bit_depth_msb_aligned);
         }
         component_line_idx++;
     }
@@ -526,7 +528,7 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_slice(svt_jpeg_xs_decoder_instance_t* ctx, 
     }
     if (slice_idx != slice) {
         if (verbose >= VERBOSE_ERRORS) {
-            fprintf(stderr, "Error: (slice index) corruption detected  index=%d , expected=%d\n", slice_idx, slice);
+            SVT_ERROR("Error: (slice index) corruption detected  index=%d , expected=%d\n", slice_idx, slice);
         }
         return SvtJxsErrorDecoderInvalidBitstream;
     }

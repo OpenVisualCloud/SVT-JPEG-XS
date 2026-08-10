@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Grzegorz rys <grzegorz.rys@intel.com>
+Date: Tue, 4 Aug 2026 13:59:59 +0200
+Subject: [PATCH] avcodec/libsvtjpegxs{enc,dec}: add msb_aligned option for
+ MSB-aligned samples
+
+SVT-JPEG-XS now supports a non-standard, host-side-only convention where
+10/12-bit samples occupy the high bits of each 16-bit word instead of the
+low bits (input_bit_depth_msb_aligned / output_bit_depth_msb_aligned in
+the library API). This is never signalled in the bitstream - both sides
+must be configured consistently by the caller.
+
+Expose this via a new private "msb_aligned" boolean option on both the
+encoder and decoder, mirroring the existing coding-raw/cap-compat style
+of wiring a private option straight into the corresponding
+svt_jpeg_xs_encoder_api_t/svt_jpeg_xs_decoder_api_t field.
+
+Verified: encoding a 10-bit YUV422 buffer pre-shifted into the high bits
+of each 16-bit word with -msb_aligned 1, then decoding with
+-msb_aligned 1, reproduces the exact same pixel values (verified via a
+plain LSB round-trip of the same content, right-shifted by 6 to match).
+Low 6 bits of every decoded sample are zero as expected.
+---
+ libavcodec/libsvtjpegxsdec.c | 4 ++++
+ libavcodec/libsvtjpegxsenc.c | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/libavcodec/libsvtjpegxsdec.c b/libavcodec/libsvtjpegxsdec.c
+index 2d18a86711..0f79e986ec 100644
+--- a/libavcodec/libsvtjpegxsdec.c
++++ b/libavcodec/libsvtjpegxsdec.c
+@@ -49,6 +49,7 @@ typedef struct SvtJpegXsDecodeContext {
+     uint32_t buffer_filled_len;
+     uint8_t* bitstream_buffer;
+     int proxy_mode;
++    int msb_aligned;
+ } SvtJpegXsDecodeContext;
+ 
+ 
+@@ -292,6 +293,7 @@ static av_cold int svt_jpegxs_dec_init(AVCodecContext* avctx) {
+     svt_dec->decoder.threads_num = FFMIN(avctx->thread_count ? avctx->thread_count : av_cpu_count(), 64);
+     svt_dec->decoder.use_cpu_flags = CPU_FLAGS_ALL;
+     svt_dec->decoder.packetization_mode = 0;
++    svt_dec->decoder.output_bit_depth_msb_aligned = svt_dec->msb_aligned ? 1 : 0;
+ 
+     av_log(NULL, AV_LOG_DEBUG, "svt_jpegxs_dec_init called\n");
+ 
+@@ -302,6 +304,8 @@ static av_cold int svt_jpegxs_dec_init(AVCodecContext* avctx) {
+ #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_DECODING_PARAM
+ static const AVOption svtjpegxs_dec_options[] = {
+     {"proxy-mode", "Resolution scaling mode: 0-full, 1-half, 2-quarter", OFFSET(proxy_mode), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 2, VE},
++    {"msb_aligned", "Non-standard: output 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. "
++                    "Must match the encoder's msb_aligned setting.", OFFSET(msb_aligned), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE},
+     {NULL},
+ };
+ 
+diff --git a/libavcodec/libsvtjpegxsenc.c b/libavcodec/libsvtjpegxsenc.c
+index a794993ab8..a25d37e4ac 100644
+--- a/libavcodec/libsvtjpegxsenc.c
++++ b/libavcodec/libsvtjpegxsenc.c
+@@ -49,6 +49,7 @@ typedef struct SvtJpegXsEncodeContext {
+     int coding_vpred;
+     int coding_raw;
+     int cap_compat;
++    int msb_aligned;
+ 
+     svt_jpeg_xs_encoder_api_t encoder;
+     int bitstream_frame_size;
+@@ -314,6 +315,7 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
+         }
+         svt_enc->encoder.level_plev_override = (uint16_t)avctx->level;
+     }
++    svt_enc->encoder.input_bit_depth_msb_aligned = svt_enc->msb_aligned ? 1 : 0;
+     if (svt_enc->slice_height > 0) {
+         svt_enc->encoder.slice_height = svt_enc->slice_height;
+     }
+@@ -353,6 +355,8 @@ static const AVOption svtjpegxs_enc_options[] = {
+       { "no_coeffs",    NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
+     { "coding-raw",   "Enable packet-based raw-mode coding (disable for legacy-decoder compatibility)", OFFSET(coding_raw),   AV_OPT_TYPE_BOOL, {.i64 = -1 }, -1, 1, VE },
+     { "cap-compat",   "Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required", OFFSET(cap_compat), AV_OPT_TYPE_BOOL, {.i64 = -1 }, -1, 1, VE },
++    { "msb_aligned",  "Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. "
++                      "Must match the decoder's msb_aligned setting.", OFFSET(msb_aligned), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, VE },
+       { "light422",        NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x1500}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile" },
+       { "light444",        NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x1A00}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile" },
+       { "lightsubline422", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x2500}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile" },

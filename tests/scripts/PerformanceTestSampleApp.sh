@@ -29,7 +29,7 @@ if [ ! -f "$CSV_FILE" ]; then
     echo "Operation,TestCase,Command,Result_FPS,Target_FPS,Percent_Of_Target,Status" > "$CSV_FILE"
 fi
 
-# Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS
+# Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS|ExtraEncArgs(optional)|ExtraDecArgs(optional)
 MATRIX=(
     # 1080p 422p 10-bit - 1.5 BPP Thread Scaling
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|77|145"
@@ -54,6 +54,10 @@ MATRIX=(
     # 1080p 422p 8-bit - 3.0 BPP Thread Scaling
     "1080p60_422p8|1920|1080|8|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|62|114"
     "1080p60_422p8|1920|1080|8|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|364|578"
+
+    # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output: same baseline as the equivalent
+    # LSB row above (msb-aligned kernels have same perf as LSB, verified separately).
+    "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|359|571|--input-msb-aligned 1|--output-msb-aligned 1"
 )
 
 # run_measured cmd...: single run, prints parsed FPS (empty if unparseable).
@@ -100,7 +104,7 @@ function check_result() {
 }
 
 for test_case in "${MATRIX[@]}"; do
-    IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps <<< "$test_case"
+    IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
     source_path="$SAMPLES_DIR/$file"
 
     if [ ! -f "$source_path" ]; then
@@ -116,7 +120,7 @@ for test_case in "${MATRIX[@]}"; do
     echo "Encoding: $name (bpp=$bpp, threads=$threads)"
     enc_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
         "$ENC_APP" -i "$RAMDISK_YUV" -b "$RAMDISK_JXS" -w "$w" -h "$h" \
-        --input-depth "$depth" --colour-format "$fmt" --bpp "$bpp" -n "$FRAMES" --lp "$threads")
+        --input-depth "$depth" --colour-format "$fmt" --bpp "$bpp" -n "$FRAMES" --lp "$threads" $extra_enc_args)
     enc_cmd=$(printf '%q ' "${enc_cmd_arr[@]}")
     enc_fps=$(run_measured "${enc_cmd_arr[@]}")
 
@@ -134,7 +138,7 @@ for test_case in "${MATRIX[@]}"; do
 
     echo "Decoding: $name (bpp=$bpp, threads=$threads)"
     dec_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
-        "$DEC_APP" -i "$RAMDISK_JXS" -o /dev/null -n "$FRAMES" --lp "$threads")
+        "$DEC_APP" -i "$RAMDISK_JXS" -o /dev/null -n "$FRAMES" --lp "$threads" $extra_dec_args)
     dec_cmd=$(printf '%q ' "${dec_cmd_arr[@]}")
     dec_fps=$(run_measured "${dec_cmd_arr[@]}")
 

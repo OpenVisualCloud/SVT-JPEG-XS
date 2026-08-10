@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <string.h>
 #include "SvtJpegxs.h"
+#include "SvtLog.h"
 
 /*Band not exist, local define*/
 #define NE BAND_NOT_EXIST
@@ -348,7 +349,7 @@ int weight_table_calculate(pi_t* pi, uint8_t verbose, ColourFormat_t color_forma
     }
 
     if (color_format == COLOUR_FORMAT_INVALID) {
-        fprintf(stderr, "Error: Weight table not supported format!\n");
+        SVT_ERROR("Error: Weight table not supported format!\n");
         return -1;
     }
 
@@ -360,16 +361,15 @@ int weight_table_calculate(pi_t* pi, uint8_t verbose, ColourFormat_t color_forma
         int ret = weight_table_recalculate_table(pi, &table, color_format, verbose);
         if (ret) {
             if (verbose) {
-                fprintf(stderr,
-                        "Error: Weight table not defined. Can not recalculated table! H:%i V:%i sy:%i%i%i sx:%i%i%i \n",
-                        pi->decom_h,
-                        pi->decom_v,
-                        pi->components[0].Sy,
-                        pi->components[1].Sy,
-                        pi->components[2].Sy,
-                        pi->components[0].Sx,
-                        pi->components[1].Sx,
-                        pi->components[2].Sx);
+                SVT_ERROR("Error: Weight table not defined. Can not recalculated table! H:%i V:%i sy:%i%i%i sx:%i%i%i \n",
+                          pi->decom_h,
+                          pi->decom_v,
+                          pi->components[0].Sy,
+                          pi->components[1].Sy,
+                          pi->components[2].Sy,
+                          pi->components[0].Sx,
+                          pi->components[1].Sx,
+                          pi->components[2].Sx);
             }
             return -1;
         }
@@ -402,7 +402,7 @@ int weight_table_calculate(pi_t* pi, uint8_t verbose, ColourFormat_t color_forma
     }
     for (uint32_t p = 0; p < pi->bands_num_exists; ++p) {
         if (global_prioity[p] != 1) {
-            fprintf(stderr, "Error: Weight table priority not consistent!\n");
+            SVT_ERROR("Error: Weight table priority not consistent!\n");
             assert(0);
             return -1;
         }

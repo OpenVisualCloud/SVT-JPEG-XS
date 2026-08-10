@@ -27,7 +27,7 @@ if [ ! -f "$CSV_FILE" ]; then
     echo "Operation,TestCase,Command,Result_FPS,Target_FPS,Percent_Of_Target,Status" > "$CSV_FILE"
 fi
 
-# Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS
+# Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS|ExtraEncArgs(optional)|ExtraDecArgs(optional)
 MATRIX=(
     # 1080p 422p 10-bit - 1.5 BPP Thread Scaling
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|74|128"
@@ -52,6 +52,10 @@ MATRIX=(
     # 1080p 422p 8-bit - 3.0 BPP Thread Scaling
     "1080p60_422p8|1920|1080|8|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|59|102"
     "1080p60_422p8|1920|1080|8|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|319|486"
+
+    # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output: same baseline as the equivalent
+    # LSB row above (msb-aligned kernels have same perf as LSB, verified separately).
+    "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|313|480|-msb_aligned 1|-msb_aligned 1"
 )
 
 # get_ffmpeg_pix_fmt colour_format bit_depth: maps to the ffmpeg pix_fmt name.
@@ -113,7 +117,7 @@ function check_result() {
 }
 
 for test_case in "${MATRIX[@]}"; do
-    IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps <<< "$test_case"
+    IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
     source_path="$SAMPLES_DIR/$file"
 
     if [ ! -f "$source_path" ]; then
@@ -132,7 +136,7 @@ for test_case in "${MATRIX[@]}"; do
         "$FFMPEG_BIN" -y -hide_banner -loglevel info -nostats -benchmark \
         -stream_loop -1 -f rawvideo -pix_fmt "$pix_fmt" -s:v "${w}x${h}" -framerate "$framerate" \
         -i "$RAMDISK_YUV" \
-        -threads "$threads" -frames:v "$FRAMES" -c:v libsvtjpegxs -bpp "$bpp" \
+        -threads "$threads" -frames:v "$FRAMES" -c:v libsvtjpegxs -bpp "$bpp" $extra_enc_args \
         -f image2pipe "$RAMDISK_JXS")
     enc_cmd=$(printf '%q ' "${enc_cmd_arr[@]}")
     enc_fps=$(run_measured "${enc_cmd_arr[@]}")
@@ -153,7 +157,7 @@ for test_case in "${MATRIX[@]}"; do
     echo "Decoding: $name (bpp=$bpp, threads=$threads)"
     dec_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
         "$FFMPEG_BIN" -y -hide_banner -loglevel info -nostats -benchmark \
-        -threads "$threads" -f jpegxs_pipe -c:v libsvtjpegxs -i "$RAMDISK_JXS" \
+        -threads "$threads" -f jpegxs_pipe -c:v libsvtjpegxs $extra_dec_args -i "$RAMDISK_JXS" \
         -f rawvideo /dev/null)
     dec_cmd=$(printf '%q ' "${dec_cmd_arr[@]}")
     dec_fps=$(run_measured "${dec_cmd_arr[@]}")
