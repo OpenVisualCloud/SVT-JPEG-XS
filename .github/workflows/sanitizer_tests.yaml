@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: '0 18 * * 5'  # Weekly: Friday 18:00 UTC (20:00 CEST / 19:00 CET)
   workflow_dispatch:
+  push:
+    branches: ['ajanczew-sanitizers']  # TODO: remove before merge
 
 defaults:
   run:
