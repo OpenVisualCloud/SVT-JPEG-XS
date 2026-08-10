@@ -44,6 +44,11 @@ jobs:
       with:
         egress-policy: audit
 
+    - name: 'Setup: Cleanup workspace'
+      run: |
+        rm -rf ./* || true
+        rm -rf ./.??* || true
+
     - name: 'Checkout repository'
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
@@ -66,13 +71,34 @@ jobs:
     - name: 'Unit tests: ${{ matrix.sanitizer }} sanitizer (release)'
       env:
         # Passed for UBSan-family (undefined, integer); silently ignored by ASan/TSan.
-        UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1"
+        # halt_on_error=1 is required: UBSan/IntSan checks are recoverable by default,
+        # so without it a violation is only logged and the process still exits 0.
+        UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=1"
       run: |
         cd Bin/Release/
         chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
         chmod +x ./*
         export LD_LIBRARY_PATH=$(pwd)
-        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }}
+        mkdir -p "${{ github.workspace }}/sanitizer-logs"
+        # pipefail so a failing shard is not masked by tee
+        set -o pipefail
+        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }} \
+          2>&1 | tee "${{ github.workspace }}/sanitizer-logs/unit-tests-${{ matrix.sanitizer }}.log"
+
+    - name: 'Archive: upload binary and logs on failure'
+      if: failure()
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      with:
+        name: sanitizer-${{ matrix.sanitizer }}-failure-${{ github.run_number }}
+        retention-days: 7
+        path: |
+          Bin/Release/SvtJpegxsUnitTests
+          sanitizer-logs/unit-tests-${{ matrix.sanitizer }}.log
+
+    - name: 'Cleanup: Remove workspace artifacts'
+      if: always()
+      run: |
+        rm -rf Bin/ Build/linux/Release/ || true
 
   # ── Memory sanitizer ────────────────────────────────────────────────────────
   # Must be Debug (release does not build with MSan).
@@ -81,13 +107,18 @@ jobs:
   # Use --asm avx2 to avoid AVX-512 SIMD false positives in MSan instrumentation.
   sanitizer-memory:
     name: "App tests: memory sanitizer"
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind']
     timeout-minutes: 180
     steps:
     - name: 'Harden Runner'
       uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
       with:
         egress-policy: audit
+
+    - name: 'Setup: Cleanup workspace'
+      run: |
+        rm -rf ./* || true
+        rm -rf ./.??* || true
 
     - name: 'Checkout repository'
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -113,13 +144,36 @@ jobs:
         cd Bin/Debug/
         chmod +x ./*
         export LD_LIBRARY_PATH=$(pwd)
-        # 1920x1080 8-bit YUV422: width * height * 2 bytes
-        dd if=/dev/urandom of=/tmp/msan_test_input.yuv bs=$((1920 * 1080 * 2)) count=1
-        # Encode — avx2 avoids AVX-512 paths that produce MSan false positives
-        ./SvtJpegxsEncApp \
-          -i /tmp/msan_test_input.yuv -w 1920 -h 1080 \
-          --input-depth 8 --colour-format yuv422 \
-          -b /tmp/msan_test.jxs --bpp 3 --asm avx2
-        # Decode
-        ./SvtJpegxsDecApp \
-          -i /tmp/msan_test.jxs -o /tmp/msan_test_dec.yuv --asm avx2
+        mkdir -p "${{ github.workspace }}/sanitizer-logs"
+        log="${{ github.workspace }}/sanitizer-logs/memory-app-tests.log"
+        # pipefail so an app failure is not masked by tee
+        set -o pipefail
+        {
+          # 1920x1080 8-bit YUV422: width * height * 2 bytes
+          dd if=/dev/urandom of=/tmp/msan_test_input.yuv bs=$((1920 * 1080 * 2)) count=1
+          # Encode — avx2 avoids AVX-512 paths that produce MSan false positives
+          ./SvtJpegxsEncApp \
+            -i /tmp/msan_test_input.yuv -w 1920 -h 1080 \
+            --input-depth 8 --colour-format yuv422 \
+            -b /tmp/msan_test.jxs --bpp 3 --asm avx2
+          # Decode
+          ./SvtJpegxsDecApp \
+            -i /tmp/msan_test.jxs -o /tmp/msan_test_dec.yuv --asm avx2
+        } 2>&1 | tee "$log"
+
+    - name: 'Archive: upload binaries and logs on failure'
+      if: failure()
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      with:
+        name: sanitizer-memory-failure-${{ github.run_number }}
+        retention-days: 7
+        path: |
+          Bin/Debug/SvtJpegxsEncApp
+          Bin/Debug/SvtJpegxsDecApp
+          sanitizer-logs/memory-app-tests.log
+
+    - name: 'Cleanup: Remove workspace artifacts'
+      if: always()
+      run: |
+        rm -rf Bin/ Build/linux/Debug/ || true
+        rm -f /tmp/msan_test_input.yuv /tmp/msan_test.jxs /tmp/msan_test_dec.yuv || true
