@@ -27,11 +27,13 @@ function end {
 }
 
 
-ffmpeg_formats=$($exec_ffmpeg -formats 2>/dev/null)
-if [ $? -ne 0 ]; then
-    echo "FAIL Could not run ffmpeg binary: $exec_ffmpeg"
-    error=1
-    end
+# Validate the binary only when actually running tests (not in count-probe mode).
+if (( !(range_min == 0 && range_min == range_max) )); then
+    if ! $exec_ffmpeg -formats 2>/dev/null > /dev/null; then
+        echo "FAIL Could not run ffmpeg binary: $exec_ffmpeg"
+        error=1
+        end
+    fi
 fi
 
 demuxer="-f jpegxs_pipe"
