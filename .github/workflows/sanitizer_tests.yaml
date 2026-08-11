@@ -70,10 +70,7 @@ jobs:
 
     - name: 'Unit tests: ${{ matrix.sanitizer }} sanitizer (release)'
       env:
-        # Passed for UBSan-family (undefined, integer); silently ignored by ASan/TSan.
-        # halt_on_error=1 is required: UBSan/IntSan checks are recoverable by default,
-        # so without it a violation is only logged and the process still exits 0.
-        UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=1"
+        UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=${{ matrix.sanitizer == 'integer' && '0' || '1' }}"
       run: |
         cd Bin/Release/
         chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
