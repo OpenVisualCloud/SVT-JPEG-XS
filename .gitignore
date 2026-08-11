@@ -1,14 +1,19 @@
 Bin/
-Build/linux/
-Build/windows/
-Build/eclipse/
-Build/coverage_linux
+Build/linux/*
+!Build/linux/build.sh
+Build/windows/*
+!Build/windows/build.bat
+Build/eclipse/*
+!Build/eclipse/build_eclipse.sh
+Build/coverage_linux/*
+!Build/coverage_linux/run_coverage.sh
 *.yuv
 *.bin
 *.patch
 *.raw
 *.log
 
+.DS_Store
 .mcp/
 .vscode/
 .github/skills/
