@@ -4,8 +4,6 @@ on:
   schedule:
     - cron: '0 18 * * 5'  # Weekly: Friday 18:00 UTC (20:00 CEST / 19:00 CET)
   workflow_dispatch:
-  push:
-    branches: ['ajanczew-sanitizers']  # TODO: remove before merge
 
 defaults:
   run:
@@ -18,8 +16,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Lower shard count than regular CI: sanitizer-instrumented binaries use more
-# memory and CPU, so fewer parallel shards avoid OOM on self-hosted runners.
 env:
   JOBS_NUM: 16
 
@@ -92,6 +88,17 @@ jobs:
           Bin/Release/SvtJpegxsUnitTests
           sanitizer-logs/unit-tests-${{ matrix.sanitizer }}.log
 
+    # Integer sanitizer runs report-only (halt_on_error=0), so the job stays
+    # green; always archive its log so the findings are not lost.
+    - name: 'Archive: upload integer sanitizer report'
+      if: always() && matrix.sanitizer == 'integer'
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      with:
+        name: sanitizer-integer-report-${{ github.run_number }}
+        retention-days: 7
+        path: |
+          sanitizer-logs/unit-tests-integer.log
+
     - name: 'Cleanup: Remove workspace artifacts'
       if: always()
       run: |
@@ -99,9 +106,8 @@ jobs:
 
   # ── Memory sanitizer ────────────────────────────────────────────────────────
   # Must be Debug (release does not build with MSan).
-  # Unit tests CANNOT run under MSan: googletest triggers a false positive in
-  # libc++ ios_base::precision during global init. Use encoder/decoder apps instead.
-  # Use --asm avx2 to avoid AVX-512 SIMD false positives in MSan instrumentation.
+  # Unit tests can't run under MSan: gtest aborts during global init. 
+  # Use the C encoder/decoder apps instead.
   sanitizer-memory:
     name: "App tests: memory sanitizer"
     runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind']
