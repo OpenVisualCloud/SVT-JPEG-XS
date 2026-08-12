@@ -181,7 +181,10 @@ else()
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
     endif()
     if(MINGW)
-        check_both_flags_add(-mxsave -fno-asynchronous-unwind-tables)
+        check_both_flags_add(-mxsave)
+        # CXX excluded: combined with -flto it makes gcc emit unresolved
+        # _Unwind_SjLj_* calls when linking C++ exception-using code (e.g. gtest.dll).
+        check_flags_add(C -fno-asynchronous-unwind-tables)
     else()
         check_both_flags_add(-fstack-protector-strong)
     endif()
