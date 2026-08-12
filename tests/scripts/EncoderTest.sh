@@ -140,7 +140,7 @@ mkdir $tmp_dir
 
 #RUN different RC parameters Release/Debug/ ASM_C/ASM_MAX compare Parameters (1:asm) (2:lp number)
 function test_rate_control {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4
@@ -306,7 +306,7 @@ function test_rate_control {
 
 #RUN different RC parameters Release/Debug/ ASM_C/ASM_MAX compare Parameters (1:asm) (2:lp number)
 function test_rate_control_signs {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4
@@ -332,7 +332,7 @@ function test_rate_control_signs {
 
 #RUN input-msb-aligned Parameters (1:asm) (2:lp number)
 function test_msb_aligned {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4
@@ -350,7 +350,7 @@ function test_msb_aligned {
 }
 
 function test_uncommon_resolution {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4
@@ -634,7 +634,7 @@ function test_uncommon_resolution {
 }
 
 function test_handle_errors {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4
@@ -721,7 +721,7 @@ function test_handle_errors {
 
 #RUN different RC parameters Release/Debug/ ASM_C/ASM_MAX compare Parameters (1:asm) (2:lp number)
 function test_invalid_yuv {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4

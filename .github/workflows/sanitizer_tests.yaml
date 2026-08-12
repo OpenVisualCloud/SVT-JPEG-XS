@@ -53,7 +53,7 @@ jobs:
     - name: 'Setup: Install dependencies'
       run: |
         sudo apt-get update
-        sudo apt-get -y install cmake nasm clang make
+        sudo apt-get -y install cmake nasm clang llvm make
 
     - name: 'Fix workspace permissions'
       if: always()
@@ -68,6 +68,9 @@ jobs:
 
     - name: 'Unit tests: ${{ matrix.sanitizer }} sanitizer (release)'
       env:
+        # abort_on_error gives a symbolized backtrace and a deterministic non-zero exit
+        ASAN_OPTIONS: "abort_on_error=1:print_stacktrace=1"
+        TSAN_OPTIONS: "halt_on_error=1:abort_on_error=1"
         UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=${{ matrix.sanitizer == 'integer' && '0' || '1' }}"
       run: |
         cd Bin/Release/
@@ -80,16 +83,24 @@ jobs:
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }} \
           2>&1 | tee "${{ github.workspace }}/sanitizer-logs/unit-tests-${{ matrix.sanitizer }}.log"
 
-    - name: 'App tests: ${{ matrix.sanitizer }} sanitizer (release)'
+    - name: 'Conformance tests: ${{ matrix.sanitizer }} sanitizer (release)'
+      working-directory: ${{ github.workspace }}/tests/scripts
       env:
+        # abort_on_error gives a symbolized backtrace and a deterministic non-zero exit
+        ASAN_OPTIONS: "abort_on_error=1:print_stacktrace=1"
+        TSAN_OPTIONS: "halt_on_error=1:abort_on_error=1"
         UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=${{ matrix.sanitizer == 'integer' && '0' || '1' }}"
+        DEC_BIN_DIR: ${{ github.workspace }}/Bin/Release
+        INPUT_FILES_PATH: /opt/samples
       run: |
         mkdir -p "${{ github.workspace }}/sanitizer-logs"
-        # pipefail so an app failure is not masked by tee
+        chmod +x ./*.sh
+        chmod +x "$DEC_BIN_DIR"/*
+        export LD_LIBRARY_PATH="$DEC_BIN_DIR"
+        # pipefail so a failing conformance shard is not masked by tee
         set -o pipefail
-        bash "${{ github.workspace }}/tests/scripts/sanitizer_app_test.sh" \
-          "${{ github.workspace }}/Bin/Release" auto \
-          2>&1 | tee "${{ github.workspace }}/sanitizer-logs/app-tests-${{ matrix.sanitizer }}.log"
+        ./ParallelAllTests.sh ${{ env.JOBS_NUM }} "$INPUT_FILES_PATH" "$DEC_BIN_DIR/SvtJpegxsDecApp" \
+          2>&1 | tee "${{ github.workspace }}/sanitizer-logs/conformance-tests-${{ matrix.sanitizer }}.log"
 
     - name: 'Archive: upload binary and logs on failure'
       if: failure()
@@ -99,8 +110,10 @@ jobs:
         retention-days: 7
         path: |
           Bin/Release/SvtJpegxsUnitTests
+          Bin/Release/SvtJpegxsEncApp
+          Bin/Release/SvtJpegxsDecApp
           sanitizer-logs/unit-tests-${{ matrix.sanitizer }}.log
-          sanitizer-logs/app-tests-${{ matrix.sanitizer }}.log
+          sanitizer-logs/conformance-tests-${{ matrix.sanitizer }}.log
 
     # Integer sanitizer runs report-only (halt_on_error=0), so the job stays
     # green; always archive its logs so the findings are not lost.
@@ -112,7 +125,7 @@ jobs:
         retention-days: 7
         path: |
           sanitizer-logs/unit-tests-integer.log
-          sanitizer-logs/app-tests-integer.log
+          sanitizer-logs/conformance-tests-integer.log
 
     - name: 'Cleanup: Remove workspace artifacts'
       if: always()
@@ -144,7 +157,7 @@ jobs:
     - name: 'Setup: Install dependencies'
       run: |
         sudo apt-get update
-        sudo apt-get -y install cmake nasm clang make
+        sudo apt-get -y install cmake nasm clang llvm make
 
     - name: 'Fix workspace permissions'
       if: always()
@@ -157,15 +170,25 @@ jobs:
       run: |
         ./build.sh debug test sanitizer=memory cc=clang cxx=clang++ jobs=$(nproc)
 
-    - name: 'App tests: memory sanitizer (debug)'
+    - name: 'Conformance tests: memory sanitizer (debug)'
+      working-directory: ${{ github.workspace }}/tests/scripts
+      env:
+        DEC_BIN_DIR: ${{ github.workspace }}/Bin/Debug
+        INPUT_FILES_PATH: /opt/samples
+        # abort_on_error gives a symbolized backtrace and a deterministic non-zero exit
+        MSAN_OPTIONS: "abort_on_error=1"
+        # avx2: AVX-512 paths produce MSan false positives
+        SANITIZER_ASM: avx2
       run: |
         mkdir -p "${{ github.workspace }}/sanitizer-logs"
-        # pipefail so an app failure is not masked by tee
+        chmod +x ./*.sh
+        chmod +x "$DEC_BIN_DIR"/*
+        export LD_LIBRARY_PATH="$DEC_BIN_DIR"
+        # pipefail so a failing conformance shard is not masked by tee
         set -o pipefail
-        # avx2: AVX-512 paths produce MSan false positives
-        bash "${{ github.workspace }}/tests/scripts/sanitizer_app_test.sh" \
-          "${{ github.workspace }}/Bin/Debug" avx2 \
-          2>&1 | tee "${{ github.workspace }}/sanitizer-logs/memory-app-tests.log"
+        # fast: reduce the matrix (MSan is very slow); SANITIZER_ASM pins avx2
+        ./ParallelAllTests.sh ${{ env.JOBS_NUM }} "$INPUT_FILES_PATH" "$DEC_BIN_DIR/SvtJpegxsDecApp" fast \
+          2>&1 | tee "${{ github.workspace }}/sanitizer-logs/memory-conformance-tests.log"
 
     - name: 'Archive: upload binaries and logs on failure'
       if: failure()
@@ -176,7 +199,7 @@ jobs:
         path: |
           Bin/Debug/SvtJpegxsEncApp
           Bin/Debug/SvtJpegxsDecApp
-          sanitizer-logs/memory-app-tests.log
+          sanitizer-logs/memory-conformance-tests.log
 
     - name: 'Cleanup: Remove workspace artifacts'
       if: always()

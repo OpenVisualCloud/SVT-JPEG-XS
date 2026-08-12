@@ -42,7 +42,7 @@ function test_dec {
         return
     fi
 
-    cmd="$valgrind$exec_dec --find-bitstream-header -i $path_bitstreams/test_bitsreams/$name.jxs -o ./$tmp_dir/$yuv_name --lp $PARAM_LP_NUM --asm $PARAM_ASM --packetization-mode $PARAM_PACKETIZATION"
+    cmd="$valgrind$exec_dec --find-bitstream-header -i $path_bitstreams/test_bitsreams/$name.jxs -o ./$tmp_dir/$yuv_name --lp $PARAM_LP_NUM --asm ${SANITIZER_ASM:-$PARAM_ASM} --packetization-mode $PARAM_PACKETIZATION"
     echo "run command: $cmd"
     ${cmd}
 
@@ -87,7 +87,7 @@ function test_msb_aligned_output {
             return
         fi
 
-        cmd="$valgrind$exec_dec -i $bitstream_msb_prep -o $yuv_tmp --lp $PARAM_LP_NUM --asm $PARAM_ASM --packetization-mode $PARAM_PACKETIZATION "$params
+        cmd="$valgrind$exec_dec -i $bitstream_msb_prep -o $yuv_tmp --lp $PARAM_LP_NUM --asm ${SANITIZER_ASM:-$PARAM_ASM} --packetization-mode $PARAM_PACKETIZATION "$params
         echo "run command: $cmd"
         ${cmd}
 

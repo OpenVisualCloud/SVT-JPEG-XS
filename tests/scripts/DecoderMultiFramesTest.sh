@@ -51,7 +51,7 @@ function test_dec {
         return
     fi
 
-    cmd="$valgrind$exec_dec -i $bin_name -o $yuv_tmp --lp $PARAM_LP_NUM --asm $PARAM_ASM --packetization-mode $PARAM_PACKETIZATION "$params
+    cmd="$valgrind$exec_dec -i $bin_name -o $yuv_tmp --lp $PARAM_LP_NUM --asm ${SANITIZER_ASM:-$PARAM_ASM} --packetization-mode $PARAM_PACKETIZATION "$params
     echo "run command: $cmd"
     ${cmd}
 
