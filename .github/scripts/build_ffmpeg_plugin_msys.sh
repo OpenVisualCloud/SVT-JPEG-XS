@@ -29,7 +29,7 @@ mkdir -p "$INSTALL_DIR"
 
 # 1. Compile and install svt-jpegxs
 cd "$JPEGXS_REPO"
-cmake -S . -B svtjpegxs-build -DBUILD_APPS=off -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR"
+cmake -S . -B svtjpegxs-build -DBUILD_APPS=OFF -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR"
 cmake --build svtjpegxs-build -j10 --config Release --target install
 
 # 2. Set PKG_CONFIG_PATH
