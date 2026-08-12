@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: '0 18 * * 5'  # Weekly: Friday 18:00 UTC (20:00 CEST / 19:00 CET)
   workflow_dispatch:
+  push:
+    branches: ['ajanczew-sanitizers']  # TODO: remove before merge
 
 defaults:
   run:
@@ -78,6 +80,17 @@ jobs:
         ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }} \
           2>&1 | tee "${{ github.workspace }}/sanitizer-logs/unit-tests-${{ matrix.sanitizer }}.log"
 
+    - name: 'App tests: ${{ matrix.sanitizer }} sanitizer (release)'
+      env:
+        UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=${{ matrix.sanitizer == 'integer' && '0' || '1' }}"
+      run: |
+        mkdir -p "${{ github.workspace }}/sanitizer-logs"
+        # pipefail so an app failure is not masked by tee
+        set -o pipefail
+        bash "${{ github.workspace }}/tests/scripts/sanitizer_app_test.sh" \
+          "${{ github.workspace }}/Bin/Release" auto \
+          2>&1 | tee "${{ github.workspace }}/sanitizer-logs/app-tests-${{ matrix.sanitizer }}.log"
+
     - name: 'Archive: upload binary and logs on failure'
       if: failure()
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -87,9 +100,10 @@ jobs:
         path: |
           Bin/Release/SvtJpegxsUnitTests
           sanitizer-logs/unit-tests-${{ matrix.sanitizer }}.log
+          sanitizer-logs/app-tests-${{ matrix.sanitizer }}.log
 
     # Integer sanitizer runs report-only (halt_on_error=0), so the job stays
-    # green; always archive its log so the findings are not lost.
+    # green; always archive its logs so the findings are not lost.
     - name: 'Archive: upload integer sanitizer report'
       if: always() && matrix.sanitizer == 'integer'
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -98,6 +112,7 @@ jobs:
         retention-days: 7
         path: |
           sanitizer-logs/unit-tests-integer.log
+          sanitizer-logs/app-tests-integer.log
 
     - name: 'Cleanup: Remove workspace artifacts'
       if: always()
@@ -144,25 +159,13 @@ jobs:
 
     - name: 'App tests: memory sanitizer (debug)'
       run: |
-        cd Bin/Debug/
-        chmod +x ./*
-        export LD_LIBRARY_PATH=$(pwd)
         mkdir -p "${{ github.workspace }}/sanitizer-logs"
-        log="${{ github.workspace }}/sanitizer-logs/memory-app-tests.log"
         # pipefail so an app failure is not masked by tee
         set -o pipefail
-        {
-          # 1920x1080 8-bit YUV422: width * height * 2 bytes
-          dd if=/dev/urandom of=/tmp/msan_test_input.yuv bs=$((1920 * 1080 * 2)) count=1
-          # Encode — avx2 avoids AVX-512 paths that produce MSan false positives
-          ./SvtJpegxsEncApp \
-            -i /tmp/msan_test_input.yuv -w 1920 -h 1080 \
-            --input-depth 8 --colour-format yuv422 \
-            -b /tmp/msan_test.jxs --bpp 3 --asm avx2
-          # Decode
-          ./SvtJpegxsDecApp \
-            -i /tmp/msan_test.jxs -o /tmp/msan_test_dec.yuv --asm avx2
-        } 2>&1 | tee "$log"
+        # avx2: AVX-512 paths produce MSan false positives
+        bash "${{ github.workspace }}/tests/scripts/sanitizer_app_test.sh" \
+          "${{ github.workspace }}/Bin/Debug" avx2 \
+          2>&1 | tee "${{ github.workspace }}/sanitizer-logs/memory-app-tests.log"
 
     - name: 'Archive: upload binaries and logs on failure'
       if: failure()
@@ -179,4 +182,3 @@ jobs:
       if: always()
       run: |
         rm -rf Bin/ Build/linux/Debug/ || true
-        rm -f /tmp/msan_test_input.yuv /tmp/msan_test.jxs /tmp/msan_test_dec.yuv || true
