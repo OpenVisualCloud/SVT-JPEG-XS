@@ -142,6 +142,10 @@ function test_all_broken {
     PARAM_LP_NUM=$2
     PARAM_PACKETIZATION="0"
 
+    # broken_* fixtures live alongside the correct ones; set explicitly so this
+    # function is order-independent (in 'fast' mode test_all_correct is skipped).
+    path_use=$path_correct
+
     # TEST WITH IGNORE SOME FRAMES
     #a. broken_decomh_Daylight_1280x720_8b_422_20fx1fx20f.jxs
     #1. 20frames 8bit yuv422 1280x720 v1 h5
