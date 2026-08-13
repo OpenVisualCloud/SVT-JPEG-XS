@@ -98,18 +98,18 @@ if [ ${#existing[@]} -gt 0 ]; then
             | sort | uniq -c | sort -rn)
     section "ThreadSanitizer" "$ts"
 
-    as=$(grep -hE "(ERROR|SUMMARY): AddressSanitizer:" "${existing[@]}" 2>/dev/null \
-            | normalize | sed -E 's/^.*(ERROR|SUMMARY): AddressSanitizer: //' \
+    as=$(grep -h "SUMMARY: AddressSanitizer:" "${existing[@]}" 2>/dev/null \
+            | normalize | sed -E 's/^.*SUMMARY: AddressSanitizer: //' \
             | sort | uniq -c | sort -rn)
     section "AddressSanitizer" "$as"
 
-    ms=$(grep -hE "(WARNING|SUMMARY): MemorySanitizer:" "${existing[@]}" 2>/dev/null \
-            | normalize | sed -E 's/^.*(WARNING|SUMMARY): MemorySanitizer: //' \
+    ms=$(grep -h "SUMMARY: MemorySanitizer:" "${existing[@]}" 2>/dev/null \
+            | normalize | sed -E 's/^.*SUMMARY: MemorySanitizer: //' \
             | sort | uniq -c | sort -rn)
     section "MemorySanitizer" "$ms"
 
-    ls=$(grep -hE "(ERROR|SUMMARY): LeakSanitizer:" "${existing[@]}" 2>/dev/null \
-            | normalize | sed -E 's/^.*(ERROR|SUMMARY): LeakSanitizer: //' \
+    ls=$(grep -h "SUMMARY: LeakSanitizer:" "${existing[@]}" 2>/dev/null \
+            | normalize | sed -E 's/^.*SUMMARY: LeakSanitizer: //' \
             | sort | uniq -c | sort -rn)
     section "LeakSanitizer" "$ls"
 fi

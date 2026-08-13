@@ -27,7 +27,7 @@ jobs:
   # (ParallelAllTests.sh) non-halting, then gates once via the summary step.
   sanitizer-tests:
     name: "Sanitizer: ${{ matrix.sanitizer }}"
-    runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind', 'jpeg-perf']
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -153,8 +153,8 @@ jobs:
   # Unit tests can't run under MSan: gtest aborts during global init. 
   # Use the C encoder/decoder apps instead.
   sanitizer-memory:
-    name: "App tests: memory sanitizer"
-    runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind']
+    name: "Sanitizer: memory"
+    runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind', 'jpeg-perf']
     timeout-minutes: 180
     steps:
     - name: 'Harden Runner'
