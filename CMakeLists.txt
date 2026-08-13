@@ -312,9 +312,8 @@ if(BUILD_APPS)
     add_subdirectory(Source/App/SampleDecoder)
 endif()
 
-include(CTest)
-
 if(BUILD_TESTING)
+    include(CTest)
     set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
     set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
@@ -322,7 +321,6 @@ if(BUILD_TESTING)
     add_subdirectory(third_party/googletest-1.14.0)
 
     add_subdirectory(tests/UnitTests)
-    #enable_testing()
 endif()
 
 add_subdirectory(third_party/cpuinfo)
