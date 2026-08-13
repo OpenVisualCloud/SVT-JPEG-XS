@@ -4,13 +4,20 @@ base_build: &base_build
   - 'tests/**'
   - 'third_party/**'
   - 'Build/**'
+  - 'CMakeLists.txt'
+  - .github/config/path_filters.yaml
   - .github/workflows/base_build.yaml
 
 ffmpeg_plugin_build: &ffmpeg_plugin_build
   - 'ffmpeg-plugin/**'
   - '.github/scripts/build_ffmpeg_plugin*'
   - 'Source/API/**'
+  - 'Source/Lib/**'
+  - 'third_party/**'
+  - 'Build/**'
+  - 'CMakeLists.txt'
   - 'tests/scripts/FFmpeg*.sh'
+  - .github/config/path_filters.yaml
   - .github/workflows/ffmpeg_plugin_build.yaml
 
 gstreamer_plugin_build: &gstreamer_plugin_build
@@ -18,4 +25,9 @@ gstreamer_plugin_build: &gstreamer_plugin_build
   - 'tests/scripts/Gstreamer*.sh'
   - 'tests/scripts/ParallelAllGstreamerTests.sh'
   - 'Source/API/**'
+  - 'Source/Lib/**'
+  - 'third_party/**'
+  - 'Build/**'
+  - 'CMakeLists.txt'
+  - .github/config/path_filters.yaml
   - .github/workflows/gstreamer_plugin_build.yaml
