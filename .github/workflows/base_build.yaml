@@ -57,10 +57,10 @@ jobs:
            sudo apt-get update
            sudo apt-get -y install cmake nasm valgrind make gcc g++
 
-    - name: 'Build:  Debug and Release versions'
+    - name: 'Build:  Debug and Release versions, install Release tree (reused by ffmpeg/gstreamer/fuzzy-test workflows)'
       working-directory: Build/linux
       run: |
-        ./build.sh --jobs=10 --all --test
+        ./build.sh --jobs=10 --all --test install --prefix "${{ github.workspace }}/install-dir"
 
     - name: "Archive: upload artifacts"
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -71,6 +71,14 @@ jobs:
           Bin/
           tests/scripts/parrallelUT.sh
           tests/scripts/
+
+    - name: "Archive: upload installed svt-jpegxs tree (fixed name, consumed cross-workflow via workflow_run)"
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      with:
+        name: linux-svtjpegxs-install
+        retention-days: 1
+        path: |
+          install-dir/
 
   linux-unit-tests-release:
     needs: linux-build

@@ -1,6 +1,9 @@
 name: Fuzzy Tests
 
 on:
+  workflow_run:
+    workflows: ["Base Build"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       branch:
@@ -13,7 +16,6 @@ on:
         type: number
         required: false
         default: 60
-  pull_request:
 
 defaults:
   run:
@@ -21,12 +23,14 @@ defaults:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   JOBS_NUM: 100
   TIMEOUT_SECONDS: ${{ inputs.timeout || 60 }}
 jobs:
-  decoder:
+  build-lib:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
     - name: 'Harden Runner'
@@ -36,6 +40,8 @@ jobs:
 
     - name: 'Checkout repository'
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      with:
+        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
 
     - name: 'Setup:  Install dependencies'
       run: |
@@ -48,18 +54,81 @@ jobs:
         sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
-    - name: 'Build: binaries'
+    - name: 'Setup: Download pre-built svt-jpegxs artifact from Base Build (falls back to local build if missing)'
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      continue-on-error: true
+      with:
+        name: linux-svtjpegxs-install
+        path: install-dir
+        run-id: ${{ github.event.workflow_run.id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 'Build: SVT-JPEG-XS once, reused by decoder+encoder fuzzer jobs (skipped if reused from Base Build)'
+      working-directory: Build/linux
+      run: |
+        if find "${{ github.workspace }}/install-dir" -name 'SvtJpegxs.pc' 2>/dev/null | grep -q .; then
+          echo "Reusing svt-jpegxs artifact from Base Build workflow run, skipping rebuild."
+        else
+          ./build.sh install --prefix "${{ github.workspace }}/install-dir"
+        fi
+
+    - name: "Archive: upload artifacts"
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      with:
+        name: fuzzy-tests-svtjpegxs-lib-${{ github.run_number }}
+        retention-days: 1
+        path: |
+          install-dir/
+
+  decoder:
+    needs: build-lib
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      with:
+        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
+
+    - name: 'Setup:  Install dependencies'
+      run: |
+            sudo apt update
+            sudo apt -y install cmake nasm clang
+
+    - name: Fix workspace permissions
+      if: always()
+      run: |
+        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
+
+    - name: 'Setup: Download pre-built svt-jpegxs artifact'
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: fuzzy-tests-svtjpegxs-lib-${{ github.run_number }}
+        path: install-dir
+
+    - name: 'Setup: Make svt-jpegxs artifact executable'
+      run: sudo chmod -R 755 install-dir/
+
+    - name: 'Build: fuzzer binaries'
       run: |
         .github/scripts/fuzzy_tests.sh -b
+      env:
+        SVT_INSTALL_DIR: ${{ github.workspace }}/install-dir
 
     - name: "Run: Decoder fuzzing tests"
       run: |
         .github/scripts/fuzzy_tests.sh -td
       env:
+        SVT_INSTALL_DIR: ${{ github.workspace }}/install-dir
         INPUT_FILES_PATH: /opt/samples/Samples/ConformanceTestDecoder/test_bitsreams
 
   encoder:
-    needs: decoder
+    needs: [build-lib, decoder]
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
     - name: 'Harden Runner'
@@ -69,6 +138,8 @@ jobs:
 
     - name: 'Checkout repository'
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      with:
+        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
 
     - name: 'Setup:  Install dependencies'
       run: |
@@ -81,10 +152,23 @@ jobs:
         sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
-    - name: 'Build: binaries'
+    - name: 'Setup: Download pre-built svt-jpegxs artifact'
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: fuzzy-tests-svtjpegxs-lib-${{ github.run_number }}
+        path: install-dir
+
+    - name: 'Setup: Make svt-jpegxs artifact executable'
+      run: sudo chmod -R 755 install-dir/
+
+    - name: 'Build: fuzzer binaries'
       run: |
         .github/scripts/fuzzy_tests.sh -b
+      env:
+        SVT_INSTALL_DIR: ${{ github.workspace }}/install-dir
 
     - name: "Run: Encoder fuzzing tests"
       run: |
         .github/scripts/fuzzy_tests.sh -te
+      env:
+        SVT_INSTALL_DIR: ${{ github.workspace }}/install-dir
