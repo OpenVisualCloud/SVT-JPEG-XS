@@ -1,10 +1,10 @@
 name: OOMify Tests
 
 on:
-  schedule:
-    - cron: '0 22 * * *'  # Daily 22:00 UTC
+  workflow_run:
+    workflows: ["Base Build"]
+    types: [completed]
   workflow_dispatch:
-  pull_request:
 
 defaults:
   run:
@@ -12,14 +12,17 @@ defaults:
 
 permissions:
   contents: read
+  actions: read  # required to download artifacts from the triggering workflow run
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
   oomify-tests:
     name: "OOMify: malloc failure injection"
+    # For workflow_run: only proceed if Base Build succeeded.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 60
     steps:
@@ -28,18 +31,33 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: 'Setup: Cleanup workspace'
-      run: |
-        rm -rf ./* || true
-        rm -rf ./.??* || true
-
     - name: 'Checkout repository'
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      with:
+        ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
     - name: 'Setup: Install dependencies'
       run: |
         sudo apt-get update
         sudo apt-get -y install cmake nasm make gcc g++
+
+    - name: 'Setup: Download SVT-JPEG-XS install tree from Base Build'
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      continue-on-error: true
+      with:
+        name: linux-svtjpegxs-install
+        path: install-dir
+        run-id: ${{ github.event.workflow_run.id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 'Build: SVT-JPEG-XS release (skipped when Base Build artifact is reused)'
+      working-directory: Build/linux
+      run: |
+        if find "${{ github.workspace }}/install-dir" -name 'SvtJpegxs.pc' 2>/dev/null | grep -q .; then
+          echo "Reusing svt-jpegxs artifact from Base Build workflow run, skipping rebuild."
+        else
+          ./build.sh install --prefix "${{ github.workspace }}/install-dir"
+        fi
 
     - name: 'Fix workspace permissions'
       if: always()
@@ -47,27 +65,25 @@ jobs:
         sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
-    - name: 'Build: release'
-      working-directory: Build/linux
-      run: |
-        ./build.sh release jobs=$(nproc)
-
     - name: 'Setup: Build oomify'
       run: |
         git clone --depth 1 https://github.com/tavianator/oomify.git /tmp/oomify-src
         make -C /tmp/oomify-src
+        mkdir -p "${{ github.workspace }}/oomify-bin"
         cp /tmp/oomify-src/oomify /tmp/oomify-src/liboomify.so \
-          "${{ github.workspace }}/Bin/Release/"
+          "${{ github.workspace }}/oomify-bin/"
 
     - name: 'Test: OOMify fault injection'
       run: |
+        chmod +x install-dir/bin/SvtJpegxsEncApp install-dir/bin/SvtJpegxsDecApp
         chmod +x tests/scripts/OomifyTest.sh
-        chmod +x Bin/Release/SvtJpegxsEncApp Bin/Release/SvtJpegxsDecApp
         mkdir -p oomify-logs
         set -o pipefail
+        # libSvtJpegxs.so is in lib64/ (separate from the app binaries in bin/).
+        export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
         tests/scripts/OomifyTest.sh \
-          "${{ github.workspace }}/Bin/Release" \
-          "${{ github.workspace }}/Bin/Release" \
+          "${{ github.workspace }}/install-dir/bin" \
+          "${{ github.workspace }}/oomify-bin" \
           2>&1 | tee oomify-logs/oomify-test.log
 
     - name: 'Archive: upload logs on failure'
@@ -78,10 +94,5 @@ jobs:
         retention-days: 7
         path: |
           oomify-logs/oomify-test.log
-          Bin/Release/SvtJpegxsEncApp
-          Bin/Release/SvtJpegxsDecApp
-
-    - name: 'Cleanup: Remove workspace artifacts'
-      if: always()
-      run: |
-        rm -rf Bin/ Build/linux/Release/ || true
+          install-dir/bin/SvtJpegxsEncApp
+          install-dir/bin/SvtJpegxsDecApp

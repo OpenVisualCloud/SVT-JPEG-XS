@@ -7,6 +7,7 @@ base_build: &base_build
   - 'CMakeLists.txt'
   - .github/config/path_filters.yaml
   - .github/workflows/base_build.yaml
+  - .github/workflows/oomify_tests.yaml
 
 ffmpeg_plugin_build: &ffmpeg_plugin_build
   - 'ffmpeg-plugin/**'
