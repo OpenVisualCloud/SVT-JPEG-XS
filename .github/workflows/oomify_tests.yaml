@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ["Base Build"]
     types: [completed]
+  pull_request:
   workflow_dispatch:
 
 defaults:
@@ -21,8 +22,8 @@ concurrency:
 jobs:
   oomify-tests:
     name: "OOMify: malloc failure injection"
-    # For workflow_run: only proceed if Base Build succeeded.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    # Skip if triggered by a failed Base Build; always run for pull_request/workflow_dispatch.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 60
     steps:
@@ -67,10 +68,13 @@ jobs:
 
     - name: 'Setup: Build oomify'
       run: |
-        git clone --depth 1 https://github.com/tavianator/oomify.git /tmp/oomify-src
-        make -C /tmp/oomify-src
+        git clone --depth 1 https://github.com/tavianator/oomify.git \
+          --no-local /tmp/oomify-src-${{ github.run_id }}
+        git -C /tmp/oomify-src-${{ github.run_id }} checkout a1cdde8aab003b4f720cda6bee6b4290fde8b49b
+        make -C /tmp/oomify-src-${{ github.run_id }}
         mkdir -p "${{ github.workspace }}/oomify-bin"
-        cp /tmp/oomify-src/oomify /tmp/oomify-src/liboomify.so \
+        cp /tmp/oomify-src-${{ github.run_id }}/oomify \
+           /tmp/oomify-src-${{ github.run_id }}/liboomify.so \
           "${{ github.workspace }}/oomify-bin/"
 
     - name: 'Test: OOMify fault injection'

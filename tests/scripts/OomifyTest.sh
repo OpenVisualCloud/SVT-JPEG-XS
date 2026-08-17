@@ -11,7 +11,7 @@
 # Usage: OomifyTest.sh <bin_dir> <oomify_dir>
 #   bin_dir    : directory containing SvtJpegxsEncApp, SvtJpegxsDecApp, and
 #                libSvtJpegxs.so
-#   oomify_dir : directory containing the oomify binary and liboominject.so
+#   oomify_dir : directory containing the oomify binary and liboomify.so
 
 
 set -u
@@ -66,11 +66,18 @@ function run_oomify_test() {
     echo "$label: $count allocations to test"
     echo
 
-    echo "--- $label: fault injection (1..$count) ---"
+    echo "--- $label: fault injection (0..$((count - 1))) ---"
     local i run_out ret
-    for i in $(seq 1 "$count"); do
+    for i in $(seq 0 $(( count - 1 ))); do
         run_out=$("$OOMIFY" -n "$i" -- "${cmd[@]}" 2>&1 >/dev/null)
         ret=$?
+
+        # Non-zero oomify exit below 128 means oomify_spawn() itself failed.
+        if [ "$ret" -ne 0 ] && [ "$ret" -lt 128 ]; then
+            echo "SPAWN ERROR at allocation $i: oomify exited with code $ret"
+            local_error=1
+            break
+        fi
 
         # oomify reports child crashes on stderr as "terminated with signal N"
         if printf '%s\n' "$run_out" | grep -q "terminated with signal"; then
