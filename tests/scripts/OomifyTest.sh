@@ -1,0 +1,164 @@
+#!/bin/bash
+#
+# Copyright(c) 2025 Intel Corporation
+# SPDX - License - Identifier: BSD - 2 - Clause - Patent
+#
+# OOM fault-injection test using oomify (https://github.com/tavianator/oomify).
+# Injects a malloc() failure at every allocation point inside the encoder and
+# decoder and verifies that each failure results in a clean exit rather than
+# a crash (signal / segfault).
+#
+# Usage: OomifyTest.sh <bin_dir> <oomify_dir>
+#   bin_dir    : directory containing SvtJpegxsEncApp, SvtJpegxsDecApp, and
+#                libSvtJpegxs.so
+#   oomify_dir : directory containing the oomify binary and liboominject.so
+
+
+set -u
+
+BIN_DIR="${1?Usage: $0 <bin_dir> <oomify_dir>}"
+OOMIFY_DIR="${2?Usage: $0 <bin_dir> <oomify_dir>}"
+
+ENC_APP="$BIN_DIR/SvtJpegxsEncApp"
+DEC_APP="$BIN_DIR/SvtJpegxsDecApp"
+OOMIFY="$OOMIFY_DIR/oomify"
+
+# libSvtJpegxs.so must be findable, as must oomify's liboomify.so.
+export LD_LIBRARY_PATH="${BIN_DIR}:${OOMIFY_DIR}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+# 64x16 is the smallest frame the encoder accepts with decomp_h=1 decomp_v=0.
+# decomp_h=1 decomp_v=0 is the minimum valid decomposition, keeping per-config
+# allocation counts as low as possible so the fault-injection loop finishes fast.
+YUV_W=64
+YUV_H=16
+
+echo "=== OOMify fault-injection test ==="
+echo "Encoder:         $ENC_APP"
+echo "Decoder:         $DEC_APP"
+echo "Oomify:          $OOMIFY"
+echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+echo
+
+error=0
+
+# run_oomify_test <label> <cmd> [<args>...]
+# 1. Dry-runs the command under oomify to count total allocations.
+# 2. Loops from 1 to that count, failing the i-th allocation each time.
+# 3. Returns 1 immediately if any iteration terminates with a signal (crash).
+function run_oomify_test() {
+    local label="$1"
+    shift
+    local cmd=("$@")
+    local local_error=0
+
+    echo "--- $label: dry run ---"
+    local dry_out
+    # 2>&1 >/dev/null: stderr (oomify messages + codec stderr) is captured;
+    # stdout (codec stdout) is discarded.
+    dry_out=$("$OOMIFY" -d -- "${cmd[@]}" 2>&1 >/dev/null)
+    echo "$dry_out"
+
+    local count
+    count=$(printf '%s\n' "$dry_out" \
+            | grep -oE 'fallible allocations:[[:space:]]+[0-9]+' \
+            | grep -oE '[0-9]+')
+    if [ -z "$count" ]; then
+        echo "ERROR: could not determine allocation count for $label"
+        return 1
+    fi
+    echo "$label: $count allocations to test"
+    echo
+
+    echo "--- $label: fault injection (1..$count) ---"
+    local i run_out ret
+    for i in $(seq 1 "$count"); do
+        run_out=$("$OOMIFY" -n "$i" -- "${cmd[@]}" 2>&1 >/dev/null)
+        ret=$?
+
+        # oomify reports child crashes on stderr as "terminated with signal N"
+        if printf '%s\n' "$run_out" | grep -q "terminated with signal"; then
+            echo "CRASH at allocation $i:"
+            printf '%s\n' "$run_out" | grep "terminated with signal"
+            local_error=1
+            break
+        fi
+        # Shell exit codes >= 128 mean the child was killed by signal (128 + signo)
+        if [ "$ret" -ge 128 ]; then
+            echo "CRASH at allocation $i: oomify exited with code $ret (signal $((ret - 128)))"
+            local_error=1
+            break
+        fi
+    done
+
+    if [ "$local_error" -eq 0 ]; then
+        echo "$label: PASS ($count allocations tested)"
+    else
+        echo "$label: FAIL"
+    fi
+    echo
+    return "$local_error"
+}
+
+# run_config_test <colour_format> <bit_depth>
+# Creates a synthetic YUV frame, runs encoder OOM test, encodes a clean
+# reference bitstream, then runs decoder OOM test.
+function run_config_test() {
+    local fmt="$1" depth="$2"
+    local label="${fmt} ${depth}bit"
+
+    # 10/12-bit samples are stored as 16-bit words; 8-bit uses 1 byte/sample.
+    local bps=$(( depth > 8 ? 2 : 1 ))
+    local samples
+    case "$fmt" in
+        yuv422) samples=$(( YUV_W * YUV_H * 2 )) ;;
+        yuv444) samples=$(( YUV_W * YUV_H * 3 )) ;;
+    esac
+
+    local yuv_file="$TMP_DIR/${fmt}_${depth}.yuv"
+    local jxs_enc_out="$TMP_DIR/${fmt}_${depth}_enc.jxs"
+    local jxs_dec_in="$TMP_DIR/${fmt}_${depth}_ref.jxs"
+    local dec_out="$TMP_DIR/${fmt}_${depth}_dec.yuv"
+
+    dd if=/dev/zero of="$yuv_file" bs=$(( samples * bps )) count=1 status=none
+
+    local enc_args=(-w "$YUV_W" -h "$YUV_H"
+                    --colour-format "$fmt"
+                    --input-depth "$depth"
+                    --bpp 3
+                    --decomp_h 1 --decomp_v 0
+                    -n 1 --no-progress 1 -v 1)
+
+    # ── Encoder OOM test ─────────────────────────────────────────────────────
+    run_oomify_test "encoder[$label]" \
+        "$ENC_APP" -i "$yuv_file" -b "$jxs_enc_out" "${enc_args[@]}" \
+        || error=1
+
+    # ── Build clean reference bitstream for the decoder test ─────────────────
+    if "$ENC_APP" -i "$yuv_file" -b "$jxs_dec_in" "${enc_args[@]}" \
+           > /dev/null 2>&1; then
+        # ── Decoder OOM test ─────────────────────────────────────────────────
+        run_oomify_test "decoder[$label]" \
+            "$DEC_APP" -i "$jxs_dec_in" -o "$dec_out" -v 1 \
+            || error=1
+    else
+        echo "ERROR: reference encode failed for $label; skipping decoder test"
+        error=1
+    fi
+}
+
+# Four configurations: two colour formats x two bit depths.
+run_config_test yuv422 8
+run_config_test yuv422 10
+run_config_test yuv444 8
+run_config_test yuv444 10
+
+if [ "$error" -ne 0 ]; then
+    echo "OOMify test FAILED"
+else
+    echo "OOMify test PASSED"
+fi
+echo "Exit $0 script with exit $error"
+exit $error

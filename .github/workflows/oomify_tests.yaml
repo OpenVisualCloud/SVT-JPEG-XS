@@ -1,0 +1,86 @@
+name: OOMify Tests
+
+on:
+  schedule:
+    - cron: '0 22 * * *'  # Daily 22:00 UTC
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  oomify-tests:
+    name: "OOMify: malloc failure injection"
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    timeout-minutes: 60
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Setup: Cleanup workspace'
+      run: |
+        rm -rf ./* || true
+        rm -rf ./.??* || true
+
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    - name: 'Setup: Install dependencies'
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install cmake nasm make gcc g++
+
+    - name: 'Fix workspace permissions'
+      if: always()
+      run: |
+        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
+
+    - name: 'Build: release'
+      working-directory: Build/linux
+      run: |
+        ./build.sh release jobs=$(nproc)
+
+    - name: 'Setup: Build oomify'
+      run: |
+        git clone --depth 1 https://github.com/tavianator/oomify.git /tmp/oomify-src
+        make -C /tmp/oomify-src
+        cp /tmp/oomify-src/oomify /tmp/oomify-src/liboomify.so \
+          "${{ github.workspace }}/Bin/Release/"
+
+    - name: 'Test: OOMify fault injection'
+      run: |
+        chmod +x tests/scripts/OomifyTest.sh
+        chmod +x Bin/Release/SvtJpegxsEncApp Bin/Release/SvtJpegxsDecApp
+        mkdir -p oomify-logs
+        set -o pipefail
+        tests/scripts/OomifyTest.sh \
+          "${{ github.workspace }}/Bin/Release" \
+          "${{ github.workspace }}/Bin/Release" \
+          2>&1 | tee oomify-logs/oomify-test.log
+
+    - name: 'Archive: upload logs on failure'
+      if: failure()
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      with:
+        name: oomify-failure-${{ github.run_number }}
+        retention-days: 7
+        path: |
+          oomify-logs/oomify-test.log
+          Bin/Release/SvtJpegxsEncApp
+          Bin/Release/SvtJpegxsDecApp
+
+    - name: 'Cleanup: Remove workspace artifacts'
+      if: always()
+      run: |
+        rm -rf Bin/ Build/linux/Release/ || true
