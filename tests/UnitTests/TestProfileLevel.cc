@@ -19,8 +19,8 @@ namespace {
 /* Encodes a single, all-zero frame with the given configuration and returns the produced codestream.
  * profile_ppih_override=0 and level_plev_override=0xFFFF mean "auto-derive" (library defaults). */
 std::vector<uint8_t> encode_single_frame(uint32_t width, uint32_t height, uint8_t bit_depth, ColourFormat_t colour_format,
-                                         uint32_t bpp_numerator, uint32_t bpp_denominator,
-                                         uint16_t profile_ppih_override = 0, uint16_t level_plev_override = 0xFFFF) {
+                                         uint32_t bpp_numerator, uint32_t bpp_denominator, uint16_t profile_ppih_override = 0,
+                                         uint16_t level_plev_override = 0xFFFF) {
     svt_jpeg_xs_encoder_api_t enc;
     EXPECT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
               SvtJxsErrorNone);
@@ -118,6 +118,15 @@ TEST(StreamProfileDerivation, FourComponents) {
     EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_4_COMPONENTS, 8, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
 }
 
+/* Regression test (SDBQ-3776): derive_stream_profile_ppih() previously had no case for this enum
+ * value and silently fell through to the Main 422.10/444.12 default, neither of which is a
+ * defined ISO/IEC 21122-2 profile for a 4-component picture. */
+TEST(StreamProfileDerivation, Yuv422Alpha) {
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 8, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 10, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 12, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
+}
+
 TEST(StreamProfileDerivation, NeverReturnsZero) {
     // Ppih=0x0000 is never a valid profile; the auto-derivation must never reintroduce that defect.
     for (int bit_depth = 8; bit_depth <= 14; ++bit_depth) {
@@ -125,6 +134,7 @@ TEST(StreamProfileDerivation, NeverReturnsZero) {
         EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, (uint8_t)bit_depth, VERBOSE_NONE), 0);
         EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, (uint8_t)bit_depth, VERBOSE_NONE), 0);
         EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_4_COMPONENTS, (uint8_t)bit_depth, VERBOSE_NONE), 0);
+        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, (uint8_t)bit_depth, VERBOSE_NONE), 0);
     }
 }
 
@@ -221,8 +231,7 @@ TEST(StreamProfileLevelEncodeIntegration, LevelOverrideIsUsedVerbatim) {
 TEST(StreamProfileLevelEncodeIntegration, LevelOverrideCanExplicitlyForceUnrestricted) {
     // Plev=0x0000 is a legitimate explicit override (distinct from the 0xFFFF "auto" sentinel), even
     // though the 256x256 resolution would otherwise auto-derive a tighter level.
-    std::vector<uint8_t> bitstream = encode_single_frame(
-        256, 256, 8, COLOUR_FORMAT_PLANAR_YUV422, 8, 1, 0, 0x0000);
+    std::vector<uint8_t> bitstream = encode_single_frame(256, 256, 8, COLOUR_FORMAT_PLANAR_YUV422, 8, 1, 0, 0x0000);
     ASSERT_GT(bitstream.size(), 0u);
     picture_header_const_t phc = probe_header(bitstream);
     EXPECT_EQ(phc.hdr_Plev, 0u);
@@ -259,21 +268,18 @@ TEST_P(StreamProfileLevelDecodeStillWorks, DecodesSuccessfully) {
     decoder_simple_free(&decoder);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    VariousProfilesAndLevels, StreamProfileLevelDecodeStillWorks,
-    ::testing::Values(
-        // Both auto-derived (baseline).
-        ProfileLevelParam{0, 0xFFFF},
-        // Profile override only, level auto-derived.
-        ProfileLevelParam{JXS_PPIH_MAIN_422_10, 0xFFFF},
-        ProfileLevelParam{JXS_PPIH_HIGH_444_12, 0xFFFF},
-        ProfileLevelParam{JXS_PPIH_LIGHT_422_10, 0xFFFF},
-        // Level override only, profile auto-derived.
-        ProfileLevelParam{0, (uint16_t)(JXS_PLEV_LEVEL_10K_1 | JXS_PLEV_SUBLEVEL_UNRESTRICTED)},
-        ProfileLevelParam{0, 0x0000}, // Explicit Unrestricted level+sublevel+FBB.
-        ProfileLevelParam{0, (uint16_t)(JXS_PLEV_LEVEL_1K_1 | JXS_PLEV_SUBLEVEL_12BPP)},
-        ProfileLevelParam{0, (uint16_t)(JXS_PLEV_LEVEL_8K_1 | JXS_PLEV_SUBLEVEL_2BPP)},
-        // Profile and level overridden together.
-        ProfileLevelParam{JXS_PPIH_HIGH_444_12, (uint16_t)JXS_PLEV_LEVEL_8K_1},
-        ProfileLevelParam{JXS_PPIH_LIGHT_422_10, (uint16_t)(JXS_PLEV_LEVEL_1K_1 | JXS_PLEV_SUBLEVEL_3BPP)}));
-
+INSTANTIATE_TEST_SUITE_P(VariousProfilesAndLevels, StreamProfileLevelDecodeStillWorks,
+                         ::testing::Values(
+                             // Both auto-derived (baseline).
+                             ProfileLevelParam{0, 0xFFFF},
+                             // Profile override only, level auto-derived.
+                             ProfileLevelParam{JXS_PPIH_MAIN_422_10, 0xFFFF}, ProfileLevelParam{JXS_PPIH_HIGH_444_12, 0xFFFF},
+                             ProfileLevelParam{JXS_PPIH_LIGHT_422_10, 0xFFFF},
+                             // Level override only, profile auto-derived.
+                             ProfileLevelParam{0, (uint16_t)(JXS_PLEV_LEVEL_10K_1 | JXS_PLEV_SUBLEVEL_UNRESTRICTED)},
+                             ProfileLevelParam{0, 0x0000}, // Explicit Unrestricted level+sublevel+FBB.
+                             ProfileLevelParam{0, (uint16_t)(JXS_PLEV_LEVEL_1K_1 | JXS_PLEV_SUBLEVEL_12BPP)},
+                             ProfileLevelParam{0, (uint16_t)(JXS_PLEV_LEVEL_8K_1 | JXS_PLEV_SUBLEVEL_2BPP)},
+                             // Profile and level overridden together.
+                             ProfileLevelParam{JXS_PPIH_HIGH_444_12, (uint16_t)JXS_PLEV_LEVEL_8K_1},
+                             ProfileLevelParam{JXS_PPIH_LIGHT_422_10, (uint16_t)(JXS_PLEV_LEVEL_1K_1 | JXS_PLEV_SUBLEVEL_3BPP)}));

@@ -157,9 +157,8 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
 
     if (config_struct->ndecomp_v == 0 && config_struct->colour_format == COLOUR_FORMAT_PLANAR_YUV420) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
-            SVT_ERROR(
-                    "Error: The input format YUV420 requires vertical decomposition level 1 or 2, provided %d\n",
-                    config_struct->ndecomp_v);
+            SVT_ERROR("Error: The input format YUV420 requires vertical decomposition level 1 or 2, provided %d\n",
+                      config_struct->ndecomp_v);
         }
         return SvtJxsErrorBadParameter;
     }
@@ -286,8 +285,8 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     if (config_struct->coding_signs_handling == SIGN_HANDLING_STRATEGY_FAST) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
             SVT_WARN(
-                    "Warning: coding_signs_handling PACK mode in this RC mode do not have any quality benefits. Only slow down "
-                    "performance!\n");
+                "Warning: coding_signs_handling PACK mode in this RC mode do not have any quality benefits. Only slow down "
+                "performance!\n");
         }
     }
     enc_common->coding_signs_handling = config_struct->coding_signs_handling;
@@ -310,8 +309,9 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         return SvtJxsErrorBadParameter;
     }
 
-    if ((COLOUR_FORMAT_PLANAR_YUV422 == enc_common->colour_format || COLOUR_FORMAT_PLANAR_YUV420 == enc_common->colour_format) &&
-        (config_struct->source_width % 2 != 0)) {
+    if ((COLOUR_FORMAT_PLANAR_YUV422 == enc_common->colour_format || COLOUR_FORMAT_PLANAR_YUV420 == enc_common->colour_format ||
+         COLOUR_FORMAT_PLANAR_YUV422_ALPHA == enc_common->colour_format) && //YUV422_ALPHA's Y/Cb/Cr triplet has the same 2:1
+        (config_struct->source_width % 2 != 0)) {                           //horizontal chroma subsampling as plain YUV422
         if (config_struct->verbose >= VERBOSE_ERRORS) {
             SVT_ERROR("Error: The input format requires a width divisible by 2!\n");
         }
@@ -380,7 +380,9 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         // if (min_ndecomp_v > 0) {
         // }
     }
-    if (COLOUR_FORMAT_PLANAR_YUV422 == enc_common->colour_format) {
+    //YUV422_ALPHA's Y/Cb/Cr triplet halves like plain YUV422; alpha (comp 3) matches Y's full resolution so needs no extra check
+    if (COLOUR_FORMAT_PLANAR_YUV422 == enc_common->colour_format ||
+        COLOUR_FORMAT_PLANAR_YUV422_ALPHA == enc_common->colour_format) {
         min_width_band >>= 1;
     }
 
@@ -996,7 +998,11 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_send_picture(svt_jpeg_xs_encode
     pi_t* pi = &enc_api_prv->enc_common.pi;
     uint8_t input_bit_depth = enc_api_prv->enc_common.bit_depth;
     uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
-    for (uint8_t c = 0; c < pi->comps_num; ++c) {
+    //Packed format uses a single interleaved data_yuv[0] buffer (see svt_jpeg_xs_image_buffer_alloc()) -
+    //data_yuv[1]/[2] are intentionally never allocated/used for it, unlike planar formats.
+    const uint8_t comps_to_check = (enc_api_prv->enc_common.colour_format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) ? 1
+                                                                                                                 : pi->comps_num;
+    for (uint8_t c = 0; c < comps_to_check; ++c) {
         if (enc_input->image.data_yuv[c] == NULL) {
             SVT_ERROR("Invalid input: data_yuv[%u] is NULL\n", c);
             return SvtJxsErrorBadParameter;

@@ -283,7 +283,8 @@ int weight_table_recalculate_table_print_research(pi_t* pi, weight_tables_t* tab
 static int weight_table_recalculate_table(pi_t* pi, weight_tables_t* table, ColourFormat_t color_format, uint8_t verbose) {
     //Recalculate table
     int ret = 0;
-    assert(pi->comps_num == 3);
+    //4-component formats reuse this same 3-colour-component decomposition shape (see weight_table_build_4comp)
+    assert(pi->comps_num == 3 || pi->comps_num == 4);
     if (verbose) {
         printf("Warning: Weight table not defined. Use recalculated table! H:%i V:%i sy:%i%i%i sx:%i%i%i \n",
                pi->decom_h,
@@ -334,8 +335,115 @@ static int weight_table_recalculate_table(pi_t* pi, weight_tables_t* table, Colo
     return 0;
 }
 
+/* Alpha (4th component) always has Sx=Sy=1 in every supported 4-component format (4:4:4:4 or
+ * 4:2:2:4, see ISO/IEC 21122-2 Annex A), same as luma - so it reuses luma's (component 0) own
+ * per-band gain and relative priority order, appended as the lowest-priority (last-refined)
+ * bands of the picture. base3 must already be resolved (sample table or recalculated) for the
+ * 3 colour components; out_gain/out_priority must be at least 4*(base3->size/3) bytes. */
+static void weight_table_extend_4comp_alpha_last(const weight_tables_t* base3, weight_tables_t* out4, uint8_t* out_gain,
+                                                 uint8_t* out_priority) {
+    uint32_t bpc = base3->size / 3;
+    uint8_t luma_priority[MAX_BANDS_PER_COMPONENT_NUM];
+    for (uint32_t level = 0; level < bpc; ++level) {
+        luma_priority[level] = base3->priority[3 * level + 0];
+    }
+    for (uint32_t level = 0; level < bpc; ++level) {
+        for (uint32_t c = 0; c < 3; ++c) {
+            out_gain[4 * level + c] = base3->gain[3 * level + c];
+            out_priority[4 * level + c] = base3->priority[3 * level + c];
+        }
+        //Alpha's relative rank among its own bands matches luma's relative rank among luma_priority[]
+        uint8_t rank = 0;
+        for (uint32_t j = 0; j < bpc; ++j) {
+            if (luma_priority[j] < luma_priority[level]) {
+                rank++;
+            }
+        }
+        out_gain[4 * level + 3] = base3->gain[3 * level + 0];
+        out_priority[4 * level + 3] = (uint8_t)(3 * bpc + rank);
+    }
+    out4->gain = out_gain;
+    out4->priority = out_priority;
+    out4->size = 4 * bpc;
+}
+
+/* Resolve the 3 colour components' weight table (422 for 4:2:2:4, 444 for 4:4:4:4) and extend it
+ * to 4 components via weight_table_extend_4comp_alpha_last(). out_gain/out_priority must be at
+ * least MAX_BANDS_NUM bytes. Returns 0 on success, -1 if color_format isn't a supported
+ * 4-component format or the base 3-component table can't be resolved. */
+static int weight_table_build_4comp(pi_t* pi, uint8_t verbose, ColourFormat_t color_format, weight_tables_t* out_table,
+                                    uint8_t* out_gain, uint8_t* out_priority) {
+    ColourFormat_t base_format = COLOUR_FORMAT_INVALID;
+    if (color_format == COLOUR_FORMAT_PLANAR_YUV422_ALPHA) {
+        base_format = COLOUR_FORMAT_PLANAR_YUV422;
+    }
+    else if (color_format == COLOUR_FORMAT_PLANAR_4_COMPONENTS) {
+        base_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    }
+    if (base_format == COLOUR_FORMAT_INVALID) {
+        return -1;
+    }
+
+    weight_tables_t base3 = (base_format == COLOUR_FORMAT_PLANAR_YUV422) ? weight_tables_sample_422[pi->decom_h][pi->decom_v]
+                                                                         : weight_tables_sample_444[pi->decom_h][pi->decom_v];
+
+    uint8_t base_gain[30];
+    uint8_t base_priority[30];
+    if (base3.gain == NULL) {
+        base3.gain = base_gain;
+        base3.priority = base_priority;
+        if (weight_table_recalculate_table(pi, &base3, base_format, verbose)) {
+            return -1;
+        }
+    }
+
+    weight_table_extend_4comp_alpha_last(&base3, out_table, out_gain, out_priority);
+    return 0;
+}
+
+static int weight_table_assign_bands(pi_t* pi, weight_tables_t* table) {
+    for (uint32_t c = 0; c < pi->comps_num; ++c) {
+        for (uint32_t b = 0; b < pi->components[c].bands_num; ++b) {
+            pi_band_t* band = &pi->components[c].bands[b];
+            if ((uint32_t)band->band_id >= table->size) {
+                return -1;
+            }
+            band->gain = table->gain[band->band_id];
+            band->priority = table->priority[band->band_id];
+        }
+    }
+
+#ifndef NDEBUG
+    //Validate consistency of table
+    uint8_t global_prioity[MAX_BANDS_NUM]; /* Indexing of global band [0 .. bands_num_all-1]*/
+    memset(global_prioity, 0, sizeof(global_prioity));
+    for (uint32_t c = 0; c < pi->comps_num; ++c) {
+        for (uint32_t b = 0; b < pi->components[c].bands_num; ++b) {
+            uint8_t pri = pi->components[c].bands[b].priority;
+            if (pri >= pi->bands_num_exists) {
+                assert(0);
+                return -1;
+            }
+            global_prioity[pri] += 1;
+        }
+    }
+    for (uint32_t p = 0; p < pi->bands_num_exists; ++p) {
+        if (global_prioity[p] != 1) {
+            SVT_ERROR("Error: Weight table priority not consistent!\n");
+            assert(0);
+            return -1;
+        }
+    }
+
+#endif
+    return 0;
+}
+
 int weight_table_calculate(pi_t* pi, uint8_t verbose, ColourFormat_t color_format) {
     weight_tables_t table = {0};
+    uint8_t table4_gain[MAX_BANDS_NUM];
+    uint8_t table4_priority[MAX_BANDS_NUM];
+
     if (pi->comps_num == 3) {
         if (color_format == COLOUR_FORMAT_PLANAR_YUV422) {
             table = weight_tables_sample_422[pi->decom_h][pi->decom_v];
@@ -345,6 +453,14 @@ int weight_table_calculate(pi_t* pi, uint8_t verbose, ColourFormat_t color_forma
         }
         else if (color_format == COLOUR_FORMAT_PLANAR_YUV444_OR_RGB || color_format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
             table = weight_tables_sample_444[pi->decom_h][pi->decom_v];
+        }
+    }
+    else if (pi->comps_num == 4) {
+        if (weight_table_build_4comp(pi, verbose, color_format, &table, table4_gain, table4_priority)) {
+            if (verbose) {
+                SVT_ERROR("Error: Weight table not supported for this 4-component format!\n");
+            }
+            return -1;
         }
     }
 
@@ -375,39 +491,5 @@ int weight_table_calculate(pi_t* pi, uint8_t verbose, ColourFormat_t color_forma
         }
     }
 
-    for (uint32_t c = 0; c < pi->comps_num; ++c) {
-        for (uint32_t b = 0; b < pi->components[c].bands_num; ++b) {
-            pi_band_t* band = &pi->components[c].bands[b];
-            if ((uint32_t)band->band_id >= table.size) {
-                return -1;
-            }
-            band->gain = table.gain[band->band_id];
-            band->priority = table.priority[band->band_id];
-        }
-    }
-
-#ifndef NDEBUG
-    //Validate consistency of table
-    uint8_t global_prioity[MAX_BANDS_NUM]; /* Indexing of global band [0 .. bands_num_all-1]*/
-    memset(global_prioity, 0, sizeof(global_prioity));
-    for (uint32_t c = 0; c < pi->comps_num; ++c) {
-        for (uint32_t b = 0; b < pi->components[c].bands_num; ++b) {
-            uint8_t pri = pi->components[c].bands[b].priority;
-            if (pri >= pi->bands_num_exists) {
-                assert(0);
-                return -1;
-            }
-            global_prioity[pri] += 1;
-        }
-    }
-    for (uint32_t p = 0; p < pi->bands_num_exists; ++p) {
-        if (global_prioity[p] != 1) {
-            SVT_ERROR("Error: Weight table priority not consistent!\n");
-            assert(0);
-            return -1;
-        }
-    }
-
-#endif
-    return 0;
+    return weight_table_assign_bands(pi, &table);
 }

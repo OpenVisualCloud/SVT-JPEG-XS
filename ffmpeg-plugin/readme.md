@@ -188,7 +188,47 @@ install-dir
 make -j10
 ```
 
+# Adding support for a new FFmpeg version
+
+Every currently supported version (6.1, 7.0, 7.1, 8.0, 8.1, 9.0) is hardcoded in several places.
+Adding a new one requires touching all of these:
+
+- `.github/scripts/build_ffmpeg_plugin.sh` and `.github/scripts/build_ffmpeg_plugin_msys.sh`:
+  add the new version to the `FFMPEG_VERSION` validation list (`if [[ "$FFMPEG_VERSION" != ... ]]`),
+  and to the `COPY_FILES` auto-disable check if the new version ships `libsvtjpegxs*` natively
+  upstream (like 8.1/9.0 do - no `cp .../libsvtjpegxs*` needed for those).
+- `.github/workflows/ffmpeg_plugin_build.yaml`:
+  - `ffmpeg-source-fetch` job: add the new version to the `for v in 6.1 7.0 7.1 8.0 8.1 9.0; do ...`
+    loop - this is the stage that clones/fetches and checks out each supported FFmpeg release
+    branch once, shared by every build job (see
+    [documentation/ci-cd/README.md](../documentation/ci-cd/README.md)).
+  - Add a new `ffmpeg-X-Y-linux-build` job (copy an existing one, update the version/patch args
+    passed to `build_ffmpeg_plugin.sh`) and its matching `ffmpeg-X-Y-linux-tests` job.
+  - Add a new `ffmpeg-X-Y-windows-build` job (copy an existing one, update the version passed to
+    `build_ffmpeg_plugin_msys.sh`).
+  - Add new `LINUX_ARTIFACTS_X_Y`/`WINDOWS_ARTIFACTS_X_Y` entries to the workflow's `env:` block.
+  - If the new version becomes the latest one, move the `ffmpeg-9-0-performance-tests` job (and
+    its `needs`/artifact references) to point at the new version instead.
+- `ffmpeg-plugin/<X.Y>/`: add the new version's patch directory (native plugin patches, following
+  the 8.1/9.0 pattern) or `libsvtjpegxs*` copy-file pattern (6.1-8.0 pattern).
+- `tests/scripts/FFmpeg*.sh` and `tests/scripts/PerformanceTestFfmpegPlugin.sh`: update if the new
+  version needs different test coverage or performance baselines.
+- `documentation/ci-cd/README.md`: update the version list mentioned in the workflow description
+  table.
+
 # How to use ffmpeg with jpeg-xs
+
+## Supported pixel formats
+
+Name|Bit depths|Notes
+--|--|--
+yuv420p(le)|8, 10, 12, 14|-
+yuv422p(le)|8, 10, 12, 14|-
+yuv444p(le), gbrp(le)|8, 10, 12, 14|-
+gray(le)|8, 9, 10, 12, 14|decode only
+rgb24, bgr24|8|packed
+yuva422p(le)|8, 10, 12|4:2:2:4 (YUV422 + alpha)
+yuva444p(le), gbrap(le)|8, 10, 12, 14|4:4:4:4 (RGBA/GBRA/YUVA444). No upstream ffmpeg `yuva444p14`/`yuva422p14` pix_fmt exists, so 14-bit 4:4:4:4 is only reachable via `gbrap14le`, and 14-bit 4:2:2:4 is not reachable through this plugin at all.
 
 ## libsvtjpegxs encoder available params
 

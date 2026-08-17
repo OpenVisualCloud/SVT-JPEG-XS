@@ -23,13 +23,16 @@ GST_COMMIT=${1:-8ca913845a142ebbea86eede74292d840f12a046}
 
 echo "=== 0. Create installation directory and export env variable ==="
 export INSTALL_DIR="$JPEGXS_REPO/install-dir"
-rm -rf "$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 
 echo "=== 1. Compile and install svt-jpegxs ==="
-cd "$JPEGXS_REPO/Build/linux"
-./build.sh install --prefix "$INSTALL_DIR"
-cd "$JPEGXS_REPO"
+if find "$INSTALL_DIR" -name 'SvtJpegxs.pc' 2>/dev/null | grep -q .; then
+    echo "svt-jpegxs already installed under $INSTALL_DIR (reused build artifact), skipping rebuild."
+else
+    cd "$JPEGXS_REPO/Build/linux"
+    ./build.sh install --prefix "$INSTALL_DIR"
+    cd "$JPEGXS_REPO"
+fi
 
 echo "=== 2. Make the SvtJpegxs.pc pkg-config file discoverable ==="
 SVT_PC_FILE=$(find "$INSTALL_DIR" -name 'SvtJpegxs.pc' | head -1)

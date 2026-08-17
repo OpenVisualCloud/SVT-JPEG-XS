@@ -32,7 +32,9 @@ function end {
 
 # (1:expected error code, or "NONZERO" to accept any non-zero code)
 # (2:expected md5 of raw bitstream, or "IGNORE" to skip the check)
-# (3:name of input yuv, without .yuv extension, from encoder_tests/)
+# (3:name of input yuv, without .yuv extension, from encoder_tests/, or one of the
+#    SYNTH:yuva422p8/SYNTH:yuva444p8/SYNTH:gbrap8 sentinels for the synthesized 4-component
+#    fixtures generated below (no real 4-component sample exists in encoder_tests/))
 # (4:width) (5:height) (6:ffmpeg pix_fmt) (7:number of frames to encode)
 # (8: all other jpegxs encoder AVOptions, e.g. "-bpp 3 -decomp_v 2 -decomp_h 5")
 function test_enc {
@@ -44,7 +46,12 @@ function test_enc {
     pix_fmt=$6
     frames=$7
     encoder_parameters=$8
-    path_yuv=$path_correct"/"$name_yuv".yuv"
+    case "$name_yuv" in
+        SYNTH:yuva422p8) path_yuv="$SYNTH_YUVA422P8" ;;
+        SYNTH:yuva444p8) path_yuv="$SYNTH_YUVA444P8" ;;
+        SYNTH:gbrap8) path_yuv="$SYNTH_GBRAP8" ;;
+        *) path_yuv=$path_correct"/"$name_yuv".yuv" ;;
+    esac
 
     common_lib_update_test_id_run_return_1_to_ignore
     ignore=$?
@@ -120,6 +127,28 @@ function test_enc {
 
 rm -fr $tmp_dir
 mkdir $tmp_dir
+
+# No real 4-component (alpha) sample .yuv exists in encoder_tests/. Synthesize single-frame
+# fixtures from the existing 1080p 8bit yuv422 fixture: real Y/Cb/Cr planes kept as-is, the
+# alpha/extra-chroma planes are Y duplicates (content doesn't need to be visually meaningful,
+# only deterministic - this only exercises the ffmpeg plugin's pix_fmt/component wiring, actual
+# encode/decode correctness is covered by the core library's UnitTests).
+SYNTH_SRC="$path_correct/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+SYNTH_YUVA422P8="$tmp_dir/synth_yuva422p8.yuv"
+SYNTH_YUVA444P8="$tmp_dir/synth_yuva444p8.yuv"
+SYNTH_GBRAP8="$tmp_dir/synth_gbrap8.yuv"
+if [ -f "$SYNTH_SRC" ]; then
+    SYNTH_Y_SIZE=$((1920 * 1080))
+    SYNTH_C_SIZE=$((1920 * 1080 / 2))
+    head -c $SYNTH_Y_SIZE "$SYNTH_SRC" > "$tmp_dir/synth_y.raw"
+    tail -c +$((SYNTH_Y_SIZE + 1)) "$SYNTH_SRC" | head -c $SYNTH_C_SIZE > "$tmp_dir/synth_cb.raw"
+    tail -c +$((SYNTH_Y_SIZE + SYNTH_C_SIZE + 1)) "$SYNTH_SRC" | head -c $SYNTH_C_SIZE > "$tmp_dir/synth_cr.raw"
+
+    cat "$tmp_dir/synth_y.raw" "$tmp_dir/synth_cb.raw" "$tmp_dir/synth_cr.raw" "$tmp_dir/synth_y.raw" > "$SYNTH_YUVA422P8"
+    cat "$tmp_dir/synth_y.raw" "$tmp_dir/synth_y.raw" "$tmp_dir/synth_y.raw" "$tmp_dir/synth_y.raw" > "$SYNTH_YUVA444P8"
+    cp "$SYNTH_YUVA444P8" "$SYNTH_GBRAP8"
+    rm -f "$tmp_dir/synth_y.raw" "$tmp_dir/synth_cb.raw" "$tmp_dir/synth_cr.raw"
+fi
 
 function test_all {
 #   8bit 1080p yuv422, bpp 3, decomp_v 2, decomp_h 5, coding-sigf 1, coding-vpred no_residuals,
@@ -228,6 +257,18 @@ function test_all {
 #   8bit): same md5 as the very first test_all row above with otherwise identical parameters,
 #   confirming the option is safely ignored for 8bit input rather than corrupting it.
     test_enc 0 3f24dcf3bdfd1184caacac7fa9989a78 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs full -msb_aligned 1"
+
+#   4:2:2:4 (YUVA422, synthesized fixture, SDBQ-3776). NEW md5, pinned from this ffmpeg build.
+    test_enc 0 8c2ec2b5ee21903e8bc4ce10d8724e66 SYNTH:yuva422p8 1920 1080 yuva422p 1 "-bpp 4 -decomp_v 2 -decomp_h 5"
+
+#   4:4:4:4 (YUVA444, synthesized fixture, SDBQ-3776). NEW md5, pinned from this ffmpeg build.
+    test_enc 0 fb905b390b6bbe62ffda9a93215e5922 SYNTH:yuva444p8 1920 1080 yuva444p 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
+
+#   4:4:4:4 via GBRA (RGBA colour family, same COLOUR_FORMAT_PLANAR_4_COMPONENTS as YUVA444,
+#   SDBQ-3776): byte-identical to the YUVA444P test above, confirming the plugin can't and
+#   doesn't distinguish RGB/YUV colour family for 4-component input (matches the existing
+#   YUV444P/GBRP behavior for 3-component input).
+    test_enc 0 fb905b390b6bbe62ffda9a93215e5922 SYNTH:gbrap8 1920 1080 gbrap 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
 }
 
 test_all

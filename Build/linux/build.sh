@@ -144,7 +144,7 @@ check_executable() (
 
 install_build() (
     build_type=Release
-    sudo=$(check_executable -p sudo)
+    sudo=$(check_executable -p sudo) || true
     while [ -n "$*" ]; do
         case $(printf %s "$1" | tr '[:upper:]' '[:lower:]') in
         release) build_type="Release" && shift ;;
@@ -251,15 +251,15 @@ parse_options() {
                 toolchain=$PWD/$toolchain
                 curl --connect-timeout 15 --retry 3 --retry-delay 5 -sfLk -o "$toolchain" "$url"
                 ;;
-            *) toolchain=$(
+            *)
                 case ${url%/*} in
                 */*)
                     [ -n "$prev_pwd" ] && cd "$prev_pwd"
                     cd "${url%/*}"
                     ;;
                 esac
-                pwd -P 2> /dev/null || pwd
-            )/${url##*/} ;;
+                toolchain="$(pwd -P 2> /dev/null || pwd)/${url##*/}"
+                ;;
             esac
             CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DCMAKE_TOOLCHAIN_FILE=$toolchain" && shift
             ;;

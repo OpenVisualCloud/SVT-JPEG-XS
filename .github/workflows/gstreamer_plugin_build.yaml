@@ -1,9 +1,9 @@
 name: GStreamer Plugin Build
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
+  workflow_run:
+    workflows: ["Base Build"]
+    types: [completed]
   workflow_dispatch:
 
 defaults:
@@ -12,17 +12,20 @@ defaults:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.workflow_run.head_sha || github.sha }}
   cancel-in-progress: true
 
 env:
   JOBS_NUM: 100
   INPUT_FILES_PATH: /opt/samples
+  GST_ARTIFACTS: gstreamer-build-${{ github.run_number }}
 
 jobs:
   changes:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -30,10 +33,13 @@ jobs:
       changed: ${{ steps.filter.outputs.gstreamer_plugin_build == 'true' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v2
         id: filter
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           filters: .github/config/path_filters.yaml
 
   gstreamer-linux-build-test:
@@ -41,6 +47,8 @@ jobs:
     if: ${{ needs.changes.outputs.changed == 'true' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind']
     timeout-minutes: 120
+    outputs:
+      artifact_name: ${{ env.GST_ARTIFACTS }}
     steps:
       - name: 'Harden Runner'
         uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
@@ -49,11 +57,25 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Install dependencies'
         run: |
             sudo apt-get update
             sudo apt-get -y install cmake make gcc g++ nasm ninja-build python3-venv pkg-config flex bison libglib2.0-dev
+
+      - name: 'Setup: Download pre-built svt-jpegxs artifact from Base Build (falls back to local build if missing)'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        continue-on-error: true
+        with:
+          name: linux-svtjpegxs-install
+          path: install-dir
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 'Setup: Make downloaded svt-jpegxs artifact executable'
+        run: sudo chmod -R 755 install-dir/ 2> /dev/null || true
 
       - name: 'Build: SVT-JPEG-XS and minimal GStreamer with the svtjpegxs plugin'
         run: .github/scripts/build_gstreamer_plugin.sh
@@ -67,7 +89,45 @@ jobs:
         working-directory: ${{ github.workspace }}/tests/scripts
         run: |
           source ${{ github.workspace }}/gst-plugin-env.sh
-          ./ParallelAllGstreamerTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}"
+          ./ParallelAllGstreamerTests.sh ${{ env.JOBS_NUM }} "${{ env.INPUT_FILES_PATH }}" 2>&1 | tee gstreamer_functional_tests.log
+
+      - name: 'Publish: GStreamer functional test summary'
+        if: always()
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          {
+            echo "## GStreamer Plugin Functional Tests"
+            echo ""
+            if [ ! -f gstreamer_functional_tests.log ]; then
+              echo "> ⚠️ Test log not found — the test may not have run."
+            else
+              echo "| Suite | Executed | Passed | Failed | Status |"
+              echo "|-------|----------|--------|--------|--------|"
+              awk '
+                /^RUN GSTREAMER DECODER CONFORMANCE TEST/ { flush(); suite="Decoder Conformance" }
+                /^RUN GSTREAMER DECODER MULTI FRAMES TEST/ { flush(); suite="Decoder Multi-Frames" }
+                /^RUN GSTREAMER ENCODER TEST/              { flush(); suite="Encoder" }
+                /Tests execute:/  { total += $3 }
+                /^FAIL [^!]/      { fails++ }
+                END {
+                  flush()
+                  print ""
+                  if (grand_fails == 0)
+                    print "**Result: ✅ All " grand_total " tests passed**"
+                  else
+                    print "**Result: ❌ " grand_fails " test(s) failed, " (grand_total - grand_fails) " passed**"
+                }
+                function flush() {
+                  if (suite != "") {
+                    icon = (fails == 0) ? "✅" : "❌"
+                    printf "| %s | %d | %d | %d | %s |\n", suite, total, total-fails, fails, icon
+                    grand_total += total; grand_fails += fails
+                    total=0; fails=0; suite=""
+                  }
+                }
+              ' gstreamer_functional_tests.log
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 'Upload test logs on failure'
         if: failure()
@@ -76,6 +136,103 @@ jobs:
           name: gstreamer-test-logs-${{ github.run_number }}
           retention-days: 14
           path: tests/scripts/tmp/
+
+      - name: 'Archive: upload build artifacts for performance tests'
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: ${{ env.GST_ARTIFACTS }}
+          retention-days: 1
+          path: |
+            install-dir/
+            gst-install/
+
+      - name: 'Cleanup workspace'
+        if: always()
+        run: git clean -ffdx
+
+  gstreamer-performance-tests:
+    needs: gstreamer-linux-build-test
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
+    timeout-minutes: 120
+    steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Setup: Install dependencies'
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install numactl
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: 'Setup: Download build artifacts'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ needs.gstreamer-linux-build-test.outputs.artifact_name }}
+
+      - name: 'Setup: Make GStreamer libraries and binaries executable'
+        run: |
+          sudo chmod -R 755 gst-install/
+          sudo chmod -R 755 install-dir/
+
+      - name: 'Run: GStreamer plugin performance'
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          export PATH="${{ github.workspace }}/gst-install/usr/local/bin:$PATH"
+          export LD_LIBRARY_PATH="${{ github.workspace }}/gst-install/usr/local/lib:${{ github.workspace }}/install-dir/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export GST_PLUGIN_PATH="${{ github.workspace }}/gst-install/usr/local/lib/gstreamer-1.0"
+          chmod +x PerformanceTestGstreamer.sh
+          ./PerformanceTestGstreamer.sh "${{ env.INPUT_FILES_PATH }}" 2>&1 | tee gstreamer_plugin_performance.log
+
+      - name: 'Publish: GStreamer performance test summary'
+        if: always()
+        working-directory: ${{ github.workspace }}/tests/scripts
+        run: |
+          {
+            echo "## GStreamer Plugin Performance Results"
+            echo ""
+            if [ ! -f gstreamer_results.csv ]; then
+              echo "> ⚠️ Results CSV not found — the test may not have produced output."
+            else
+              echo "| Op | Resolution / Config | Result FPS | Baseline FPS | % of Target | Status |"
+              echo "|----|---------------------|-----------|--------------|-------------|--------|"
+              awk -F',' '
+                NR == 1 { next }
+                {
+                  op=$1; tc=$2; status=$NF; pct=$(NF-1); target=$(NF-2); result=$(NF-3)
+                  n=split(tc, a, "|")
+                  label = (n > 7) ? a[1] " bpp=" a[7] " t=" a[8] : tc
+                  icon = (status == "PASS") ? "✅" : "❌"
+                  printf "| %s | %s | %s | %s | %s%% | %s %s |\n", op, label, result, target, pct, icon, status
+                  if (status == "PASS") pass++; else fail++
+                }
+                END {
+                  print ""
+                  if (fail+pass == 0)
+                    print "_No test results found in CSV._"
+                  else if (fail == 0)
+                    print "**Result: ✅ All " pass " tests passed**"
+                  else
+                    print "**Result: ❌ " fail " test(s) failed, " pass " passed**"
+                }
+              ' gstreamer_results.csv
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 'Archive: upload performance results'
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: gstreamer-plugin-performance-results-${{ github.run_number }}
+          retention-days: 90
+          path: |
+            tests/scripts/gstreamer_results.csv
+            tests/scripts/gstreamer_plugin_performance.log
 
       - name: 'Cleanup workspace'
         if: always()

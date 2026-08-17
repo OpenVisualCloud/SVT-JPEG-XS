@@ -32,6 +32,7 @@ typedef struct SvtJpegXsEncodeContext {
     int msb_aligned;
 
     svt_jpeg_xs_encoder_api_t encoder;
+    svt_jpeg_xs_image_config_t image_config;
     int bitstream_frame_size;
 } SvtJpegXsEncodeContext;
 
@@ -55,7 +56,7 @@ static int svt_jpegxs_enc_encode(AVCodecContext* avctx, AVPacket* pkt, const AVF
     out_buf.allocation_size = pkt->size; // output bitstream size
     out_buf.used_size = 0;
 
-    for (int comp = 0; comp < 3; comp++) {
+    for (int comp = 0; comp < svt_enc->image_config.components_num; comp++) {
         // svt-jpegxs require stride in pixel's not in bytes, this means that for 10 bit-depth, stride is half the linesize
         in_buf.stride[comp] = frame->linesize[comp] / pixel_size;
         in_buf.data_yuv[comp] = frame->data[comp];
@@ -156,6 +157,38 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_encoder_api_t* encoder
         encoder->input_bit_depth = 8;
         encoder->colour_format = COLOUR_FORMAT_PACKED_YUV444_OR_RGB;
         return 0;
+    case AV_PIX_FMT_YUVA422P:
+        encoder->input_bit_depth = 8;
+        encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422_ALPHA;
+        return 0;
+    case AV_PIX_FMT_YUVA422P10LE:
+        encoder->input_bit_depth = 10;
+        encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422_ALPHA;
+        return 0;
+    case AV_PIX_FMT_YUVA422P12LE:
+        encoder->input_bit_depth = 12;
+        encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422_ALPHA;
+        return 0;
+    case AV_PIX_FMT_YUVA444P:
+    case AV_PIX_FMT_GBRAP:
+        encoder->input_bit_depth = 8;
+        encoder->colour_format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
+        return 0;
+    case AV_PIX_FMT_YUVA444P10LE:
+    case AV_PIX_FMT_GBRAP10LE:
+        encoder->input_bit_depth = 10;
+        encoder->colour_format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
+        return 0;
+    case AV_PIX_FMT_YUVA444P12LE:
+    case AV_PIX_FMT_GBRAP12LE:
+        encoder->input_bit_depth = 12;
+        encoder->colour_format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
+        return 0;
+    case AV_PIX_FMT_GBRAP14LE:
+        // no upstream YUVA444P14LE exists, so 14-bit 4:4:4:4 is only reachable via GBRA here.
+        encoder->input_bit_depth = 14;
+        encoder->colour_format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
+        return 0;
     default:
         break;
     }
@@ -201,6 +234,10 @@ static uint32_t default_bpp_numerator(const svt_jpeg_xs_encoder_api_t* encoder) 
     case COLOUR_FORMAT_PLANAR_YUV444_OR_RGB:
     case COLOUR_FORMAT_PACKED_YUV444_OR_RGB:
         return encoder->input_bit_depth * 3;
+    case COLOUR_FORMAT_PLANAR_YUV422_ALPHA:
+        return encoder->input_bit_depth * 3;
+    case COLOUR_FORMAT_PLANAR_4_COMPONENTS:
+        return encoder->input_bit_depth * 4;
     default:
         return 0;
     }
@@ -312,6 +349,16 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
         return AVERROR_UNKNOWN;
     }
     av_log(NULL, AV_LOG_DEBUG, "svt_jpeg_xs_encoder_init ok\n");
+
+    {
+        uint32_t bytes_per_frame = 0;
+        err = svt_jpeg_xs_encoder_get_image_config(
+            SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &(svt_enc->encoder), &(svt_enc->image_config), &bytes_per_frame);
+        if (err != SvtJxsErrorNone) {
+            av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_get_image_config failed\n");
+            return AVERROR_UNKNOWN;
+        }
+    }
 
     svt_enc->bitstream_frame_size =
         ((avctx->width * avctx->height * svt_enc->encoder.bpp_numerator / svt_enc->encoder.bpp_denominator + 7) / 8);
@@ -463,6 +510,16 @@ const FFCodec ff_libsvtjpegxs_encoder = {
                                                AV_PIX_FMT_GBRP14LE,
                                                AV_PIX_FMT_RGB24,
                                                AV_PIX_FMT_BGR24,
+                                               AV_PIX_FMT_YUVA422P,
+                                               AV_PIX_FMT_YUVA422P10LE,
+                                               AV_PIX_FMT_YUVA422P12LE,
+                                               AV_PIX_FMT_YUVA444P,
+                                               AV_PIX_FMT_YUVA444P10LE,
+                                               AV_PIX_FMT_YUVA444P12LE,
+                                               AV_PIX_FMT_GBRAP,
+                                               AV_PIX_FMT_GBRAP10LE,
+                                               AV_PIX_FMT_GBRAP12LE,
+                                               AV_PIX_FMT_GBRAP14LE,
                                                AV_PIX_FMT_NONE},
     .p.wrapper_name = "libsvtjpegxs",
     .p.priv_class = &svtjpegxs_enc_class,

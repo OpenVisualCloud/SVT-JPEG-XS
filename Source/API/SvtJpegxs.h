@@ -51,8 +51,9 @@ typedef enum ColourFormat {
     COLOUR_FORMAT_PLANAR_YUV420 = 2,        //planar: yuv420p, yuv420p10le etc.
     COLOUR_FORMAT_PLANAR_YUV422 = 3,        //planar: yuv422p, yuv422p10le etc.
     COLOUR_FORMAT_PLANAR_YUV444_OR_RGB = 4, //planar: yuv444p, rgbp, gbrp, yuv444p10le, gbrp10le etc.
-    COLOUR_FORMAT_PLANAR_4_COMPONENTS = 5,  // planar 4 components
+    COLOUR_FORMAT_PLANAR_4_COMPONENTS = 5,  // planar 4 components, 4:4:4:4 sampling (RGBA, GBRA, YUVA444 etc.)
     COLOUR_FORMAT_GRAY = 6,
+    COLOUR_FORMAT_PLANAR_YUV422_ALPHA = 7, // planar 4 components, 4:2:2:4 sampling (Y/Cb/Cr at 4:2:2 plus full-resolution alpha)
     COLOUR_FORMAT_PLANAR_MAX,
 
     COLOUR_FORMAT_PACKED_MIN = 20,

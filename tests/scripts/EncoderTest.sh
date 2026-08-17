@@ -138,6 +138,61 @@ function test_enc {
 rm -fr $tmp_dir
 mkdir $tmp_dir
 
+#No real 4-component (alpha) sample YUV exists in $path_correct. Synthesize one on the fly (like the
+#MSB-aligned test synthesizes a temp bitstream) from the real touchdown 8bit 422 sample: keep its
+#real Y/Cb/Cr planes as-is and append a duplicate of the Y plane as a synthetic full-resolution alpha
+#plane, giving a valid yuva422 (4:2:2:4) raw layout without adding any new external fixture file.
+yuva422_w=1920
+yuva422_h=1080
+yuva422_frames=3
+yuva422_y_size=$((yuva422_w * yuva422_h))
+yuva422_c_size=$((yuva422_w * yuva422_h / 2))
+yuva422_frame_size=$((yuva422_y_size + 2 * yuva422_c_size))
+yuva422_src="$path_correct/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+yuva422_synth="$tmp_dir/synth_touchdown_1080p_yuva422p_8_bit_3_frames.yuv"
+rm -f "$yuva422_synth"
+for ((yuva422_f = 0; yuva422_f < yuva422_frames; yuva422_f++)); do
+    yuva422_off=$((yuva422_f * yuva422_frame_size))
+    tail -c +$((yuva422_off + 1)) "$yuva422_src" | head -c $yuva422_frame_size >> "$yuva422_synth"
+    tail -c +$((yuva422_off + 1)) "$yuva422_src" | head -c $yuva422_y_size >> "$yuva422_synth"
+done
+
+#No real 4:4:4:4 (rgba/yuva444) sample YUV exists in $path_correct either. Synthesize one the same
+#way: take the real Y (luma) plane of each frame and use 4 copies of it as the 4 full-resolution
+#planes (4:4:4:4 has no chroma subsampling, so all 4 planes are simply w*h bytes each).
+yuva444_w=1920
+yuva444_h=1080
+yuva444_frames=3
+yuva444_plane_size=$((yuva444_w * yuva444_h))
+yuva444_src="$path_correct/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+yuva444_synth="$tmp_dir/synth_touchdown_1080p_yuva444p_8_bit_3_frames.yuv"
+rm -f "$yuva444_synth"
+for ((yuva444_f = 0; yuva444_f < yuva444_frames; yuva444_f++)); do
+    yuva444_off=$((yuva444_f * yuva422_frame_size))
+    for ((yuva444_p = 0; yuva444_p < 4; yuva444_p++)); do
+        tail -c +$((yuva444_off + 1)) "$yuva444_src" | head -c $yuva444_plane_size >> "$yuva444_synth"
+    done
+done
+
+#Pre-existing "Experimental" formats (yuv444/rgb planar, rgbp packed) also have zero script coverage.
+#Reuse the same real Y plane (3 copies instead of 4 - no alpha) for the planar 3-component case; the
+#packed case only differs in how EncApp structures its in-memory buffer (one interleaved buffer vs 3
+#separate arrays), not in total per-frame byte count, so the identical flat byte layout works as input
+#for both - content correctness isn't the point here, exercising the code path deterministically is.
+rgb_w=1920
+rgb_h=1080
+rgb_frames=3
+rgb_plane_size=$((rgb_w * rgb_h))
+rgb_src="$path_correct/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+rgb_synth="$tmp_dir/synth_touchdown_1080p_rgb_8bit_3_frames.yuv"
+rm -f "$rgb_synth"
+for ((rgb_f = 0; rgb_f < rgb_frames; rgb_f++)); do
+    rgb_off=$((rgb_f * yuva422_frame_size))
+    for ((rgb_p = 0; rgb_p < 3; rgb_p++)); do
+        tail -c +$((rgb_off + 1)) "$rgb_src" | head -c $rgb_plane_size >> "$rgb_synth"
+    done
+done
+
 #RUN different RC parameters Release/Debug/ ASM_C/ASM_MAX compare Parameters (1:asm) (2:lp number)
 function test_rate_control {
     asm=${SANITIZER_ASM:-$1}
@@ -347,6 +402,225 @@ function test_msb_aligned {
 #   Reject any value other than 0/1
     test_enc 5 IGNORE                           signal_1080p_yuv422p_10bit_le_1_frame       "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --input-msb-aligned 2     --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
     test_enc 5 IGNORE                           signal_1080p_yuv422p_10bit_le_1_frame       "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --input-msb-aligned 255   --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+}
+
+#(1:expected error code) (2:expected md5 or IGNORE) (3:"all other parameters to encoder")
+#Independent of test_enc/$path_correct - always encodes the self-generated $yuva422_synth file.
+function test_enc_yuva422_synth {
+    exit_code=$1
+    md5=$2
+    encoder_parameters=$3
+
+    common_lib_update_test_id_run_return_1_to_ignore
+    ignore=$?
+    if [ $ignore -ne 0 ]; then
+        return
+    fi
+
+    bin_name="${test_id_print}_yuva422_synth"
+    bin_path="$tmp_dir/$bin_name.jxs"
+    out_yuv_path="$tmp_dir/$bin_name.yuv"
+
+    cmd="$exec_enc -i $yuva422_synth -b $bin_path $encoder_parameters"
+    echo "run command: $cmd"
+    ${cmd}
+    ret=$?
+    if [ $ret -ne $exit_code ]; then
+        echo "FAIL Invalid error code: $ret expected: $exit_code"
+        error=1
+        end
+    fi
+
+    if [ $ret -eq 0 ]; then
+        cmd="$exec_dec -i $bin_path -o $out_yuv_path"
+        echo "run command: $cmd"
+        ${cmd}
+        ret=$?
+        if [ $ret -ne 0 ]; then
+            echo "FAIL Can not decode bitstream, error code: $ret"
+            error=1
+            end
+        fi
+    fi
+
+    if [ "$md5" = "IGNORE" ]; then
+        echo "IGNORE TEST OUTPUT"
+    else
+        echo -n "Test MD5 Expect: $md5 "
+        md5_t=`md5sum ${bin_path} | awk '{ print $1 }'`
+        if [ "$md5" = "$md5_t" ]; then
+            echo "OK"
+        else
+            echo "FAIL get $md5_t"
+            error=1
+            end
+        fi
+    fi
+}
+
+#RUN yuva422 (4:2:2:4, YUV422 + alpha) new-format smoke test Parameters (1:asm) (2:lp) (3:profile) (4:packetization-mode)
+function test_four_component_alpha {
+    asm=$1
+    lp=$2
+    cpu_profile=$3
+    packetization_mode=$4
+
+    test_enc_yuva422_synth 0 675945159dce818eb7cb18d723916b08 "-w $yuva422_w -h $yuva422_h --input-depth 8 --colour-format yuva422 --bpp 4 --decomp_v 2 --decomp_h 5 --rc 0 -n $yuva422_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    test_enc_yuva422_synth 0 a23eb24f36fdf615defd10b58ae727f3 "-w $yuva422_w -h $yuva422_h --input-depth 8 --colour-format yuva422 --bpp 3 --decomp_v 1 --decomp_h 4 --rc 0 -n $yuva422_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    test_enc_yuva422_synth 0 dfafdfe43775d1c15d488cbd35529f4c "-w $yuva422_w -h $yuva422_h --input-depth 8 --colour-format yuva422 --bpp 4 --decomp_v 0 --decomp_h 1 --rc 0 -n $yuva422_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+
+#   yuva422's Y/Cb/Cr planes have 2:1 horizontal chroma subsampling like plain yuv422 - odd width must be rejected
+    test_enc_yuva422_synth 5 IGNORE "-w $((yuva422_w + 1)) -h $yuva422_h --input-depth 8 --colour-format yuva422 --bpp 4 --rc 0 -n 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+}
+
+#(1:expected error code) (2:expected md5 or IGNORE) (3:"all other parameters to encoder")
+#Independent of test_enc/$path_correct - always encodes the self-generated $yuva444_synth file.
+function test_enc_yuva444_synth {
+    exit_code=$1
+    md5=$2
+    encoder_parameters=$3
+
+    common_lib_update_test_id_run_return_1_to_ignore
+    ignore=$?
+    if [ $ignore -ne 0 ]; then
+        return
+    fi
+
+    bin_name="${test_id_print}_yuva444_synth"
+    bin_path="$tmp_dir/$bin_name.jxs"
+    out_yuv_path="$tmp_dir/$bin_name.yuv"
+
+    cmd="$exec_enc -i $yuva444_synth -b $bin_path $encoder_parameters"
+    echo "run command: $cmd"
+    ${cmd}
+    ret=$?
+    if [ $ret -ne $exit_code ]; then
+        echo "FAIL Invalid error code: $ret expected: $exit_code"
+        error=1
+        end
+    fi
+
+    if [ $ret -eq 0 ]; then
+        cmd="$exec_dec -i $bin_path -o $out_yuv_path"
+        echo "run command: $cmd"
+        ${cmd}
+        ret=$?
+        if [ $ret -ne 0 ]; then
+            echo "FAIL Can not decode bitstream, error code: $ret"
+            error=1
+            end
+        fi
+    fi
+
+    if [ "$md5" = "IGNORE" ]; then
+        echo "IGNORE TEST OUTPUT"
+    else
+        echo -n "Test MD5 Expect: $md5 "
+        md5_t=`md5sum ${bin_path} | awk '{ print $1 }'`
+        if [ "$md5" = "$md5_t" ]; then
+            echo "OK"
+        else
+            echo "FAIL get $md5_t"
+            error=1
+            end
+        fi
+    fi
+}
+
+#RUN rgba/yuva444 (4:4:4:4) new-format smoke test Parameters (1:asm) (2:lp) (3:profile) (4:packetization-mode)
+function test_four_component_444 {
+    asm=$1
+    lp=$2
+    cpu_profile=$3
+    packetization_mode=$4
+
+    test_enc_yuva444_synth 0 104512a53a78cfe829a6e7b32310d93c "-w $yuva444_w -h $yuva444_h --input-depth 8 --colour-format rgba --bpp 4 --decomp_v 2 --decomp_h 5 --rc 0 -n $yuva444_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    test_enc_yuva444_synth 0 86b4c45fd2e8eb9491280aab4d42c3c2 "-w $yuva444_w -h $yuva444_h --input-depth 8 --colour-format yuva444 --bpp 3 --decomp_v 1 --decomp_h 4 --rc 0 -n $yuva444_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    test_enc_yuva444_synth 0 d80d4bdea3cef38ff72353417e499179 "-w $yuva444_w -h $yuva444_h --input-depth 8 --colour-format rgba --bpp 4 --decomp_v 0 --decomp_h 1 --rc 0 -n $yuva444_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+
+#   4:4:4:4 has no chroma subsampling - odd width must be ACCEPTED (contrast case vs yuva422 above)
+    test_enc_yuva444_synth 0 5028936ad5b408a1439b65052dd422bb "-w $((yuva444_w + 1)) -h $yuva444_h --input-depth 8 --colour-format rgba --bpp 4 --rc 0 -n 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+}
+
+#(1:expected error code) (2:expected md5 or IGNORE) (3:"all other parameters to encoder")
+#Independent of test_enc/$path_correct - always encodes the self-generated $rgb_synth file.
+function test_enc_rgb_synth {
+    exit_code=$1
+    md5=$2
+    encoder_parameters=$3
+
+    common_lib_update_test_id_run_return_1_to_ignore
+    ignore=$?
+    if [ $ignore -ne 0 ]; then
+        return
+    fi
+
+    bin_name="${test_id_print}_rgb_synth"
+    bin_path="$tmp_dir/$bin_name.jxs"
+    out_yuv_path="$tmp_dir/$bin_name.yuv"
+
+    cmd="$exec_enc -i $rgb_synth -b $bin_path $encoder_parameters"
+    echo "run command: $cmd"
+    ${cmd}
+    ret=$?
+    if [ $ret -ne $exit_code ]; then
+        echo "FAIL Invalid error code: $ret expected: $exit_code"
+        error=1
+        end
+    fi
+
+    if [ $ret -eq 0 ]; then
+        cmd="$exec_dec -i $bin_path -o $out_yuv_path"
+        echo "run command: $cmd"
+        ${cmd}
+        ret=$?
+        if [ $ret -ne 0 ]; then
+            echo "FAIL Can not decode bitstream, error code: $ret"
+            error=1
+            end
+        fi
+    fi
+
+    if [ "$md5" = "IGNORE" ]; then
+        echo "IGNORE TEST OUTPUT"
+    else
+        echo -n "Test MD5 Expect: $md5 "
+        md5_t=`md5sum ${bin_path} | awk '{ print $1 }'`
+        if [ "$md5" = "$md5_t" ]; then
+            echo "OK"
+        else
+            echo "FAIL get $md5_t"
+            error=1
+            end
+        fi
+    fi
+}
+
+#RUN yuv444/rgb (planar, 3-comp, no alpha) and rgbp (packed, 3-comp) pre-existing "Experimental"
+#formats - had zero script-level coverage before. Parameters (1:asm) (2:lp) (3:profile) (4:packetization-mode)
+function test_yuv444_rgb_and_rgbp {
+    asm=$1
+    lp=$2
+    cpu_profile=$3
+    packetization_mode=$4
+
+#   yuv444 and rgb are the SAME enum (COLOUR_FORMAT_PLANAR_YUV444_OR_RGB) - both must byte-match
+    test_enc_rgb_synth 0 2aa52be0dca46b52cf35aa90c22f09a2 "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format yuv444 --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    test_enc_rgb_synth 0 2aa52be0dca46b52cf35aa90c22f09a2 "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgb    --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    test_enc_rgb_synth 0 fe53341439e4c38e19ff60196525c5e2 "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgb    --bpp 4 --decomp_v 1 --decomp_h 4 --rc 0 -n $rgb_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+
+#   rgbp (packed) - single interleaved buffer, distinct enum/code path from planar rgb/yuv444.
+#   Known pre-existing TODO limitation: packed only works in Low latency threading model, not CPU_PROFILE_CPU.
+    if [ "$cpu_profile" = "cpu" ]; then
+        test_enc_rgb_synth 5 IGNORE "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgbp   --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+        test_enc_rgb_synth 5 IGNORE "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgbp   --bpp 4 --decomp_v 1 --decomp_h 4 --rc 0 -n $rgb_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    else
+        test_enc_rgb_synth 0 dcacf61dd851bf0277b0b384a8cc109c "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgbp   --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+        test_enc_rgb_synth 0 d4025f84348a247ec4d8c2cb4231a11a "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgbp   --bpp 4 --decomp_v 1 --decomp_h 4 --rc 0 -n $rgb_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    fi
+
+#   No chroma subsampling on either format - odd width must be ACCEPTED
+    test_enc_rgb_synth 0 a9f416e4f368dbb37d8ab3169a7e5d7b "-w $((rgb_w + 1)) -h $rgb_h --input-depth 8 --colour-format rgb --bpp 3 --rc 0 -n 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
 }
 
 function test_uncommon_resolution {
@@ -765,6 +1039,24 @@ echo Test MSB-aligned input
 [[ $run_fast -eq 0 ]] && test_msb_aligned avx2 5 cpu 0
                          test_msb_aligned max 7 latency 0
                          test_msb_aligned max 7 latency 1
+
+echo "Test yuva422 (4:2:2:4, YUV422+alpha)"
+[[ $run_fast -eq 0 ]] && test_four_component_alpha c 10 latency 0
+[[ $run_fast -eq 0 ]] && test_four_component_alpha avx2 5 cpu 0
+                         test_four_component_alpha max 7 latency 0
+                         test_four_component_alpha max 7 latency 1
+
+echo "Test rgba/yuva444 (4:4:4:4)"
+[[ $run_fast -eq 0 ]] && test_four_component_444 c 10 latency 0
+[[ $run_fast -eq 0 ]] && test_four_component_444 avx2 5 cpu 0
+                         test_four_component_444 max 7 latency 0
+                         test_four_component_444 max 7 latency 1
+
+echo "Test yuv444/rgb (planar) and rgbp (packed)"
+[[ $run_fast -eq 0 ]] && test_yuv444_rgb_and_rgbp c 10 latency 0
+[[ $run_fast -eq 0 ]] && test_yuv444_rgb_and_rgbp avx2 5 cpu 0
+                         test_yuv444_rgb_and_rgbp max 7 latency 0
+                         test_yuv444_rgb_and_rgbp max 7 latency 1
 
 #echo RUN DEBUG TEST C
 #exec_enc=$exec_enc_dbg

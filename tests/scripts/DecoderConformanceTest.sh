@@ -122,6 +122,125 @@ function test_msb_aligned_output {
     test_msb_dec 2 d41d8cd98f00b204e9800998ecf8427e "--output-msb-aligned 255"
 }
 
+#No real 4-component (alpha) sample YUV exists in $path_bitstreams. Synthesize one on the fly (same
+#technique as the MSB prep above): keep the real touchdown Y/Cb/Cr planes and append a duplicate of
+#the Y plane as a synthetic full-resolution alpha plane, giving a valid yuva422 (4:2:2:4) raw layout.
+yuva422_w=1920
+yuva422_h=1080
+yuva422_frames=2
+yuva422_y_size=$((yuva422_w * yuva422_h))
+yuva422_c_size=$((yuva422_w * yuva422_h / 2))
+yuva422_frame_size=$((yuva422_y_size + 2 * yuva422_c_size))
+yuva422_src="$path_bitstreams/encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+yuva422_synth="$tmp_dir/synth_yuva422.yuv"
+rm -f "$yuva422_synth"
+for ((yuva422_f = 0; yuva422_f < yuva422_frames; yuva422_f++)); do
+    yuva422_off=$((yuva422_f * yuva422_frame_size))
+    tail -c +$((yuva422_off + 1)) "$yuva422_src" | head -c $yuva422_frame_size >> "$yuva422_synth"
+    tail -c +$((yuva422_off + 1)) "$yuva422_src" | head -c $yuva422_y_size >> "$yuva422_synth"
+done
+
+#Encode at a near-lossless bpp (24 = 8(Y)+4(Cb)+4(Cr)+8(A), i.e. uncompressed-equivalent budget) with
+#deadzone quantization, to keep the decoded output close enough to the original input to compare directly.
+bitstream_yuva422_prep="$tmp_dir/yuva422_prep.jxs"
+cmd_prep_alpha="$exec_enc -i $yuva422_synth -w $yuva422_w -h $yuva422_h --input-depth 8 --colour-format yuva422 --bpp 24 --quantization 0 -n $yuva422_frames -b $bitstream_yuva422_prep --asm max"
+echo "run command: $cmd_prep_alpha"
+${cmd_prep_alpha}
+
+#Same technique for 4:4:4:4 (rgba/yuva444): 4 full-resolution planes, no chroma subsampling, so just
+#reuse the real Y plane 4 times per frame (no upsampling needed).
+yuva444_w=1920
+yuva444_h=1080
+yuva444_frames=2
+yuva444_plane_size=$((yuva444_w * yuva444_h))
+yuva444_src="$path_bitstreams/encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+yuva444_synth="$tmp_dir/synth_yuva444.yuv"
+rm -f "$yuva444_synth"
+for ((yuva444_f = 0; yuva444_f < yuva444_frames; yuva444_f++)); do
+    yuva444_off=$((yuva444_f * yuva422_frame_size))
+    for ((yuva444_p = 0; yuva444_p < 4; yuva444_p++)); do
+        tail -c +$((yuva444_off + 1)) "$yuva444_src" | head -c $yuva444_plane_size >> "$yuva444_synth"
+    done
+done
+
+bitstream_yuva444_prep="$tmp_dir/yuva444_prep.jxs"
+cmd_prep_444="$exec_enc -i $yuva444_synth -w $yuva444_w -h $yuva444_h --input-depth 8 --colour-format rgba --bpp 32 --quantization 0 -n $yuva444_frames -b $bitstream_yuva444_prep --asm max"
+echo "run command: $cmd_prep_444"
+${cmd_prep_444}
+
+#Compares two same-size files sample-by-sample and fails if any absolute difference exceeds $3.
+#(1:file A) (2:file B) (3:max allowed absolute per-byte difference)
+function compare_yuv_tolerance {
+    file_a=$1
+    file_b=$2
+    max_allowed=$3
+
+    max_diff=`cmp -l "$file_a" "$file_b" | awk '{v1=strtonum("0"$2); v2=strtonum("0"$3); d=(v1>v2)?v1-v2:v2-v1; if(d>max)max=d} END{print max+0}'`
+    echo -n "Max abs diff vs original input: $max_diff (allowed <= $max_allowed) "
+    if [ "$max_diff" -gt "$max_allowed" ]; then
+        echo "FAIL"
+        error=1
+        end
+    else
+        echo "OK"
+    fi
+}
+
+#RUN yuva422 (4:2:2:4) decode test: decode the self-generated bitstream and compare against the
+#original synthesized input (not just a pinned md5 of the decoder's own output), like MSB but going
+#one step further and validating actual round-trip fidelity. Parameters (1:asm) (2:lp) (3:packetization-mode)
+function test_four_component_alpha_decode {
+    PARAM_ASM=$1
+    PARAM_LP_NUM=$2
+    PARAM_PACKETIZATION=$3
+
+    common_lib_update_test_id_run_return_1_to_ignore
+    ignore=$?
+    if [ $ignore -ne 0 ]; then
+        return
+    fi
+
+    out_yuv="$tmp_dir/yuva422_prep_out.yuv"
+    cmd="$valgrind$exec_dec -i $bitstream_yuva422_prep -o $out_yuv --lp $PARAM_LP_NUM --asm $PARAM_ASM --packetization-mode $PARAM_PACKETIZATION"
+    echo "run command: $cmd"
+    ${cmd}
+    ret=$?
+    if [ $ret -ne 0 ]; then
+        echo "FAIL Can not decode bitstream, error code: $ret"
+        error=1
+        end
+    fi
+
+    compare_yuv_tolerance "$yuva422_synth" "$out_yuv" 4
+}
+
+#RUN rgba/yuva444 (4:4:4:4) decode test - same round-trip-fidelity approach as yuva422 above.
+#Parameters (1:asm) (2:lp) (3:packetization-mode)
+function test_four_component_444_decode {
+    PARAM_ASM=$1
+    PARAM_LP_NUM=$2
+    PARAM_PACKETIZATION=$3
+
+    common_lib_update_test_id_run_return_1_to_ignore
+    ignore=$?
+    if [ $ignore -ne 0 ]; then
+        return
+    fi
+
+    out_yuv="$tmp_dir/yuva444_prep_out.yuv"
+    cmd="$valgrind$exec_dec -i $bitstream_yuva444_prep -o $out_yuv --lp $PARAM_LP_NUM --asm $PARAM_ASM --packetization-mode $PARAM_PACKETIZATION"
+    echo "run command: $cmd"
+    ${cmd}
+    ret=$?
+    if [ $ret -ne 0 ]; then
+        echo "FAIL Can not decode bitstream, error code: $ret"
+        error=1
+        end
+    fi
+
+    compare_yuv_tolerance "$yuva444_synth" "$out_yuv" 4
+}
+
 function test_all {
     PARAM_ASM=$1
     PARAM_LP_NUM=$2
@@ -225,6 +344,15 @@ echo Test output_bit_depth_msb_aligned
                          test_msb_aligned_output avx2 20 0
                          test_msb_aligned_output max 1 1
 
+echo "Test yuva422 (4:2:2:4) decode round-trip"
+[[ $run_fast -eq 0 ]] && test_four_component_alpha_decode c 10 0
+                         test_four_component_alpha_decode avx2 20 0
+                         test_four_component_alpha_decode max 1 1
+
+echo "Test rgba/yuva444 (4:4:4:4) decode round-trip"
+[[ $run_fast -eq 0 ]] && test_four_component_444_decode c 10 0
+                         test_four_component_444_decode avx2 20 0
+                         test_four_component_444_decode max 1 1
 
 common_lib_end_summary
 
