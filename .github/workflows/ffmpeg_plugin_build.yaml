@@ -1,9 +1,9 @@
 name: ffmpeg Plugin Build
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
+  workflow_run:
+    workflows: ["Base Build"]
+    types: [completed]
   workflow_dispatch:
 
 defaults:
@@ -12,19 +12,23 @@ defaults:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.workflow_run.head_sha || github.sha }}
   cancel-in-progress: true
 env:
   INPUT_FILES_PATH: /opt/samples
   JOBS_NUM: 100
+  FFMPEG_SRC_ARTIFACT: ffmpeg-source-${{ github.run_number }}
+  LINUX_LIB_ARTIFACTS: linux-svtjpegxs-lib-build-${{ github.run_number }}
   LINUX_ARTIFACTS_6_1: linux-ffmpeg-6-1-build-${{ github.run_number }}
   LINUX_ARTIFACTS_7_0: linux-ffmpeg-7-0-build-${{ github.run_number }}
   LINUX_ARTIFACTS_7_1: linux-ffmpeg-7-1-build-${{ github.run_number }}
   LINUX_ARTIFACTS_8_0: linux-ffmpeg-8-0-build-${{ github.run_number }}
   LINUX_ARTIFACTS_8_1: linux-ffmpeg-8-1-build-${{ github.run_number }}
   LINUX_ARTIFACTS_9_0: linux-ffmpeg-9-0-build-${{ github.run_number }}
+  WINDOWS_LIB_ARTIFACTS: windows-svtjpegxs-mingw-lib-build-${{ github.run_number }}
   WINDOWS_ARTIFACTS_6_1: windows-ffmpeg-6-1-build-${{ github.run_number }}
   WINDOWS_ARTIFACTS_7_0: windows-ffmpeg-7-0-build-${{ github.run_number }}
   WINDOWS_ARTIFACTS_7_1: windows-ffmpeg-7-1-build-${{ github.run_number }}
@@ -33,6 +37,7 @@ env:
   WINDOWS_ARTIFACTS_9_0: windows-ffmpeg-9-0-build-${{ github.run_number }}
 jobs:
   changes:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -40,14 +45,106 @@ jobs:
       changed: ${{ steps.filter.outputs.ffmpeg_plugin_build == 'true' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v2
         id: filter
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           filters: .github/config/path_filters.yaml
 
-  ffmpeg-6-1-linux-build:
+
+  ffmpeg-source-fetch:
       needs: changes
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: 'ubuntu-22.04'
+      timeout-minutes: 30
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Fetch: all 6 FFmpeg release branches once, reused by every linux/windows ffmpeg-plugin build job'
+        run: |
+          mkdir ffmpeg-source
+          cd ffmpeg-source
+          git init -q
+          git remote add origin https://github.com/FFmpeg/FFmpeg.git
+          for v in 6.1 7.0 7.1 8.0 8.1 9.0; do
+            fetch_attempt=1
+            max_fetch_attempts=5
+            until git fetch --depth 1 origin "release/$v:release/$v"; do
+              if [[ "$fetch_attempt" -ge "$max_fetch_attempts" ]]; then
+                echo "git fetch release/$v failed after $max_fetch_attempts attempts, giving up."
+                exit 1
+              fi
+              fetch_attempt=$((fetch_attempt + 1))
+              echo "git fetch release/$v failed (attempt $((fetch_attempt - 1))/$max_fetch_attempts), retrying in 10s..."
+              sleep 10
+            done
+          done
+
+      - name: "Archive: upload artifacts"
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          retention-days: 1
+          include-hidden-files: true
+          path: |
+            ffmpeg-source/
+
+
+  linux-lib-build:
+      needs: changes
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: 'ubuntu-22.04'
+      timeout-minutes: 60
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Setup:  Install dependencies'
+        run: |
+            sudo apt-get update
+            sudo apt-get -y install cmake nasm make gcc g++ pkg-config
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: 'Setup: Download pre-built svt-jpegxs artifact from Base Build (falls back to local build if missing)'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        continue-on-error: true
+        with:
+          name: linux-svtjpegxs-install
+          path: install-dir
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 'Build: SVT-JPEG-XS (shared, Release) once, reused by all ffmpeg-plugin linux jobs (skipped if reused from Base Build)'
+        working-directory: Build/linux
+        run: |
+          if find "${{ github.workspace }}/install-dir" -name 'SvtJpegxs.pc' 2>/dev/null | grep -q .; then
+            echo "Reusing svt-jpegxs artifact from Base Build workflow run, skipping rebuild."
+          else
+            ./build.sh install --prefix "${{ github.workspace }}/install-dir"
+          fi
+
+      - name: "Archive: upload artifacts"
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: "${{ env.LINUX_LIB_ARTIFACTS }}"
+          retention-days: 1
+          path: |
+            install-dir/
+
+  ffmpeg-6-1-linux-build:
+      needs: [changes, linux-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
@@ -63,9 +160,28 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Make svt-jpegxs artifact executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
 
       - name: 'install ffmpeg plugin'
         run: .github/scripts/build_ffmpeg_plugin.sh 6.1 y
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -76,7 +192,7 @@ jobs:
             install-dir/
 
   ffmpeg-7-0-linux-build:
-      needs: changes
+      needs: [changes, linux-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
@@ -93,9 +209,28 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Make svt-jpegxs artifact executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
 
       - name: 'install ffmpeg plugin'
         run: .github/scripts/build_ffmpeg_plugin.sh 7.0 y
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -106,7 +241,7 @@ jobs:
             install-dir/
 
   ffmpeg-7-1-linux-build:
-      needs: changes
+      needs: [changes, linux-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
@@ -123,9 +258,28 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Make svt-jpegxs artifact executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
 
       - name: 'install ffmpeg plugin'
         run: .github/scripts/build_ffmpeg_plugin.sh 7.1 y
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -136,7 +290,7 @@ jobs:
             install-dir/
 
   ffmpeg-8-0-linux-build:
-      needs: changes
+      needs: [changes, linux-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
@@ -153,9 +307,28 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Make svt-jpegxs artifact executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
 
       - name: 'install ffmpeg plugin'
         run: .github/scripts/build_ffmpeg_plugin.sh 8.0 y
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -166,7 +339,7 @@ jobs:
             install-dir/
 
   ffmpeg-8-1-linux-build:
-      needs: changes
+      needs: [changes, linux-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
@@ -183,9 +356,28 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Make svt-jpegxs artifact executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
 
       - name: 'install ffmpeg plugin'
         run: .github/scripts/build_ffmpeg_plugin.sh 8.1 y n
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -196,7 +388,7 @@ jobs:
             install-dir/
 
   ffmpeg-9-0-linux-build:
-      needs: changes
+      needs: [changes, linux-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
@@ -215,9 +407,28 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.LINUX_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Make svt-jpegxs artifact executable'
+        run: sudo chmod -R 755 install-dir/
+
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
 
       - name: 'install ffmpeg plugin'
         run: .github/scripts/build_ffmpeg_plugin.sh 9.0 y n
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -250,6 +461,8 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -317,6 +530,8 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -384,13 +599,15 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: "${{ env.LINUX_ARTIFACTS_7_1 }}"
           path: install-dir
-          
+
       - name: 'Setup: Make ffmpeg executable'
         run: sudo chmod -R 755 install-dir/
 
@@ -451,6 +668,8 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -518,6 +737,8 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -585,6 +806,8 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -638,7 +861,7 @@ jobs:
               ' ffmpeg_functional_tests.log
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-   
+
   ffmpeg-9-0-performance-tests:
       needs: ffmpeg-9-0-linux-build
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
@@ -656,6 +879,8 @@ jobs:
 
         - name: 'Checkout repository'
           uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+          with:
+            ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
         - name: 'Setup: Download build artifacts'
           uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -718,9 +943,52 @@ jobs:
             path: |
               tests/scripts/ffmpeg_results.csv
               tests/scripts/ffmpeg_plugin_performance.log
-        
-  ffmpeg-6-1-windows-build:
+
+  windows-mingw-lib-build:
       needs: changes
+      if: ${{ needs.changes.outputs.changed == 'true' }}
+      runs-on: 'windows-2022'
+      timeout-minutes: 60
+      steps:
+      - name: 'Harden Runner'
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout repository'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: 'Setup: Disable Windows Defender real-time scanning (speeds up many-small-file MinGW builds)'
+        shell: pwsh
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+
+      - name: 'install msys2 shell'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          update: true
+          cache: true
+          install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
+
+      - name: 'Build: SVT-JPEG-XS (MinGW, static, Release) once, reused by all ffmpeg-plugin windows jobs'
+        working-directory: "${{ github.workspace }}"
+        shell: msys2 {0}
+        run: |
+          pacman -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils mingw-w64-x86_64-winpthreads
+          ./Build/linux/build.sh install --prefix "$(pwd)/install-dir" --no-app --static
+
+      - name: "Archive: upload artifacts"
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
+          retention-days: 1
+          path: |
+            install-dir/
+
+  ffmpeg-6-1-windows-build:
+      needs: [changes, windows-mingw-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
@@ -732,25 +1000,40 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: 'Install dependencies'
-        working-directory: "${{ github.workspace }}"
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Disable Windows Defender real-time scanning (speeds up many-small-file MinGW builds)'
         shell: pwsh
-        run: ./.github/scripts/configure.ps1
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
 
       - name: 'install msys2 shell'
         uses: msys2/setup-msys2@v2
         with:
           msystem: mingw64
           update: true
+          cache: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
+
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
 
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}
         run: |
-           export ASM_NASM="${{ env.ASM_NASM }}"
            ./.github/scripts/build_ffmpeg_plugin_msys.sh 6.1
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -761,7 +1044,7 @@ jobs:
             install-dir/bin/
 
   ffmpeg-7-0-windows-build:
-      needs: changes
+      needs: [changes, windows-mingw-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
@@ -773,24 +1056,39 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: 'Install dependencies'
-        working-directory: "${{ github.workspace }}"
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Disable Windows Defender real-time scanning (speeds up many-small-file MinGW builds)'
         shell: pwsh
-        run: ./.github/scripts/configure.ps1
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
 
       - name: 'install msys2 shell'
         uses: msys2/setup-msys2@v2
         with:
           msystem: mingw64
           update: true
+          cache: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
+
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}
         run: |
-          export ASM_NASM="${{ env.ASM_NASM }}"
           ./.github/scripts/build_ffmpeg_plugin_msys.sh 7.0
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -801,7 +1099,7 @@ jobs:
             install-dir/bin/
 
   ffmpeg-7-1-windows-build:
-      needs: changes
+      needs: [changes, windows-mingw-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
@@ -813,24 +1111,39 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: 'Install dependencies'
-        working-directory: "${{ github.workspace }}"
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Disable Windows Defender real-time scanning (speeds up many-small-file MinGW builds)'
         shell: pwsh
-        run: ./.github/scripts/configure.ps1
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
 
       - name: 'install msys2 shell'
         uses: msys2/setup-msys2@v2
         with:
           msystem: mingw64
           update: true
+          cache: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
+
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}
         run: |
-          export ASM_NASM="${{ env.ASM_NASM }}"
           ./.github/scripts/build_ffmpeg_plugin_msys.sh 7.1
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -841,7 +1154,7 @@ jobs:
             install-dir/bin/
 
   ffmpeg-8-0-windows-build:
-      needs: changes
+      needs: [changes, windows-mingw-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
@@ -853,24 +1166,39 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: 'Install dependencies'
-        working-directory: "${{ github.workspace }}"
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Disable Windows Defender real-time scanning (speeds up many-small-file MinGW builds)'
         shell: pwsh
-        run: ./.github/scripts/configure.ps1
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
 
       - name: 'install msys2 shell'
         uses: msys2/setup-msys2@v2
         with:
           msystem: mingw64
           update: true
+          cache: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm nasm
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
+
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}
         run: |
-          export ASM_NASM="${{ env.ASM_NASM }}"
           ./.github/scripts/build_ffmpeg_plugin_msys.sh 8.0
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -881,7 +1209,7 @@ jobs:
             install-dir/bin/
 
   ffmpeg-8-1-windows-build:
-      needs: changes
+      needs: [changes, windows-mingw-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
@@ -893,24 +1221,39 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: 'Install dependencies'
-        working-directory: "${{ github.workspace }}"
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Disable Windows Defender real-time scanning (speeds up many-small-file MinGW builds)'
         shell: pwsh
-        run: ./.github/scripts/configure.ps1
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
 
       - name: 'install msys2 shell'
         uses: msys2/setup-msys2@v2
         with:
           msystem: mingw64
           update: true
+          cache: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm nasm
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
+
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}
         run: |
-          export ASM_NASM="${{ env.ASM_NASM }}"
           ./.github/scripts/build_ffmpeg_plugin_msys.sh 8.1 n
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -921,7 +1264,7 @@ jobs:
             install-dir/bin/
 
   ffmpeg-9-0-windows-build:
-      needs: changes
+      needs: [changes, windows-mingw-lib-build, ffmpeg-source-fetch]
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
@@ -933,24 +1276,39 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: 'Install dependencies'
-        working-directory: "${{ github.workspace }}"
+      - name: 'Setup: Download pre-built svt-jpegxs artifact'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
+          path: install-dir
+
+      - name: 'Setup: Disable Windows Defender real-time scanning (speeds up many-small-file MinGW builds)'
         shell: pwsh
-        run: ./.github/scripts/configure.ps1
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
 
       - name: 'install msys2 shell'
         uses: msys2/setup-msys2@v2
         with:
           msystem: mingw64
           update: true
+          cache: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm nasm
+      - name: 'Setup: Download pre-fetched FFmpeg source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
+          path: ffmpeg-source
+
       - name: 'install ffmpeg plugin'
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}
         run: |
-          export ASM_NASM="${{ env.ASM_NASM }}"
           ./.github/scripts/build_ffmpeg_plugin_msys.sh 9.0 n
+        env:
+          FFMPEG_SRC_DIR: ${{ github.workspace }}/ffmpeg-source
 
       - name: "Archive: upload artifacts"
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3

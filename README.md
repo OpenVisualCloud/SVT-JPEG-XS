@@ -312,6 +312,11 @@ Please see [Encoder snippet](documentation/encoder/EncoderSnippets.md) for encod
 
 Please see [Decoder snippet](documentation/decoder/DecoderSnippets.md) for decoder structure overview and simplified decoder usage.
 
+## CI/CD
+
+Please see [CI/CD](documentation/ci-cd/README.md) for an overview of the GitHub Actions workflows
+and how the core library build is shared across them.
+
 ## Logging
 
 By default, library log messages (errors, warnings, info) are printed to `stderr`. This can be

@@ -144,7 +144,7 @@ check_executable() (
 
 install_build() (
     build_type=Release
-    sudo=$(check_executable -p sudo)
+    sudo=$(check_executable -p sudo) || true
     while [ -n "$*" ]; do
         case $(printf %s "$1" | tr '[:upper:]' '[:lower:]') in
         release) build_type="Release" && shift ;;
