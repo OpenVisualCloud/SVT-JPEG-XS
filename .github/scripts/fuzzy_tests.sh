@@ -44,20 +44,28 @@ else
   done
 fi
 
-export CPATH="/usr/local/include/svt-jpegxs"
-export LD_LIBRARY_PATH="/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export CPATH="${SVT_INSTALL_DIR:-/usr/local}/include/svt-jpegxs"
+export LD_LIBRARY_PATH="${SVT_INSTALL_DIR:-/usr/local}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # 1. Build and install SVT-JPEG-XS
 if [ $BUILD -eq 1 ]; then
-  echo "Building and installing SVT-JPEG-XS..."
-  cd "$BUILD_DIR"
-  ./build.sh install
+  if find "${SVT_INSTALL_DIR:-/usr/local}" -name 'SvtJpegxs.pc' 2>/dev/null | grep -q .; then
+    echo "svt-jpegxs already installed under ${SVT_INSTALL_DIR:-/usr/local} (reused build artifact), skipping rebuild."
+  else
+    echo "Building and installing SVT-JPEG-XS..."
+    cd "$BUILD_DIR"
+    if [ -n "$SVT_INSTALL_DIR" ]; then
+      ./build.sh install --prefix "$SVT_INSTALL_DIR"
+    else
+      ./build.sh install
+    fi
+  fi
   # 3. Build Fuzzy Tests
   cd "$FUZZY_DIR"
   echo "Building encoder fuzzer..."
-  clang -lSvtJpegxs -fsanitize=fuzzer encoder.c -o SvtJxsEncFuzzer
+  clang -L"${SVT_INSTALL_DIR:-/usr/local}/lib" -lSvtJpegxs -fsanitize=fuzzer encoder.c -o SvtJxsEncFuzzer
   echo "Building decoder fuzzer..."
-  clang -lSvtJpegxs -fsanitize=fuzzer decoder.c -o SvtJxsDecFuzzer
+  clang -L"${SVT_INSTALL_DIR:-/usr/local}/lib" -lSvtJpegxs -fsanitize=fuzzer decoder.c -o SvtJxsDecFuzzer
   chmod +x SvtJxsEncFuzzer
   chmod +x SvtJxsDecFuzzer
 fi

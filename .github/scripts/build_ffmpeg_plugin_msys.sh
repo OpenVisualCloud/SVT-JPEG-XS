@@ -29,8 +29,11 @@ mkdir -p "$INSTALL_DIR"
 
 # 1. Compile and install svt-jpegxs
 cd "$JPEGXS_REPO"
-cmake -S . -B svtjpegxs-build -DBUILD_APPS=OFF -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR"
-cmake --build svtjpegxs-build -j10 --config Release --target install
+if find "$INSTALL_DIR" -name 'SvtJpegxs.pc' 2>/dev/null | grep -q .; then
+    echo "svt-jpegxs already installed under $INSTALL_DIR (reused build artifact), skipping rebuild."
+else
+    ./Build/linux/build.sh install --prefix "$INSTALL_DIR" --no-app --static
+fi
 
 # 2. Set PKG_CONFIG_PATH
 export LD_LIBRARY_PATH="$INSTALL_DIR/lib:${LD_LIBRARY_PATH}"
@@ -41,19 +44,26 @@ cd "$PWD"
 git config --global user.email "runner@github.com"
 git config --global user.name "action-runner"
 
-clone_attempt=1
-max_clone_attempts=5
-until git clone --branch "release/$FFMPEG_VERSION" --depth 1 https://github.com/FFmpeg/FFmpeg.git "ffmpeg-${FFMPEG_VERSION}"; do
-    if [[ "$clone_attempt" -ge "$max_clone_attempts" ]]; then
-        echo "git clone failed after $max_clone_attempts attempts, giving up."
-        exit 1
-    fi
-    clone_attempt=$((clone_attempt + 1))
-    echo "git clone failed (attempt $((clone_attempt - 1))/$max_clone_attempts), retrying in 10s..."
-    rm -rf "ffmpeg-${FFMPEG_VERSION}"
-    sleep 10
-done
-cd "ffmpeg-$FFMPEG_VERSION"
+if [[ -n "$FFMPEG_SRC_DIR" && -d "$FFMPEG_SRC_DIR/.git" ]]; then
+    echo "Reusing pre-fetched FFmpeg source from $FFMPEG_SRC_DIR"
+    cp -r "$FFMPEG_SRC_DIR" "ffmpeg-${FFMPEG_VERSION}"
+    cd "ffmpeg-$FFMPEG_VERSION"
+    git checkout "release/$FFMPEG_VERSION"
+else
+    clone_attempt=1
+    max_clone_attempts=5
+    until git clone --branch "release/$FFMPEG_VERSION" --depth 1 https://github.com/FFmpeg/FFmpeg.git "ffmpeg-${FFMPEG_VERSION}"; do
+        if [[ "$clone_attempt" -ge "$max_clone_attempts" ]]; then
+            echo "git clone failed after $max_clone_attempts attempts, giving up."
+            exit 1
+        fi
+        clone_attempt=$((clone_attempt + 1))
+        echo "git clone failed (attempt $((clone_attempt - 1))/$max_clone_attempts), retrying in 10s..."
+        rm -rf "ffmpeg-${FFMPEG_VERSION}"
+        sleep 10
+    done
+    cd "ffmpeg-$FFMPEG_VERSION"
+fi
 
 # 4. Apply jpeg-xs plugin patches
 if [[ "$COPY_FILES" == "y" ]]; then
