@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright(c) 2025 Intel Corporation
+# Copyright(c) 2026 Intel Corporation
 # SPDX - License - Identifier: BSD - 2 - Clause - Patent
 #
 # OOM fault-injection test using oomify (https://github.com/tavianator/oomify).
@@ -28,12 +28,6 @@ export LD_LIBRARY_PATH="${BIN_DIR}:${OOMIFY_DIR}${LD_LIBRARY_PATH:+:${LD_LIBRARY
 
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
-
-# 64x16 is the smallest frame the encoder accepts with decomp_h=1 decomp_v=0.
-# decomp_h=1 decomp_v=0 is the minimum valid decomposition, keeping per-config
-# allocation counts as low as possible so the fault-injection loop finishes fast.
-YUV_W=64
-YUV_H=16
 
 echo "=== OOMify fault-injection test ==="
 echo "Encoder:         $ENC_APP"
@@ -102,34 +96,38 @@ function run_oomify_test() {
     return "$local_error"
 }
 
-# run_config_test <colour_format> <bit_depth>
+# run_config_test <colour_format> <bit_depth> <width> <height> [extra_enc_args...]
 # Creates a synthetic YUV frame, runs encoder OOM test, encodes a clean
 # reference bitstream, then runs decoder OOM test.
+_cfg=0
 function run_config_test() {
-    local fmt="$1" depth="$2"
-    local label="${fmt} ${depth}bit"
+    local fmt="$1" depth="$2" w="$3" h="$4"
+    shift 4
+    _cfg=$(( _cfg + 1 ))
+    local label="${fmt} ${depth}bit ${w}x${h}${*:+ ($*)}"
 
     # 10/12-bit samples are stored as 16-bit words; 8-bit uses 1 byte/sample.
     local bps=$(( depth > 8 ? 2 : 1 ))
     local samples
     case "$fmt" in
-        yuv422) samples=$(( YUV_W * YUV_H * 2 )) ;;
-        yuv444) samples=$(( YUV_W * YUV_H * 3 )) ;;
+        yuv422) samples=$(( w * h * 2 )) ;;
+        yuv444) samples=$(( w * h * 3 )) ;;
     esac
 
-    local yuv_file="$TMP_DIR/${fmt}_${depth}.yuv"
-    local jxs_enc_out="$TMP_DIR/${fmt}_${depth}_enc.jxs"
-    local jxs_dec_in="$TMP_DIR/${fmt}_${depth}_ref.jxs"
-    local dec_out="$TMP_DIR/${fmt}_${depth}_dec.yuv"
+    # Numeric key avoids long filenames when extra_enc_args are present.
+    local yuv_file="$TMP_DIR/cfg${_cfg}.yuv"
+    local jxs_enc_out="$TMP_DIR/cfg${_cfg}_enc.jxs"
+    local jxs_dec_in="$TMP_DIR/cfg${_cfg}_ref.jxs"
+    local dec_out="$TMP_DIR/cfg${_cfg}_dec.yuv"
 
     dd if=/dev/zero of="$yuv_file" bs=$(( samples * bps )) count=1 status=none
 
-    local enc_args=(-w "$YUV_W" -h "$YUV_H"
+    local enc_args=(-w "$w" -h "$h"
                     --colour-format "$fmt"
                     --input-depth "$depth"
                     --bpp 3
-                    --decomp_h 1 --decomp_v 0
-                    -n 1 --no-progress 1 -v 1)
+                    -n 1 --no-progress 1 -v 1
+                    "$@")
 
     # ── Encoder OOM test ─────────────────────────────────────────────────────
     run_oomify_test "encoder[$label]" \
@@ -149,11 +147,16 @@ function run_config_test() {
     fi
 }
 
-# Four configurations: two colour formats x two bit depths.
-run_config_test yuv422 8
-run_config_test yuv422 10
-run_config_test yuv444 8
-run_config_test yuv444 10
+# Configs 1-4: format x depth matrix — covers 10-bit input parsing and full-chroma planes.
+run_config_test yuv422  8  64  16 --decomp_h 1 --decomp_v 0
+run_config_test yuv422 10  64  16 --decomp_h 1 --decomp_v 0
+run_config_test yuv444  8  64  16 --decomp_h 1 --decomp_v 0
+run_config_test yuv444 10  64  16 --decomp_h 1 --decomp_v 0
+# Config 5: production decomposition — covers multi-level DWT subband allocations.
+# Config 6: vertical prediction — covers per-column line buffer allocations.
+# 128x64 is the minimum frame size accepted by the encoder at decomp_h5_v2.
+run_config_test yuv422  8 128  64 --decomp_h 5 --decomp_v 2
+run_config_test yuv422  8  64  16 --decomp_h 1 --decomp_v 0 --coding-vpred 2
 
 if [ "$error" -ne 0 ]; then
     echo "OOMify test FAILED"
