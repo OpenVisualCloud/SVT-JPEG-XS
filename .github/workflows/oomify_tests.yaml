@@ -81,10 +81,10 @@ jobs:
       run: |
         chmod +x install-dir/bin/SvtJpegxsEncApp install-dir/bin/SvtJpegxsDecApp
         chmod +x tests/scripts/OomifyTest.sh
+        # Co-locate the shared library with the app binaries so OomifyTest.sh's BIN_DIR finds it.
+        find install-dir -name 'libSvtJpegxs.so*' -exec cp -P {} install-dir/bin/ \;
         mkdir -p oomify-logs
         set -o pipefail
-        # libSvtJpegxs.so is in lib64/ (separate from the app binaries in bin/).
-        export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
         tests/scripts/OomifyTest.sh \
           "${{ github.workspace }}/install-dir/bin" \
           "${{ github.workspace }}/oomify-bin" \
