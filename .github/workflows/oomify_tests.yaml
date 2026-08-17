@@ -13,7 +13,7 @@ defaults:
 
 permissions:
   contents: read
-  actions: read  # required to download artifacts from the triggering workflow run
+  actions: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha || github.sha }}
@@ -22,7 +22,6 @@ concurrency:
 jobs:
   oomify-tests:
     name: "OOMify: malloc failure injection"
-    # Skip if triggered by a failed Base Build; always run for pull_request/workflow_dispatch.
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 60
@@ -42,7 +41,7 @@ jobs:
         sudo apt-get update
         sudo apt-get -y install cmake nasm make gcc g++
 
-    - name: 'Setup: Download SVT-JPEG-XS install tree from Base Build'
+    - name: 'Setup: Download pre-built svt-jpegxs artifact from Base Build (falls back to local build if missing)'
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
       continue-on-error: true
       with:
@@ -60,31 +59,23 @@ jobs:
           ./build.sh install --prefix "${{ github.workspace }}/install-dir"
         fi
 
-    - name: 'Fix workspace permissions'
-      if: always()
-      run: |
-        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
-        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
+    - name: 'Setup: Make svt-jpegxs artifact executable'
+      run: sudo chmod -R 755 install-dir/
 
     - name: 'Setup: Build oomify'
       run: |
-        git clone --depth 1 https://github.com/tavianator/oomify.git \
-          --no-local /tmp/oomify-src-${{ github.run_id }}
-        git -C /tmp/oomify-src-${{ github.run_id }} checkout a1cdde8aab003b4f720cda6bee6b4290fde8b49b
-        make -C /tmp/oomify-src-${{ github.run_id }}
+        git clone --depth 1 https://github.com/tavianator/oomify.git /tmp/oomify-src
+        git -C /tmp/oomify-src rev-parse HEAD | grep -qx a1cdde8aab003b4f720cda6bee6b4290fde8b49b
+        make -C /tmp/oomify-src
         mkdir -p "${{ github.workspace }}/oomify-bin"
-        cp /tmp/oomify-src-${{ github.run_id }}/oomify \
-           /tmp/oomify-src-${{ github.run_id }}/liboomify.so \
-          "${{ github.workspace }}/oomify-bin/"
+        cp /tmp/oomify-src/oomify /tmp/oomify-src/liboomify.so "${{ github.workspace }}/oomify-bin/"
 
     - name: 'Test: OOMify fault injection'
       run: |
-        chmod +x install-dir/bin/SvtJpegxsEncApp install-dir/bin/SvtJpegxsDecApp
         chmod +x tests/scripts/OomifyTest.sh
-        # Co-locate the shared library with the app binaries so OomifyTest.sh's BIN_DIR finds it.
-        find install-dir -name 'libSvtJpegxs.so*' -exec cp -P {} install-dir/bin/ \;
         mkdir -p oomify-logs
         set -o pipefail
+        export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
         tests/scripts/OomifyTest.sh \
           "${{ github.workspace }}/install-dir/bin" \
           "${{ github.workspace }}/oomify-bin" \
