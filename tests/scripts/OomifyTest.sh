@@ -24,7 +24,11 @@ DEC_APP="$BIN_DIR/SvtJpegxsDecApp"
 OOMIFY="$OOMIFY_DIR/oomify"
 
 # libSvtJpegxs.so must be findable, as must oomify's liboomify.so.
-export LD_LIBRARY_PATH="${BIN_DIR}:${OOMIFY_DIR}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+if [ "$OOMIFY_DIR" = "$BIN_DIR" ]; then
+    export LD_LIBRARY_PATH="${BIN_DIR}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+else
+    export LD_LIBRARY_PATH="${BIN_DIR}:${OOMIFY_DIR}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+fi
 
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -40,8 +44,8 @@ error=0
 
 # run_oomify_test <label> <cmd> [<args>...]
 # 1. Dry-runs the command under oomify to count total allocations.
-# 2. Loops from 1 to that count, failing the i-th allocation each time.
-# 3. Returns 1 immediately if any iteration terminates with a signal (crash).
+# 2. Loops over every allocation index (0..count-1), failing each one in turn.
+# 3. Returns 1 immediately on crash, hang, or spawn error.
 function run_oomify_test() {
     local label="$1"
     shift
@@ -53,14 +57,15 @@ function run_oomify_test() {
     # 2>&1 >/dev/null: stderr (oomify messages + codec stderr) is captured;
     # stdout (codec stdout) is discarded.
     dry_out=$("$OOMIFY" -d -- "${cmd[@]}" 2>&1 >/dev/null)
+    local dry_ret=$?
     echo "$dry_out"
 
     local count
     count=$(printf '%s\n' "$dry_out" \
             | grep -oE 'fallible allocations:[[:space:]]+[0-9]+' \
             | grep -oE '[0-9]+')
-    if [ -z "$count" ]; then
-        echo "ERROR: could not determine allocation count for $label"
+    if [ "$dry_ret" -ne 0 ] || [ -z "$count" ] || [ "$count" -eq 0 ]; then
+        echo "ERROR: dry run failed (exit $dry_ret, count='${count:-?}') for $label"
         return 1
     fi
     echo "$label: $count allocations to test"
@@ -69,8 +74,14 @@ function run_oomify_test() {
     echo "--- $label: fault injection (0..$((count - 1))) ---"
     local i run_out ret
     for i in $(seq 0 $(( count - 1 ))); do
-        run_out=$("$OOMIFY" -n "$i" -- "${cmd[@]}" 2>&1 >/dev/null)
+        run_out=$(timeout 60 "$OOMIFY" -n "$i" -- "${cmd[@]}" 2>&1 >/dev/null)
         ret=$?
+
+        if [ "$ret" -eq 124 ]; then
+            echo "HANG at allocation $i: oomify killed after 60s"
+            local_error=1
+            break
+        fi
 
         # Non-zero oomify exit below 128 means oomify_spawn() itself failed.
         if [ "$ret" -ne 0 ] && [ "$ret" -lt 128 ]; then
@@ -86,7 +97,7 @@ function run_oomify_test() {
             local_error=1
             break
         fi
-        # Shell exit codes >= 128 mean the child was killed by signal (128 + signo)
+        # Defensive: guards against a future oomify version propagating child signal exit codes.
         if [ "$ret" -ge 128 ]; then
             echo "CRASH at allocation $i: oomify exited with code $ret (signal $((ret - 128)))"
             local_error=1
@@ -119,6 +130,7 @@ function run_config_test() {
     case "$fmt" in
         yuv422) samples=$(( w * h * 2 )) ;;
         yuv444) samples=$(( w * h * 3 )) ;;
+        *) echo "ERROR: unsupported colour format '$fmt'"; error=1; return 1 ;;
     esac
 
     # Numeric key avoids long filenames when extra_enc_args are present.
