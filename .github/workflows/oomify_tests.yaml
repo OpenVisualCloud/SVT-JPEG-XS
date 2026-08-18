@@ -1,0 +1,117 @@
+name: OOMify Tests
+
+on:
+  workflow_run:
+    workflows: ["Base Build"]
+    types: [completed]
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      changed: ${{ steps.filter.outputs.oomify_tests == 'true' }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v2
+        id: filter
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          filters: .github/config/path_filters.yaml
+
+  oomify-tests:
+    needs: changes
+    if: ${{ needs.changes.outputs.changed == 'true' }}
+    name: "OOMify: malloc failure injection"
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    timeout-minutes: 60
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      with:
+        ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+    - name: 'Fix workspace permissions'
+      run: |
+        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
+
+    - name: 'Setup: Install dependencies'
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install cmake nasm make gcc g++
+
+    - name: 'Setup: Download pre-built svt-jpegxs artifact from Base Build (falls back to local build if missing)'
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      continue-on-error: true
+      with:
+        name: linux-svtjpegxs-install
+        path: install-dir
+        run-id: ${{ github.event.workflow_run.id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 'Build: SVT-JPEG-XS release (skipped when Base Build artifact is reused)'
+      working-directory: Build/linux
+      run: |
+        if find "${{ github.workspace }}/install-dir" -name 'SvtJpegxs.pc' 2>/dev/null | grep -q .; then
+          echo "Reusing svt-jpegxs artifact from Base Build workflow run, skipping rebuild."
+        else
+          ./build.sh install --prefix "${{ github.workspace }}/install-dir"
+        fi
+
+    - name: 'Setup: Make svt-jpegxs artifact executable'
+      run: sudo chmod -R 755 install-dir/
+
+    - name: 'Setup: Build oomify'
+      run: |
+        git init -q /tmp/oomify-src
+        git -C /tmp/oomify-src fetch -q --depth 1 \
+          https://github.com/tavianator/oomify.git a1cdde8aab003b4f720cda6bee6b4290fde8b49b
+        git -C /tmp/oomify-src checkout -q FETCH_HEAD
+        make -C /tmp/oomify-src
+        mkdir -p "${{ github.workspace }}/oomify-bin"
+        cp /tmp/oomify-src/oomify /tmp/oomify-src/liboomify.so "${{ github.workspace }}/oomify-bin/"
+
+    - name: 'Test: OOMify fault injection'
+      run: |
+        chmod +x tests/scripts/OomifyTest.sh
+        mkdir -p oomify-logs
+        set -o pipefail
+        export LD_LIBRARY_PATH="${{ github.workspace }}/install-dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        tests/scripts/OomifyTest.sh \
+          "${{ github.workspace }}/install-dir/bin" \
+          "${{ github.workspace }}/oomify-bin" \
+          2>&1 | tee oomify-logs/oomify-test.log
+
+    - name: 'Archive: upload logs on failure'
+      if: failure()
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      with:
+        name: oomify-failure-${{ github.run_number }}
+        retention-days: 7
+        path: |
+          oomify-logs/oomify-test.log
+          install-dir/
