@@ -154,7 +154,7 @@ jobs:
   # Use the C encoder/decoder apps instead.
   sanitizer-memory:
     name: "Sanitizer: memory"
-    runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind', 'jpeg-perf']
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
     timeout-minutes: 180
     steps:
     - name: 'Harden Runner'
