@@ -19,9 +19,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      changed: ${{ steps.filter.outputs.oomify_tests == 'true' }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v2
+        id: filter
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          filters: .github/config/path_filters.yaml
+
   oomify-tests:
+    needs: changes
+    if: ${{ needs.changes.outputs.changed == 'true' }}
     name: "OOMify: malloc failure injection"
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 60
     steps:
