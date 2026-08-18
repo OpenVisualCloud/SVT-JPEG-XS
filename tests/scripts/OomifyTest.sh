@@ -9,12 +9,12 @@
 # a crash (signal / segfault).
 #
 # Usage: OomifyTest.sh <bin_dir> <oomify_dir>
-#   bin_dir    : directory containing SvtJpegxsEncApp, SvtJpegxsDecApp, and
-#                libSvtJpegxs.so
+#   bin_dir    : directory containing SvtJpegxsEncApp and SvtJpegxsDecApp
 #   oomify_dir : directory containing the oomify binary and liboomify.so
+#                libSvtJpegxs.so must be reachable via LD_LIBRARY_PATH before calling this script.
 
 
-set -u
+set -uo pipefail
 
 BIN_DIR="${1?Usage: $0 <bin_dir> <oomify_dir>}"
 OOMIFY_DIR="${2?Usage: $0 <bin_dir> <oomify_dir>}"
@@ -63,7 +63,8 @@ function run_oomify_test() {
     local count
     count=$(printf '%s\n' "$dry_out" \
             | grep -oE 'fallible allocations:[[:space:]]+[0-9]+' \
-            | grep -oE '[0-9]+')
+            | grep -oE '[0-9]+' \
+            | tail -n1)
     if [ "$dry_ret" -ne 0 ] || [ -z "$count" ] || [ "$count" -eq 0 ]; then
         echo "ERROR: dry run failed (exit $dry_ret, count='${count:-?}') for $label"
         return 1
@@ -128,6 +129,7 @@ function run_config_test() {
     local bps=$(( depth > 8 ? 2 : 1 ))
     local samples
     case "$fmt" in
+        yuv420) samples=$(( w * h * 3 / 2 )) ;;
         yuv422) samples=$(( w * h * 2 )) ;;
         yuv444) samples=$(( w * h * 3 )) ;;
         *) echo "ERROR: unsupported colour format '$fmt'"; error=1; return 1 ;;
@@ -172,15 +174,17 @@ run_config_test yuv422 10  64  16 --decomp_h 1 --decomp_v 0
 run_config_test yuv444  8  64  16 --decomp_h 1 --decomp_v 0
 run_config_test yuv444 10  64  16 --decomp_h 1 --decomp_v 0
 # Config 5: production decomposition — covers multi-level DWT subband allocations.
-# Config 6: vertical prediction — covers per-column line buffer allocations.
-# 128x64 is the minimum frame size accepted by the encoder at decomp_h5_v2.
 run_config_test yuv422  8 128  64 --decomp_h 5 --decomp_v 2
+# Config 6: vertical prediction — covers per-column line buffer allocations.
 run_config_test yuv422  8  64  16 --decomp_h 1 --decomp_v 0 --coding-vpred 2
+# Config 7: YUV420 4:2:0 — covers horizontal+vertical chroma subsampling paths.
+# 128x64 with decomp_h 2 decomp_v 1 is the minimum accepted by the encoder for yuv420.
+run_config_test yuv420  8 128  64 --decomp_h 2 --decomp_v 1
 
 if [ "$error" -ne 0 ]; then
     echo "OOMify test FAILED"
 else
     echo "OOMify test PASSED"
 fi
-echo "Exit $0 script with exit $error"
+echo "OomifyTest exit code: $error"
 exit $error

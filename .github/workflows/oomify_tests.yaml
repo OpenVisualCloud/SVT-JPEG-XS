@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ["Base Build"]
     types: [completed]
+  pull_request:
   workflow_dispatch:
 
 defaults:
@@ -35,6 +36,11 @@ jobs:
       with:
         ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
+    - name: 'Fix workspace permissions'
+      run: |
+        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
+
     - name: 'Setup: Install dependencies'
       run: |
         sudo apt-get update
@@ -63,8 +69,10 @@ jobs:
 
     - name: 'Setup: Build oomify'
       run: |
-        git clone --depth 1 https://github.com/tavianator/oomify.git /tmp/oomify-src
-        git -C /tmp/oomify-src rev-parse HEAD | grep -qx a1cdde8aab003b4f720cda6bee6b4290fde8b49b
+        git init -q /tmp/oomify-src
+        git -C /tmp/oomify-src fetch -q --depth 1 \
+          https://github.com/tavianator/oomify.git a1cdde8aab003b4f720cda6bee6b4290fde8b49b
+        git -C /tmp/oomify-src checkout -q FETCH_HEAD
         make -C /tmp/oomify-src
         mkdir -p "${{ github.workspace }}/oomify-bin"
         cp /tmp/oomify-src/oomify /tmp/oomify-src/liboomify.so "${{ github.workspace }}/oomify-bin/"
@@ -88,5 +96,4 @@ jobs:
         retention-days: 7
         path: |
           oomify-logs/oomify-test.log
-          install-dir/bin/SvtJpegxsEncApp
-          install-dir/bin/SvtJpegxsDecApp
+          install-dir/
