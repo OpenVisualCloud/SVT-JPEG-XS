@@ -31,3 +31,12 @@ gstreamer_plugin_build: &gstreamer_plugin_build
   - 'CMakeLists.txt'
   - .github/config/path_filters.yaml
   - .github/workflows/gstreamer_plugin_build.yaml
+
+oomify_tests: &oomify_tests
+  - 'Source/**'
+  - 'tests/scripts/OomifyTest.sh'
+  - 'third_party/**'
+  - 'Build/**'
+  - 'CMakeLists.txt'
+  - .github/config/path_filters.yaml
+  - .github/workflows/oomify_tests.yaml
