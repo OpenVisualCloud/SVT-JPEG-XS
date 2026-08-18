@@ -27,7 +27,7 @@ jobs:
   # (ParallelAllTests.sh) non-halting, then gates once via the summary step.
   sanitizer-tests:
     name: "Sanitizer: ${{ matrix.sanitizer }}"
-    runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind', 'jpeg-perf']
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
     timeout-minutes: 180
     strategy:
       fail-fast: false
