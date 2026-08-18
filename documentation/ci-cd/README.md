@@ -12,22 +12,23 @@ rebuilds.
 | `ffmpeg_plugin_build.yaml` | ffmpeg Plugin Build | `workflow_run` (after Base Build), `workflow_dispatch` | Builds and tests the ffmpeg plugin against 6 ffmpeg versions (6.1, 7.0, 7.1, 8.0, 8.1, 9.0), on Linux and Windows. |
 | `gstreamer_plugin_build.yaml` | GStreamer Plugin Build | `workflow_run` (after Base Build), `workflow_dispatch` | Builds and tests the GStreamer plugin. |
 | `fuzzy-tests.yaml` | Fuzzy Tests | `workflow_run` (after Base Build), `workflow_dispatch` | Runs libFuzzer-based encoder/decoder fuzzing. |
+| `oomify_tests.yaml` | OOMify Tests | `workflow_run` (after Base Build), `workflow_dispatch` | Injects a `malloc()` failure at every allocation point in the encoder and decoder and verifies each failure exits cleanly rather than crashing. Covers 7 codec configurations (yuv422/yuv444/yuv420, 8-bit/10-bit, production decomposition, vertical prediction). |
 | `coverity.yaml` | Coverity Build | scheduled, `workflow_dispatch` | Nightly Coverity static analysis scan. |
 | `linter.yaml` | - | `push`, `pull_request` | super-linter checks (bash, markdown, etc.). |
 
 ## Why `workflow_run` instead of `push`/`pull_request`
 
-`ffmpeg_plugin_build.yaml`, `gstreamer_plugin_build.yaml` and `fuzzy-tests.yaml` trigger on
+`ffmpeg_plugin_build.yaml`, `gstreamer_plugin_build.yaml`, `fuzzy-tests.yaml` and `oomify_tests.yaml` trigger on
 `workflow_run` (fires once `Base Build` completes for a given commit) rather than directly on
 `push`/`pull_request`. This lets them download and reuse the core library artifact that
 `Base Build` already produced, instead of rebuilding it themselves.
 
 Two consequences of this design worth knowing:
 
-- These 3 workflows only start after `Base Build` finishes for the same commit - they no longer
+- These 4 workflows only start after `Base Build` finishes for the same commit - they no longer
   run fully in parallel with it.
 - `workflow_run`-triggered workflows always execute using the workflow YAML committed on the
-  **default branch**, never the triggering PR's version. A PR that changes one of these 3 files
+  **default branch**, never the triggering PR's version. A PR that changes one of these 4 files
   cannot exercise its own new `workflow_run` behavior through its own checks - that only becomes
   testable after merging to `main`. Use `workflow_dispatch` to test job-level logic changes on a
   branch before merging (it just won't exercise the actual `Base Build` artifact reuse, since
@@ -40,7 +41,7 @@ it. It is now built at most 3 times per run and reused everywhere else:
 
 | Producer | Toolchain | Consumed by |
 | -- | -- | -- |
-| `base_build.yaml` `linux-build` | gcc | `ffmpeg_plugin_build.yaml` `linux-lib-build`, `gstreamer_plugin_build.yaml`, `fuzzy-tests.yaml` `build-lib` (all fall back to a local build if the artifact is unavailable) |
+| `base_build.yaml` `linux-build` | gcc | `ffmpeg_plugin_build.yaml` `linux-lib-build`, `gstreamer_plugin_build.yaml`, `fuzzy-tests.yaml` `build-lib`, `oomify_tests.yaml` (all fall back to a local build if the artifact is unavailable) |
 | `base_build.yaml` `windows-build` | MSVC | native Windows apps/tests only - not consumed by ffmpeg (different toolchain, see below) |
 | `ffmpeg_plugin_build.yaml` `windows-mingw-lib-build` | MinGW (static) | all 6 `ffmpeg-*-windows-build` jobs |
 
