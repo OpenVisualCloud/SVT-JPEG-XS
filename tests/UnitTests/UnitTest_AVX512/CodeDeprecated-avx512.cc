@@ -233,7 +233,8 @@ int dwt_horizontal_depricated_avx512(int32_t* out_lf, int32_t* out_hf, const int
             // src_row[remaining] (1 past the valid range). The last HF element for even
             // width is handled by "correct the last" below.
             for (uint32_t i = 0; i + 2 < remaining; i += 2) {
-                dst_hf_row[i / 2] = src_row[1 + i] - ((src_row[0 + i] + src_row[2 + i]) >> 1);
+                // Widen to int64 so the intermediate sum cannot overflow int32 (UBSan).
+                dst_hf_row[i / 2] = (int32_t)(src_row[1 + i] - (((int64_t)src_row[0 + i] + src_row[2 + i]) >> 1));
             }
 
             if (remaining > 1 && simd_batch > 0) {
@@ -270,7 +271,8 @@ int dwt_horizontal_depricated_avx512(int32_t* out_lf, int32_t* out_hf, const int
         }
 
         // correct the first for lf
-        out_lf[row * stride_lf] = in[row * stride_in] + ((out_hf[row * stride_hf] + 1) >> 1);
+        // Widen to int64 so the intermediate sum cannot overflow int32 (UBSan).
+        out_lf[row * stride_lf] = (int32_t)((int64_t)in[row * stride_in] + ((out_hf[row * stride_hf] + 1) >> 1));
     }
 
     return 0;
