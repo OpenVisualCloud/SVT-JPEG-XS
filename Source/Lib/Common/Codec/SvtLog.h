@@ -61,6 +61,10 @@ extern "C" {
 void svt_jxs_log_init();
 void svt_jxs_log(SvtLogLevel level, const char *tag, const char *format, ...);
 
+#ifdef BUILD_TESTING
+void svt_jxs_log_reset_for_testing(void);
+#endif // BUILD_TESTING
+
 #ifdef __cplusplus
 }
 #endif // __cplusplus

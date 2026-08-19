@@ -317,6 +317,7 @@ endif()
 
 if(BUILD_TESTING)
     include(CTest)
+    target_compile_definitions(COMMON_CODEC PRIVATE BUILD_TESTING)
     set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
     set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
