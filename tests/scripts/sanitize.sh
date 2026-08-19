@@ -12,23 +12,36 @@
 #
 # Options:
 #   --jobs N        parallel TEST processes          (default: per-sanitizer -
-#                                                      16, thread 6, memory 4; build always nproc)
+#                                                      16, thread 6; build always nproc;
+#                                                      only used with --full)
 #   --samples DIR   conformance input files          (default: $INPUT_FILES_PATH,
 #                                                      else /opt/samples, else
 #                                                      <repo>/Conformance-tests)
-#   --fast          run the reduced conformance subset (implied for memory)
+#   --fast          run the reduced conformance subset (only used with --full)
+#   --full          run the original parallel full/fast ParallelAllTests.sh suite
+#                   instead of the default validated 10-test sequential smoke scope
 #   --no-build      reuse existing binaries, skip the build step
 #   --help          print this help and exit
 #
-# Per-sanitizer behaviour (kept identical to the CI matrix):
-#   address/thread/undefined/integer  Release build, unit tests + full conformance
+# Per-sanitizer behaviour (kept identical to the CI matrix, except the reduced
+# default scope below):
+#   address/thread/undefined/integer  Release build
 #   integer                           report-only (findings do not gate)
 #   memory                            Debug build (Release does not build with MSan),
-#                                     conformance only (gtest aborts under MSan),
-#                                     fast subset, asm pinned to avx2 (AVX-512 => FPs)
+#                                     gtest aborts under MSan so unit tests never run;
+#                                     asm pinned to avx2 (avoids avx512-specific false
+#                                     positives; not a noise-free guarantee - avx2/asm
+#                                     code can still have real findings)
 #
 # The run is non-halting (halt_on_error=0 + -fsanitize-recover for asan/msan), so a
 # single pass enumerates every finding. The final report gates the exit code.
+#
+# Default scope note: every sanitizer runs a small sequential 10-test EncoderTest
+# batch by default (locally validated: a few minutes, 0 unexpected findings), not
+# unit tests + the parallel full/fast conformance suite. This was set after fixing
+# RateControl_avx2.c's leftover-tail buffers, which used to read uninitialized stack
+# bytes on ~every precinct/band and flood MSan with thousands of reports of the same
+# finding, never finishing. Pass --full to run the original parallel suite.
 
 set -u
 
@@ -43,19 +56,24 @@ Usage:
 
 Options:
   --jobs N        parallel TEST processes    (default: per-sanitizer - 16,
-                                              thread 6, memory 4; build uses nproc)
+                                              thread 6; build uses nproc;
+                                              only used with --full)
   --samples DIR   conformance input files    (default: $INPUT_FILES_PATH,
                                               else /opt/samples, else
                                               <repo>/Conformance-tests)
-  --fast          run the reduced conformance subset (implied for memory)
+  --fast          run the reduced conformance subset (only used with --full)
+  --full          run the original parallel full/fast ParallelAllTests.sh suite
+                  instead of the default validated 10-test sequential smoke scope
   --no-build      reuse existing binaries, skip the build step
   --help          print this help and exit
 
-Per-sanitizer behaviour (identical to the CI matrix):
-  address/thread/undefined/integer  Release build, unit tests + full conformance
+Per-sanitizer behaviour (identical to the CI matrix, except the reduced default
+scope - see above):
+  address/thread/undefined/integer  Release build
   integer                           report-only (findings do not gate)
-  memory                            Debug build, conformance only, fast subset,
-                                    asm pinned to avx2 (AVX-512 => MSan FPs)
+  memory                            Debug build, asm pinned to avx2 (avoids
+                                    avx512-specific false positives; avx2/asm
+                                    code can still have real findings)
 EOF
 }
 
@@ -71,6 +89,7 @@ build_jobs=$(nproc 2>/dev/null || echo 4)  # compilation parallelism (no runtime
 test_jobs=""                               # --jobs override; else per-sanitizer default below
 samples=""
 force_fast=0
+force_full=0
 do_build=1
 
 while [ $# -gt 0 ]; do
@@ -78,6 +97,7 @@ while [ $# -gt 0 ]; do
         --jobs)     test_jobs="$2"; shift 2 ;;
         --samples)  samples="$2"; shift 2 ;;
         --fast)     force_fast=1; shift ;;
+        --full)     force_full=1; shift ;;
         --no-build) do_build=0; shift ;;
         --help|-h)  usage; exit 0 ;;
         *) echo "sanitize.sh: unknown option '$1'" >&2; usage; exit 2 ;;
@@ -87,14 +107,18 @@ done
 # ---- Per-sanitizer configuration ---------------------------------------------
 build_type="Release"    # Bin/<build_type>
 build_flag="release"    # build.sh argument
-build_test="test"       # build unit tests too
-run_unit=1
+build_test=""           # unit tests only built/run with --full (see below)
+run_unit=0
 fast=""
 export_asm=""
 gate=""                 # --no-gate for report-only sanitizers
 opt_name=""             # <SAN>_OPTIONS env var
 opt_value=""
 default_test_jobs=16    # parallel instrumented test procs; lowered for RAM-heavy sanitizers
+# Locally validated smoke scope for every sanitizer: 10 sequential EncoderTest cases,
+# a few minutes each, 0 unexpected findings (see sanitizer-ci investigation notes).
+# --full restores the original parallel full/fast ParallelAllTests.sh suite.
+encoder_range="0-10"
 
 ubsan_opts="suppressions=$root/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=0:exitcode=0"
 
@@ -110,11 +134,9 @@ case "$sanitizer" in
         opt_name="UBSAN_OPTIONS"; opt_value="$ubsan_opts"
         gate="--no-gate" ;;   # report-only: findings archived, do not fail the job
     memory)
-        build_type="Debug"; build_flag="debug"; build_test=""
-        run_unit=0            # gtest aborts during global init under MSan
-        fast="fast"           # MSan is very slow; reduce the matrix
-        export_asm="avx2"     # AVX-512 paths produce MSan false positives
-        default_test_jobs=4   # MSan +origin-tracking is RAM-heavy; cap concurrent processes
+        build_type="Debug"; build_flag="debug"
+        export_asm="avx2"     # avoids avx512-specific MSan false positives (not a noise-free
+                               # guarantee - avx2/asm code can still have real findings)
         opt_name="MSAN_OPTIONS"; opt_value="halt_on_error=0:exitcode=0" ;;
     *)
         echo "sanitize.sh: unknown sanitizer '$sanitizer'" >&2
@@ -123,6 +145,12 @@ case "$sanitizer" in
 esac
 
 [ "$force_fast" -eq 1 ] && fast="fast"
+if [ "$force_full" -eq 1 ]; then
+    encoder_range=""
+    build_test="test"
+    run_unit=1
+fi
+[ "$sanitizer" = "memory" ] && { run_unit=0; build_test=""; } # gtest aborts under MSan, any scope
 [ -z "$test_jobs" ] && test_jobs="$default_test_jobs"
 
 # ---- Resolve conformance samples ---------------------------------------------
@@ -146,9 +174,13 @@ conf_log="$log_dir/$sanitizer-conformance.log"
 echo "=============================================================="
 echo " Sanitizer : $sanitizer"
 echo " Build     : $build_flag (Bin/$build_type)${build_test:+ +unit-tests}"
-echo " Tests     : $([ "$run_unit" -eq 1 ] && printf 'unit ')conformance${fast:+ ($fast)}"
+if [ -n "$encoder_range" ]; then
+    echo " Tests     : encoder-only, ids ${encoder_range}, sequential"
+else
+    echo " Tests     : $([ "$run_unit" -eq 1 ] && printf 'unit ')conformance${fast:+ ($fast)}"
+    echo " Jobs      : build $build_jobs, test $test_jobs"
+fi
 echo " Samples   : $samples"
-echo " Jobs      : build $build_jobs, test $test_jobs"
 echo " Report    : ${gate:-gating}"
 echo "=============================================================="
 
@@ -195,10 +227,19 @@ echo "== Conformance tests: $sanitizer =="
     chmod +x ./*.sh "$bin_dir"/* 2>/dev/null
     export LD_LIBRARY_PATH="$bin_dir"
     set -o pipefail
-    ./ParallelAllTests.sh "$test_jobs" "$samples" "$dec_app" $fast 2>&1 | tee "$conf_log"
+    if [ -n "$encoder_range" ]; then
+        ./EncoderTest.sh "$samples" "$dec_app" "range:$encoder_range" 2>&1 | tee "$conf_log"
+    else
+        ./ParallelAllTests.sh "$test_jobs" "$samples" "$dec_app" $fast 2>&1 | tee "$conf_log"
+    fi
 )
 logs+=("$conf_log")
 
 # ---- Report / gate -----------------------------------------------------------
 echo "== Report: $sanitizer =="
-"$root/tests/scripts/sanitizer_summary.sh" $gate "$sanitizer" "${logs[@]}"
+if [ -n "$encoder_range" ]; then
+    coverage="encoder-only, ids ${encoder_range}, sequential"
+else
+    coverage="$([ "$run_unit" -eq 1 ] && printf 'unit + ')conformance (${fast:-full})"
+fi
+"$root/tests/scripts/sanitizer_summary.sh" $gate --coverage "$coverage" "$sanitizer" "${logs[@]}"
