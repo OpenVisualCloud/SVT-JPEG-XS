@@ -11,7 +11,8 @@
 #   tests/scripts/sanitize.sh <address|thread|undefined|integer|memory> [options]
 #
 # Options:
-#   --jobs N        parallel build/test jobs         (default: nproc)
+#   --jobs N        parallel TEST processes          (default: per-sanitizer -
+#                                                      16, thread 6, memory 4; build always nproc)
 #   --samples DIR   conformance input files          (default: $INPUT_FILES_PATH,
 #                                                      else /opt/samples, else
 #                                                      <repo>/Conformance-tests)
@@ -41,7 +42,8 @@ Usage:
   tests/scripts/sanitize.sh <address|thread|undefined|integer|memory> [options]
 
 Options:
-  --jobs N        parallel build/test jobs   (default: nproc)
+  --jobs N        parallel TEST processes    (default: per-sanitizer - 16,
+                                              thread 6, memory 4; build uses nproc)
   --samples DIR   conformance input files    (default: $INPUT_FILES_PATH,
                                               else /opt/samples, else
                                               <repo>/Conformance-tests)
@@ -65,14 +67,15 @@ if [ -z "$sanitizer" ] || [ "$sanitizer" = "--help" ] || [ "$sanitizer" = "-h" ]
 fi
 shift
 
-jobs=$(nproc 2>/dev/null || echo 4)
+build_jobs=$(nproc 2>/dev/null || echo 4)  # compilation parallelism (no runtime overhead)
+test_jobs=""                               # --jobs override; else per-sanitizer default below
 samples=""
 force_fast=0
 do_build=1
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --jobs)     jobs="$2"; shift 2 ;;
+        --jobs)     test_jobs="$2"; shift 2 ;;
         --samples)  samples="$2"; shift 2 ;;
         --fast)     force_fast=1; shift ;;
         --no-build) do_build=0; shift ;;
@@ -91,6 +94,7 @@ export_asm=""
 gate=""                 # --no-gate for report-only sanitizers
 opt_name=""             # <SAN>_OPTIONS env var
 opt_value=""
+default_test_jobs=16    # parallel instrumented test procs; lowered for RAM-heavy sanitizers
 
 ubsan_opts="suppressions=$root/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=0:exitcode=0"
 
@@ -98,6 +102,7 @@ case "$sanitizer" in
     address)
         opt_name="ASAN_OPTIONS"; opt_value="halt_on_error=0:exitcode=0:print_stacktrace=1" ;;
     thread)
+        default_test_jobs=6   # TSan shadow memory is huge; cap concurrent processes
         opt_name="TSAN_OPTIONS"; opt_value="halt_on_error=0:exitcode=0:history_size=4" ;;
     undefined)
         opt_name="UBSAN_OPTIONS"; opt_value="$ubsan_opts" ;;
@@ -109,6 +114,7 @@ case "$sanitizer" in
         run_unit=0            # gtest aborts during global init under MSan
         fast="fast"           # MSan is very slow; reduce the matrix
         export_asm="avx2"     # AVX-512 paths produce MSan false positives
+        default_test_jobs=4   # MSan +origin-tracking is RAM-heavy; cap concurrent processes
         opt_name="MSAN_OPTIONS"; opt_value="halt_on_error=0:exitcode=0" ;;
     *)
         echo "sanitize.sh: unknown sanitizer '$sanitizer'" >&2
@@ -117,6 +123,7 @@ case "$sanitizer" in
 esac
 
 [ "$force_fast" -eq 1 ] && fast="fast"
+[ -z "$test_jobs" ] && test_jobs="$default_test_jobs"
 
 # ---- Resolve conformance samples ---------------------------------------------
 if [ -z "$samples" ]; then
@@ -141,7 +148,7 @@ echo " Sanitizer : $sanitizer"
 echo " Build     : $build_flag (Bin/$build_type)${build_test:+ +unit-tests}"
 echo " Tests     : $([ "$run_unit" -eq 1 ] && printf 'unit ')conformance${fast:+ ($fast)}"
 echo " Samples   : $samples"
-echo " Jobs      : $jobs"
+echo " Jobs      : build $build_jobs, test $test_jobs"
 echo " Report    : ${gate:-gating}"
 echo "=============================================================="
 
@@ -149,7 +156,7 @@ echo "=============================================================="
 if [ "$do_build" -eq 1 ]; then
     echo "== Build: $build_flag with $sanitizer sanitizer =="
     ( cd "$root/Build/linux" &&
-      ./build.sh "$build_flag" $build_test sanitizer="$sanitizer" cc=clang cxx=clang++ jobs="$jobs" )
+      ./build.sh "$build_flag" $build_test sanitizer="$sanitizer" cc=clang cxx=clang++ jobs="$build_jobs" )
     build_rc=$?
     if [ "$build_rc" -ne 0 ]; then
         echo "sanitize.sh: build failed (rc=$build_rc)" >&2
@@ -176,7 +183,7 @@ if [ "$run_unit" -eq 1 ]; then
         chmod +x ./* "$root/tests/scripts/parrallelUT.sh" 2>/dev/null
         export LD_LIBRARY_PATH="$bin_dir"
         set -o pipefail
-        "$root/tests/scripts/parrallelUT.sh" ./SvtJpegxsUnitTests "$jobs" 2>&1 | tee "$unit_log"
+        "$root/tests/scripts/parrallelUT.sh" ./SvtJpegxsUnitTests "$test_jobs" 2>&1 | tee "$unit_log"
     )
     logs+=("$unit_log")
 fi
@@ -188,7 +195,7 @@ echo "== Conformance tests: $sanitizer =="
     chmod +x ./*.sh "$bin_dir"/* 2>/dev/null
     export LD_LIBRARY_PATH="$bin_dir"
     set -o pipefail
-    ./ParallelAllTests.sh "$jobs" "$samples" "$dec_app" $fast 2>&1 | tee "$conf_log"
+    ./ParallelAllTests.sh "$test_jobs" "$samples" "$dec_app" $fast 2>&1 | tee "$conf_log"
 )
 logs+=("$conf_log")
 

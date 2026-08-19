@@ -18,9 +18,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  JOBS_NUM: 16
-
 jobs:
   # Build with the selected sanitizer, run the tests, and gate on the report -
   # all encapsulated in tests/scripts/sanitize.sh so the exact CI run reproduces
@@ -66,7 +63,7 @@ jobs:
         INPUT_FILES_PATH: /opt/samples
       run: |
         chmod +x tests/scripts/*.sh
-        tests/scripts/sanitize.sh ${{ matrix.sanitizer }} --jobs ${{ env.JOBS_NUM }} --samples "$INPUT_FILES_PATH"
+        tests/scripts/sanitize.sh ${{ matrix.sanitizer }} --samples "$INPUT_FILES_PATH"
 
     - name: 'Archive: upload binaries and logs on failure'
       if: failure()
