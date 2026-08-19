@@ -19,17 +19,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Build with the selected sanitizer, run the tests, and gate on the report -
-  # all encapsulated in tests/scripts/sanitize.sh so the exact CI run reproduces
-  # locally with one command:  tests/scripts/sanitize.sh <sanitizer>
+  # Build + run + report/gate for every sanitizer is fully encapsulated in
+  # tests/scripts/sanitize.sh, so each step below is a single-line call that
+  # reproduces exactly with:  tests/scripts/sanitize.sh <sanitizer>
+  #
+  # One job, no matrix: sanitize.sh already runs its tests sequentially (a
+  # fixed 50-case EncoderTest batch, no parallel processes), so there is no
+  # per-sanitizer parallelism left for a matrix to add - and running the 5
+  # sanitizers as ordered steps in one job (instead of 5 concurrently
+  # scheduled matrix jobs) guarantees memory - the slowest/heaviest one -
+  # never starves the other 4 of a runner on a constrained self-hosted pool.
+  # continue-on-error on each step lets every sanitizer run regardless of an
+  # earlier one's outcome (matching the old matrix's fail-fast: false); the
+  # final 'Gate' step aggregates their outcomes into the job's real result.
   sanitizer:
-    name: "Sanitizer: ${{ matrix.sanitizer }}"
+    name: "Sanitizer Tests"
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
     timeout-minutes: 180
-    strategy:
-      fail-fast: false
-      matrix:
-        sanitizer: [address, thread, undefined, integer, memory]
+    env:
+      INPUT_FILES_PATH: /opt/samples
     steps:
     - name: 'Harden Runner'
       uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
@@ -49,27 +57,70 @@ jobs:
         sudo apt-get update
         sudo apt-get -y install cmake nasm clang llvm make
 
+    # TODO(PR#69): informational only, to pick a version to pin (review item #11) -
+    # remove once the toolchain install below is pinned to a known-available version.
+    - name: 'Diagnostics: toolchain versions'
+      run: |
+        cat /etc/os-release || true
+        echo "---"
+        clang --version
+        clang++ --version
+        echo "---"
+        apt-cache policy clang clang++ llvm || true
+
     - name: 'Fix workspace permissions'
       if: always()
       run: |
         sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
-
-    - name: 'Run sanitizer: ${{ matrix.sanitizer }}'
-      # sanitize.sh builds with the sanitizer, runs unit (where applicable) +
-      # conformance non-halting, writes the report to $GITHUB_STEP_SUMMARY and
-      # gates via its exit code (integer is report-only).
-      env:
-        INPUT_FILES_PATH: /opt/samples
-      run: |
         chmod +x tests/scripts/*.sh
-        tests/scripts/sanitize.sh ${{ matrix.sanitizer }} --samples "$INPUT_FILES_PATH"
 
-    - name: 'Archive: upload binaries and logs on failure'
-      if: failure()
+    - name: 'Run sanitizer: address'
+      id: address
+      continue-on-error: true
+      run: tests/scripts/sanitize.sh address --samples "$INPUT_FILES_PATH"
+
+    - name: 'Run sanitizer: thread'
+      id: thread
+      continue-on-error: true
+      run: tests/scripts/sanitize.sh thread --samples "$INPUT_FILES_PATH"
+
+    - name: 'Run sanitizer: undefined'
+      id: undefined
+      continue-on-error: true
+      run: tests/scripts/sanitize.sh undefined --samples "$INPUT_FILES_PATH"
+
+    # report-only: sanitize.sh's internal --no-gate means this step only fails
+    # on a genuine infra/build crash, never on findings alone.
+    - name: 'Run sanitizer: integer'
+      id: integer
+      continue-on-error: true
+      run: tests/scripts/sanitize.sh integer --samples "$INPUT_FILES_PATH"
+
+    - name: 'Run sanitizer: memory'
+      id: memory
+      continue-on-error: true
+      run: tests/scripts/sanitize.sh memory --samples "$INPUT_FILES_PATH"
+
+    # continue-on-error above means none of the 5 steps can fail the job on
+    # their own - this is the single real gate, run last regardless of what
+    # happened above, so a broken run is never mistaken for a clean one.
+    - name: 'Gate: fail job if any sanitizer step failed'
+      if: always()
+      run: |
+        rc=0
+        [ "${{ steps.address.outcome }}" = "failure" ]   && { echo "address: FAILED"   >&2; rc=1; }
+        [ "${{ steps.thread.outcome }}" = "failure" ]     && { echo "thread: FAILED"     >&2; rc=1; }
+        [ "${{ steps.undefined.outcome }}" = "failure" ]  && { echo "undefined: FAILED"  >&2; rc=1; }
+        [ "${{ steps.integer.outcome }}" = "failure" ]    && { echo "integer: FAILED (infra, not findings)" >&2; rc=1; }
+        [ "${{ steps.memory.outcome }}" = "failure" ]     && { echo "memory: FAILED"     >&2; rc=1; }
+        exit "$rc"
+
+    - name: 'Archive: upload binaries and logs'
+      if: always()
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
-        name: sanitizer-${{ matrix.sanitizer }}-failure-${{ github.run_number }}
+        name: sanitizer-logs-${{ github.run_number }}
         retention-days: 7
         if-no-files-found: ignore
         path: |
@@ -78,22 +129,15 @@ jobs:
           Bin/Release/SvtJpegxsDecApp
           Bin/Debug/SvtJpegxsEncApp
           Bin/Debug/SvtJpegxsDecApp
-          sanitizer-logs/${{ matrix.sanitizer }}-unit.log
-          sanitizer-logs/${{ matrix.sanitizer }}-conformance.log
-
-    # integer is report-only, so its job stays green; always archive its logs.
-    - name: 'Archive: upload integer sanitizer report'
-      if: always() && matrix.sanitizer == 'integer'
-      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-      with:
-        name: sanitizer-integer-report-${{ github.run_number }}
-        retention-days: 7
-        if-no-files-found: ignore
-        path: |
-          sanitizer-logs/integer-conformance.log
+          sanitizer-logs/*.log
 
     - name: 'Cleanup: Remove workspace artifacts'
       if: always()
       run: |
+        # Fix ownership/perms here too (not just after checkout) so a build that left
+        # root-owned or locked files doesn't leave them stuck for the next run.
+        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
         rm -rf Bin/ Build/linux/Release/ Build/linux/Debug/ || true
+
 
