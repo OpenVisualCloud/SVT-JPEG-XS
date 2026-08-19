@@ -22,21 +22,17 @@ env:
   JOBS_NUM: 16
 
 jobs:
-  # ── Address / Thread / Undefined / Integer sanitizers ──────────────────────
-  # Release build with clang; runs unit tests (parrallelUT.sh) + conformance
-  # (ParallelAllTests.sh) non-halting, then gates once via the summary step.
-  sanitizer-tests:
+  # Build with the selected sanitizer, run the tests, and gate on the report -
+  # all encapsulated in tests/scripts/sanitize.sh so the exact CI run reproduces
+  # locally with one command:  tests/scripts/sanitize.sh <sanitizer>
+  sanitizer:
     name: "Sanitizer: ${{ matrix.sanitizer }}"
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - sanitizer: address
-          - sanitizer: thread
-          - sanitizer: undefined
-          - sanitizer: integer
+        sanitizer: [address, thread, undefined, integer, memory]
     steps:
     - name: 'Harden Runner'
       uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
@@ -62,180 +58,45 @@ jobs:
         sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
-    - name: 'Build: release with ${{ matrix.sanitizer }} sanitizer'
-      working-directory: Build/linux
-      run: |
-        ./build.sh release test sanitizer=${{ matrix.sanitizer }} cc=clang cxx=clang++ jobs=$(nproc)
-
-    - name: 'Unit tests: ${{ matrix.sanitizer }} sanitizer (release)'
-      # continue-on-error: collect all findings; the summary step is the single gate
-      continue-on-error: true
+    - name: 'Run sanitizer: ${{ matrix.sanitizer }}'
+      # sanitize.sh builds with the sanitizer, runs unit (where applicable) +
+      # conformance non-halting, writes the report to $GITHUB_STEP_SUMMARY and
+      # gates via its exit code (integer is report-only).
       env:
-        # halt_on_error=0 (+ build-time -fsanitize-recover for asan/msan) lets each
-        # process run past every finding so one pass enumerates all of them.
-        # exitcode=0 keeps a tainted test from making the non-halting harness bail
-        # early; the summary step's finding-grep is the gate.
-        ASAN_OPTIONS: "halt_on_error=0:exitcode=0:print_stacktrace=1"
-        TSAN_OPTIONS: "halt_on_error=0:exitcode=0:history_size=4"
-        UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=0:exitcode=0"
-      run: |
-        cd Bin/Release/
-        chmod +x ${{ github.workspace }}/tests/scripts/parrallelUT.sh
-        chmod +x ./*
-        export LD_LIBRARY_PATH=$(pwd)
-        mkdir -p "${{ github.workspace }}/sanitizer-logs"
-        # pipefail so a failing shard is not masked by tee
-        set -o pipefail
-        ${{ github.workspace }}/tests/scripts/parrallelUT.sh ./SvtJpegxsUnitTests ${{ env.JOBS_NUM }} \
-          2>&1 | tee "${{ github.workspace }}/sanitizer-logs/unit-tests-${{ matrix.sanitizer }}.log"
-
-    - name: 'Conformance tests: ${{ matrix.sanitizer }} sanitizer (release)'
-      # continue-on-error: collect all findings; the summary step is the single gate
-      continue-on-error: true
-      working-directory: ${{ github.workspace }}/tests/scripts
-      env:
-        # halt_on_error=0 (+ build-time -fsanitize-recover for asan/msan) lets each
-        # process run past every finding so one pass enumerates all of them.
-        # exitcode=0 keeps a tainted test from making the non-halting harness bail
-        # early; the summary step's finding-grep is the gate.
-        ASAN_OPTIONS: "halt_on_error=0:exitcode=0:print_stacktrace=1"
-        TSAN_OPTIONS: "halt_on_error=0:exitcode=0:history_size=4"
-        UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=0:exitcode=0"
-        DEC_BIN_DIR: ${{ github.workspace }}/Bin/Release
         INPUT_FILES_PATH: /opt/samples
       run: |
-        mkdir -p "${{ github.workspace }}/sanitizer-logs"
-        chmod +x ./*.sh
-        chmod +x "$DEC_BIN_DIR"/*
-        export LD_LIBRARY_PATH="$DEC_BIN_DIR"
-        # pipefail so a failing conformance shard is not masked by tee
-        set -o pipefail
-        ./ParallelAllTests.sh ${{ env.JOBS_NUM }} "$INPUT_FILES_PATH" "$DEC_BIN_DIR/SvtJpegxsDecApp" \
-          2>&1 | tee "${{ github.workspace }}/sanitizer-logs/conformance-tests-${{ matrix.sanitizer }}.log"
+        chmod +x tests/scripts/*.sh
+        tests/scripts/sanitize.sh ${{ matrix.sanitizer }} --jobs ${{ env.JOBS_NUM }} --samples "$INPUT_FILES_PATH"
 
-    - name: 'Summarize: ${{ matrix.sanitizer }} sanitizer findings'
-      if: always()
-      working-directory: ${{ github.workspace }}
-      run: |
-        chmod +x tests/scripts/sanitizer_summary.sh
-        # integer is report-only (does not gate on findings); every other sanitizer fails on findings.
-        # A non-zero test-harness exit (broken run) fails the job for ALL sanitizers, integer included.
-        tests/scripts/sanitizer_summary.sh ${{ matrix.sanitizer == 'integer' && '--no-gate ' || '' }}"${{ matrix.sanitizer }}" \
-          sanitizer-logs/unit-tests-${{ matrix.sanitizer }}.log \
-          sanitizer-logs/conformance-tests-${{ matrix.sanitizer }}.log
-
-    - name: 'Archive: upload binary and logs on failure'
+    - name: 'Archive: upload binaries and logs on failure'
       if: failure()
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
         name: sanitizer-${{ matrix.sanitizer }}-failure-${{ github.run_number }}
         retention-days: 7
+        if-no-files-found: ignore
         path: |
           Bin/Release/SvtJpegxsUnitTests
           Bin/Release/SvtJpegxsEncApp
           Bin/Release/SvtJpegxsDecApp
-          sanitizer-logs/unit-tests-${{ matrix.sanitizer }}.log
-          sanitizer-logs/conformance-tests-${{ matrix.sanitizer }}.log
+          Bin/Debug/SvtJpegxsEncApp
+          Bin/Debug/SvtJpegxsDecApp
+          sanitizer-logs/${{ matrix.sanitizer }}-unit.log
+          sanitizer-logs/${{ matrix.sanitizer }}-conformance.log
 
-    # Integer sanitizer runs report-only (halt_on_error=0), so the job stays
-    # green; always archive its logs so the findings are not lost.
+    # integer is report-only, so its job stays green; always archive its logs.
     - name: 'Archive: upload integer sanitizer report'
       if: always() && matrix.sanitizer == 'integer'
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
         name: sanitizer-integer-report-${{ github.run_number }}
         retention-days: 7
+        if-no-files-found: ignore
         path: |
-          sanitizer-logs/unit-tests-integer.log
-          sanitizer-logs/conformance-tests-integer.log
+          sanitizer-logs/integer-conformance.log
 
     - name: 'Cleanup: Remove workspace artifacts'
       if: always()
       run: |
-        rm -rf Bin/ Build/linux/Release/ || true
+        rm -rf Bin/ Build/linux/Release/ Build/linux/Debug/ || true
 
-  # ── Memory sanitizer ────────────────────────────────────────────────────────
-  # Must be Debug (release does not build with MSan).
-  # Unit tests can't run under MSan: gtest aborts during global init. 
-  # Use the C encoder/decoder apps instead.
-  sanitizer-memory:
-    name: "Sanitizer: memory"
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
-    timeout-minutes: 180
-    steps:
-    - name: 'Harden Runner'
-      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
-      with:
-        egress-policy: audit
-
-    - name: 'Setup: Cleanup workspace'
-      run: |
-        rm -rf ./* || true
-        rm -rf ./.??* || true
-
-    - name: 'Checkout repository'
-      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-
-    - name: 'Setup: Install dependencies'
-      run: |
-        sudo apt-get update
-        sudo apt-get -y install cmake nasm clang llvm make
-
-    - name: 'Fix workspace permissions'
-      if: always()
-      run: |
-        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
-        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
-
-    - name: 'Build: debug with memory sanitizer'
-      working-directory: Build/linux
-      run: |
-        ./build.sh debug sanitizer=memory cc=clang cxx=clang++ jobs=$(nproc)
-
-    - name: 'Conformance tests: memory sanitizer (debug)'
-      # continue-on-error: collect all findings; the summary step is the single gate
-      continue-on-error: true
-      working-directory: ${{ github.workspace }}/tests/scripts
-      env:
-        DEC_BIN_DIR: ${{ github.workspace }}/Bin/Debug
-        INPUT_FILES_PATH: /opt/samples
-        # halt_on_error=0 (+ build-time -fsanitize-recover=memory) lets the app run
-        # past every uninit read so one pass enumerates all findings; exitcode=0 keeps
-        # a tainted test from making the harness bail early. Summary grep is the gate.
-        MSAN_OPTIONS: "halt_on_error=0:exitcode=0"
-        # avx2: AVX-512 paths produce MSan false positives
-        SANITIZER_ASM: avx2
-      run: |
-        mkdir -p "${{ github.workspace }}/sanitizer-logs"
-        chmod +x ./*.sh
-        chmod +x "$DEC_BIN_DIR"/*
-        export LD_LIBRARY_PATH="$DEC_BIN_DIR"
-        # pipefail so a failing conformance shard is not masked by tee
-        set -o pipefail
-        # fast: reduce the matrix (MSan is very slow); SANITIZER_ASM pins avx2
-        ./ParallelAllTests.sh ${{ env.JOBS_NUM }} "$INPUT_FILES_PATH" "$DEC_BIN_DIR/SvtJpegxsDecApp" fast \
-          2>&1 | tee "${{ github.workspace }}/sanitizer-logs/memory-conformance-tests.log"
-
-    - name: 'Summarize: memory sanitizer findings'
-      if: always()
-      working-directory: ${{ github.workspace }}
-      run: |
-        chmod +x tests/scripts/sanitizer_summary.sh
-        tests/scripts/sanitizer_summary.sh "memory" \
-          sanitizer-logs/memory-conformance-tests.log
-
-    - name: 'Archive: upload binaries and logs on failure'
-      if: failure()
-      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-      with:
-        name: sanitizer-memory-failure-${{ github.run_number }}
-        retention-days: 7
-        path: |
-          Bin/Debug/SvtJpegxsEncApp
-          Bin/Debug/SvtJpegxsDecApp
-          sanitizer-logs/memory-conformance-tests.log
-
-    - name: 'Cleanup: Remove workspace artifacts'
-      if: always()
-      run: |
-        rm -rf Bin/ Build/linux/Debug/ || true
