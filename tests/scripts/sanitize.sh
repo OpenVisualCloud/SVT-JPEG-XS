@@ -36,12 +36,13 @@
 # The run is non-halting (halt_on_error=0 + -fsanitize-recover for asan/msan), so a
 # single pass enumerates every finding. The final report gates the exit code.
 #
-# Default scope note: every sanitizer runs a small sequential 10-test EncoderTest
-# batch by default (locally validated: a few minutes, 0 unexpected findings), not
-# unit tests + the parallel full/fast conformance suite. This was set after fixing
-# RateControl_avx2.c's leftover-tail buffers, which used to read uninitialized stack
-# bytes on ~every precinct/band and flood MSan with thousands of reports of the same
-# finding, never finishing. Pass --full to run the original parallel suite.
+# Default scope note: every sanitizer runs a small sequential 50-test EncoderTest
+# batch by default (locally validated for 10 cases: a few minutes, 0 unexpected
+# findings), not unit tests + the parallel full/fast conformance suite. This was
+# set after fixing RateControl_avx2.c's leftover-tail buffers, which used to read
+# uninitialized stack bytes on ~every precinct/band and flood MSan with thousands
+# of reports of the same finding, never finishing. Pass --full to run the
+# original parallel suite.
 
 set -u
 
@@ -63,7 +64,7 @@ Options:
                                               <repo>/Conformance-tests)
   --fast          run the reduced conformance subset (only used with --full)
   --full          run the original parallel full/fast ParallelAllTests.sh suite
-                  instead of the default validated 10-test sequential smoke scope
+                  instead of the default validated 50-test sequential smoke scope
   --no-build      reuse existing binaries, skip the build step
   --help          print this help and exit
 
@@ -115,10 +116,10 @@ gate=""                 # --no-gate for report-only sanitizers
 opt_name=""             # <SAN>_OPTIONS env var
 opt_value=""
 default_test_jobs=16    # parallel instrumented test procs; lowered for RAM-heavy sanitizers
-# Locally validated smoke scope for every sanitizer: 10 sequential EncoderTest cases,
+# Locally validated smoke scope for every sanitizer: 50 sequential EncoderTest cases,
 # a few minutes each, 0 unexpected findings (see sanitizer-ci investigation notes).
 # --full restores the original parallel full/fast ParallelAllTests.sh suite.
-encoder_range="0-10"
+encoder_range="0-50"
 
 ubsan_opts="suppressions=$root/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=0:exitcode=0"
 
