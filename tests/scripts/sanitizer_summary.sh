@@ -13,17 +13,25 @@
 #   * run did not complete cleanly  -> fail always (never a silent green)
 #   * clean + complete              -> pass
 #
-# Usage: sanitizer_summary.sh [--no-gate] <label> <log> [<log> ...]
+# A clean/no-findings verdict does not by itself mean the whole surface was
+# exercised (e.g. fast mode, unit tests skipped) - pass --coverage to say what
+# actually ran, so the verdict can't be read as more thorough than it is.
+#
+# Usage: sanitizer_summary.sh [--no-gate] [--coverage <text>] <label> <log> [<log> ...]
 
 set -u
 
 gate=1
-if [ "${1:-}" = "--no-gate" ]; then
-    gate=0
-    shift
-fi
+coverage=""
+while true; do
+    case "${1:-}" in
+        --no-gate)   gate=0; shift ;;
+        --coverage)  coverage="${2:?--coverage requires a value}"; shift 2 ;;
+        *) break ;;
+    esac
+done
 
-label="${1:?usage: sanitizer_summary.sh [--no-gate] <label> <log> [<log> ...]}"
+label="${1:?usage: sanitizer_summary.sh [--no-gate] [--coverage <text>] <label> <log> [<log> ...]}"
 shift
 requested=("$@")
 
@@ -33,6 +41,10 @@ emit() { printf '%s\n' "$*" >> "$out"; }
 
 emit "## Sanitizer findings: ${label}"
 emit ""
+if [ -n "$coverage" ]; then
+    emit "_Coverage: ${coverage}_"
+    emit ""
+fi
 
 # ---- Run completeness --------------------------------------------------------
 # Every harness (ParallelAllTests.sh / ParallelScript.sh / parrallelUT.sh) prints
@@ -42,7 +54,9 @@ emit ""
 run_incomplete=0
 run_reason=""
 existing=()
-for l in "${requested[@]}"; do
+# ${requested[@]+"${requested[@]}"}: avoids an unbound-variable error under set -u
+# on bash < 4.4 when requested is empty (plain "${requested[@]}" errors there).
+for l in ${requested[@]+"${requested[@]}"}; do
     if [ ! -f "$l" ]; then
         run_incomplete=1
         run_reason="expected log '$(basename "$l")' was not produced (step failed or was skipped)"
@@ -75,6 +89,7 @@ normalize() {
 }
 
 total=0
+row_cap=100
 section() {
     local heading="$1" body="$2" n
     [ -z "$body" ] && return 0
@@ -84,8 +99,12 @@ section() {
     emit ""
     emit "| count | finding |"
     emit "|---:|---|"
-    printf '%s\n' "$body" | sed -E 's/^ *([0-9]+) +(.*)$/| \1 | \2 |/' | head -100 >> "$out"
+    printf '%s\n' "$body" | sed -E 's/^ *([0-9]+) +(.*)$/| \1 | \2 |/' | head -$row_cap >> "$out"
     emit ""
+    if [ "$n" -gt "$row_cap" ]; then
+        emit "> Showing ${row_cap} of ${n} distinct findings - see the full log artifact for the rest."
+        emit ""
+    fi
 }
 
 if [ ${#existing[@]} -gt 0 ]; then
