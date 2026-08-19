@@ -71,7 +71,10 @@ jobs:
       # continue-on-error: collect all findings; the summary step is the single gate
       continue-on-error: true
       env:
-        # Non-halting: one pass collects every finding; the summary step gates.
+        # halt_on_error=0 (+ build-time -fsanitize-recover for asan/msan) lets each
+        # process run past every finding so one pass enumerates all of them.
+        # exitcode=0 keeps a tainted test from making the non-halting harness bail
+        # early; the summary step's finding-grep is the gate.
         ASAN_OPTIONS: "halt_on_error=0:exitcode=0:print_stacktrace=1"
         TSAN_OPTIONS: "halt_on_error=0:exitcode=0:history_size=4"
         UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=0:exitcode=0"
@@ -91,7 +94,10 @@ jobs:
       continue-on-error: true
       working-directory: ${{ github.workspace }}/tests/scripts
       env:
-        # Non-halting: one pass collects every finding; the summary step gates.
+        # halt_on_error=0 (+ build-time -fsanitize-recover for asan/msan) lets each
+        # process run past every finding so one pass enumerates all of them.
+        # exitcode=0 keeps a tainted test from making the non-halting harness bail
+        # early; the summary step's finding-grep is the gate.
         ASAN_OPTIONS: "halt_on_error=0:exitcode=0:print_stacktrace=1"
         TSAN_OPTIONS: "halt_on_error=0:exitcode=0:history_size=4"
         UBSAN_OPTIONS: "suppressions=${{ github.workspace }}/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=0:exitcode=0"
@@ -193,7 +199,9 @@ jobs:
       env:
         DEC_BIN_DIR: ${{ github.workspace }}/Bin/Debug
         INPUT_FILES_PATH: /opt/samples
-        # Non-halting: collect findings in one pass; the summary step gates.
+        # halt_on_error=0 (+ build-time -fsanitize-recover=memory) lets the app run
+        # past every uninit read so one pass enumerates all findings; exitcode=0 keeps
+        # a tainted test from making the harness bail early. Summary grep is the gate.
         MSAN_OPTIONS: "halt_on_error=0:exitcode=0"
         # avx2: AVX-512 paths produce MSan false positives
         SANITIZER_ASM: avx2

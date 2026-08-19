@@ -269,9 +269,12 @@ string(TOLOWER "${SANITIZER}" SANITIZER)
 
 # Address Memory Thread Undefined
 if(SANITIZER STREQUAL "address")
-    add_clike_and_ld_flags(-fsanitize=address)
+    # -fsanitize-recover=address: let halt_on_error=0 continue past each finding so
+    # one non-halting pass enumerates every issue instead of aborting at the first.
+    add_clike_and_ld_flags(-fsanitize=address -fsanitize-recover=address)
 elseif(SANITIZER STREQUAL "memory")
-    add_clike_and_ld_flags(-fsanitize=memory -fsanitize-memory-track-origins)
+    # -fsanitize-recover=memory: same, otherwise MSan aborts at the first uninit read.
+    add_clike_and_ld_flags(-fsanitize=memory -fsanitize-memory-track-origins -fsanitize-recover=memory)
 elseif(SANITIZER STREQUAL "thread")
     add_clike_and_ld_flags(-fsanitize=thread)
 elseif(SANITIZER STREQUAL "undefined")

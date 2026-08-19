@@ -53,7 +53,7 @@ function test_dec {
 
     cmd="$valgrind$exec_dec -i $bin_name -o $yuv_tmp --lp $PARAM_LP_NUM --asm ${SANITIZER_ASM:-$PARAM_ASM} --packetization-mode $PARAM_PACKETIZATION "$params
     echo "run command: $cmd"
-    ${cmd}
+    run_cmd "$cmd"
 
     ret=$?
     if [ $ret -ne $exit_code ]; then
@@ -96,7 +96,7 @@ mkdir $tmp_dir
 bitstream_msb_prep="$tmp_dir/msb_prep.jxs"
 cmd_prep="$exec_enc -i $path_encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv -w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --coding-sigf 1 --coding-vpred 0 --rc 0 -n 5 --asm max --lp 7 --profile latency --packetization-mode 0 -b $bitstream_msb_prep"
 echo "run command: $cmd_prep"
-${cmd_prep}
+run_cmd "$cmd_prep"
 
 #No real 4-component (alpha) sample YUV exists in $path_encoder_tests. Synthesize multi-frame yuva422
 #and rgba/yuva444 raw files on the fly (same technique as EncoderTest.sh/DecoderConformanceTest.sh) from
@@ -118,7 +118,7 @@ done
 bitstream_yuva422_prep="$tmp_dir/yuva422_prep.jxs"
 cmd_prep_alpha="$exec_enc -i $yuva422_synth -w $yuva422_w -h $yuva422_h --input-depth 8 --colour-format yuva422 --bpp 24 --quantization 0 -n $yuva422_frames -b $bitstream_yuva422_prep --asm max"
 echo "run command: $cmd_prep_alpha"
-${cmd_prep_alpha}
+run_cmd "$cmd_prep_alpha"
 
 yuva444_w=1920
 yuva444_h=1080
@@ -136,7 +136,7 @@ done
 bitstream_yuva444_prep="$tmp_dir/yuva444_prep.jxs"
 cmd_prep_444="$exec_enc -i $yuva444_synth -w $yuva444_w -h $yuva444_h --input-depth 8 --colour-format rgba --bpp 32 --quantization 0 -n $yuva444_frames -b $bitstream_yuva444_prep --asm max"
 echo "run command: $cmd_prep_444"
-${cmd_prep_444}
+run_cmd "$cmd_prep_444"
 
 #Compares two same-size files sample-by-sample and fails if any absolute difference exceeds $3.
 #(1:file A) (2:file B) (3:max allowed absolute per-byte difference)
@@ -172,7 +172,7 @@ function test_four_component_alpha_decode {
     out_yuv="$tmp_dir/yuva422_prep_out.yuv"
     cmd="$valgrind$exec_dec -i $bitstream_yuva422_prep -o $out_yuv --lp $PARAM_LP_NUM --asm $PARAM_ASM --packetization-mode $PARAM_PACKETIZATION"
     echo "run command: $cmd"
-    ${cmd}
+    run_cmd "$cmd"
     ret=$?
     if [ $ret -ne 0 ]; then
         echo "FAIL Can not decode bitstream, error code: $ret"
@@ -196,7 +196,7 @@ function test_four_component_444_decode {
     out_yuv="$tmp_dir/yuva444_prep_out.yuv"
     cmd="$valgrind$exec_dec -i $bitstream_yuva444_prep -o $out_yuv --lp $PARAM_LP_NUM --asm $PARAM_ASM --packetization-mode $PARAM_PACKETIZATION"
     echo "run command: $cmd"
-    ${cmd}
+    run_cmd "$cmd"
     ret=$?
     if [ $ret -ne 0 ]; then
         echo "FAIL Can not decode bitstream, error code: $ret"

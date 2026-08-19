@@ -69,7 +69,7 @@ normalize() {
         s/tid=[0-9]+/tid=_/g;
         s/ T[0-9]+/ T_/g;
         s/value [-0-9.eE+]+/value _/g;
-        s#[^ (]*/Source/#Source/#g;
+        s#[^ (]*/(Source|tests|ffmpeg-plugin|imtl-plugin|gst-[^/]*)/#\1/#g;
         s/  +/ /g
     '
 }
@@ -89,7 +89,9 @@ section() {
 }
 
 if [ ${#existing[@]} -gt 0 ]; then
-    ub=$(grep -hoE "Source/[^ ]+:[0-9]+:[0-9]+: runtime error: .*" "${existing[@]}" 2>/dev/null \
+    # Match any 'file:line:col: runtime error:' report, not only ones under Source/,
+    # so UB/Integer findings in tests/, plugins or headers are not silently dropped.
+    ub=$(grep -hoE "[^ ]+:[0-9]+:[0-9]+: runtime error: .*" "${existing[@]}" 2>/dev/null \
             | normalize | sort | uniq -c | sort -rn)
     section "UndefinedBehavior / Integer" "$ub"
 
