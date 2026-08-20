@@ -787,7 +787,10 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
             else if (enc_common->cpu_profile == CPU_PROFILE_CPU) {
                 /*Sync with DWT threads.*/
                 if (pi->components[c].decom_v != 0) {
-                    while (pack_input->sync_dwt_component_done_flag[c] == 0) {
+                    /*Acquire load on every iteration, including the first: when the DWT thread is
+                      already ahead the semaphore is never waited on, so the load is the only thing
+                      ordering this thread against the DWT thread's coefficient writes.*/
+                    while (SVT_ATOMIC_LOAD32(&pack_input->sync_dwt_component_done_flag[c]) == 0) {
                         svt_jxs_block_on_semaphore(pack_input->sync_dwt_semaphore);
                     }
                 }

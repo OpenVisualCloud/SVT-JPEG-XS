@@ -62,7 +62,9 @@ PackInput_t* pre_rc_send_frame_to_pack_slices(PictureControlSet* pcs_ptr, Fifo_t
                 return NULL;
             }
             pack_input = (PackInput_t*)output_wrapper_ptr->object_ptr;
-            memset((void*)pack_input->sync_dwt_component_done_flag, 0, sizeof(pack_input->sync_dwt_component_done_flag));
+            /*Plain reset is safe: the pack task is not yet visible to any DWT thread, and the
+              release store in DwtStageProcess.c publishes it afterwards.*/
+            memset(pack_input->sync_dwt_component_done_flag, 0, sizeof(pack_input->sync_dwt_component_done_flag));
             if (!first) {
                 first = pack_input;
             }

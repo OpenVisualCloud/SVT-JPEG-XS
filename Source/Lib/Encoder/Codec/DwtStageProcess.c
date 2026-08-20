@@ -228,7 +228,7 @@ void* dwt_stage_kernel(void* input_ptr) {
                     list_slice_next = list_slice_next->sync_dwt_list_next;
                     Handle_t sync_dwt_semaphore = list_slice_next_old->sync_dwt_semaphore;
                     //After set flag list item can be not longer actual for last component. First get next item
-                    list_slice_next_old->sync_dwt_component_done_flag[component_id] = 1;
+                    SVT_ATOMIC_STORE32(&list_slice_next_old->sync_dwt_component_done_flag[component_id], 1);
                     svt_jxs_post_semaphore(sync_dwt_semaphore);
                 }
             }
@@ -238,7 +238,7 @@ void* dwt_stage_kernel(void* input_ptr) {
                 list_slice_next = list_slice_next->sync_dwt_list_next;
                 Handle_t sync_dwt_semaphore = list_slice_next_old->sync_dwt_semaphore;
                 //After set flag list item can be not longer actual for last component. First get next item
-                list_slice_next_old->sync_dwt_component_done_flag[component_id] = 1;
+                SVT_ATOMIC_STORE32(&list_slice_next_old->sync_dwt_component_done_flag[component_id], 1);
                 svt_jxs_post_semaphore(sync_dwt_semaphore);
             }
             assert(list_slice_next == NULL);
@@ -347,7 +347,7 @@ void* dwt_stage_kernel(void* input_ptr) {
                 list_slice_next = list_slice_next->sync_dwt_list_next;
                 Handle_t sync_dwt_semaphore = list_slice_next_old->sync_dwt_semaphore;
                 //After set flag list item can be not longer actual for last component. First get next item
-                list_slice_next_old->sync_dwt_component_done_flag[component_id] = 1;
+                SVT_ATOMIC_STORE32(&list_slice_next_old->sync_dwt_component_done_flag[component_id], 1);
                 svt_jxs_post_semaphore(sync_dwt_semaphore);
             }
         }
@@ -357,7 +357,7 @@ void* dwt_stage_kernel(void* input_ptr) {
             list_slice_next = list_slice_next->sync_dwt_list_next;
             Handle_t sync_dwt_semaphore = list_slice_next_old->sync_dwt_semaphore;
             //After set flag list item can be not longer actual for last component. First get next item
-            list_slice_next_old->sync_dwt_component_done_flag[component_id] = 1;
+            SVT_ATOMIC_STORE32(&list_slice_next_old->sync_dwt_component_done_flag[component_id], 1);
             svt_jxs_post_semaphore(sync_dwt_semaphore);
         }
         assert(list_slice_next == NULL);
