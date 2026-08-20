@@ -42,8 +42,14 @@ else
 fi
 
 echo "=== 2. Export installation location ==="
-export LD_LIBRARY_PATH="$INSTALL_DIR/lib:${LD_LIBRARY_PATH}"
-export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig:${PKG_CONFIG_PATH}"
+SVT_PC_FILE=$(find "$INSTALL_DIR" -name 'SvtJpegxs.pc' | head -1)
+if [ -z "$SVT_PC_FILE" ]; then
+    echo "FATAL: SvtJpegxs.pc not found under $INSTALL_DIR" >&2
+    exit 1
+fi
+SVT_LIBDIR=$(dirname "$(dirname "$SVT_PC_FILE")")
+export LD_LIBRARY_PATH="$SVT_LIBDIR:${LD_LIBRARY_PATH}"
+export PKG_CONFIG_PATH="$SVT_LIBDIR/pkgconfig:${PKG_CONFIG_PATH}"
 
 echo "=== 3. Download/Compile FFmpeg ==="
 cd "$PWD"
