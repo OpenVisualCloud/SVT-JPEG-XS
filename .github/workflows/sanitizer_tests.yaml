@@ -24,7 +24,8 @@ jobs:
   # reproduces exactly with:  tests/scripts/sanitize.sh <sanitizer>
   #
   # One job, no matrix: sanitize.sh already runs its tests sequentially (a
-  # fixed 50-case EncoderTest batch, no parallel processes), so there is no
+  # tailored per-sanitizer test tier, no parallel processes - see
+  # tests/scripts/sanitize.sh's top-of-file comment), so there is no
   # per-sanitizer parallelism left for a matrix to add - and running the 5
   # sanitizers as ordered steps in one job (instead of 5 concurrently
   # scheduled matrix jobs) guarantees memory - the slowest/heaviest one -
@@ -108,13 +109,35 @@ jobs:
     - name: 'Gate: fail job if any sanitizer step failed'
       if: always()
       run: |
-        rc=0
-        [ "${{ steps.address.outcome }}" = "failure" ]   && { echo "address: FAILED"   >&2; rc=1; }
-        [ "${{ steps.thread.outcome }}" = "failure" ]     && { echo "thread: FAILED"     >&2; rc=1; }
-        [ "${{ steps.undefined.outcome }}" = "failure" ]  && { echo "undefined: FAILED"  >&2; rc=1; }
-        [ "${{ steps.integer.outcome }}" = "failure" ]    && { echo "integer: FAILED (infra, not findings)" >&2; rc=1; }
-        [ "${{ steps.memory.outcome }}" = "failure" ]     && { echo "memory: FAILED"     >&2; rc=1; }
-        exit "$rc"
+        echo "--- Checking sanitizer step outcomes ---"
+        FAILED=false
+
+        if [[ "${{ steps.address.outcome }}" == "failure" ]]; then
+          echo "::error::Address sanitizer step FAILED"
+          FAILED=true
+        fi
+        if [[ "${{ steps.thread.outcome }}" == "failure" ]]; then
+          echo "::error::Thread sanitizer step FAILED"
+          FAILED=true
+        fi
+        if [[ "${{ steps.undefined.outcome }}" == "failure" ]]; then
+          echo "::error::Undefined sanitizer step FAILED"
+          FAILED=true
+        fi
+        if [[ "${{ steps.integer.outcome }}" == "failure" ]]; then
+          echo "::error::Integer sanitizer step FAILED (infra, not findings)"
+          FAILED=true
+        fi
+        if [[ "${{ steps.memory.outcome }}" == "failure" ]]; then
+          echo "::error::Memory sanitizer step FAILED"
+          FAILED=true
+        fi
+
+        if [[ "$FAILED" == "true" ]]; then
+          exit 1
+        else
+          echo "All sanitizer steps passed."
+        fi
 
     - name: 'Archive: upload binaries and logs'
       if: always()

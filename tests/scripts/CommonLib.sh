@@ -103,6 +103,12 @@ fi
 # CI), every '--asm <level>' is forced to that level - or one is appended when the
 # command has none - so instrumented runs stay on a single ISA path (e.g. avx2
 # under MSan, never AVX-512). Unset => passthrough, byte-identical to before.
+#
+# When SANITIZER_PROFILE is set (thread sanitizer's race-trigger tier), every
+# existing '--profile <value>' is forced to that value - e.g. cpu, to force every
+# encoder test onto the multi-threaded DWT path TSan needs to see a race. Never
+# appended (decoder commands have no --profile flag at all, so this is a no-op
+# for them - unlike --asm, which every enc/dec command accepts).
 function run_cmd() {
     local cmd="$1"
     if [ -n "${SANITIZER_ASM:-}" ]; then
@@ -111,6 +117,9 @@ function run_cmd() {
         else
             cmd="$cmd --asm ${SANITIZER_ASM}"
         fi
+    fi
+    if [ -n "${SANITIZER_PROFILE:-}" ] && [[ "$cmd" == *"--profile "* ]]; then
+        cmd=$(sed -E "s/--profile[[:space:]]+[^[:space:]]+/--profile ${SANITIZER_PROFILE}/g" <<< "$cmd")
     fi
     ${cmd}
 }
