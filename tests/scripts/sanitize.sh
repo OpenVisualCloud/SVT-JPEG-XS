@@ -45,10 +45,12 @@
 #                       dedicated "threading" mode/test list exists in the
 #                       harness beyond that (checked EncoderTest.sh,
 #                       DecoderConformanceTest.sh, DecoderMultiFramesTest.sh).
-#   memory              two sequential runs of default_test_count cases each:
-#                       EncoderTest.sh then DecoderConformanceTest.sh - both
-#                       encoder and decoder memory-safety checked, still bounded
-#                       (100 cases total) given MSan's heavy per-test overhead.
+#   memory              EncoderTest.sh bounded to default_test_count cases, then
+#                       DecoderConformanceTest.sh and DecoderMultiFramesTest.sh
+#                       both run in 'fast' mode (reduced subset, e.g. AVX2-only) -
+#                       encoder, decoder and multi-frame decoding are all
+#                       memory-safety checked, still bounded given MSan's heavy
+#                       per-test overhead.
 #
 # Locally validated: default_test_count sequential EncoderTest cases takes a few
 # minutes with 0 unexpected findings. This scope was set after fixing
@@ -79,8 +81,9 @@ parallel. See the top-of-file comment for the full rationale:
   address/undefined/integer/thread  EncoderTest.sh + DecoderConformanceTest.sh +
                      DecoderMultiFramesTest.sh, each run in full, sequentially.
                      integer is the same suite, report-only.
-  memory              default_test_count encoder cases + default_test_count
-                     decoder cases, sequential, asm pinned to avx2 (avoids
+  memory              default_test_count encoder cases, then
+                     DecoderConformanceTest.sh + DecoderMultiFramesTest.sh in
+                     'fast' mode, sequential, asm pinned to avx2 (avoids
                      avx512-specific false positives; avx2/asm code can still
                      have real findings).
 EOF
@@ -165,14 +168,14 @@ log_dir="$root/sanitizer-logs"
 mkdir -p "$log_dir"
 enc_log="$log_dir/$sanitizer-encoder.log"
 dec_log="$log_dir/$sanitizer-decoder.log"
-multi_log="$log_dir/$sanitizer-multiframe.log"     # not memory_split
+multi_log="$log_dir/$sanitizer-multiframe.log"
 
 echo "=============================================================="
 echo " Sanitizer : $sanitizer"
 echo " Build     : $build_flag (Bin/$build_type)"
 case "$test_mode" in
     memory_split)
-        echo " Tests     : EncoderTest + DecoderConformanceTest, ids 0-$default_test_count each, sequential" ;;
+        echo " Tests     : EncoderTest ids 0-$default_test_count, then DecoderConformanceTest + DecoderMultiFramesTest (fast), sequential" ;;
     *)
         echo " Tests     : EncoderTest + DecoderConformanceTest + DecoderMultiFramesTest, full, sequential" ;;
 esac
@@ -213,7 +216,8 @@ echo "== Conformance tests: $sanitizer ($test_mode) =="
     case "$test_mode" in
         memory_split)
             ./EncoderTest.sh "$samples" "$dec_app" "range:$encoder_range" 2>&1 | tee "$enc_log"
-            ./DecoderConformanceTest.sh "$samples" "$dec_app" "range:$encoder_range" 2>&1 | tee "$dec_log" ;;
+            ./DecoderConformanceTest.sh "$samples" "$dec_app" fast 2>&1 | tee "$dec_log"
+            ./DecoderMultiFramesTest.sh "$samples" "$dec_app" fast 2>&1 | tee "$multi_log" ;;
         *)
             # Full, sequential coverage of all three components - no test process
             # ever runs in parallel with another.
@@ -222,16 +226,13 @@ echo "== Conformance tests: $sanitizer ($test_mode) =="
             ./DecoderMultiFramesTest.sh "$samples" "$dec_app" 2>&1 | tee "$multi_log" ;;
     esac
 )
-case "$test_mode" in
-    memory_split) logs+=("$enc_log" "$dec_log") ;;
-    *)            logs+=("$enc_log" "$dec_log" "$multi_log") ;;
-esac
+logs+=("$enc_log" "$dec_log" "$multi_log")
 
 # ---- Report / gate -----------------------------------------------------------
 echo "== Report: $sanitizer =="
 case "$test_mode" in
     memory_split)
-        coverage="encoder + decoder, ids 0-$default_test_count each, sequential" ;;
+        coverage="EncoderTest ids 0-$default_test_count, DecoderConformanceTest + DecoderMultiFramesTest (fast), sequential" ;;
     *)
         coverage="EncoderTest + DecoderConformanceTest + DecoderMultiFramesTest, full, sequential" ;;
 esac
