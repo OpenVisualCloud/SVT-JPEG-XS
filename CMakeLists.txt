@@ -286,7 +286,10 @@ elseif(SANITIZER)
 endif()
 
 if(SANITIZER)
-    check_both_flags_add(-fno-omit-frame-pointer -fno-optimize-sibling-calls)
+    # -g: without debug info the sanitizer reports carry no file:line, only symbol names,
+    # which makes every finding in a large function look like it is at the function's
+    # opening brace. Costs binary size only, not runtime.
+    check_both_flags_add(-g -fno-omit-frame-pointer -fno-optimize-sibling-calls)
 endif()
 
 if(MSVC OR MINGW)
