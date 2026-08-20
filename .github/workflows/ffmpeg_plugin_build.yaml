@@ -5,6 +5,11 @@ on:
     workflows: ["Base Build"]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Build even if no relevant paths changed'
+        type: boolean
+        default: false
 
 defaults:
   run:
@@ -42,7 +47,9 @@ jobs:
     permissions:
       pull-requests: read
     outputs:
-      changed: ${{ steps.filter.outputs.ffmpeg_plugin_build == 'true' }}
+      # 'force' is a workflow_dispatch checkbox that skips the path filter. dispatch
+      # inputs arrive as strings, so compare against 'true' rather than the boolean.
+      changed: ${{ steps.filter.outputs.ffmpeg_plugin_build == 'true' || github.event.inputs.force == 'true' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
