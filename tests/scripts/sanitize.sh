@@ -31,25 +31,20 @@
 #
 # Tiered strategy (each tailored to what that sanitizer is actually looking for,
 # every step below runs one after another - never in parallel):
-#   address/undefined/integer  broad code coverage across all three components,
-#                       each run in full and sequentially: EncoderTest.sh, then
-#                       DecoderConformanceTest.sh, then DecoderMultiFramesTest.sh.
-#                       integer is the same suite, just report-only (findings
-#                       are archived, not gated).
-#   thread              EncoderTest.sh runs the reduced 'fast' subset - every
-#                       encoder command's --profile is still forced to 'cpu'
-#                       (SANITIZER_PROFILE, see CommonLib.sh run_cmd) - that's
-#                       the only profile that spawns the multi-threaded DWT path
-#                       TSan needs to see a race. DecoderConformanceTest.sh and
-#                       DecoderMultiFramesTest.sh run in full instead: decoder
-#                       commands have no --profile flag at all, so full decoder
-#                       coverage is essentially free here, while trimming the
-#                       encoder side to 'fast' cuts the many asm/profile/lp
-#                       combinations that stop mattering once every executed
-#                       command is forced onto 'cpu' anyway. No pre-existing
+#   address/undefined/integer/thread  broad code coverage across all three
+#                       components, each run in full and sequentially:
+#                       EncoderTest.sh, then DecoderConformanceTest.sh, then
+#                       DecoderMultiFramesTest.sh. integer is the same suite,
+#                       just report-only (findings are archived, not gated).
+#                       For thread specifically: running EncoderTest.sh in full
+#                       (not the 'fast' subset) naturally includes its existing
+#                       --profile cpu-tagged call sites (test_rate_control,
+#                       test_msb_aligned, etc.) in their own correct context -
+#                       that's the only profile that spawns the multi-threaded
+#                       DWT path TSan needs to see a race. No pre-existing
 #                       dedicated "threading" mode/test list exists in the
-#                       harness (checked EncoderTest.sh, DecoderConformanceTest.sh,
-#                       DecoderMultiFramesTest.sh).
+#                       harness beyond that (checked EncoderTest.sh,
+#                       DecoderConformanceTest.sh, DecoderMultiFramesTest.sh).
 #   memory              two sequential runs of default_test_count cases each:
 #                       EncoderTest.sh then DecoderConformanceTest.sh - both
 #                       encoder and decoder memory-safety checked, still bounded
@@ -81,13 +76,9 @@ Options:
 
 Per-sanitizer behaviour is a tailored, sequential tier - no tests ever run in
 parallel. See the top-of-file comment for the full rationale:
-  address/undefined/integer  EncoderTest.sh + DecoderConformanceTest.sh +
+  address/undefined/integer/thread  EncoderTest.sh + DecoderConformanceTest.sh +
                      DecoderMultiFramesTest.sh, each run in full, sequentially.
                      integer is the same suite, report-only.
-  thread              EncoderTest.sh 'fast' subset (every --profile forced to
-                     'cpu', the only profile that triggers TSan's race path);
-                     DecoderConformanceTest.sh + DecoderMultiFramesTest.sh run
-                     in full (decoder commands have no --profile flag).
   memory              default_test_count encoder cases + default_test_count
                      decoder cases, sequential, asm pinned to avx2 (avoids
                      avx512-specific false positives; avx2/asm code can still
@@ -120,7 +111,6 @@ done
 build_type="Release"    # Bin/<build_type>
 build_flag="release"    # build.sh argument
 export_asm=""
-export_profile=""       # thread only: force every --profile to this value (SANITIZER_PROFILE)
 gate=""                 # --no-gate for report-only sanitizers
 opt_name=""             # <SAN>_OPTIONS env var
 opt_value=""
@@ -132,7 +122,7 @@ default_test_count=50
 # runs ids 0..default_test_count-1, i.e. exactly $default_test_count tests.
 encoder_range="0-$default_test_count"
 test_mode="broad_sequential"  # per-sanitizer tier; see the top-of-file comment.
-                              # One of: broad_sequential (default) | thread | memory_split
+                              # One of: broad_sequential (default) | memory_split
 
 ubsan_opts="suppressions=$root/.github/config/ubsan_suppressions.txt:print_stacktrace=1:halt_on_error=0:exitcode=0"
 
@@ -140,8 +130,7 @@ case "$sanitizer" in
     address)
         opt_name="ASAN_OPTIONS"; opt_value="halt_on_error=0:exitcode=0:print_stacktrace=1" ;;
     thread)
-        opt_name="TSAN_OPTIONS"; opt_value="halt_on_error=0:exitcode=0:history_size=4"
-        test_mode="thread"; export_profile="cpu" ;;
+        opt_name="TSAN_OPTIONS"; opt_value="halt_on_error=0:exitcode=0:history_size=4" ;;
     undefined)
         opt_name="UBSAN_OPTIONS"; opt_value="$ubsan_opts" ;;
     integer)
@@ -184,10 +173,8 @@ echo " Build     : $build_flag (Bin/$build_type)"
 case "$test_mode" in
     memory_split)
         echo " Tests     : EncoderTest + DecoderConformanceTest, ids 0-$default_test_count each, sequential" ;;
-    thread)
-        echo " Tests     : EncoderTest (fast) + DecoderConformanceTest + DecoderMultiFramesTest (full), sequential, --profile forced to $export_profile" ;;
     *)
-        echo " Tests     : EncoderTest + DecoderConformanceTest + DecoderMultiFramesTest, full, sequential${export_profile:+, --profile forced to $export_profile}" ;;
+        echo " Tests     : EncoderTest + DecoderConformanceTest + DecoderMultiFramesTest, full, sequential" ;;
 esac
 echo " Samples   : $samples"
 echo " Report    : ${gate:-gating}"
@@ -213,7 +200,6 @@ fi
 # The <SAN>_OPTIONS are consumed by the instrumented processes below.
 export "$opt_name=$opt_value"
 [ -n "$export_asm" ] && export SANITIZER_ASM="$export_asm"
-[ -n "$export_profile" ] && export SANITIZER_PROFILE="$export_profile"
 
 logs=()
 
@@ -228,10 +214,6 @@ echo "== Conformance tests: $sanitizer ($test_mode) =="
         memory_split)
             ./EncoderTest.sh "$samples" "$dec_app" "range:$encoder_range" 2>&1 | tee "$enc_log"
             ./DecoderConformanceTest.sh "$samples" "$dec_app" "range:$encoder_range" 2>&1 | tee "$dec_log" ;;
-        thread)
-            ./EncoderTest.sh "$samples" "$dec_app" fast 2>&1 | tee "$enc_log"
-            ./DecoderConformanceTest.sh "$samples" "$dec_app" 2>&1 | tee "$dec_log"
-            ./DecoderMultiFramesTest.sh "$samples" "$dec_app" 2>&1 | tee "$multi_log" ;;
         *)
             # Full, sequential coverage of all three components - no test process
             # ever runs in parallel with another.
@@ -250,10 +232,8 @@ echo "== Report: $sanitizer =="
 case "$test_mode" in
     memory_split)
         coverage="encoder + decoder, ids 0-$default_test_count each, sequential" ;;
-    thread)
-        coverage="EncoderTest (fast) + DecoderConformanceTest + DecoderMultiFramesTest (full), sequential, --profile forced to $export_profile" ;;
     *)
-        coverage="EncoderTest + DecoderConformanceTest + DecoderMultiFramesTest, full, sequential${export_profile:+, --profile forced to $export_profile}" ;;
+        coverage="EncoderTest + DecoderConformanceTest + DecoderMultiFramesTest, full, sequential" ;;
 esac
 "$root/tests/scripts/sanitizer_summary.sh" $gate --coverage "$coverage" "$sanitizer" "${logs[@]}"
 
