@@ -288,7 +288,9 @@ int32_t main(int32_t argc, char *argv[]) {
     uint32_t packets_received = 0;
     double packet_total_time = 0;
     do {
-        svt_jpeg_xs_frame_t enc_output;
+        /*get_packet does not touch enc_output on every failure path, so zero it: the
+          fields below (user_prv_ctx_ptr, last_packet_in_frame) are read unconditionally.*/
+        svt_jpeg_xs_frame_t enc_output = {0};
         SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_get_packet(&config_enc.encoder, &enc_output, /*blocking*/ 1);
         packets_received++;
         //Optional block of code to measure latency
@@ -388,8 +390,11 @@ fail:
     if (thread_send_handle) {
         app_destroy_thread(thread_send_handle);
     }
-    svt_jpeg_xs_frame_pool_free(config_enc.frame_pool);
+    /*Close the encoder first: it joins the encoder threads, which still reference the
+      frame buffers owned by the pool. Freeing the pool first is a use-after-free on any
+      path that leaves the loop before the encoder has drained (goto fail).*/
     svt_jpeg_xs_encoder_close(&config_enc.encoder);
+    svt_jpeg_xs_frame_pool_free(config_enc.frame_pool);
 
     // Close any files that are open
     if (config_enc.in_file) {
