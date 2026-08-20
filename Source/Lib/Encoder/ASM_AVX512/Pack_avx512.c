@@ -7,6 +7,7 @@
 #include "RateControl_avx2.h"
 #include "rate_control_helper_avx2.h"
 #include <immintrin.h>
+#include <string.h>
 #include "SvtUtility.h"
 
 void pack_data_single_group_avx512(bitstream_writer_t *bitstream, uint16_t *buf, uint8_t gcli, uint8_t gtli) {
@@ -140,8 +141,9 @@ void rate_control_calc_vpred_cost_sigf_nosigf_avx512(uint32_t significance_width
                                                           gtli_max_avx512);
             const __m512i delta_m_avx512 = _mm512_sub_epi16(gcli_max_avx512, m_top_avx512);
 
-            *(uint32_t *)vpred_significance = hdr_Rm ? _mm512_cmplt_epu16_mask(gtli_avx512, gcli_avx512)
-                                                     : _mm512_cmpneq_epu16_mask(m_top_avx512, gcli_max_avx512);
+            const uint32_t significance_mask_avx512 = hdr_Rm ? _mm512_cmplt_epu16_mask(gtli_avx512, gcli_avx512)
+                                                              : _mm512_cmpneq_epu16_mask(m_top_avx512, gcli_max_avx512);
+            memcpy(vpred_significance, &significance_mask_avx512, sizeof(significance_mask_avx512));
 
             vpred_significance[0] = !vpred_significance[0];
             vpred_significance[1] = !vpred_significance[1];
@@ -158,7 +160,9 @@ void rate_control_calc_vpred_cost_sigf_nosigf_avx512(uint32_t significance_width
             non_zero_significance += vpred_significance[0] + vpred_significance[1] + vpred_significance[2] +
                 vpred_significance[3];
 
-            __mmask32 mask = (*(uint32_t *)vpred_significance) * 255;
+            uint32_t significance_bytes_avx512;
+            memcpy(&significance_bytes_avx512, vpred_significance, sizeof(significance_bytes_avx512));
+            __mmask32 mask = significance_bytes_avx512 * 255;
 
             bits_sum_sigf_avx512 = _mm512_mask_add_epi16(bits_sum_sigf_avx512, mask, bits_sum_sigf_avx512, bits);
 
@@ -188,8 +192,9 @@ void rate_control_calc_vpred_cost_sigf_nosigf_avx512(uint32_t significance_width
                                                         gtli_max_avx2);
             const __m256i delta_m_avx2 = _mm256_sub_epi16(gcli_max_avx2, m_top_avx2);
 
-            *(uint16_t *)vpred_significance = hdr_Rm ? _mm256_cmplt_epu16_mask(gtli_avx2, gcli_avx2)
-                                                     : _mm256_cmpneq_epu16_mask(m_top_avx2, gcli_max_avx2);
+            const uint16_t significance_mask_avx2 = hdr_Rm ? _mm256_cmplt_epu16_mask(gtli_avx2, gcli_avx2)
+                                                            : _mm256_cmpneq_epu16_mask(m_top_avx2, gcli_max_avx2);
+            memcpy(vpred_significance, &significance_mask_avx2, sizeof(significance_mask_avx2));
 
             vpred_significance[0] = !vpred_significance[0];
             vpred_significance[1] = !vpred_significance[1];
