@@ -10,7 +10,8 @@ base_build: &base_build
 
 ffmpeg_plugin_build: &ffmpeg_plugin_build
   - 'ffmpeg-plugin/**'
-  - '.github/scripts/build_ffmpeg_plugin*'
+  - '.github/scripts/build_ffmpeg_plugin.sh'
+  - '.github/scripts/build_ffmpeg_plugin_msys.sh'
   - 'Source/API/**'
   - 'Source/Lib/**'
   - 'third_party/**'
