@@ -34,12 +34,12 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
     - name: 'Harden Runner'
-      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
 
     - name: 'Checkout repository'
-      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      uses: actions/checkout@v4
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
 
@@ -55,7 +55,7 @@ jobs:
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
     - name: 'Setup: Download pre-built svt-jpegxs artifact from Base Build (falls back to local build if missing)'
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      uses: actions/download-artifact@v4
       continue-on-error: true
       with:
         name: linux-svtjpegxs-install
@@ -85,12 +85,12 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
     - name: 'Harden Runner'
-      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
 
     - name: 'Checkout repository'
-      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      uses: actions/checkout@v4
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
 
@@ -106,7 +106,7 @@ jobs:
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
     - name: 'Setup: Download pre-built svt-jpegxs artifact'
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      uses: actions/download-artifact@v4
       with:
         name: fuzzy-tests-svtjpegxs-lib-${{ github.run_number }}
         path: install-dir
@@ -132,12 +132,12 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
     - name: 'Harden Runner'
-      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
 
     - name: 'Checkout repository'
-      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      uses: actions/checkout@v4
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
 
@@ -153,7 +153,7 @@ jobs:
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
     - name: 'Setup: Download pre-built svt-jpegxs artifact'
-      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      uses: actions/download-artifact@v4
       with:
         name: fuzzy-tests-svtjpegxs-lib-${{ github.run_number }}
         path: install-dir

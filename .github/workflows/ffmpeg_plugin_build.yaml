@@ -51,11 +51,11 @@ jobs:
       # inputs arrive as strings, so compare against 'true' rather than the boolean.
       changed: ${{ steps.filter.outputs.ffmpeg_plugin_build == 'true' || github.event.inputs.force == 'true' }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v2
+      - uses: dorny/paths-filter@v3
         id: filter
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -69,7 +69,7 @@ jobs:
       timeout-minutes: 30
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
@@ -110,7 +110,7 @@ jobs:
       timeout-minutes: 60
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
@@ -120,12 +120,12 @@ jobs:
             sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact from Base Build (falls back to local build if missing)'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: linux-svtjpegxs-install
@@ -157,7 +157,7 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
       - name: 'Setup:  Install dependencies'
@@ -166,12 +166,12 @@ jobs:
             sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_LIB_ARTIFACTS }}"
           path: install-dir
@@ -180,7 +180,7 @@ jobs:
         run: sudo chmod -R 755 install-dir/
 
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source
@@ -205,7 +205,7 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
@@ -215,12 +215,12 @@ jobs:
             sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_LIB_ARTIFACTS }}"
           path: install-dir
@@ -229,7 +229,7 @@ jobs:
         run: sudo chmod -R 755 install-dir/
 
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source
@@ -254,7 +254,7 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
@@ -264,12 +264,12 @@ jobs:
             sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_LIB_ARTIFACTS }}"
           path: install-dir
@@ -278,7 +278,7 @@ jobs:
         run: sudo chmod -R 755 install-dir/
 
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source
@@ -303,7 +303,7 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
@@ -313,12 +313,12 @@ jobs:
             sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_LIB_ARTIFACTS }}"
           path: install-dir
@@ -327,7 +327,7 @@ jobs:
         run: sudo chmod -R 755 install-dir/
 
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source
@@ -352,7 +352,7 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
@@ -362,12 +362,12 @@ jobs:
             sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_LIB_ARTIFACTS }}"
           path: install-dir
@@ -376,7 +376,7 @@ jobs:
         run: sudo chmod -R 755 install-dir/
 
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source
@@ -403,7 +403,7 @@ jobs:
         artifact_name: ${{ env.LINUX_ARTIFACTS_9_0 }}
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
@@ -413,12 +413,12 @@ jobs:
             sudo apt-get -y install cmake nasm make gcc g++ pkg-config
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_LIB_ARTIFACTS }}"
           path: install-dir
@@ -427,7 +427,7 @@ jobs:
         run: sudo chmod -R 755 install-dir/
 
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source
@@ -462,17 +462,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_ARTIFACTS_6_1 }}"
           path: install-dir
@@ -531,17 +531,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_ARTIFACTS_7_0 }}"
           path: install-dir
@@ -600,17 +600,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_ARTIFACTS_7_1 }}"
           path: install-dir
@@ -669,17 +669,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_ARTIFACTS_8_0 }}"
           path: install-dir
@@ -738,17 +738,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_ARTIFACTS_8_1 }}"
           path: install-dir
@@ -807,17 +807,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download build artifacts'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.LINUX_ARTIFACTS_9_0 }}"
           path: install-dir
@@ -875,7 +875,7 @@ jobs:
       timeout-minutes: 120
       steps:
         - name: 'Harden Runner'
-          uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+          uses: step-security/harden-runner@v2
           with:
             egress-policy: audit
 
@@ -885,12 +885,12 @@ jobs:
             sudo apt-get -y install numactl
 
         - name: 'Checkout repository'
-          uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+          uses: actions/checkout@v4
           with:
             ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
         - name: 'Setup: Download build artifacts'
-          uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+          uses: actions/download-artifact@v4
           with:
             name: ${{ needs.ffmpeg-9-0-linux-build.outputs.artifact_name }}
             path: install-dir
@@ -958,12 +958,12 @@ jobs:
       timeout-minutes: 60
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
@@ -1001,17 +1001,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
           path: install-dir
@@ -1029,7 +1029,7 @@ jobs:
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
 
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source
@@ -1057,17 +1057,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
           path: install-dir
@@ -1084,7 +1084,7 @@ jobs:
           cache: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source
@@ -1112,17 +1112,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
           path: install-dir
@@ -1139,7 +1139,7 @@ jobs:
           cache: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source
@@ -1167,17 +1167,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
           path: install-dir
@@ -1194,7 +1194,7 @@ jobs:
           cache: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm nasm
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source
@@ -1222,17 +1222,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
           path: install-dir
@@ -1249,7 +1249,7 @@ jobs:
           cache: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm nasm
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source
@@ -1277,17 +1277,17 @@ jobs:
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.WINDOWS_LIB_ARTIFACTS }}"
           path: install-dir
@@ -1304,7 +1304,7 @@ jobs:
           cache: true
           install: git mingw-w64-ucrt-x86_64-gcc cmake mingw-w64-ucrt-x86_64-yasm nasm
       - name: 'Setup: Download pre-fetched FFmpeg source'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           name: "${{ env.FFMPEG_SRC_ARTIFACT }}"
           path: ffmpeg-source

@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 30
     steps:
     - name: 'Harden Runner'
-      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
 
@@ -35,7 +35,7 @@ jobs:
         rm -rf ./.??* || true
 
     - name: 'Checkout repository'
-      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      uses: actions/checkout@v4
 
     - name: 'Setup: Install dependencies'
       run: |
@@ -68,7 +68,7 @@ jobs:
     # Harden Runner is per-job network egress monitoring, not shared setup -
     # it has to run in every job it should actually cover, so it's repeated here.
     - name: 'Harden Runner'
-      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
 
