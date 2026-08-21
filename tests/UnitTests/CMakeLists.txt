@@ -58,6 +58,7 @@ endif()
 
 #UT MAIN
 add_executable(SvtJpegxsUnitTests ${all_files} ${PROJECT_SOURCE_DIR}/Source/App/EncApp/EncAppConfig.c)
+target_compile_definitions(SvtJpegxsUnitTests PRIVATE BUILD_TESTING)
 
 target_link_libraries(SvtJpegxsUnitTests PUBLIC
     ${lib_list_all}

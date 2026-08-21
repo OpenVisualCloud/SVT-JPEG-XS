@@ -269,9 +269,12 @@ string(TOLOWER "${SANITIZER}" SANITIZER)
 
 # Address Memory Thread Undefined
 if(SANITIZER STREQUAL "address")
-    add_clike_and_ld_flags(-fsanitize=address)
+    # -fsanitize-recover=address: let halt_on_error=0 continue past each finding so
+    # one non-halting pass enumerates every issue instead of aborting at the first.
+    add_clike_and_ld_flags(-fsanitize=address -fsanitize-recover=address)
 elseif(SANITIZER STREQUAL "memory")
-    add_clike_and_ld_flags(-fsanitize=memory -fsanitize-memory-track-origins)
+    # -fsanitize-recover=memory: same, otherwise MSan aborts at the first uninit read.
+    add_clike_and_ld_flags(-fsanitize=memory -fsanitize-memory-track-origins -fsanitize-recover=memory)
 elseif(SANITIZER STREQUAL "thread")
     add_clike_and_ld_flags(-fsanitize=thread)
 elseif(SANITIZER STREQUAL "undefined")
@@ -283,7 +286,10 @@ elseif(SANITIZER)
 endif()
 
 if(SANITIZER)
-    check_both_flags_add(-fno-omit-frame-pointer -fno-optimize-sibling-calls)
+    # -g: without debug info the sanitizer reports carry no file:line, only symbol names,
+    # which makes every finding in a large function look like it is at the function's
+    # opening brace. Costs binary size only, not runtime.
+    check_both_flags_add(-g -fno-omit-frame-pointer -fno-optimize-sibling-calls)
 endif()
 
 if(MSVC OR MINGW)
@@ -314,6 +320,7 @@ endif()
 
 if(BUILD_TESTING)
     include(CTest)
+    target_compile_definitions(COMMON_CODEC PRIVATE BUILD_TESTING)
     set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
     set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)

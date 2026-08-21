@@ -42,8 +42,10 @@ void test_log_callback(void* context, SvtLogLevel level, const char* tag, const 
 /*
  * The logger is initialized exactly once per process (lazily, on first log call), so a custom
  * callback registered via svt_jpeg_xs_set_log_callback() only takes effect if no log call has
- * happened yet in this process. Since other tests in this same binary may already have triggered
- * default logger initialization, fork a fresh child process to get an untouched logger state.
+ * happened yet in this process. fork() alone isn't enough: the child inherits whatever logger
+ * state the parent already had, so if another test in this binary logged first, the once-guard
+ * would already be fired in the child too. Run in a forked child and explicitly reset the
+ * logger there before registering the callback, so the outcome doesn't depend on test order.
  */
 TEST(LogCallback, CustomCallbackInterceptsMessages) {
     int pipefd[2];
@@ -53,8 +55,11 @@ TEST(LogCallback, CustomCallbackInterceptsMessages) {
     ASSERT_GE(pid, 0);
 
     if (pid == 0) {
-        // Child: fresh process, logger not yet initialized.
+        // Child: fork() alone only copies the parent's memory, so if some other test already
+        // triggered logger init in this process, the child would inherit that already-fired
+        // state too. Force a virgin logger before staging our callback.
         close(pipefd[0]);
+        svt_jxs_log_reset_for_testing();
         CallbackResult result;
         memset(&result, 0, sizeof(result));
         svt_jpeg_xs_set_log_callback(test_log_callback, &result);

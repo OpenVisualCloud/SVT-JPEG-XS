@@ -99,6 +99,22 @@ if (($help_flag != 0)); then
     fi
 fi
 
+# Execute an encoder/decoder command string. When SANITIZER_ASM is set (sanitizer
+# CI), every '--asm <level>' is forced to that level - or one is appended when the
+# command has none - so instrumented runs stay on a single ISA path (e.g. avx2
+# under MSan, never AVX-512). Unset => passthrough, byte-identical to before.
+function run_cmd() {
+    local cmd="$1"
+    if [ -n "${SANITIZER_ASM:-}" ]; then
+        if [[ "$cmd" == *"--asm "* ]]; then
+            cmd=$(sed -E "s/--asm[[:space:]]+[^[:space:]]+/--asm ${SANITIZER_ASM}/g" <<< "$cmd")
+        else
+            cmd="$cmd --asm ${SANITIZER_ASM}"
+        fi
+    fi
+    ${cmd}
+}
+
 function common_lib_update_test_id_run_return_1_to_ignore() {
     test_id_run=$test_id
     test_id=$((test_id+1))

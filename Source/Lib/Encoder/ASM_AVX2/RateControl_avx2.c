@@ -73,8 +73,12 @@ uint32_t rate_control_calc_vpred_cost_nosigf_avx2(uint32_t gcli_width, uint8_t *
         }
 
         if (leftover_sse) {
-            DECLARE_ALIGNED(16, uint8_t, gcli_top_tmp[8]);
-            DECLARE_ALIGNED(16, uint8_t, gcli_tmp[8]);
+            // Zero-init: only leftover_sse of 8 bytes get memcpy'd below, but the SIMD load
+            // right after reads all 8 unconditionally (MSan use-of-uninitialized-value). The
+            // padding lanes' computed result is never read back (output copy/sum below are
+            // both bounded by leftover_sse), so zero-filling them cannot change behavior.
+            DECLARE_ALIGNED(16, uint8_t, gcli_top_tmp[8]) = {0};
+            DECLARE_ALIGNED(16, uint8_t, gcli_tmp[8]) = {0};
             DECLARE_ALIGNED(16, uint8_t, vpred_bits_tmp[8]);
 
             memcpy(gcli_top_tmp, gcli_data_top_ptr, sizeof(uint8_t) * leftover_sse);

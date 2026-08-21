@@ -76,7 +76,7 @@ function test_enc {
 #   Encode and check expected error code
     cmd="$valgrind$exec_enc -i $path_yuv -b $bin_path $encoder_parameters"
     echo "run command: $cmd"
-    ${cmd}
+    run_cmd "$cmd"
 
     ret=$?
     if [ $ret -ne $exit_code ]; then
@@ -92,7 +92,7 @@ function test_enc {
 #           CI not required output YUV
             cmd="$cmd -o $out_yuv_path"
             echo "run command: $cmd"
-            ${cmd}
+            run_cmd "$cmd"
             ret=$?
             if [ $ret -ne 0 ]; then
                 echo "FAIL Can not decode bitstream, error code: $ret"
@@ -195,7 +195,7 @@ done
 
 #RUN different RC parameters Release/Debug/ ASM_C/ASM_MAX compare Parameters (1:asm) (2:lp number)
 function test_rate_control {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4
@@ -361,7 +361,7 @@ function test_rate_control {
 
 #RUN different RC parameters Release/Debug/ ASM_C/ASM_MAX compare Parameters (1:asm) (2:lp number)
 function test_rate_control_signs {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4
@@ -387,7 +387,7 @@ function test_rate_control_signs {
 
 #RUN input-msb-aligned Parameters (1:asm) (2:lp number)
 function test_msb_aligned {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4
@@ -423,7 +423,7 @@ function test_enc_yuva422_synth {
 
     cmd="$exec_enc -i $yuva422_synth -b $bin_path $encoder_parameters"
     echo "run command: $cmd"
-    ${cmd}
+    run_cmd "$cmd"
     ret=$?
     if [ $ret -ne $exit_code ]; then
         echo "FAIL Invalid error code: $ret expected: $exit_code"
@@ -434,7 +434,7 @@ function test_enc_yuva422_synth {
     if [ $ret -eq 0 ]; then
         cmd="$exec_dec -i $bin_path -o $out_yuv_path"
         echo "run command: $cmd"
-        ${cmd}
+        run_cmd "$cmd"
         ret=$?
         if [ $ret -ne 0 ]; then
             echo "FAIL Can not decode bitstream, error code: $ret"
@@ -492,7 +492,7 @@ function test_enc_yuva444_synth {
 
     cmd="$exec_enc -i $yuva444_synth -b $bin_path $encoder_parameters"
     echo "run command: $cmd"
-    ${cmd}
+    run_cmd "$cmd"
     ret=$?
     if [ $ret -ne $exit_code ]; then
         echo "FAIL Invalid error code: $ret expected: $exit_code"
@@ -503,7 +503,7 @@ function test_enc_yuva444_synth {
     if [ $ret -eq 0 ]; then
         cmd="$exec_dec -i $bin_path -o $out_yuv_path"
         echo "run command: $cmd"
-        ${cmd}
+        run_cmd "$cmd"
         ret=$?
         if [ $ret -ne 0 ]; then
             echo "FAIL Can not decode bitstream, error code: $ret"
@@ -561,7 +561,7 @@ function test_enc_rgb_synth {
 
     cmd="$exec_enc -i $rgb_synth -b $bin_path $encoder_parameters"
     echo "run command: $cmd"
-    ${cmd}
+    run_cmd "$cmd"
     ret=$?
     if [ $ret -ne $exit_code ]; then
         echo "FAIL Invalid error code: $ret expected: $exit_code"
@@ -572,7 +572,7 @@ function test_enc_rgb_synth {
     if [ $ret -eq 0 ]; then
         cmd="$exec_dec -i $bin_path -o $out_yuv_path"
         echo "run command: $cmd"
-        ${cmd}
+        run_cmd "$cmd"
         ret=$?
         if [ $ret -ne 0 ]; then
             echo "FAIL Can not decode bitstream, error code: $ret"
@@ -624,7 +624,7 @@ function test_yuv444_rgb_and_rgbp {
 }
 
 function test_uncommon_resolution {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4
@@ -908,7 +908,7 @@ function test_uncommon_resolution {
 }
 
 function test_handle_errors {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4
@@ -995,7 +995,7 @@ function test_handle_errors {
 
 #RUN different RC parameters Release/Debug/ ASM_C/ASM_MAX compare Parameters (1:asm) (2:lp number)
 function test_invalid_yuv {
-    asm=$1
+    asm=${SANITIZER_ASM:-$1}
     lp=$2
     cpu_profile=$3
     packetization_mode=$4

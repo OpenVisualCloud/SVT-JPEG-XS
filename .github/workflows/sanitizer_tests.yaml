@@ -1,0 +1,139 @@
+name: Sanitizer Tests
+
+on:
+  schedule:
+    - cron: '0 18 * * *'  # Daily 18:00 UTC (20:00 CEST / 19:00 CET)
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # One-time checkout + toolchain install, shared by every sanitizer job below.
+  # Relies on the self-hosted runner's workspace persisting between jobs.
+  setup:
+    name: 'Setup: checkout + toolchain'
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
+    timeout-minutes: 30
+    steps:
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    - name: 'Setup: Cleanup workspace'
+      run: |
+        rm -rf ./* || true
+        rm -rf ./.??* || true
+
+    - name: 'Checkout repository'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    - name: 'Setup: Install dependencies'
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install cmake nasm clang llvm make
+
+    - name: 'Fix workspace permissions'
+      if: always()
+      run: |
+        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
+        chmod +x tests/scripts/*.sh
+
+  # Build + run + report/gate for every sanitizer is fully encapsulated in
+  # tests/scripts/sanitize.sh, so the 'Run sanitizer' step below is a single-
+  # line call that reproduces exactly with: tests/scripts/sanitize.sh <sanitizer>
+  sanitizer:
+    needs: setup
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        sanitizer: [address, thread, undefined, integer, memory]
+    name: "Sanitizer: ${{ matrix.sanitizer }}"
+    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
+    timeout-minutes: 180
+    env:
+      INPUT_FILES_PATH: /opt/samples
+    steps:
+    # Harden Runner is per-job network egress monitoring, not shared setup -
+    # it has to run in every job it should actually cover, so it's repeated here.
+    - name: 'Harden Runner'
+      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      with:
+        egress-policy: audit
+
+    # Fails loudly if this job ever lands on a runner that doesn't have 'setup's
+    # checkout at the expected commit, instead of silently testing the wrong
+    # revision (or erroring later with a confusing 'sanitize.sh: not found').
+    - name: 'Verify checkout matches setup'
+      run: |
+        if [ ! -x tests/scripts/sanitize.sh ]; then
+          echo "::error::tests/scripts/sanitize.sh missing - this runner did not receive 'setup's checkout" >&2
+          exit 1
+        fi
+        actual_sha="$(git rev-parse HEAD)"
+        if [ "$actual_sha" != "${{ github.sha }}" ]; then
+          echo "::error::checked out commit $actual_sha does not match expected ${{ github.sha }} - stale workspace from another run" >&2
+          exit 1
+        fi
+
+    # report-only for integer: sanitize.sh's internal --no-gate means this
+    # step (and therefore this job) only fails on a genuine infra/build
+    # crash, never on findings alone.
+    - name: 'Run sanitizer: ${{ matrix.sanitizer }}'
+      run: tests/scripts/sanitize.sh ${{ matrix.sanitizer }} --samples "$INPUT_FILES_PATH"
+
+    - name: 'Archive: upload logs'
+      if: always()
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      with:
+        name: sanitizer-logs-${{ matrix.sanitizer }}-${{ github.run_number }}
+        retention-days: 7
+        if-no-files-found: ignore
+        path: |
+          sanitizer-logs/*.log
+
+    - name: 'Cleanup: Remove workspace artifacts'
+      if: always()
+      run: |
+        # Fix ownership/perms here too (not just after checkout) so a build that left
+        # root-owned or locked files doesn't leave them stuck for the next run.
+        sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        chmod -R u+rwX "$GITHUB_WORKSPACE" || true
+        rm -rf Bin/ Build/linux/Release/ Build/linux/Debug/ || true
+
+  # Every matrix job above already gates itself via sanitize.sh's own exit
+  # code, and fail-fast: false means one failing sanitizer never skips/cancels
+  # the rest - so this job is only a single final pass/fail line covering all
+  # 5 in one place. Runs on a regular hosted runner (not self-hosted): it does
+  # nothing but read the other jobs' aggregated results, so it doesn't need -
+  # and shouldn't consume - the constrained self-hosted pool.
+  gate:
+    name: 'Gate: report overall sanitizer result'
+    needs: [setup, sanitizer]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: 'Check sanitizer matrix result'
+      run: |
+        setup_result="${{ needs.setup.result }}"
+        sanitizer_results="${{ needs.sanitizer.result }}"
+        echo "Setup result: $setup_result"
+        echo "Sanitizer matrix result: $sanitizer_results"
+        if [[ "$sanitizer_results" != "success" ]]; then
+          echo "::error::One or more sanitizer jobs failed - see the per-sanitizer job above for details."
+          exit 1
+        fi
+        echo "All sanitizer jobs passed."
+
+

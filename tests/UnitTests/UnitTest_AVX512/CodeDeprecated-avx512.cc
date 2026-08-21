@@ -233,21 +233,23 @@ int dwt_horizontal_depricated_avx512(int32_t* out_lf, int32_t* out_hf, const int
             // src_row[remaining] (1 past the valid range). The last HF element for even
             // width is handled by "correct the last" below.
             for (uint32_t i = 0; i + 2 < remaining; i += 2) {
-                dst_hf_row[i / 2] = src_row[1 + i] - ((src_row[0 + i] + src_row[2 + i]) >> 1);
+                // Widen to int64 so the intermediate sum cannot overflow int32 (UBSan).
+                dst_hf_row[i / 2] = (int32_t)(src_row[1 + i] - (((int64_t)src_row[0 + i] + src_row[2 + i]) >> 1));
             }
 
             if (remaining > 1 && simd_batch > 0) {
-                dst_lf_row[0] = src_row[0] + ((dst_hf_row[-1] + dst_hf_row[0] + 2) >> 2);
+                // Widen to int64 so the intermediate sums cannot overflow int32 (UBSan).
+                dst_lf_row[0] = (int32_t)((int64_t)src_row[0] + (((int64_t)dst_hf_row[-1] + dst_hf_row[0] + 2) >> 2));
             }
             else if (remaining > 1) {
                 // Fix: When simd_batch==0, dst_hf_row[-1] is before the allocated buffer.
                 // Use the boundary formula instead; this value gets overwritten by
                 // "correct the first for lf" anyway.
-                dst_lf_row[0] = src_row[0] + ((dst_hf_row[0] + 1) >> 1);
+                dst_lf_row[0] = (int32_t)((int64_t)src_row[0] + (((int64_t)dst_hf_row[0] + 1) >> 1));
             }
 
             for (uint32_t i = 1; i < (remaining / 2); i++) {
-                dst_lf_row[i] = src_row[2 * i] + ((dst_hf_row[i - 1] + dst_hf_row[i] + 2) >> 2);
+                dst_lf_row[i] = (int32_t)((int64_t)src_row[2 * i] + (((int64_t)dst_hf_row[i - 1] + dst_hf_row[i] + 2) >> 2));
             }
             dst_lf_row += remaining / 2;
             dst_hf_row += remaining / 2;
@@ -256,7 +258,7 @@ int dwt_horizontal_depricated_avx512(int32_t* out_lf, int32_t* out_hf, const int
 
         // correct the last for hf and lf
         if (width % 2) {
-            dst_lf_row[0] = src_row[-1] + ((dst_hf_row[-1] + 1) >> 1);
+            dst_lf_row[0] = (int32_t)((int64_t)src_row[-1] + (((int64_t)dst_hf_row[-1] + 1) >> 1));
         }
         else {
             dst_hf_row[-1] = src_row[-1] - src_row[-2];
@@ -264,12 +266,13 @@ int dwt_horizontal_depricated_avx512(int32_t* out_lf, int32_t* out_hf, const int
             // the buffer. Skip the LF correction here; "correct the first for lf" below
             // will write the correct value for LF[0].
             if (width >= 4) {
-                dst_lf_row[-1] = src_row[-2] + ((dst_hf_row[-2] + dst_hf_row[-1] + 2) >> 2);
+                dst_lf_row[-1] = (int32_t)((int64_t)src_row[-2] + (((int64_t)dst_hf_row[-2] + dst_hf_row[-1] + 2) >> 2));
             }
         }
 
         // correct the first for lf
-        out_lf[row * stride_lf] = in[row * stride_in] + ((out_hf[row * stride_hf] + 1) >> 1);
+        // Widen to int64 so the intermediate sum cannot overflow int32 (UBSan).
+        out_lf[row * stride_lf] = (int32_t)((int64_t)in[row * stride_in] + ((out_hf[row * stride_hf] + 1) >> 1));
     }
 
     return 0;

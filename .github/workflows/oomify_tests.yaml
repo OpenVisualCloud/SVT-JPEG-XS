@@ -5,6 +5,11 @@ on:
     workflows: ["Base Build"]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Run even if no relevant paths changed'
+        type: boolean
+        default: false
 
 defaults:
   run:
@@ -25,7 +30,9 @@ jobs:
     permissions:
       pull-requests: read
     outputs:
-      changed: ${{ steps.filter.outputs.oomify_tests == 'true' }}
+      # 'force' is a workflow_dispatch checkbox that skips the path filter. dispatch
+      # inputs arrive as strings, so compare against 'true' rather than the boolean.
+      changed: ${{ steps.filter.outputs.oomify_tests == 'true' || github.event.inputs.force == 'true' }}
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:

@@ -521,8 +521,11 @@ fail:
     if (thread_send_handle) {
         app_destroy_thread(thread_send_handle);
     }
-    svt_jpeg_xs_frame_pool_free(config_dec.frame_pool);
+    /*Close the decoder first: it joins the decoder threads, which still reference the
+      frame buffers owned by the pool. Freeing the pool first is a use-after-free on any
+      path that leaves the loop before the decoder has drained (goto fail).*/
     svt_jpeg_xs_decoder_close(&config_dec.decoder);
+    svt_jpeg_xs_frame_pool_free(config_dec.frame_pool);
 
     if (config_dec.in_file) {
         fclose(config_dec.in_file);

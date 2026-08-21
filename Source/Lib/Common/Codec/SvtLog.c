@@ -15,6 +15,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static const char *log_level_str(SvtLogLevel level) {
     switch (level) {
@@ -71,6 +72,14 @@ static void logger_cleanup(void) {
 // Staged by svt_jpeg_xs_set_log_callback() before first use; read exactly once by logger_create().
 static SvtLogger g_custom_logger_input;
 
+#ifdef BUILD_TESTING
+// atexit() only needs to be registered once ever: logger_create() can run more than once per
+// process when svt_jxs_log_reset_for_testing() rearms the once-guard, and re-registering
+// logger_cleanup() each time would leave stale atexit entries that read g_logger after an
+// earlier entry already freed and NULLed it.
+static int g_logger_atexit_registered;
+#endif // BUILD_TESTING
+
 static void logger_create(void) {
     g_logger = (SvtLogger *)calloc(1, sizeof(*g_logger));
     if (!g_logger)
@@ -80,7 +89,14 @@ static void logger_create(void) {
     if (custom.fn) {
         // A custom logger was registered before the logger was first used.
         *g_logger = custom;
+#ifdef BUILD_TESTING
+        if (!g_logger_atexit_registered) {
+            atexit(logger_cleanup);
+            g_logger_atexit_registered = 1;
+        }
+#else
         atexit(logger_cleanup);
+#endif // BUILD_TESTING
         return;
     }
 
@@ -107,7 +123,14 @@ static void logger_create(void) {
 
     g_logger->fn = default_logger;
     g_logger->ctx = ctx;
+#ifdef BUILD_TESTING
+    if (!g_logger_atexit_registered) {
+        atexit(logger_cleanup);
+        g_logger_atexit_registered = 1;
+    }
+#else
     atexit(logger_cleanup);
+#endif // BUILD_TESTING
 }
 
 #ifdef _WIN32
@@ -141,6 +164,25 @@ static SvtLogger *get_logger(void) {
 void svt_jxs_log_init() {
     get_logger();
 }
+
+#ifdef BUILD_TESTING
+// Rearms the once-guard and drops any built logger/staged callback, so the next svt_jxs_log()
+// call in this process re-runs logger_create() as if none had happened yet. Meant to be called
+// right after fork(), in a child that wants a virgin logger, before staging a callback via
+// svt_jpeg_xs_set_log_callback() - it does not undo effects already observed by other
+// threads/processes sharing this one.
+void svt_jxs_log_reset_for_testing(void) {
+    if (g_logger)
+        logger_cleanup();
+    memset(&g_custom_logger_input, 0, sizeof(g_custom_logger_input));
+    g_logger_atexit_registered = 0;
+#ifdef _WIN32
+    g_logger_once = (INIT_ONCE)INIT_ONCE_STATIC_INIT;
+#else
+    g_logger_once = PTHREAD_ONCE_INIT;
+#endif // _WIN32
+}
+#endif // BUILD_TESTING
 
 PREFIX_API void svt_jpeg_xs_set_log_callback(SvtJxsLogCallback callback, void *context) {
     // Only take the custom context if a custom callback is also provided, so the default

@@ -31,7 +31,11 @@ typedef struct PackInput {
     /*Sync between pack tasks. Required for some CPU Profiles.*/
     volatile struct PackInput* sync_dwt_list_next; //One direction list to get next pack task in frame
     Handle_t sync_dwt_semaphore;
-    volatile uint32_t sync_dwt_component_done_flag[MAX_COMPONENTS_NUM];
+    /*Gate publishing a slice's DWT coefficients from the DWT thread to the pack thread.
+      Always access with SVT_ATOMIC_STORE32/SVT_ATOMIC_LOAD32: the semaphore is only a
+      wakeup hint (the consumer skips it whenever the flag is already set), so the
+      release/acquire pair on this flag is what orders the coefficient buffer itself.*/
+    uint32_t sync_dwt_component_done_flag[MAX_COMPONENTS_NUM];
 } PackInput_t;
 
 /**************************************
