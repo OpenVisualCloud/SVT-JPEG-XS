@@ -47,10 +47,11 @@ if [ -n "$coverage" ]; then
 fi
 
 # ---- Run completeness --------------------------------------------------------
-# Every harness (ParallelAllTests.sh / ParallelScript.sh / parrallelUT.sh) prints
-# "Exit <script> script with exit N" as its last line. A missing marker or a
-# non-zero N means the suite crashed, samples were missing, or a step was skipped
-# - none of which must pass silently just because no *sanitizer* line was logged.
+# Every harness sanitize.sh drives (EncoderTest.sh / DecoderConformanceTest.sh /
+# DecoderMultiFramesTest.sh) prints "Exit <script> script with exit N" as its
+# last line. A missing marker or a non-zero N means the suite crashed, samples
+# were missing, or a step was skipped - none of which must pass silently just
+# because no *sanitizer* line was logged.
 run_incomplete=0
 run_reason=""
 existing=()

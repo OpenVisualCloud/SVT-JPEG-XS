@@ -4,8 +4,6 @@ on:
   schedule:
     - cron: '0 18 * * *'  # Daily 18:00 UTC (20:00 CEST / 19:00 CET)
   workflow_dispatch:
-  push:
-    branches: ['ajanczew-sanitizers']  # TODO: remove before merge
 
 defaults:
   run:
@@ -20,10 +18,7 @@ concurrency:
 
 jobs:
   # One-time checkout + toolchain install, shared by every sanitizer job below.
-  # Relies on the self-hosted runner's workspace persisting between jobs (the
-  # same assumption 'Setup: Cleanup workspace' below already depended on when
-  # this was one job) - safe here since all jobs in this workflow target the
-  # same specific label set ['self-hosted','linux','x64','valgrind','jpeg-perf'].
+  # Relies on the self-hosted runner's workspace persisting between jobs.
   setup:
     name: 'Setup: checkout + toolchain'
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
@@ -47,17 +42,6 @@ jobs:
         sudo apt-get update
         sudo apt-get -y install cmake nasm clang llvm make
 
-    # TODO(PR#69): informational only, to pick a version to pin (review item #11) -
-    # remove once the toolchain install below is pinned to a known-available version.
-    - name: 'Diagnostics: toolchain versions'
-      run: |
-        cat /etc/os-release || true
-        echo "---"
-        clang --version
-        clang++ --version
-        echo "---"
-        apt-cache policy clang clang++ llvm || true
-
     - name: 'Fix workspace permissions'
       if: always()
       run: |
@@ -68,18 +52,6 @@ jobs:
   # Build + run + report/gate for every sanitizer is fully encapsulated in
   # tests/scripts/sanitize.sh, so the 'Run sanitizer' step below is a single-
   # line call that reproduces exactly with: tests/scripts/sanitize.sh <sanitizer>
-  #
-  # One job PER sanitizer (matrix), reusing the checkout/toolchain from 'setup'
-  # above (needs: setup) instead of repeating it. This makes every sanitizer's
-  # pass/fail and its own $GITHUB_STEP_SUMMARY (written by sanitizer_summary.sh)
-  # show up in the Actions UI as soon as THAT sanitizer finishes, instead of
-  # only once the whole workflow completes. max-parallel: 1 still runs them one
-  # at a time - same as before - so the heaviest one (memory) never starves the
-  # others of a runner on a constrained self-hosted pool; fail-fast: false
-  # guarantees a failing sanitizer never skips/cancels the rest. Each job's
-  # own exit code is now its real result - no continue-on-error/manual Gate
-  # step needed anymore (integer still can't fail on findings alone, via
-  # sanitize.sh's own --no-gate).
   sanitizer:
     needs: setup
     strategy:
@@ -99,6 +71,21 @@ jobs:
       uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
       with:
         egress-policy: audit
+
+    # Fails loudly if this job ever lands on a runner that doesn't have 'setup's
+    # checkout at the expected commit, instead of silently testing the wrong
+    # revision (or erroring later with a confusing 'sanitize.sh: not found').
+    - name: 'Verify checkout matches setup'
+      run: |
+        if [ ! -x tests/scripts/sanitize.sh ]; then
+          echo "::error::tests/scripts/sanitize.sh missing - this runner did not receive 'setup's checkout" >&2
+          exit 1
+        fi
+        actual_sha="$(git rev-parse HEAD)"
+        if [ "$actual_sha" != "${{ github.sha }}" ]; then
+          echo "::error::checked out commit $actual_sha does not match expected ${{ github.sha }} - stale workspace from another run" >&2
+          exit 1
+        fi
 
     # report-only for integer: sanitize.sh's internal --no-gate means this
     # step (and therefore this job) only fails on a genuine infra/build

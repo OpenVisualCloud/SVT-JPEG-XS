@@ -252,7 +252,6 @@ jobs:
         } >> "$GITHUB_STEP_SUMMARY"
 
   performance-tests:
-    if: false # TODO(PR#69): temporarily disabled to speed up sanitizer iteration; re-enable before merge
     needs: linux-build
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
     timeout-minutes: 120

@@ -158,7 +158,6 @@ jobs:
         run: git clean -ffdx
 
   gstreamer-performance-tests:
-    if: false # TODO(PR#69): temporarily disabled to speed up sanitizer iteration; re-enable before merge
     needs: gstreamer-linux-build-test
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
     timeout-minutes: 120
