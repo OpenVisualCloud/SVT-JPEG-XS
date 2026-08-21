@@ -1,4 +1,8 @@
-prefix=@CMAKE_INSTALL_PREFIX@
+# Relocatable install: prefix is derived from this file's own location via
+# ${pcfiledir}, which requires pkg-config >= 0.27 (2012) or any pkgconf
+# version. Older pkg-config leaves ${pcfiledir} undefined/empty, breaking
+# the paths below.
+prefix=${pcfiledir}/@SVT_JPEGXS_PC_PREFIX_RELPATH@
 exec_prefix=${prefix}
 includedir=@SVT_JPEGXS_INCLUDEDIR@
 libdir=@SVT_JPEGXS_LIBDIR@
