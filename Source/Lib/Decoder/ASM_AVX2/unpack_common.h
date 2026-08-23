@@ -61,17 +61,20 @@ static INLINE uint32_t unpack_one_nibble(const uint8_t* mem, uint32_t nib) {
     return (uint32_t)((mem[nib >> 1] >> (4 - (nib & 1) * 4)) & 0xF);
 }
 
-/* How many leading bytes of the line may start an over-reading load: eight
- * bytes of data must remain past the start of the group.
+/* How many leading bytes from the current position may start an over-reading
+ * load: eight readable bytes must remain past the start of the group.
  *
- * A count is returned rather than the last allowed index: for short lines (less
- * than eight bytes of data, and such lines exist - bands of the upper
- * decomposition levels are narrow) the answer is zero and the whole line falls
- * back to the sequential path. An index would give zero both for "not at all"
- * and for "byte zero only". */
-static INLINE uint32_t unpack_fast_byte_count(uint32_t nib0, uint32_t total_nibbles) {
-    const uint32_t last_byte = (nib0 + total_nibbles + 1) >> 1;
-    return last_byte >= 8 ? last_byte - 7 : 0;
+ * The bound comes from the end of the buffer, not from the length of the line
+ * being parsed. Extra bytes that land in the word are masked off by the plane
+ * count anyway, so the parser never leaves its own data; the only question here
+ * is the right to touch the memory. The former per-line bound pushed forty per
+ * cent of all groups onto the slow path, because bands of the upper
+ * decomposition levels are shorter than eight bytes in their entirety.
+ *
+ * A count is returned rather than the last allowed index: zero has to mean "not
+ * at all", whereas index zero would also mean "byte zero is allowed". */
+static INLINE uint32_t unpack_safe_byte_count(uint32_t bytes_left) {
+    return bytes_left >= 8 ? bytes_left - 7 : 0;
 }
 
 #endif /*__UNPACK_COMMON_H__*/

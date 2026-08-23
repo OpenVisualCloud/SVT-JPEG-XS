@@ -42,17 +42,16 @@ static INLINE uint64_t unpack_planes_to_lanes_sse(uint64_t acc, uint8_t gtli) {
     return (v0 | (v1 << 16) | (v2 << 32) | (v3 << 48)) << gtli;
 }
 
-void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups, uint32_t total_nibbles) {
+void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups, uint32_t safe_bytes) {
     uint8_t* const base = r->mem;
     uint32_t nib = r->bits_used ? 1u : 0u;
-    const uint32_t fast_bytes = unpack_fast_byte_count(nib, total_nibbles);
     uint32_t group = 0;
 
     /* Fast path: a group's position in the stream comes from adding up lengths
      * rather than from finishing the previous group, so the group loads are
      * independent of each other. */
     for (; group < n_groups; group++) {
-        if ((nib >> 1) >= fast_bytes) {
+        if ((nib >> 1) >= safe_bytes) {
             break;
         }
         uint64_t out = 0;
@@ -94,14 +93,13 @@ void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* 
 }
 
 void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups,
-                            uint32_t total_nibbles) {
+                            uint32_t safe_bytes) {
     uint8_t* const base = r->mem;
     uint32_t nib = r->bits_used ? 1u : 0u;
-    const uint32_t fast_bytes = unpack_fast_byte_count(nib, total_nibbles);
     uint32_t group = 0;
 
     for (; group < n_groups; group++) {
-        if ((nib >> 1) >= fast_bytes) {
+        if ((nib >> 1) >= safe_bytes) {
             break;
         }
         uint64_t out = 0;
@@ -142,13 +140,14 @@ void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uin
 SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                      uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                      int32_t* precinct_bits_left, unpack_groups_fn groups_sign, unpack_groups_fn groups_nosign) {
-    uint32_t bits_sum_total = 0;
     UNUSED(group_size);
     assert(group_size == GROUP_SIZE);
     assert((bitstream->bits_used != 0) || (bitstream->bits_used != 4));
     const uint32_t group_num = w / GROUP_SIZE;
     const uint32_t leftover = w % GROUP_SIZE;
     const __m128i gtli_const = _mm_set1_epi8(gtli);
+    const uint32_t safe_bytes = unpack_safe_byte_count(bitstream->size > bitstream->offset ? bitstream->size - bitstream->offset
+                                                                                           : 0);
 
     if (sign_flag == 0) {
         //Calculate how many bits will be used from bitstream to avoid reading out of memory allocation
@@ -175,7 +174,6 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
                     bits_sum += (gclis_ptr[group] - gtli) + 1;
                 }
             }
-            bits_sum_total = bits_sum;
             *precinct_bits_left -= (int32_t)(bits_sum * 4);
             if (*precinct_bits_left < 0) {
                 return SvtJxsErrorDecoderInvalidBitstream;
@@ -184,7 +182,7 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
         reader_short_t reader;
         reader.mem = (uint8_t*)(bitstream->mem) + bitstream->offset;
         reader.bits_used = bitstream->bits_used;
-        groups_sign(gclis, gtli, &reader, buf, group_num, bits_sum_total);
+        groups_sign(gclis, gtli, &reader, buf, group_num, safe_bytes);
         if (leftover) {
             buf += group_num * GROUP_SIZE;
             gclis += group_num;
@@ -216,7 +214,6 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
                     bits_sum += (gclis_ptr[group] - gtli);
                 }
             }
-            bits_sum_total = bits_sum;
             *precinct_bits_left -= (int32_t)(bits_sum * 4);
             if (*precinct_bits_left < 0) {
                 return SvtJxsErrorDecoderInvalidBitstream;
@@ -225,7 +222,7 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
         reader_short_t reader;
         reader.mem = (uint8_t*)(bitstream->mem) + bitstream->offset;
         reader.bits_used = bitstream->bits_used;
-        groups_nosign(gclis, gtli, &reader, buf, group_num, bits_sum_total);
+        groups_nosign(gclis, gtli, &reader, buf, group_num, safe_bytes);
         if (leftover) {
             buf += group_num * GROUP_SIZE;
             gclis += group_num;

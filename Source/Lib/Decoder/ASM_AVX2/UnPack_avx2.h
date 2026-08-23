@@ -26,7 +26,7 @@ typedef struct reader_short {
  * parser is passed in: it is called once per line, which makes the indirect
  * call free. */
 typedef void (*unpack_groups_fn)(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups,
-                                 uint32_t total_nibbles);
+                                 uint32_t safe_bytes);
 
 uint8_t read_4_bits_align4_fast(reader_short_t* r);
 
@@ -34,9 +34,9 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
                                      uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                      int32_t* precinct_bits_left, unpack_groups_fn groups_sign, unpack_groups_fn groups_nosign);
 
-void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups, uint32_t total_nibbles);
+void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups, uint32_t safe_bytes);
 void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups,
-                            uint32_t total_nibbles);
+                            uint32_t safe_bytes);
 
 SvtJxsErrorType_t unpack_data_avx2(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis, uint32_t group_size,
                                    uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num, int32_t* precinct_bits_left);
