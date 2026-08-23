@@ -32,20 +32,21 @@ static void pack_bitplane_count_raw(bitstream_writer_t* bitstream, uint8_t* bitp
 }
 
 static void pack_bitplane_count_no_significance(bitstream_writer_t* bitstream, uint8_t* bitplane, uint32_t width, int8_t gtli) {
+    vlc_batch_t batch;
+    vlc_batch_init(&batch);
     for (uint32_t i = 0; i < width; i++) {
-        if (bitplane[i] > gtli) {
-            vlc_encode_simple(bitstream, bitplane[i] - gtli);
-        }
-        else {
-            vlc_encode_simple(bitstream, 0);
-        }
+        vlc_batch_put(bitstream, &batch, bitplane[i] > gtli ? (uint8_t)(bitplane[i] - gtli) : 0);
     }
+    vlc_batch_flush(bitstream, &batch);
 }
 
 static void pack_bitplane_count_vpred_no_significance(bitstream_writer_t* bitstream, uint8_t* bitplane_bits, uint32_t width) {
+    vlc_batch_t batch;
+    vlc_batch_init(&batch);
     for (uint32_t i = 0; i < width; i++) {
-        vlc_encode_pack_bits(bitstream, bitplane_bits[i]);
+        vlc_batch_put(bitstream, &batch, bitplane_bits[i]);
     }
+    vlc_batch_flush(bitstream, &batch);
 }
 
 static void pack_bitplane_count_vpred_significance(bitstream_writer_t* bitstream, uint8_t* bitplane_bits, uint32_t width,
@@ -54,19 +55,22 @@ static void pack_bitplane_count_vpred_significance(bitstream_writer_t* bitstream
     assert(group_size == SIGNIFICANCE_GROUP_SIZE);
     uint32_t groups = width / SIGNIFICANCE_GROUP_SIZE;
     uint32_t leftover = width % SIGNIFICANCE_GROUP_SIZE;
+    vlc_batch_t batch;
+    vlc_batch_init(&batch);
     for (uint32_t g = 0; g < groups; ++g) {
         if (!significance_flags[g]) {
             for (uint32_t i = 0; i < SIGNIFICANCE_GROUP_SIZE; ++i) {
-                vlc_encode_pack_bits(bitstream, bitplane_bits[i]);
+                vlc_batch_put(bitstream, &batch, bitplane_bits[i]);
             }
         }
         bitplane_bits += SIGNIFICANCE_GROUP_SIZE;
     }
     if (leftover && !significance_flags[groups]) {
         for (uint32_t i = 0; i < leftover; i++) {
-            vlc_encode_pack_bits(bitstream, bitplane_bits[i]);
+            vlc_batch_put(bitstream, &batch, bitplane_bits[i]);
         }
     }
+    vlc_batch_flush(bitstream, &batch);
 }
 
 static void pack_bitplane_count_significance(bitstream_writer_t* bitstream, uint8_t* bitplane, uint32_t width, int8_t gtli,
@@ -75,15 +79,12 @@ static void pack_bitplane_count_significance(bitstream_writer_t* bitstream, uint
     assert(group_size == SIGNIFICANCE_GROUP_SIZE);
     uint32_t groups = width / SIGNIFICANCE_GROUP_SIZE;
     uint32_t leftover = width % SIGNIFICANCE_GROUP_SIZE;
+    vlc_batch_t batch;
+    vlc_batch_init(&batch);
     for (uint32_t g = 0; g < groups; ++g) {
         if (significance_data_max_ptr[g] > gtli) {
             for (uint32_t i = 0; i < SIGNIFICANCE_GROUP_SIZE; ++i) {
-                if (bitplane[i] > gtli) {
-                    vlc_encode_simple(bitstream, bitplane[i] - gtli);
-                }
-                else {
-                    vlc_encode_simple(bitstream, 0);
-                }
+                vlc_batch_put(bitstream, &batch, bitplane[i] > gtli ? (uint8_t)(bitplane[i] - gtli) : 0);
             }
         }
         bitplane += SIGNIFICANCE_GROUP_SIZE;
@@ -91,15 +92,11 @@ static void pack_bitplane_count_significance(bitstream_writer_t* bitstream, uint
     if (leftover) {
         if (significance_data_max_ptr[groups] > gtli) {
             for (uint32_t i = 0; i < leftover; i++) {
-                if (bitplane[i] > gtli) {
-                    vlc_encode_simple(bitstream, bitplane[i] - gtli);
-                }
-                else {
-                    vlc_encode_simple(bitstream, 0);
-                }
+                vlc_batch_put(bitstream, &batch, bitplane[i] > gtli ? (uint8_t)(bitplane[i] - gtli) : 0);
             }
         }
     }
+    vlc_batch_flush(bitstream, &batch);
 }
 
 void pack_data_single_group_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint8_t gcli, uint8_t gtli) {
