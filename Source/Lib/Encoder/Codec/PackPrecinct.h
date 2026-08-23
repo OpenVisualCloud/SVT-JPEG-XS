@@ -19,49 +19,15 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
 void pack_data_groups_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint8_t* gclis, uint32_t groups, uint8_t gtli,
                         uint8_t sign_flag);
 
-/* Batched writing of unary codes.
+/* A GCLI unary code: nbits ones and a terminating zero.
  *
- * Every GCLI code is n ones and a terminating zero, that is from one to
- * thirty-two bits, and each of them used to reach the stream through its own
- * write_N_bits call: a branch on alignment, a branch on length, a per-byte
- * store. There are hundreds of such calls per line.
- *
- * Here the codes are first glued together in a 64-bit accumulator and the
- * stream is touched once per thirty-two bits, that is about six times more
- * rarely (the average code is shorter than six bits). The accumulator keeps the
- * bits most significant first, right aligned; before an append it holds fewer
- * than thirty-two significant bits and a code is at most thirty-two bits long,
- * so sixty-four are always enough.
- *
- * Flushing the accumulator is mandatory before any other write to the same
- * stream. */
-typedef struct vlc_batch {
-    uint64_t acc;
-    uint32_t nbits;
-} vlc_batch_t;
-
-static INLINE void vlc_batch_init(vlc_batch_t* b) {
-    b->acc = 0;
-    b->nbits = 0;
-}
-
-static INLINE void vlc_batch_put(bitstream_writer_t* bitstream, vlc_batch_t* b, uint8_t nbits) {
+ * Written through bit_writer_t (see BitstreamWriter.h): the codes are glued
+ * together in an accumulator and the stream is touched once per thirty-two
+ * bits, that is about six times more rarely than with a separate call per code
+ * - the average code is shorter than six bits. */
+static INLINE void vlc_put_unary(bit_writer_t* w, uint8_t nbits) {
     assert(nbits < 32);
-    const uint32_t len = (uint32_t)nbits + 1;
-    const uint64_t code = (((uint64_t)1 << nbits) - 1) << 1;
-    b->acc = (b->acc << len) | code;
-    b->nbits += len;
-    if (b->nbits >= 32) {
-        b->nbits -= 32;
-        write_N_bits(bitstream, (uint32_t)(b->acc >> b->nbits), 32);
-    }
-}
-
-static INLINE void vlc_batch_flush(bitstream_writer_t* bitstream, vlc_batch_t* b) {
-    if (b->nbits) {
-        write_N_bits(bitstream, (uint32_t)(b->acc & ((((uint64_t)1) << b->nbits) - 1)), (uint8_t)b->nbits);
-        b->nbits = 0;
-    }
+    bitw_put(w, (((uint64_t)1 << nbits) - 1) << 1, (uint32_t)nbits + 1);
 }
 
 /*Variable Length Coding
