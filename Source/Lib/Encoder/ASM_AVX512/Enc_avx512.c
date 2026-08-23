@@ -92,8 +92,12 @@ void dwt_horizontal_line_avx512(int32_t* out_lf, int32_t* out_hf, const int32_t*
         0x00, 0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e, 0x10, 0x12, 0x14, 0x16, 0x18, 0x1a, 0x1c, 0x1e);
     const __m512i reg1_permutex2var_mask = _mm512_setr_epi32(
         0x01, 0x03, 0x05, 0x07, 0x09, 0x0b, 0x0d, 0x0f, 0x11, 0x13, 0x15, 0x17, 0x19, 0x1b, 0x1d, 0x1f);
-    const __m512i reg_permutevar_mask = _mm512_setr_epi32(
-        0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e);
+    /* The previous high-frequency sample stays in a vector instead of being
+     * re-read from out_hf. Every iteration used to load the value from the very
+     * cell the vector had just been stored to: the load waited on its own store,
+     * and store-to-load forwarding costs about a dozen cycles. The element is
+     * already sitting in the last lane of the previous iteration's result. */
+    __m512i prev_hf = _mm512_set1_epi32(out_hf[0]);
 
     uint32_t id = 1;
 
@@ -117,11 +121,8 @@ void dwt_horizontal_line_avx512(int32_t* out_lf, int32_t* out_hf, const int32_t*
         _mm512_storeu_si512((__m512i*)(out_hf + id), hf);
 
         //out_hf[id - 1]
-        //const __m512i hf_m1 = _mm512_loadu_si512((__m512i*)(out_hf + id - 1));
-        __m512i hf_m1 = _mm512_permutexvar_epi32(reg_permutevar_mask, hf);
-        __m128i tmp = _mm512_castsi512_si128(hf_m1);
-        tmp = _mm_insert_epi32(tmp, out_hf[id - 1], 0);
-        hf_m1 = _mm512_inserti32x4(hf_m1, tmp, 0);
+        const __m512i hf_m1 = _mm512_alignr_epi32(hf, prev_hf, 15);
+        prev_hf = hf;
 
         //out_lf[id] = in[id * 2] + ((out_hf[id - 1] + out_hf[id] + 2) >> 2);
         __m512i lf = _mm512_add_epi32(hf, hf_m1);
