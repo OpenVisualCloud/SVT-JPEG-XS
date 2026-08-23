@@ -80,23 +80,25 @@ static INLINE uint64_t pack_group_planes_word(__m128i reversed, uint8_t gcli, ui
  * emit_signs is a parameter rather than a field: both call sites pass a
  * constant, so the compiler expands the function into two variants with no
  * branch inside the loop. */
+static INLINE uint64_t pack_nonempty_mask(const uint8_t* gclis, uint32_t chunk, uint8_t gtli) {
+    __m256i gcli_vec;
+    if (chunk >= 32) {
+        gcli_vec = _mm256_loadu_si256((const __m256i*)gclis);
+    }
+    else {
+        uint8_t padded[32] = {0};
+        memcpy(padded, gclis, chunk);
+        gcli_vec = _mm256_loadu_si256((const __m256i*)padded);
+    }
+    return (uint32_t)_mm256_movemask_epi8(
+        _mm256_cmpgt_epi8(_mm256_subs_epu8(gcli_vec, _mm256_set1_epi8((char)gtli)), _mm256_setzero_si256()));
+}
+
 static INLINE void pack_groups_masked(nib_writer_t* w, const uint16_t* buf_16bit, const uint8_t* gclis, uint32_t groups,
                                       uint8_t gtli, const int emit_signs) {
-    const __m256i gtli_vec = _mm256_set1_epi8((char)gtli);
-    const __m256i zero = _mm256_setzero_si256();
-
     for (uint32_t base = 0; base < groups; base += 32) {
         const uint32_t chunk = MIN(groups - base, 32u);
-        __m256i gcli_vec;
-        if (chunk >= 32) {
-            gcli_vec = _mm256_loadu_si256((const __m256i*)(gclis + base));
-        }
-        else {
-            uint8_t padded[32] = {0};
-            memcpy(padded, gclis + base, chunk);
-            gcli_vec = _mm256_loadu_si256((const __m256i*)padded);
-        }
-        uint64_t todo = (uint32_t)_mm256_movemask_epi8(_mm256_cmpgt_epi8(_mm256_subs_epu8(gcli_vec, gtli_vec), zero));
+        uint64_t todo = pack_nonempty_mask(gclis + base, chunk, gtli);
         while (todo) {
             const uint32_t group = base + svt_first_set_bit(todo);
             todo &= todo - 1;

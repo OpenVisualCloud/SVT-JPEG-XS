@@ -22,7 +22,8 @@ check_both_flags_add(
     -mavx512cd
     -mavx512dq
     -mavx512vl
-    -mpopcnt)
+    -mpopcnt
+    -mbmi2)
 
 if(MSVC)
     check_both_flags_add(/arch:AVX512)
