@@ -39,6 +39,22 @@ static INLINE uint32_t vlc_reader_end(vlc_reader_t* vlc_reader, bitstream_reader
     return vlc_reader->bits_used;
 }
 
+/* The length of a unary code is the number of leading zeroes plus one.
+ *
+ * This used to call svt_log2_32, which is dispatched: every decoded symbol paid
+ * for an indirect call to reach a single bit-scan instruction. There are
+ * hundreds of symbols per line, and the call costs more than the work. */
+static INLINE int8_t vlc_leading_run(uint32_t v) {
+    assert(v != 0);
+#if defined(_MSC_VER)
+    unsigned long idx;
+    _BitScanReverse(&idx, v);
+    return (int8_t)(32 - idx);
+#else
+    return (int8_t)(1 + __builtin_clz(v));
+#endif
+}
+
 static INLINE int8_t vlc_reader_get_next_value(vlc_reader_t* vlc_reader) {
     if (!(vlc_reader->register64 >> 32)) { //Because can not be more than 32 bits for test
         if (vlc_reader->register_bits <= 32) {
@@ -108,7 +124,7 @@ static INLINE int8_t vlc_reader_get_next_value(vlc_reader_t* vlc_reader) {
         }
     }
 
-    int8_t res = 32 - svt_log2_32(vlc_reader->register64 >> 32); //Possible values: 1-32
+    int8_t res = vlc_leading_run((uint32_t)(vlc_reader->register64 >> 32)); //Possible values: 1-32
     vlc_reader->register_bits -= res;
     vlc_reader->bits_used += res;
     vlc_reader->register64 <<= res;
