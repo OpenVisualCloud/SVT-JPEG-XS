@@ -188,7 +188,11 @@ typedef uint64_t CPU_FLAGS;
 #define CPU_FLAGS_AVX512PF (1 << 13)
 #define CPU_FLAGS_AVX512BW (1 << 14)
 #define CPU_FLAGS_AVX512VL (1 << 15)
-#define CPU_FLAGS_ALL      ((CPU_FLAGS_AVX512VL << 1) - 1)
+/* Not an instruction set of its own: the AVX-512 kernels are compiled with
+ * -mpopcnt for the whole directory, so the processor has to be asked about it
+ * separately from AVX-512 itself. */
+#define CPU_FLAGS_POPCNT   (1 << 16)
+#define CPU_FLAGS_ALL      ((CPU_FLAGS_POPCNT << 1) - 1)
 #define CPU_FLAGS_INVALID  (1ULL << (sizeof(CPU_FLAGS) * 8ULL - 1ULL))
 
 /**

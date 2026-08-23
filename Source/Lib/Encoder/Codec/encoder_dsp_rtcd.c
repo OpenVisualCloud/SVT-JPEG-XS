@@ -91,6 +91,13 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
     /** Should be done during library initialization,
       but for safe limiting cpu flags again. */
     flags &= get_cpu_flags();
+    /* The AVX-512 kernels are built with -mpopcnt for the whole directory, so
+     * the compiler is free to emit those instructions anywhere in them, not
+     * only where an intrinsic asks for them. Without a processor to back
+     * them the whole tier has to stay unused. */
+    if (!(flags & CPU_FLAGS_POPCNT)) {
+        flags &= ~(CPU_FLAGS)CPU_FLAGS_AVX512F;
+    }
     // to use C: flags=0
 #else
     (void)flags;
@@ -147,6 +154,7 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
 
     SET_AVX2_AVX512(pack_data_single_group, pack_data_single_group_c, NULL, pack_data_single_group_avx512);
     SET_SSE2(gc_precinct_stage_scalar_loop, gc_precinct_stage_scalar_loop_c, gc_precinct_stage_scalar_loop_ASM);
+    SET_AVX2_AVX512(gc_histogram_16, gc_histogram_16_c, gc_histogram_16_avx2, gc_histogram_16_avx512);
     SET_SSE41(gc_precinct_sigflags_max, gc_precinct_sigflags_max_c, gc_precinct_sigflags_max_sse4_1);
     SET_AVX2_AVX512(rate_control_calc_vpred_cost_nosigf,
                     rate_control_calc_vpred_cost_nosigf_c,

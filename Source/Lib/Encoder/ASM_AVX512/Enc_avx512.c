@@ -725,3 +725,53 @@ void gc_precinct_stage_scalar_avx512(uint8_t* gcli_data_ptr, uint16_t* coeff_dat
         }
     }
 }
+
+/* Histogram of sixteen bins over bytes from [0, TRUNCATION_MAX].
+ *
+ * Built the same way as the AVX2 version (population of a compare mask, no
+ * prologue and no epilogue), except that here the compare mask is a ready k
+ * register rather than the result of VPMOVMSKB, and sixty-four bytes are
+ * handled per pass instead of thirty-two. The tail is read by a masked load
+ * into a vector pre-filled with 0xFF, so no copying into a buffer is needed at
+ * all. */
+#define GC_HIST_BIN_AVX512(v, K) \
+    total[K] += (uint32_t)_mm_popcnt_u64((uint64_t)_mm512_cmpeq_epi8_mask((v), _mm512_set1_epi8((char)(K))))
+
+#define GC_HIST_ALL_AVX512(v)      \
+    do {                           \
+        GC_HIST_BIN_AVX512(v, 0);  \
+        GC_HIST_BIN_AVX512(v, 1);  \
+        GC_HIST_BIN_AVX512(v, 2);  \
+        GC_HIST_BIN_AVX512(v, 3);  \
+        GC_HIST_BIN_AVX512(v, 4);  \
+        GC_HIST_BIN_AVX512(v, 5);  \
+        GC_HIST_BIN_AVX512(v, 6);  \
+        GC_HIST_BIN_AVX512(v, 7);  \
+        GC_HIST_BIN_AVX512(v, 8);  \
+        GC_HIST_BIN_AVX512(v, 9);  \
+        GC_HIST_BIN_AVX512(v, 10); \
+        GC_HIST_BIN_AVX512(v, 11); \
+        GC_HIST_BIN_AVX512(v, 12); \
+        GC_HIST_BIN_AVX512(v, 13); \
+        GC_HIST_BIN_AVX512(v, 14); \
+        GC_HIST_BIN_AVX512(v, 15); \
+    } while (0)
+
+void gc_histogram_16_avx512(const uint8_t* data, uint32_t width, uint16_t* hist) {
+    uint32_t total[TRUNCATION_MAX + 1] = {0};
+    uint32_t i = 0;
+
+    for (; i + 64 <= width; i += 64) {
+        const __m512i v = _mm512_loadu_si512((const void*)(data + i));
+        GC_HIST_ALL_AVX512(v);
+    }
+    if (i < width) {
+        /* Unused lanes stay at 0xFF and land in no bin. */
+        const __mmask64 m = ((__mmask64)1 << (width - i)) - 1;
+        const __m512i v = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0xFF), m, data + i);
+        GC_HIST_ALL_AVX512(v);
+    }
+    for (uint32_t k = 0; k <= TRUNCATION_MAX; ++k) {
+        hist[k] = (uint16_t)total[k];
+    }
+}

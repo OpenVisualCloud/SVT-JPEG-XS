@@ -321,8 +321,8 @@ static void set_asm_type(const char *value, EncoderConfig_t *cfg) {
         {"8", (CPU_FLAGS_AVX << 1) - 1},
         {"avx2", (CPU_FLAGS_AVX2 << 1) - 1},
         {"9", (CPU_FLAGS_AVX2 << 1) - 1},
-        {"avx512", (CPU_FLAGS_AVX512VL << 1) - 1},
-        {"10", (CPU_FLAGS_AVX512VL << 1) - 1},
+        {"avx512", CPU_FLAGS_ALL},
+        {"10", CPU_FLAGS_ALL},
         {"max", CPU_FLAGS_ALL},
         {"11", CPU_FLAGS_ALL},
     };

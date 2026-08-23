@@ -73,6 +73,8 @@ RTCD_EXTERN void (*transform_vertical_loop_lf_hf_hf_line_x)(uint32_t width, int3
 RTCD_EXTERN void (*transform_vertical_loop_lf_hf_hf_line_last_even)(uint32_t width, int32_t* out_lf, int32_t* out_hf,
                                                                     const int32_t* in_hf_prev, const int32_t* line_0,
                                                                     const int32_t* line_1);
+RTCD_EXTERN void (*gc_histogram_16)(const uint8_t* data, uint32_t width, uint16_t* hist);
+
 RTCD_EXTERN void (*gc_precinct_sigflags_max)(uint8_t* significance_data_max_ptr, uint8_t* gcli_data_ptr, uint32_t group_sign_size,
                                              uint32_t gcli_width);
 RTCD_EXTERN uint32_t (*rate_control_calc_vpred_cost_nosigf)(uint32_t gcli_width, uint8_t* gcli_data_top_ptr,
