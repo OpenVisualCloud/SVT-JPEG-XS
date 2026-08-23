@@ -78,7 +78,7 @@ void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* 
         }
         uint64_t todo = (uint32_t)~_mm256_movemask_epi8(_mm256_cmpeq_epi8(_mm256_subs_epu8(gcli_vec, gtli_vec), zero));
         while (todo) {
-            const uint32_t k = unpack_first_set_bit(todo);
+            const uint32_t k = svt_first_set_bit(todo);
             const uint32_t size = (uint32_t)gclis[group + k] - gtli;
             /* A corrupt stream can carry a GCLI above the truncation maximum:
              * the unary code yields up to thirty-one. Such a group holds more
@@ -154,7 +154,7 @@ void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uin
         }
         uint64_t todo = (uint32_t)~_mm256_movemask_epi8(_mm256_cmpeq_epi8(_mm256_subs_epu8(gcli_vec, gtli_vec), zero));
         while (todo) {
-            const uint32_t k = unpack_first_set_bit(todo);
+            const uint32_t k = svt_first_set_bit(todo);
             const uint32_t size = (uint32_t)gclis[group + k] - gtli;
             /* A corrupt stream can carry a GCLI above the truncation maximum:
              * the unary code yields up to thirty-one. Such a group holds more

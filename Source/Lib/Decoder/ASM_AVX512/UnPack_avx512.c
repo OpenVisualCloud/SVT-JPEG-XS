@@ -61,7 +61,7 @@ void unpack_n_groups_avx512(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uin
         const __mmask64 valid = (chunk >= 64) ? ~(__mmask64)0 : (((__mmask64)1 << chunk) - 1);
         __mmask64 todo = _mm512_mask_cmpgt_epu8_mask(valid, _mm512_maskz_loadu_epi8(valid, gclis + group), gtli_vec);
         while (todo) {
-            const uint32_t k = unpack_first_set_bit(todo);
+            const uint32_t k = svt_first_set_bit(todo);
             const uint32_t size = (uint32_t)gclis[group + k] - gtli;
             /* A corrupt stream can carry a GCLI above the truncation maximum:
              * the unary code yields up to thirty-one. Such a group holds more
@@ -122,7 +122,7 @@ void unpack_n_groups_nosign_avx512(uint8_t* gclis, uint8_t gtli, reader_short_t*
         const __mmask64 valid = (chunk >= 64) ? ~(__mmask64)0 : (((__mmask64)1 << chunk) - 1);
         __mmask64 todo = _mm512_mask_cmpgt_epu8_mask(valid, _mm512_maskz_loadu_epi8(valid, gclis + group), gtli_vec);
         while (todo) {
-            const uint32_t k = unpack_first_set_bit(todo);
+            const uint32_t k = svt_first_set_bit(todo);
             const uint32_t size = (uint32_t)gclis[group + k] - gtli;
             /* A corrupt stream can carry a GCLI above the truncation maximum:
              * the unary code yields up to thirty-one. Such a group holds more
