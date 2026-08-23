@@ -13,6 +13,9 @@
 extern "C" {
 #endif
 
+void pack_data_groups_avx2(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint8_t* gclis, uint32_t groups, uint8_t gtli,
+                           uint8_t sign_flag);
+
 void pack_data_single_group_avx2(bitstream_writer_t* bitstream, uint16_t* buf, uint8_t gcli, uint8_t gtli);
 
 #ifdef __cplusplus

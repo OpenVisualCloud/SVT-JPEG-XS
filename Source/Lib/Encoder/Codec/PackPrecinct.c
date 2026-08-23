@@ -123,6 +123,43 @@ void pack_data_single_group_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit
     }
 }
 
+/* The loop over the full groups of a line. It is dispatched as a whole: the
+ * nibble writer must live from the start of the line to its end, otherwise it
+ * would flush for nothing on every group. */
+void pack_data_groups_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint8_t* gclis, uint32_t groups, uint8_t gtli,
+                        uint8_t sign_flag) {
+    nib_writer_t w;
+    nibw_init(&w, bitstream);
+    for (uint32_t group = 0; group < groups; group++) {
+        const uint8_t gcli = gclis[group];
+        if (gcli > gtli) {
+            if (sign_flag == 0) {
+                uint32_t signs = (buf_16bit[0] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 3);
+                signs |= (buf_16bit[1] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 2);
+                signs |= (buf_16bit[2] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 1);
+                signs |= (buf_16bit[3] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 0);
+                nibw_put(&w, signs);
+            }
+            uint16_t tmp[GROUP_SIZE];
+            for (uint32_t i = 0; i < GROUP_SIZE; i++) {
+                tmp[i] = (uint16_t)((unsigned)buf_16bit[i] << ((BITSTREAM_BIT_POSITION_SIGN + 1) - gcli));
+            }
+            for (int32_t bits = ((int32_t)gcli - gtli - 1); bits >= 0; bits--) {
+                uint32_t val = (tmp[0] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 3);
+                val |= (tmp[1] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 2);
+                val |= (tmp[2] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 1);
+                val |= (tmp[3] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 0);
+                for (uint32_t i = 0; i < GROUP_SIZE; i++) {
+                    tmp[i] = (uint16_t)((unsigned)tmp[i] << 1);
+                }
+                nibw_put(&w, val);
+            }
+        }
+        buf_16bit += GROUP_SIZE;
+    }
+    nibw_finish(&w, bitstream);
+}
+
 static void pack_data_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint32_t width, uint8_t* gclis, int32_t group_size,
                         uint8_t gtli, uint8_t sign_flag) {
     UNUSED(group_size);
@@ -130,21 +167,9 @@ static void pack_data_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint
     const uint32_t groups = DIV_ROUND_DOWN(width, GROUP_SIZE);
     const uint32_t leftover = width % GROUP_SIZE;
     if (sign_flag == 0) {
-        uint32_t group = 0;
-        uint8_t signs;
-        for (; group < groups; group++) {
-            if (gclis[group] > gtli) {
-                signs = (buf_16bit[0] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 3);
-                signs |= (buf_16bit[1] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 2);
-                signs |= (buf_16bit[2] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 1);
-                signs |= (buf_16bit[3] & BITSTREAM_MASK_SIGN) >> (BITSTREAM_BIT_POSITION_SIGN - 0);
-
-                write_4_bits_align4(bitstream, signs);
-
-                pack_data_single_group(bitstream, buf_16bit, gclis[group], gtli);
-            }
-            buf_16bit += GROUP_SIZE;
-        }
+        pack_data_groups(bitstream, buf_16bit, gclis, groups, gtli, sign_flag);
+        uint32_t group = groups;
+        buf_16bit += groups * GROUP_SIZE;
 
         if (leftover) {
             if (gclis[group] > gtli) {
@@ -170,13 +195,9 @@ static void pack_data_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint
         }
     }
     else {
-        uint32_t group = 0;
-        for (; group < groups; group++) {
-            if (gclis[group] > gtli) {
-                pack_data_single_group(bitstream, buf_16bit, gclis[group], gtli);
-            }
-            buf_16bit += GROUP_SIZE;
-        }
+        pack_data_groups(bitstream, buf_16bit, gclis, groups, gtli, sign_flag);
+        uint32_t group = groups;
+        buf_16bit += groups * GROUP_SIZE;
 
         if (leftover) {
             if (gclis[group] > gtli) {

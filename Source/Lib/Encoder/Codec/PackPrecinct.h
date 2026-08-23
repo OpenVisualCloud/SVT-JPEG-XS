@@ -16,6 +16,9 @@ extern "C" {
 SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinct_enc_t* precinct,
                                 SignHandlingStrategy coding_signs_handling);
 
+void pack_data_groups_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint8_t* gclis, uint32_t groups, uint8_t gtli,
+                        uint8_t sign_flag);
+
 /* Batched writing of unary codes.
  *
  * Every GCLI code is n ones and a terminating zero, that is from one to
