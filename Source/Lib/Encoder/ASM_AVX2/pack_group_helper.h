@@ -51,14 +51,17 @@ static INLINE void pack_data_single_group_sse(bitstream_writer_t* bitstream, con
     }
 }
 
-/* Splits the planes of a group and feeds the nibbles to the shared writer. */
-static INLINE void pack_group_planes_nibw(nib_writer_t* w, __m128i reversed, uint8_t gcli, uint8_t gtli) {
+/* The planes of a group collected into one word: the top plane is the top
+ * nibble. Returning a word beats handing out nibbles one by one: the writer
+ * gets a single call instead of a chain of short dependent steps. */
+static INLINE uint64_t pack_group_planes_word(__m128i reversed, uint8_t gcli, uint8_t gtli) {
     __m128i tmp = _mm_slli_epi16(reversed, 16 - gcli);
+    uint64_t word = 0;
     for (int32_t bits = ((int32_t)gcli - gtli - 1); bits >= 0; bits--) {
-        const uint32_t nibble = pack_group_nibble(tmp);
+        word = (word << 4) | pack_group_nibble(tmp);
         tmp = _mm_slli_epi16(tmp, 1);
-        nibw_put(w, nibble);
     }
+    return word;
 }
 
 /* Walk over the groups of a line driven by a mask of the non-empty ones.
@@ -98,11 +101,15 @@ static INLINE void pack_groups_masked(nib_writer_t* w, const uint16_t* buf_16bit
             const uint32_t group = base + svt_first_set_bit(todo);
             todo &= todo - 1;
             const __m128i reversed = pack_group_load_reversed(buf_16bit + (size_t)group * GROUP_SIZE);
+            const uint32_t planes = (uint32_t)gclis[group] - gtli;
+            uint64_t word = pack_group_planes_word(reversed, gclis[group], gtli);
+            uint32_t count = planes;
             if (emit_signs) {
-                /* the signs are the same top bits of the same lanes */
-                nibw_put(w, pack_group_nibble(reversed));
+                /* the signs are the same top bits of the same lanes, and they go first */
+                word |= (uint64_t)pack_group_nibble(reversed) << (4 * planes);
+                count = planes + 1;
             }
-            pack_group_planes_nibw(w, reversed, gclis[group], gtli);
+            nibw_put_group(w, word, count);
         }
     }
 }

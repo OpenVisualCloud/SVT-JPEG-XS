@@ -90,6 +90,43 @@ static INLINE void nibw_put(nib_writer_t* w, uint32_t nibble) {
     }
 }
 
+/* A batch of nibbles at once: value carries count nibbles, right aligned, and
+ * the most significant of them is emitted first. At most eight per call - then
+ * the accumulator certainly cannot overflow (it already holds at most seven). */
+static INLINE void nibw_put_chunk(nib_writer_t* w, uint64_t value, uint32_t count) {
+    assert(count <= 8);
+    w->acc = (w->acc << (4 * count)) | value;
+    w->nnib += count;
+    if (w->nnib >= 8) {
+        const uint32_t rest = w->nnib - 8;
+        const uint32_t be = (uint32_t)(w->acc >> (4 * rest));
+        w->mem[0] = (uint8_t)(be >> 24);
+        w->mem[1] = (uint8_t)(be >> 16);
+        w->mem[2] = (uint8_t)(be >> 8);
+        w->mem[3] = (uint8_t)be;
+        w->mem += 4;
+        w->acc &= ((uint64_t)1 << (4 * rest)) - 1;
+        w->nnib = rest;
+    }
+}
+
+/* All the nibbles of one group in a single call.
+ *
+ * The "have eight accumulated" branch used to be taken per nibble, and a group
+ * has up to sixteen of them. The planes are computed one after another anyway,
+ * so accumulating them in a register is free, and it spares the writer a chain
+ * of short dependent steps. There are never more than sixteen: fifteen planes
+ * and a sign. */
+static INLINE void nibw_put_group(nib_writer_t* w, uint64_t value, uint32_t count) {
+    assert(count <= 16);
+    if (count > 8) {
+        nibw_put_chunk(w, value >> (4 * (count - 8)), 8);
+        count -= 8;
+        value &= ((uint64_t)1 << (4 * count)) - 1;
+    }
+    nibw_put_chunk(w, value, count);
+}
+
 static INLINE void nibw_finish(nib_writer_t* w, bitstream_writer_t* bitstream) {
     uint32_t n = w->nnib;
     const uint64_t a = w->acc;
