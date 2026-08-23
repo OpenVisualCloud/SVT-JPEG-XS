@@ -4,6 +4,7 @@
 */
 
 #include "Pack_avx512.h"
+#include "pack_group_helper.h"
 #include "RateControl_avx2.h"
 #include "rate_control_helper_avx2.h"
 #include <immintrin.h>
@@ -11,22 +12,10 @@
 #include "SvtUtility.h"
 
 void pack_data_single_group_avx512(bitstream_writer_t *bitstream, uint16_t *buf, uint8_t gcli, uint8_t gtli) {
-    const __m128i mask = _mm_set1_epi16((short)BITSTREAM_MASK_SIGN);
-    const __m128i shift = _mm_setr_epi16(12, 13, 14, 15, 0, 0, 0, 0);
-
-    __m128i tmp_sse = _mm_loadl_epi64((__m128i *)buf);
-    tmp_sse = _mm_slli_epi16(tmp_sse, 16 - gcli);
-
-    for (int32_t bits = ((int32_t)gcli - gtli - 1); bits >= 0; bits--) {
-        __m128i val_sse = _mm_and_si128(tmp_sse, mask);
-        tmp_sse = _mm_slli_epi16(tmp_sse, 1);
-        val_sse = _mm_srlv_epi16(val_sse, shift);
-        val_sse = _mm_hadd_epi16(val_sse, val_sse);
-        val_sse = _mm_hadd_epi16(val_sse, val_sse);
-        uint8_t val = _mm_cvtsi128_si32(val_sse);
-
-        write_4_bits_align4(bitstream, (uint8_t)val);
-    }
+    /* A group is only 64 bits of data and there is nothing to widen the register
+     * with, so this is the same 128-bit implementation as on AVX2 (see
+     * pack_group_helper.h). */
+    pack_data_single_group_sse(bitstream, buf, gcli, gtli);
 }
 
 static INLINE __m512i vlc_encode_get_bits_avx512(__m512i x, __m512i r, __m512i t) {

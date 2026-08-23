@@ -19,6 +19,7 @@
 #include "Quant.h"
 #include "PackPrecinct.h"
 #include "Pack_avx512.h"
+#include "Pack_avx2.h"
 #include "group_coding_sse4_1.h"
 #include "RateControl.h"
 #include "RateControl_avx2.h"
@@ -152,7 +153,7 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
                     linear_input_scaling_line_16bit_msb_avx2,
                     linear_input_scaling_line_16bit_msb_avx512);
 
-    SET_AVX2_AVX512(pack_data_single_group, pack_data_single_group_c, NULL, pack_data_single_group_avx512);
+    SET_AVX2_AVX512(pack_data_single_group, pack_data_single_group_c, pack_data_single_group_avx2, pack_data_single_group_avx512);
     SET_SSE2(gc_precinct_stage_scalar_loop, gc_precinct_stage_scalar_loop_c, gc_precinct_stage_scalar_loop_ASM);
     SET_AVX2_AVX512(gc_histogram_16, gc_histogram_16_c, gc_histogram_16_avx2, gc_histogram_16_avx512);
     SET_SSE41(gc_precinct_sigflags_max, gc_precinct_sigflags_max_c, gc_precinct_sigflags_max_sse4_1);
