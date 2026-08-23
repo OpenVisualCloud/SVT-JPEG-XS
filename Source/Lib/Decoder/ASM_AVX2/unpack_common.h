@@ -77,4 +77,18 @@ static INLINE uint32_t unpack_safe_byte_count(uint32_t bytes_left) {
     return bytes_left >= 8 ? bytes_left - 7 : 0;
 }
 
+/* Index of the lowest set bit. The wrapper exists for MSVC, which has no
+ * __builtin_ctzll, and TZCNT cannot be assumed either - BMI1 is not enabled for
+ * this target, only -mbmi2. */
+static INLINE uint32_t unpack_first_set_bit(uint64_t mask) {
+    assert(mask != 0);
+#if defined(_MSC_VER)
+    unsigned long index;
+    _BitScanForward64(&index, mask);
+    return (uint32_t)index;
+#else
+    return (uint32_t)__builtin_ctzll(mask);
+#endif
+}
+
 #endif /*__UNPACK_COMMON_H__*/

@@ -47,37 +47,65 @@ void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* 
     uint32_t nib = r->bits_used ? 1u : 0u;
     uint32_t group = 0;
 
+    /* The vast majority of groups are empty: about eighty-seven per cent on
+     * 1080p at 4 bits per pixel. Each of them used to cost a GCLI load, a
+     * compare, a poorly predicted branch and a store of eight zeroes. Now the
+     * output is zeroed in one pass and the walk follows the bits of a non-empty
+     * mask, so an empty group costs nothing and the per-group branch is gone.
+     *
+     * The mask comes from a saturating subtract: subs_epu8 yields zero exactly
+     * where GCLI does not exceed the truncation level. Testing that result for
+     * equality with zero and inverting the mask is therefore an exact unsigned
+     * comparison, which a signed compare against zero would not be: a corrupt
+     * stream can put any byte value into GCLI, and AVX-512 tests it unsigned. */
+    memset(buf, 0, (size_t)n_groups * GROUP_SIZE * sizeof(uint16_t));
+
     /* Fast path: a group's position in the stream comes from adding up lengths
      * rather than from finishing the previous group, so the group loads are
      * independent of each other. */
-    for (; group < n_groups; group++) {
-        if ((nib >> 1) >= safe_bytes) {
-            break;
+    const __m256i gtli_vec = _mm256_set1_epi8((char)gtli);
+    const __m256i zero = _mm256_setzero_si256();
+    while (group < n_groups) {
+        const uint32_t chunk = MIN(n_groups - group, 32u);
+        __m256i gcli_vec;
+        if (chunk >= 32) {
+            gcli_vec = _mm256_loadu_si256((const __m256i*)(gclis + group));
         }
-        uint64_t out = 0;
-        const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
-        /* A corrupt stream can carry a GCLI above the truncation maximum: the
-         * unary code yields up to thirty-one. Such a group holds more bit
-         * planes than the single load can take, so it is left to the sequential
-         * reader below. */
-        if (size > TRUNCATION_MAX) {
-            break;
+        else {
+            uint8_t padded[32] = {0};
+            memcpy(padded, gclis + group, chunk);
+            gcli_vec = _mm256_loadu_si256((const __m256i*)padded);
         }
-        if (size > 0) {
+        uint64_t todo = (uint32_t)~_mm256_movemask_epi8(_mm256_cmpeq_epi8(_mm256_subs_epu8(gcli_vec, gtli_vec), zero));
+        while (todo) {
+            const uint32_t k = unpack_first_set_bit(todo);
+            const uint32_t size = (uint32_t)gclis[group + k] - gtli;
+            /* A corrupt stream can carry a GCLI above the truncation maximum:
+             * the unary code yields up to thirty-one. Such a group holds more
+             * bit planes than the single load can take - fifteen - and the
+             * shift that would extract it would be undefined, so the group is
+             * left to the sequential reader below. */
+            if (size > TRUNCATION_MAX || ((nib + 1) >> 1) >= safe_bytes) {
+                group += k;
+                goto tail;
+            }
             const uint64_t signs = unpack_sign_spread[unpack_one_nibble(base, nib)];
-            out = unpack_planes_to_lanes_sse(unpack_load_nibbles(base, nib + 1, (uint32_t)size), gtli) | signs;
-            nib += (uint32_t)size + 1;
+            const uint64_t out = unpack_planes_to_lanes_sse(unpack_load_nibbles(base, nib + 1, size), gtli) | signs;
+            memcpy(buf + (size_t)(group + k) * GROUP_SIZE, &out, sizeof(out));
+            nib += size + 1;
+            todo &= todo - 1;
         }
-        memcpy(buf, &out, sizeof(out));
-        buf += GROUP_SIZE;
+        group += chunk;
     }
 
+tail:
     r->mem = base + (nib >> 1);
     r->bits_used = (uint8_t)((nib & 1) * 4);
+    buf += (size_t)group * GROUP_SIZE;
 
-    /* End of the line is read sequentially so the load never runs past the data. */
+    /* End of the line is read sequentially so the load never runs past the data.
+     * Zeroes need not be written: the buffer is already cleared. */
     for (; group < n_groups; group++) {
-        uint64_t out = 0;
         const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
         if (size > 0) {
             const uint64_t signs = unpack_sign_spread[read_4_bits_align4_fast(r)];
@@ -85,9 +113,9 @@ void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* 
             for (int32_t i = 0; i < size; i++) {
                 acc = (acc << 4) | read_4_bits_align4_fast(r);
             }
-            out = unpack_planes_to_lanes_sse(acc, gtli) | signs;
+            const uint64_t out = unpack_planes_to_lanes_sse(acc, gtli) | signs;
+            memcpy(buf, &out, sizeof(out));
         }
-        memcpy(buf, &out, sizeof(out));
         buf += GROUP_SIZE;
     }
 }
@@ -98,41 +126,68 @@ void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uin
     uint32_t nib = r->bits_used ? 1u : 0u;
     uint32_t group = 0;
 
-    for (; group < n_groups; group++) {
-        if ((nib >> 1) >= safe_bytes) {
-            break;
+    /* The vast majority of groups are empty: about eighty-seven per cent on
+     * 1080p at 4 bits per pixel. Each of them used to cost a GCLI load, a
+     * compare, a poorly predicted branch and a store of eight zeroes. Now the
+     * output is zeroed in one pass and the walk follows the bits of a non-empty
+     * mask, so an empty group costs nothing and the per-group branch is gone.
+     *
+     * The mask comes from a saturating subtract: subs_epu8 yields zero exactly
+     * where GCLI does not exceed the truncation level. Testing that result for
+     * equality with zero and inverting the mask is therefore an exact unsigned
+     * comparison, which a signed compare against zero would not be: a corrupt
+     * stream can put any byte value into GCLI, and AVX-512 tests it unsigned. */
+    memset(buf, 0, (size_t)n_groups * GROUP_SIZE * sizeof(uint16_t));
+
+    const __m256i gtli_vec = _mm256_set1_epi8((char)gtli);
+    const __m256i zero = _mm256_setzero_si256();
+    while (group < n_groups) {
+        const uint32_t chunk = MIN(n_groups - group, 32u);
+        __m256i gcli_vec;
+        if (chunk >= 32) {
+            gcli_vec = _mm256_loadu_si256((const __m256i*)(gclis + group));
         }
-        uint64_t out = 0;
-        const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
-        /* A corrupt stream can carry a GCLI above the truncation maximum: the
-         * unary code yields up to thirty-one. Such a group holds more bit
-         * planes than the single load can take, so it is left to the sequential
-         * reader below. */
-        if (size > TRUNCATION_MAX) {
-            break;
+        else {
+            uint8_t padded[32] = {0};
+            memcpy(padded, gclis + group, chunk);
+            gcli_vec = _mm256_loadu_si256((const __m256i*)padded);
         }
-        if (size > 0) {
-            out = unpack_planes_to_lanes_sse(unpack_load_nibbles(base, nib, (uint32_t)size), gtli);
-            nib += (uint32_t)size;
+        uint64_t todo = (uint32_t)~_mm256_movemask_epi8(_mm256_cmpeq_epi8(_mm256_subs_epu8(gcli_vec, gtli_vec), zero));
+        while (todo) {
+            const uint32_t k = unpack_first_set_bit(todo);
+            const uint32_t size = (uint32_t)gclis[group + k] - gtli;
+            /* A corrupt stream can carry a GCLI above the truncation maximum:
+             * the unary code yields up to thirty-one. Such a group holds more
+             * bit planes than the single load can take - fifteen - and the
+             * shift that would extract it would be undefined, so the group is
+             * left to the sequential reader below. */
+            if (size > TRUNCATION_MAX || (nib >> 1) >= safe_bytes) {
+                group += k;
+                goto tail;
+            }
+            const uint64_t out = unpack_planes_to_lanes_sse(unpack_load_nibbles(base, nib, size), gtli);
+            memcpy(buf + (size_t)(group + k) * GROUP_SIZE, &out, sizeof(out));
+            nib += size;
+            todo &= todo - 1;
         }
-        memcpy(buf, &out, sizeof(out));
-        buf += GROUP_SIZE;
+        group += chunk;
     }
 
+tail:
     r->mem = base + (nib >> 1);
     r->bits_used = (uint8_t)((nib & 1) * 4);
+    buf += (size_t)group * GROUP_SIZE;
 
     for (; group < n_groups; group++) {
-        uint64_t out = 0;
         const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
         if (size > 0) {
             uint64_t acc = 0;
             for (int32_t i = 0; i < size; i++) {
                 acc = (acc << 4) | read_4_bits_align4_fast(r);
             }
-            out = unpack_planes_to_lanes_sse(acc, gtli);
+            const uint64_t out = unpack_planes_to_lanes_sse(acc, gtli);
+            memcpy(buf, &out, sizeof(out));
         }
-        memcpy(buf, &out, sizeof(out));
         buf += GROUP_SIZE;
     }
 }
