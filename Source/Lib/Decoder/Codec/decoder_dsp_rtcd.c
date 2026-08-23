@@ -13,6 +13,7 @@
 #include "NltDec_AVX2.h"
 #include "Precinct.h"
 #include "UnPack_avx2.h"
+#include "UnPack_avx512.h"
 #include "Packing.h"
 #include "idwt-avx512.h"
 #include "NltDec_avx512.h"
@@ -85,6 +86,13 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
     /** Should be done during library initialization,
       but for safe limiting cpu flags again. */
     flags &= get_cpu_flags();
+    /* The AVX-512 kernels are built with -mbmi2 for the whole directory, so
+     * the compiler is free to emit those instructions anywhere in them, not
+     * only where an intrinsic asks for them. Without a processor to back
+     * them the whole tier has to stay unused. */
+    if (!(flags & CPU_FLAGS_BMI2)) {
+        flags &= ~(CPU_FLAGS)CPU_FLAGS_AVX512F;
+    }
     // to use C: flags=0
 #else
     (void)flags;
@@ -107,7 +115,7 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
                     linear_output_scaling_16bit_line_msb_avx512);
 
     SET_AVX2(inv_sign, inv_sign_c, inv_sign_avx2);
-    SET_AVX2(unpack_data, unpack_data_c, unpack_data_avx2);
+    SET_AVX2_AVX512(unpack_data, unpack_data_c, unpack_data_avx2, unpack_data_avx512);
     SET_AVX2_AVX512(idwt_horizontal_line_lf16_hf16,
                     idwt_horizontal_line_lf16_hf16_c,
                     idwt_horizontal_line_lf16_hf16_avx2,

@@ -13,11 +13,6 @@ DECLARE_ALIGNED(16, static const uint32_t, sign_shift[4]) = {BITSTREAM_BIT_POSIT
                                                              BITSTREAM_BIT_POSITION_SIGN - 1,
                                                              BITSTREAM_BIT_POSITION_SIGN};
 
-typedef struct reader_short {
-    uint8_t* mem;
-    uint8_t bits_used;
-} reader_short_t;
-
 uint8_t read_4_bits_align4_fast(reader_short_t* r) {
     if (r->bits_used) {
         r->bits_used = 0;
@@ -76,8 +71,9 @@ void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uin
     }
 }
 
-SvtJxsErrorType_t unpack_data_avx2(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis, uint32_t group_size,
-                                   uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num, int32_t* precinct_bits_left) {
+SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
+                                     uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
+                                     int32_t* precinct_bits_left, unpack_groups_fn groups_sign, unpack_groups_fn groups_nosign) {
     UNUSED(group_size);
     assert(group_size == GROUP_SIZE);
     assert((bitstream->bits_used != 0) || (bitstream->bits_used != 4));
@@ -118,12 +114,12 @@ SvtJxsErrorType_t unpack_data_avx2(bitstream_reader_t* bitstream, uint16_t* buf,
         reader_short_t reader;
         reader.mem = (uint8_t*)(bitstream->mem) + bitstream->offset;
         reader.bits_used = bitstream->bits_used;
-        unpack_n_groups(gclis, gtli, &reader, buf, group_num);
+        groups_sign(gclis, gtli, &reader, buf, group_num);
         if (leftover) {
             buf += group_num * GROUP_SIZE;
             gclis += group_num;
             uint16_t buf_tmp[GROUP_SIZE];
-            unpack_n_groups(gclis, gtli, &reader, buf_tmp, 1);
+            groups_sign(gclis, gtli, &reader, buf_tmp, 1);
             memcpy(buf, buf_tmp, sizeof(uint16_t) * (leftover));
         }
         bitstream->offset = (uint32_t)(reader.mem - bitstream->mem);
@@ -158,12 +154,12 @@ SvtJxsErrorType_t unpack_data_avx2(bitstream_reader_t* bitstream, uint16_t* buf,
         reader_short_t reader;
         reader.mem = (uint8_t*)(bitstream->mem) + bitstream->offset;
         reader.bits_used = bitstream->bits_used;
-        unpack_n_groups_nosign(gclis, gtli, &reader, buf, group_num);
+        groups_nosign(gclis, gtli, &reader, buf, group_num);
         if (leftover) {
             buf += group_num * GROUP_SIZE;
             gclis += group_num;
             uint16_t buf_tmp[GROUP_SIZE];
-            unpack_n_groups_nosign(gclis, gtli, &reader, buf_tmp, 1);
+            groups_nosign(gclis, gtli, &reader, buf_tmp, 1);
             *leftover_signs_num = 0;
             for (uint32_t leftover_id = leftover; leftover_id < GROUP_SIZE; leftover_id++) {
                 *leftover_signs_num += !!buf_tmp[leftover_id];
@@ -175,4 +171,19 @@ SvtJxsErrorType_t unpack_data_avx2(bitstream_reader_t* bitstream, uint16_t* buf,
     }
 
     return SvtJxsErrorNone;
+}
+
+SvtJxsErrorType_t unpack_data_avx2(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis, uint32_t group_size,
+                                   uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num, int32_t* precinct_bits_left) {
+    return unpack_data_common(bitstream,
+                              buf,
+                              w,
+                              gclis,
+                              group_size,
+                              gtli,
+                              sign_flag,
+                              leftover_signs_num,
+                              precinct_bits_left,
+                              unpack_n_groups,
+                              unpack_n_groups_nosign);
 }
