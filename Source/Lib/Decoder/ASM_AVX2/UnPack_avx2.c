@@ -38,7 +38,8 @@ static INLINE void unpack_data_single_group_avx2(reader_short_t* r, __m128i* val
     *vals = _mm_slli_epi32(*vals, gtli);
 }
 
-void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups) {
+void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups, uint32_t total_nibbles) {
+    UNUSED(total_nibbles);
     __m128i vals;
     for (uint32_t group = 0; group < n_groups; group++) {
         vals = _mm_setzero_si128();
@@ -57,7 +58,9 @@ void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* 
     }
 }
 
-void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups) {
+void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups,
+                            uint32_t total_nibbles) {
+    UNUSED(total_nibbles);
     __m128i vals;
     for (uint32_t group = 0; group < n_groups; group++) {
         vals = _mm_setzero_si128();
@@ -74,6 +77,7 @@ void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uin
 SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                      uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                      int32_t* precinct_bits_left, unpack_groups_fn groups_sign, unpack_groups_fn groups_nosign) {
+    uint32_t bits_sum_total = 0;
     UNUSED(group_size);
     assert(group_size == GROUP_SIZE);
     assert((bitstream->bits_used != 0) || (bitstream->bits_used != 4));
@@ -106,6 +110,7 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
                     bits_sum += (gclis_ptr[group] - gtli) + 1;
                 }
             }
+            bits_sum_total = bits_sum;
             *precinct_bits_left -= (int32_t)(bits_sum * 4);
             if (*precinct_bits_left < 0) {
                 return SvtJxsErrorDecoderInvalidBitstream;
@@ -114,12 +119,12 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
         reader_short_t reader;
         reader.mem = (uint8_t*)(bitstream->mem) + bitstream->offset;
         reader.bits_used = bitstream->bits_used;
-        groups_sign(gclis, gtli, &reader, buf, group_num);
+        groups_sign(gclis, gtli, &reader, buf, group_num, bits_sum_total);
         if (leftover) {
             buf += group_num * GROUP_SIZE;
             gclis += group_num;
             uint16_t buf_tmp[GROUP_SIZE];
-            groups_sign(gclis, gtli, &reader, buf_tmp, 1);
+            groups_sign(gclis, gtli, &reader, buf_tmp, 1, 0);
             memcpy(buf, buf_tmp, sizeof(uint16_t) * (leftover));
         }
         bitstream->offset = (uint32_t)(reader.mem - bitstream->mem);
@@ -146,6 +151,7 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
                     bits_sum += (gclis_ptr[group] - gtli);
                 }
             }
+            bits_sum_total = bits_sum;
             *precinct_bits_left -= (int32_t)(bits_sum * 4);
             if (*precinct_bits_left < 0) {
                 return SvtJxsErrorDecoderInvalidBitstream;
@@ -154,12 +160,12 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
         reader_short_t reader;
         reader.mem = (uint8_t*)(bitstream->mem) + bitstream->offset;
         reader.bits_used = bitstream->bits_used;
-        groups_nosign(gclis, gtli, &reader, buf, group_num);
+        groups_nosign(gclis, gtli, &reader, buf, group_num, bits_sum_total);
         if (leftover) {
             buf += group_num * GROUP_SIZE;
             gclis += group_num;
             uint16_t buf_tmp[GROUP_SIZE];
-            groups_nosign(gclis, gtli, &reader, buf_tmp, 1);
+            groups_nosign(gclis, gtli, &reader, buf_tmp, 1, 0);
             *leftover_signs_num = 0;
             for (uint32_t leftover_id = leftover; leftover_id < GROUP_SIZE; leftover_id++) {
                 *leftover_signs_num += !!buf_tmp[leftover_id];
