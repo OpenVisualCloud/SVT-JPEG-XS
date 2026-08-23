@@ -6,8 +6,10 @@
 #include "gtest/gtest.h"
 #include "random.h"
 #include "UnPack_avx2.h"
+#include "UnPack_avx512.h"
 #include "Packing.h"
 #include "BitstreamWriter.h"
+#include "common_dsp_rtcd.h"
 
 typedef SvtJxsErrorType_t (*unpack_data)(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                          uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
@@ -234,6 +236,102 @@ TEST(unpack_data_test, unpack_data_C) {
 
 TEST(unpack_data_test, unpack_data_AVX2) {
     unpack_test(unpack_data_avx2);
+}
+
+/* GCLI out of range is what a corrupt stream looks like: the unary code yields
+ * up to thirty-one, and vertical prediction can wrap the byte to any value at
+ * all. Two properties are checked here.
+ *
+ * The parsers have to stay inside the language. A group that large does not fit
+ * the single load the vector parsers use - it holds fifteen bit planes at most -
+ * and the shift that would extract it is undefined, so such a group has to be
+ * recognised and left to the sequential reader. This test is the one that walks
+ * that path; under the sanitizer builds it is also what proves the shift is
+ * gone.
+ *
+ * The vector levels have to agree with each other, so that a malformed stream
+ * cannot make the output depend on the processor the decoder happens to run on.
+ * The C implementation is deliberately not the reference here: on out-of-range
+ * GCLI it is a different algorithm (it keeps the lowest bits of every plane in
+ * a separate accumulator) and it has never matched the vector paths on such
+ * input, upstream included. */
+static void unpack_test_gcli_out_of_range(unpack_data unpack_ref, unpack_data unpack_cmp) {
+    const uint32_t gcli_size = 50;
+    const uint32_t bitstream_reader_size = 80;
+    const uint32_t out_buffer_size = 1024;
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+
+    uint8_t* bitstream_mem = (uint8_t*)malloc(bitstream_reader_size * sizeof(uint8_t));
+    uint16_t* buf_ref = (uint16_t*)malloc(out_buffer_size * sizeof(uint16_t));
+    uint16_t* buf_cmp = (uint16_t*)malloc(out_buffer_size * sizeof(uint16_t));
+    uint8_t* gclis = (uint8_t*)malloc(gcli_size * sizeof(uint8_t));
+
+    uint8_t leftover_ref[MAX_BAND_LINES] = {0};
+    uint8_t leftover_cmp[MAX_BAND_LINES] = {0};
+
+    ASSERT_TRUE(NULL != bitstream_mem);
+    ASSERT_TRUE(NULL != buf_ref);
+    ASSERT_TRUE(NULL != buf_cmp);
+    ASSERT_TRUE(NULL != gclis);
+
+    for (uint32_t test_num = 0; test_num < 200; test_num++) {
+        const uint8_t sign_flag = test_num % 2;
+        const uint8_t gtli = test_num % 15;
+        const uint32_t offset = rnd->Rand8() % 2 ? 0 : 4;
+
+        for (uint32_t i = 0; i < bitstream_reader_size; i++) {
+            bitstream_mem[i] = rnd->Rand8();
+        }
+        /* The whole byte range, not only the sixteen legal values: a difference
+         * above one hundred and twenty-seven is what tells a signed group mask
+         * from an unsigned one. */
+        for (uint32_t i = 0; i < gcli_size; i++) {
+            gclis[i] = rnd->Rand8();
+        }
+
+        for (uint32_t width = 1; width < 52; ++width) {
+            bitstream_reader_t bitstream_ref;
+            bitstream_reader_init(&bitstream_ref, bitstream_mem, bitstream_reader_size);
+            bitstream_reader_skip_bits(&bitstream_ref, offset);
+            bitstream_reader_t bitstream_cmp = bitstream_ref;
+
+            memset((void*)buf_ref, 0, out_buffer_size * sizeof(uint16_t));
+            memset((void*)buf_cmp, 0, out_buffer_size * sizeof(uint16_t));
+            memset((void*)leftover_ref, 0, MAX_BAND_LINES * sizeof(uint8_t));
+            memset((void*)leftover_cmp, 0, MAX_BAND_LINES * sizeof(uint8_t));
+
+            int32_t bits_left_ref = (int32_t)bitstream_reader_get_left_bits(&bitstream_ref);
+            int32_t bits_left_cmp = bits_left_ref;
+
+            SvtJxsErrorType_t ret_ref = unpack_ref(
+                &bitstream_ref, buf_ref, width, gclis, GROUP_SIZE, gtli, sign_flag, leftover_ref, &bits_left_ref);
+            if (unpack_cmp == NULL) {
+                continue;
+            }
+            SvtJxsErrorType_t ret_cmp = unpack_cmp(
+                &bitstream_cmp, buf_cmp, width, gclis, GROUP_SIZE, gtli, sign_flag, leftover_cmp, &bits_left_cmp);
+
+            /* A rejected stream promises nothing about the output, so there
+             * only the verdict itself is compared. */
+            ASSERT_EQ(ret_ref, ret_cmp);
+            if (ret_ref == SvtJxsErrorNone) {
+                ASSERT_EQ(bits_left_ref, bits_left_cmp);
+                ASSERT_EQ(memcmp(buf_ref, buf_cmp, out_buffer_size * sizeof(uint16_t)), 0);
+                ASSERT_EQ(memcmp(leftover_ref, leftover_cmp, MAX_BAND_LINES * sizeof(uint8_t)), 0);
+            }
+        }
+    }
+
+    free(bitstream_mem);
+    free(buf_ref);
+    free(buf_cmp);
+    free(gclis);
+    delete rnd;
+}
+
+TEST(unpack_data_test, unpack_data_out_of_range_gcli) {
+    const bool has_avx512 = (CPU_FLAGS_AVX512F & get_cpu_flags()) != 0;
+    unpack_test_gcli_out_of_range(unpack_data_avx2, has_avx512 ? unpack_data_avx512 : NULL);
 }
 
 TEST(unpack_data_test, unpack_sign) {

@@ -6,7 +6,7 @@
 #include <string.h>
 #include <immintrin.h>
 #include "UnPack_avx512.h"
-#include "UnPack_avx2.h"
+#include "unpack_common.h"
 #include "Definitions.h"
 #include "EncDec.h" /* TRUNCATION_MAX: the single load holds fifteen planes at most */
 
@@ -28,57 +28,6 @@
  * and Zen 2, and this function is only reached when AVX-512 is present, that is
  * on Skylake-X and newer or Zen 4 and newer, where PEXT is a single uop. */
 
-/* Sign nibble: its bit (3 - i) belongs to coefficient i and has to become the
- * top bit of the i-th 16-bit word. The table replaces four shifts. */
-static const uint64_t unpack_sign_spread[16] = {
-    0x0000000000000000ULL,
-    0x8000000000000000ULL,
-    0x0000800000000000ULL,
-    0x8000800000000000ULL,
-    0x0000000080000000ULL,
-    0x8000000080000000ULL,
-    0x0000800080000000ULL,
-    0x8000800080000000ULL,
-    0x0000000000008000ULL,
-    0x8000000000008000ULL,
-    0x0000800000008000ULL,
-    0x8000800000008000ULL,
-    0x0000000080008000ULL,
-    0x8000000080008000ULL,
-    0x0000800080008000ULL,
-    0x8000800080008000ULL,
-};
-
-#if defined(_MSC_VER)
-#define UNPACK_BSWAP64(x) _byteswap_uint64(x)
-#else
-#define UNPACK_BSWAP64(x) __builtin_bswap64(x)
-#endif
-
-/* Reads count nibbles starting at nibble number nib and returns them right
- * aligned: nibble nib becomes the most significant of the count.
- *
- * The point is that the whole group is taken with a single eight-byte load
- * instead of a chain of per-nibble accesses. Bytes in the stream are stored
- * high nibble first, so the word is reversed with BSWAP. The shift inside a
- * byte is at most one nibble and count is at most fifteen, so 4 + 60 = 64 bits
- * fit exactly into one word.
- *
- * The load reads up to eight bytes ahead, so it may only be called where that
- * many bytes are known to follow the start of the group; the end of the line
- * goes through the sequential path. */
-static INLINE uint64_t unpack_load_nibbles(const uint8_t* mem, uint32_t nib, uint32_t count) {
-    uint64_t w;
-    memcpy(&w, mem + (nib >> 1), sizeof(w));
-    w = UNPACK_BSWAP64(w);
-    w <<= (nib & 1) * 4;
-    return w >> (64 - 4 * count);
-}
-
-static INLINE uint32_t unpack_one_nibble(const uint8_t* mem, uint32_t nib) {
-    return (uint32_t)((mem[nib >> 1] >> (4 - (nib & 1) * 4)) & 0xF);
-}
-
 /* Spreads count nibbles, right aligned, into four coefficients. */
 static INLINE uint64_t unpack_planes_to_lanes(uint64_t acc, uint8_t gtli) {
     const uint64_t v0 = _pext_u64(acc, 0x8888888888888888ULL);
@@ -86,13 +35,6 @@ static INLINE uint64_t unpack_planes_to_lanes(uint64_t acc, uint8_t gtli) {
     const uint64_t v2 = _pext_u64(acc, 0x2222222222222222ULL);
     const uint64_t v3 = _pext_u64(acc, 0x1111111111111111ULL);
     return (v0 | (v1 << 16) | (v2 << 32) | (v3 << 48)) << gtli;
-}
-
-/* How many groups may be taken by the fast path: for the last groups of a line
- * an over-reading load would run past the data. */
-static INLINE uint32_t unpack_fast_byte_limit(uint32_t nib0, uint32_t total_nibbles) {
-    const uint32_t last_byte = (nib0 + total_nibbles + 1) >> 1;
-    return last_byte >= 8 ? last_byte - 8 : 0;
 }
 
 void unpack_n_groups_avx512(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups,

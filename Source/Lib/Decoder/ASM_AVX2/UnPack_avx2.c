@@ -4,14 +4,9 @@
 */
 
 #include "UnPack_avx2.h"
+#include "unpack_common.h"
 #include "SvtUtility.h"
-
-DECLARE_ALIGNED(16, static const uint32_t, shift_data[4]) = {3, 2, 1, 0};
-DECLARE_ALIGNED(16, static const uint32_t, bits_offset[4]) = {8, 4, 2, 1};
-DECLARE_ALIGNED(16, static const uint32_t, sign_shift[4]) = {BITSTREAM_BIT_POSITION_SIGN - 3,
-                                                             BITSTREAM_BIT_POSITION_SIGN - 2,
-                                                             BITSTREAM_BIT_POSITION_SIGN - 1,
-                                                             BITSTREAM_BIT_POSITION_SIGN};
+#include "EncDec.h" /* TRUNCATION_MAX: the single load holds fifteen planes at most */
 
 uint8_t read_4_bits_align4_fast(reader_short_t* r) {
     if (r->bits_used) {
@@ -22,54 +17,124 @@ uint8_t read_4_bits_align4_fast(reader_short_t* r) {
     return (*r->mem >> 4);
 }
 
-static INLINE void unpack_data_single_group_avx2(reader_short_t* r, __m128i* vals, int32_t size, int8_t gtli) {
-    __m128i val;
+/* Spreads count nibbles, right aligned, into four coefficients.
+ *
+ * PEXT would do this in four instructions, but this path also runs on Zen 1 and
+ * Zen 2 where it is microcoded and costs tens of cycles. So the nibbles are
+ * first unpacked one per byte (byte j holds nibble j), and then, for each
+ * coefficient, the required bit of every byte is raised into the sign position
+ * and collected by VPMOVMSKB. The value is exactly the same: bit j of the
+ * result is bit (3 - k) of nibble j, that is, the plane with weight 2^j.
+ *
+ * Nibbles past count are zero in acc, so the result needs no masking. */
+static INLINE uint64_t unpack_planes_to_lanes_sse(uint64_t acc, uint8_t gtli) {
+    const __m128i lo_mask = _mm_set1_epi8(0x0F);
+    const __m128i packed = _mm_cvtsi64_si128((int64_t)acc);
+    const __m128i lo = _mm_and_si128(packed, lo_mask);
+    const __m128i hi = _mm_and_si128(_mm_srli_epi16(packed, 4), lo_mask);
+    /* byte 2i is the low nibble of source byte i, byte 2i+1 is the high one */
+    const __m128i nibbles = _mm_unpacklo_epi8(lo, hi);
 
-    for (int32_t bits = 0; bits < (size - 1); bits++) {
-        val = _mm_set1_epi32(read_4_bits_align4_fast(r));
-        val = _mm_and_si128(val, *(__m128i*)bits_offset);
-        *vals = _mm_or_si128(*vals, val);
-        *vals = _mm_slli_epi32(*vals, 1);
-    }
-    val = _mm_set1_epi32(read_4_bits_align4_fast(r));
-    val = _mm_and_si128(val, *(__m128i*)bits_offset);
-    *vals = _mm_or_si128(*vals, val);
-    *vals = _mm_srlv_epi32(*vals, *(__m128i*)shift_data);
-    *vals = _mm_slli_epi32(*vals, gtli);
+    const uint64_t v0 = (uint32_t)_mm_movemask_epi8(_mm_slli_epi16(nibbles, 4));
+    const uint64_t v1 = (uint32_t)_mm_movemask_epi8(_mm_slli_epi16(nibbles, 5));
+    const uint64_t v2 = (uint32_t)_mm_movemask_epi8(_mm_slli_epi16(nibbles, 6));
+    const uint64_t v3 = (uint32_t)_mm_movemask_epi8(_mm_slli_epi16(nibbles, 7));
+    return (v0 | (v1 << 16) | (v2 << 32) | (v3 << 48)) << gtli;
 }
 
 void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups, uint32_t total_nibbles) {
-    UNUSED(total_nibbles);
-    __m128i vals;
-    for (uint32_t group = 0; group < n_groups; group++) {
-        vals = _mm_setzero_si128();
-        int32_t bitplanes_size = gclis[group] - gtli;
-        if (bitplanes_size > 0) {
-            __m128i signs = _mm_set1_epi32(read_4_bits_align4_fast(r));
-            signs = _mm_and_si128(signs, *(__m128i*)bits_offset);
-            signs = _mm_sllv_epi32(signs, *(__m128i*)sign_shift);
-            unpack_data_single_group_avx2(r, &vals, bitplanes_size, gtli);
+    uint8_t* const base = r->mem;
+    uint32_t nib = r->bits_used ? 1u : 0u;
+    const uint32_t byte_limit = unpack_fast_byte_limit(nib, total_nibbles);
+    uint32_t group = 0;
 
-            vals = _mm_or_si128(vals, signs);
-            vals = _mm_packus_epi32(vals, vals);
+    /* Fast path: a group's position in the stream comes from adding up lengths
+     * rather than from finishing the previous group, so the group loads are
+     * independent of each other. */
+    for (; group < n_groups; group++) {
+        if ((nib >> 1) > byte_limit) {
+            break;
         }
-        _mm_storel_epi64((__m128i*)buf, vals);
+        uint64_t out = 0;
+        const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
+        /* A corrupt stream can carry a GCLI above the truncation maximum: the
+         * unary code yields up to thirty-one. Such a group holds more bit
+         * planes than the single load can take, so it is left to the sequential
+         * reader below. */
+        if (size > TRUNCATION_MAX) {
+            break;
+        }
+        if (size > 0) {
+            const uint64_t signs = unpack_sign_spread[unpack_one_nibble(base, nib)];
+            out = unpack_planes_to_lanes_sse(unpack_load_nibbles(base, nib + 1, (uint32_t)size), gtli) | signs;
+            nib += (uint32_t)size + 1;
+        }
+        memcpy(buf, &out, sizeof(out));
+        buf += GROUP_SIZE;
+    }
+
+    r->mem = base + (nib >> 1);
+    r->bits_used = (uint8_t)((nib & 1) * 4);
+
+    /* End of the line is read sequentially so the load never runs past the data. */
+    for (; group < n_groups; group++) {
+        uint64_t out = 0;
+        const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
+        if (size > 0) {
+            const uint64_t signs = unpack_sign_spread[read_4_bits_align4_fast(r)];
+            uint64_t acc = 0;
+            for (int32_t i = 0; i < size; i++) {
+                acc = (acc << 4) | read_4_bits_align4_fast(r);
+            }
+            out = unpack_planes_to_lanes_sse(acc, gtli) | signs;
+        }
+        memcpy(buf, &out, sizeof(out));
         buf += GROUP_SIZE;
     }
 }
 
 void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups,
                             uint32_t total_nibbles) {
-    UNUSED(total_nibbles);
-    __m128i vals;
-    for (uint32_t group = 0; group < n_groups; group++) {
-        vals = _mm_setzero_si128();
-        int32_t bitplanes_size = gclis[group] - gtli;
-        if (bitplanes_size > 0) {
-            unpack_data_single_group_avx2(r, &vals, bitplanes_size, gtli);
-            vals = _mm_packus_epi32(vals, vals);
+    uint8_t* const base = r->mem;
+    uint32_t nib = r->bits_used ? 1u : 0u;
+    const uint32_t byte_limit = unpack_fast_byte_limit(nib, total_nibbles);
+    uint32_t group = 0;
+
+    for (; group < n_groups; group++) {
+        if ((nib >> 1) > byte_limit) {
+            break;
         }
-        _mm_storel_epi64((__m128i*)buf, vals);
+        uint64_t out = 0;
+        const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
+        /* A corrupt stream can carry a GCLI above the truncation maximum: the
+         * unary code yields up to thirty-one. Such a group holds more bit
+         * planes than the single load can take, so it is left to the sequential
+         * reader below. */
+        if (size > TRUNCATION_MAX) {
+            break;
+        }
+        if (size > 0) {
+            out = unpack_planes_to_lanes_sse(unpack_load_nibbles(base, nib, (uint32_t)size), gtli);
+            nib += (uint32_t)size;
+        }
+        memcpy(buf, &out, sizeof(out));
+        buf += GROUP_SIZE;
+    }
+
+    r->mem = base + (nib >> 1);
+    r->bits_used = (uint8_t)((nib & 1) * 4);
+
+    for (; group < n_groups; group++) {
+        uint64_t out = 0;
+        const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
+        if (size > 0) {
+            uint64_t acc = 0;
+            for (int32_t i = 0; i < size; i++) {
+                acc = (acc << 4) | read_4_bits_align4_fast(r);
+            }
+            out = unpack_planes_to_lanes_sse(acc, gtli);
+        }
+        memcpy(buf, &out, sizeof(out));
         buf += GROUP_SIZE;
     }
 }
