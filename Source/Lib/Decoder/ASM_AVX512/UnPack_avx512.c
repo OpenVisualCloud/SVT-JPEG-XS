@@ -41,7 +41,7 @@ void unpack_n_groups_avx512(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uin
                             uint32_t total_nibbles) {
     uint8_t* const base = r->mem;
     uint32_t nib = r->bits_used ? 1u : 0u;
-    const uint32_t byte_limit = unpack_fast_byte_limit(nib, total_nibbles);
+    const uint32_t fast_bytes = unpack_fast_byte_count(nib, total_nibbles);
     uint32_t group = 0;
 
     /* Fast path. A group's address comes from adding up lengths rather than
@@ -49,7 +49,7 @@ void unpack_n_groups_avx512(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uin
      * chain of single-cycle additions while the loads and the parsing itself
      * proceed in parallel. */
     for (; group < n_groups; group++) {
-        if ((nib >> 1) > byte_limit) {
+        if ((nib >> 1) >= fast_bytes) {
             break;
         }
         uint64_t out = 0;
@@ -94,11 +94,11 @@ void unpack_n_groups_nosign_avx512(uint8_t* gclis, uint8_t gtli, reader_short_t*
                                    uint32_t total_nibbles) {
     uint8_t* const base = r->mem;
     uint32_t nib = r->bits_used ? 1u : 0u;
-    const uint32_t byte_limit = unpack_fast_byte_limit(nib, total_nibbles);
+    const uint32_t fast_bytes = unpack_fast_byte_count(nib, total_nibbles);
     uint32_t group = 0;
 
     for (; group < n_groups; group++) {
-        if ((nib >> 1) > byte_limit) {
+        if ((nib >> 1) >= fast_bytes) {
             break;
         }
         uint64_t out = 0;
