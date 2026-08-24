@@ -200,22 +200,35 @@ void image_shift_avx512(uint16_t* out_coeff_16bit, int32_t* in_coeff_32bit, uint
 
 void linear_input_scaling_line_8bit_avx512(const uint8_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset) {
     const __m512i offset_avx512 = _mm512_set1_epi32(offset);
-    const uint32_t simd_batch = w / 16;
-    const uint32_t remaining = w % 16;
+    uint32_t j = 0;
 
-    for (uint32_t j = 0; j < simd_batch; j++) {
-        __m128i temp_data = _mm_loadu_si128((__m128i*)src);
-        __m512i data = _mm512_cvtepu8_epi32(temp_data);
+    /* Four vectors per turn: a body of three operations also paid for two
+     * pointer bumps and a branch, so a noticeable share of the work went into
+     * something other than the data. Four independent chains also give the
+     * pipeline something to do while the byte-to-word widening is in flight. */
+    for (; j + 64 <= w; j += 64) {
+        __m512i d0 = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j)));
+        __m512i d1 = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j + 16)));
+        __m512i d2 = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j + 32)));
+        __m512i d3 = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j + 48)));
 
+        d0 = _mm512_sub_epi32(_mm512_slli_epi32(d0, shift), offset_avx512);
+        d1 = _mm512_sub_epi32(_mm512_slli_epi32(d1, shift), offset_avx512);
+        d2 = _mm512_sub_epi32(_mm512_slli_epi32(d2, shift), offset_avx512);
+        d3 = _mm512_sub_epi32(_mm512_slli_epi32(d3, shift), offset_avx512);
+
+        _mm512_storeu_si512(dst + j, d0);
+        _mm512_storeu_si512(dst + j + 16, d1);
+        _mm512_storeu_si512(dst + j + 32, d2);
+        _mm512_storeu_si512(dst + j + 48, d3);
+    }
+    for (; j + 16 <= w; j += 16) {
+        __m512i data = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j)));
         data = _mm512_slli_epi32(data, shift);
         data = _mm512_sub_epi32(data, offset_avx512);
-
-        _mm512_storeu_si512(dst, data);
-
-        src += 16;
-        dst += 16;
+        _mm512_storeu_si512(dst + j, data);
     }
-    for (uint32_t j = 0; j < remaining; j++) {
+    for (; j < w; j++) {
         dst[j] = (int32_t)((uint32_t)src[j] << shift) - (int32_t)offset;
     }
 }
