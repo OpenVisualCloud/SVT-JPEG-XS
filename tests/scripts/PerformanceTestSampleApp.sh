@@ -19,11 +19,12 @@ FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
 
-# Remove stale /dev/shm files left by any previously killed run BEFORE creating new ones; if they
-# accumulate they can fill the ramdisk and silently cause the synthesis below to produce empty files
-# (ENOSPC masked by || true in the original code, or a failed dd here).
-rm -f /dev/shm/test_stream_*.yuv /dev/shm/test_stream_*.jxs \
-      /dev/shm/synth_yuva422_*.yuv /dev/shm/synth_yuva444_*.yuv 2>/dev/null || true
+# Remove stale /dev/shm files left by any previously killed run BEFORE creating new ones.
+# Large test_stream files (RAMDISK_JXS up to 1.5 GB each) are cleaned aggressively; synth files
+# are only cleaned if >60 min old to avoid deleting a concurrent run's freshly created files.
+rm -f /dev/shm/test_stream_*.yuv /dev/shm/test_stream_*.jxs 2>/dev/null || true
+find /dev/shm -maxdepth 1 \( -name 'synth_yuva422_*.yuv' -o -name 'synth_yuva444_*.yuv' \) \
+     -mmin +60 -delete 2>/dev/null || true
 
 RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_XXXXXX)
 RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_XXXXXX)
@@ -42,11 +43,20 @@ trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS" "$SYNTH_YUVA422" "$SYNTH_YUVA444"' EXI
 # there is no SIGPIPE, and any write failure (e.g. ENOSPC) propagates as a non-zero exit code that
 # is not masked by set -o pipefail.
 SYNTH_SRC="$SAMPLES_DIR/encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
-if [ -f "$SYNTH_SRC" ]; then
-    SYNTH_FRAMES=5
-    SYNTH_Y_SIZE=$((1920 * 1080))
-    SYNTH_C_SIZE=$((1920 * 1080 / 2))
-    SYNTH_422_FRAME_SIZE=$((SYNTH_Y_SIZE + 2 * SYNTH_C_SIZE))
+SYNTH_FRAMES=5
+SYNTH_Y_SIZE=$((1920 * 1080))
+SYNTH_C_SIZE=$((1920 * 1080 / 2))
+SYNTH_422_FRAME_SIZE=$((SYNTH_Y_SIZE + 2 * SYNTH_C_SIZE))
+
+# Synthesis can be called more than once: the initial run and any on-demand re-creation
+# if the host's tmpfiles daemon removes /dev/shm files that have gone stale between the
+# initial synthesis and the YUVA test cases (which run ~8 min after startup).
+function synthesize_yuva_files() {
+    if [ ! -f "$SYNTH_SRC" ]; then
+        return
+    fi
+    : > "$SYNTH_YUVA422"
+    : > "$SYNTH_YUVA444"
     for ((f = 0; f < SYNTH_FRAMES; f++)); do
         off=$((f * SYNTH_422_FRAME_SIZE))
         dd if="$SYNTH_SRC" iflag=skip_bytes,count_bytes skip="$off" count="$SYNTH_422_FRAME_SIZE" status=none >> "$SYNTH_YUVA422"
@@ -59,6 +69,10 @@ if [ -f "$SYNTH_SRC" ]; then
         echo "ERROR: synthesis of YUVA input files failed — check /dev/shm space: $(df -h /dev/shm | awk 'NR==2')"
         exit 1
     fi
+}
+
+if [ -f "$SYNTH_SRC" ]; then
+    synthesize_yuva_files
 fi
 
 # Ensure CSV header exists. TestCase is the matching MATRIX line below.
@@ -157,11 +171,26 @@ function check_result() {
 for test_case in "${MATRIX[@]}"; do
     IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
 
+    # Refresh synth file mtimes so any host-level tmpfiles daemon (e.g. systemd-tmpfiles-clean)
+    # does not remove them based on age while the regular tests are running.  If the files have
+    # already been removed, touch re-creates them as empty files and the -s check below triggers
+    # an immediate re-synthesis rather than a cryptic "not found or empty" failure.
+    if [ -f "$SYNTH_SRC" ]; then
+        touch "$SYNTH_YUVA422" "$SYNTH_YUVA444" 2>/dev/null || true
+    fi
+
     case "$file" in
         SYNTH:yuva422) source_path="$SYNTH_YUVA422" ;;
         SYNTH:yuva444) source_path="$SYNTH_YUVA444" ;;
         *) source_path="$SAMPLES_DIR/$file" ;;
     esac
+
+    # Re-synthesize on demand if the files were removed or emptied by the host between
+    # the initial synthesis and now.
+    if [[ "$file" == SYNTH:* ]] && [ ! -s "$source_path" ]; then
+        echo "WARNING: synth file $source_path missing/empty mid-run — re-synthesizing (df: $(df -h /dev/shm | awk 'NR==2'))"
+        synthesize_yuva_files
+    fi
 
     if [ ! -s "$source_path" ]; then
         echo "ERROR: File $source_path not found or empty!"
@@ -185,7 +214,7 @@ for test_case in "${MATRIX[@]}"; do
 
     # --- Decode ---
     if [ ! -s "$RAMDISK_JXS" ]; then
-        echo "ERROR: No bitstream produced by encode step, skipping decode."
+        echo "ERROR: No bitstream produced by encode step, skipping decode. /dev/shm: $(df -h /dev/shm | awk 'NR==2')"
         SCRIPT_FAILED=1
         echo "DECODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
         rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"
