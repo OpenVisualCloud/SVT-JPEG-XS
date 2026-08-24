@@ -73,7 +73,7 @@ jobs:
         fi
 
     - name: "Archive: upload artifacts"
-      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      uses: actions/upload-artifact@v4
       with:
         name: fuzzy-tests-svtjpegxs-lib-${{ github.run_number }}
         retention-days: 1

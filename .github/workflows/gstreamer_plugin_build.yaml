@@ -43,7 +43,7 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v3.0.2
         id: filter
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -138,14 +138,14 @@ jobs:
 
       - name: 'Upload test logs on failure'
         if: failure()
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@v4
         with:
           name: gstreamer-test-logs-${{ github.run_number }}
           retention-days: 14
           path: tests/scripts/tmp/
 
       - name: 'Archive: upload build artifacts for performance tests'
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.GST_ARTIFACTS }}
           retention-days: 1
@@ -233,7 +233,7 @@ jobs:
 
       - name: 'Archive: upload performance results'
         if: always()
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@v4
         with:
           name: gstreamer-plugin-performance-results-${{ github.run_number }}
           retention-days: 90

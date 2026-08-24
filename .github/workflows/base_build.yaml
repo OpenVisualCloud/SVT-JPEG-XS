@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v3.0.2
         id: filter
         with:
           filters: .github/config/path_filters.yaml
@@ -70,7 +70,7 @@ jobs:
         ./build.sh --jobs=10 --all --test install --prefix "${{ github.workspace }}/install-dir"
 
     - name: "Archive: upload artifacts"
-      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      uses: actions/upload-artifact@v4
       with:
         name: "${{ env.LINUX_ARTIFACTS }}"
         retention-days: 30
@@ -80,7 +80,7 @@ jobs:
           tests/scripts/
 
     - name: "Archive: upload installed svt-jpegxs tree (fixed name, consumed cross-workflow via workflow_run)"
-      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      uses: actions/upload-artifact@v4
       with:
         name: linux-svtjpegxs-install
         retention-days: 1
@@ -319,7 +319,7 @@ jobs:
 
       - name: "Archive: upload performance results"
         if: always()
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@v4
         with:
           name: sample-app-performance-results-${{ github.run_number }}
           retention-days: 90
@@ -358,7 +358,7 @@ jobs:
         call .\build.bat 2022 debug  test
 
     - name: upload artifacts
-      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      uses: actions/upload-artifact@v4
       with:
         retention-days: 30
         name: ${{ env.WINDOWS_ARTIFACTS }}
