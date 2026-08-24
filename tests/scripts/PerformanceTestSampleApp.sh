@@ -14,12 +14,19 @@ ENC_APP="$SCRIPT_DIR/../../Bin/Release/SvtJpegxsEncApp"
 DEC_APP="$SCRIPT_DIR/../../Bin/Release/SvtJpegxsDecApp"
 SAMPLES_DIR="${1:-$SCRIPT_DIR/../../Conformance-tests}"
 CSV_FILE="$SCRIPT_DIR/svt_app_results.csv"
-RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_XXXXXX)
-RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_XXXXXX)
 NUMA_NODE=1
 FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
+
+# Remove stale /dev/shm files left by any previously killed run BEFORE creating new ones; if they
+# accumulate they can fill the ramdisk and silently cause the synthesis below to produce empty files
+# (ENOSPC masked by || true in the original code, or a failed dd here).
+rm -f /dev/shm/test_stream_*.yuv /dev/shm/test_stream_*.jxs \
+      /dev/shm/synth_yuva422_*.yuv /dev/shm/synth_yuva444_*.yuv 2>/dev/null || true
+
+RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_XXXXXX)
+RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_XXXXXX)
 
 # Cleanup on exit
 SYNTH_YUVA422="$(mktemp --suffix=.yuv /dev/shm/synth_yuva422_XXXXXX)"
@@ -30,6 +37,10 @@ trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS" "$SYNTH_YUVA422" "$SYNTH_YUVA444"' EXI
 # yuva422/yuva444 raw files on the fly from the real touchdown 8bit 422 sample (same technique as
 # tests/scripts/EncoderTest.sh) - the app rewinds/loops the input file to satisfy -n $FRAMES, so a
 # short synthesized file is enough. Real Y/Cb/Cr planes kept as-is, alpha/extra planes are Y duplicates.
+#
+# Use dd with iflag=skip_bytes,count_bytes instead of tail|head: dd seeks directly without a pipe so
+# there is no SIGPIPE, and any write failure (e.g. ENOSPC) propagates as a non-zero exit code that
+# is not masked by set -o pipefail.
 SYNTH_SRC="$SAMPLES_DIR/encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
 if [ -f "$SYNTH_SRC" ]; then
     SYNTH_FRAMES=5
@@ -38,12 +49,16 @@ if [ -f "$SYNTH_SRC" ]; then
     SYNTH_422_FRAME_SIZE=$((SYNTH_Y_SIZE + 2 * SYNTH_C_SIZE))
     for ((f = 0; f < SYNTH_FRAMES; f++)); do
         off=$((f * SYNTH_422_FRAME_SIZE))
-        tail -c +$((off + 1)) "$SYNTH_SRC" | head -c $SYNTH_422_FRAME_SIZE >> "$SYNTH_YUVA422" || true
-        tail -c +$((off + 1)) "$SYNTH_SRC" | head -c $SYNTH_Y_SIZE >> "$SYNTH_YUVA422" || true
+        dd if="$SYNTH_SRC" iflag=skip_bytes,count_bytes skip="$off" count="$SYNTH_422_FRAME_SIZE" status=none >> "$SYNTH_YUVA422"
+        dd if="$SYNTH_SRC" iflag=skip_bytes,count_bytes skip="$off" count="$SYNTH_Y_SIZE" status=none >> "$SYNTH_YUVA422"
         for ((p = 0; p < 4; p++)); do
-            tail -c +$((off + 1)) "$SYNTH_SRC" | head -c $SYNTH_Y_SIZE >> "$SYNTH_YUVA444" || true
+            dd if="$SYNTH_SRC" iflag=skip_bytes,count_bytes skip="$off" count="$SYNTH_Y_SIZE" status=none >> "$SYNTH_YUVA444"
         done
     done
+    if [ ! -s "$SYNTH_YUVA422" ] || [ ! -s "$SYNTH_YUVA444" ]; then
+        echo "ERROR: synthesis of YUVA input files failed — check /dev/shm space: $(df -h /dev/shm | awk 'NR==2')"
+        exit 1
+    fi
 fi
 
 # Ensure CSV header exists. TestCase is the matching MATRIX line below.
