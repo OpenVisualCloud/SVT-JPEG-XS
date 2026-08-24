@@ -34,7 +34,7 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
     - name: 'Harden Runner'
-      uses: step-security/harden-runner@v2
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
         egress-policy: audit
 
@@ -55,7 +55,7 @@ jobs:
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
     - name: 'Setup: Download pre-built svt-jpegxs artifact from Base Build (falls back to local build if missing)'
-      uses: actions/download-artifact@v4.1.8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       continue-on-error: true
       with:
         name: linux-svtjpegxs-install
@@ -73,7 +73,7 @@ jobs:
         fi
 
     - name: "Archive: upload artifacts"
-      uses: actions/upload-artifact@v4.3.4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: fuzzy-tests-svtjpegxs-lib-${{ github.run_number }}
         retention-days: 1
@@ -85,7 +85,7 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
     - name: 'Harden Runner'
-      uses: step-security/harden-runner@v2
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
         egress-policy: audit
 
@@ -106,7 +106,7 @@ jobs:
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
     - name: 'Setup: Download pre-built svt-jpegxs artifact'
-      uses: actions/download-artifact@v4.1.8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: fuzzy-tests-svtjpegxs-lib-${{ github.run_number }}
         path: install-dir
@@ -132,7 +132,7 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
     - name: 'Harden Runner'
-      uses: step-security/harden-runner@v2
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
         egress-policy: audit
 
@@ -153,7 +153,7 @@ jobs:
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
     - name: 'Setup: Download pre-built svt-jpegxs artifact'
-      uses: actions/download-artifact@v4.1.8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: fuzzy-tests-svtjpegxs-lib-${{ github.run_number }}
         path: install-dir
