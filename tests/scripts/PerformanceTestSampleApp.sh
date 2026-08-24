@@ -157,6 +157,10 @@ function check_result() {
 for test_case in "${MATRIX[@]}"; do
     IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
 
+    # Keep synth file mtimes current so the host tmpfiles daemon does not age them out
+    # mid-run (confirmed: daemon threshold is ~3 min; tests take ~8 min total).
+    touch "$SYNTH_YUVA422" "$SYNTH_YUVA444" 2>/dev/null || true
+
     case "$file" in
         SYNTH:yuva422) source_path="$SYNTH_YUVA422" ;;
         SYNTH:yuva444) source_path="$SYNTH_YUVA444" ;;
