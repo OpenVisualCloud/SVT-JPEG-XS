@@ -330,7 +330,10 @@ static void unpack_test_gcli_out_of_range(unpack_data unpack_ref, unpack_data un
 }
 
 TEST(unpack_data_test, unpack_data_out_of_range_gcli) {
-    const bool has_avx512 = (CPU_FLAGS_AVX512F & get_cpu_flags()) != 0;
+    /* Same condition the decoder dispatch uses: the AVX-512 directory is built
+     * with -mbmi2, so the tier is only usable when the processor has BMI2 too. */
+    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2;
+    const bool has_avx512 = (get_cpu_flags() & required) == required;
     unpack_test_gcli_out_of_range(unpack_data_avx2, has_avx512 ? unpack_data_avx512 : NULL);
 }
 

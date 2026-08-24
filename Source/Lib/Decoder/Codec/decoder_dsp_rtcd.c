@@ -85,12 +85,17 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
 #ifdef ARCH_X86_64
     /** Should be done during library initialization,
       but for safe limiting cpu flags again. */
-    flags &= get_cpu_flags();
+    const CPU_FLAGS host_flags = get_cpu_flags();
+    flags &= host_flags;
     /* The AVX-512 kernels are built with -mbmi2 for the whole directory, so
      * the compiler is free to emit those instructions anywhere in them, not
      * only where an intrinsic asks for them. Without a processor to back
-     * them the whole tier has to stay unused. */
-    if (!(flags & CPU_FLAGS_BMI2)) {
+     * them the whole tier has to stay unused.
+     *
+     * The test is on the host, not on the caller's request: a caller built
+     * against an older header passes a mask with these bits clear, and it must
+     * not lose AVX-512 on hardware that supports it. */
+    if (!(host_flags & CPU_FLAGS_BMI2)) {
         flags &= ~(CPU_FLAGS)CPU_FLAGS_AVX512F;
     }
     // to use C: flags=0

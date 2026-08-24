@@ -211,7 +211,11 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
             __m256i sum_epi16_avx2 = _mm256_setzero_si256();
             for (uint32_t group = 0; group < (group_num / 16); group++) {
                 __m128i bits_epu8 = _mm_subs_epu8(_mm_loadu_si128((__m128i*)gclis_ptr), gtli_const);
-                __m256i bits_epu16 = _mm256_cvtepi8_epi16(bits_epu8);
+                /* Unsigned widening: subs_epu8 is an unsigned saturating subtract, so on a
+                 * corrupt stream the byte can be anything up to 255. Widening it as signed
+                 * would make such a group subtract from the budget instead of adding to it,
+                 * and the bitstream would not be rejected. */
+                __m256i bits_epu16 = _mm256_cvtepu8_epi16(bits_epu8);
                 __m256i signs = _mm256_cmpgt_epi16(bits_epu16, _mm256_setzero_si256());
                 signs = _mm256_srli_epi16(signs, 15);
                 sum_epi16_avx2 = _mm256_add_epi16(sum_epi16_avx2, bits_epu16);
@@ -255,7 +259,8 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
             __m256i sum_epi16_avx2 = _mm256_setzero_si256();
             for (uint32_t group = 0; group < (group_num / 16); group++) {
                 __m128i bits_epu8 = _mm_subs_epu8(_mm_loadu_si128((__m128i*)gclis_ptr), gtli_const);
-                sum_epi16_avx2 = _mm256_add_epi16(sum_epi16_avx2, _mm256_cvtepi8_epi16(bits_epu8));
+                /* Unsigned widening, for the same reason as in the branch above. */
+                sum_epi16_avx2 = _mm256_add_epi16(sum_epi16_avx2, _mm256_cvtepu8_epi16(bits_epu8));
                 gclis_ptr += 16;
             }
             __m128i sum_epi16_sse = _mm_hadd_epi16(_mm256_castsi256_si128(sum_epi16_avx2),

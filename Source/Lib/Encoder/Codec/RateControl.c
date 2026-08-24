@@ -16,6 +16,14 @@
 
 #define PRINT_RECALC_VPRED 0
 
+#ifndef NDEBUG
+/* Debug-only markers for the rate control cache tables that are filled only under
+ * a condition. Values no real sum can reach: the sign table holds bit counts for
+ * one band line, the significance table holds a count of groups in one band line. */
+#define RC_LUT_POISON_U32 0xFFFFFFFFu
+#define RC_LUT_POISON_U16 0xFFFFu
+#endif /*NDEBUG*/
+
 /* Histogram of GCLI values. The values lie in [0, TRUNCATION_MAX], so there are
  * exactly sixteen bins. The function fills the table completely, there is no
  * need to clear it from the outside.
@@ -54,7 +62,18 @@ static void rate_control_lut_fill(svt_jpeg_xs_encoder_common_t *enc_common,
                 /* Clearing the whole structure is gone: the histograms are written in
                  * full by their own kernels, and the derived tables below are filled
                  * for all sixteen indices. The sign table is left untouched in exactly
-                 * the branch where nobody reads it (coding_signs_handling == OFF). */
+                 * the branch where nobody reads it (coding_signs_handling == OFF).
+                 *
+                 * That makes the guard at each read site load bearing, so in debug
+                 * builds the two conditionally filled tables are poisoned here. A read
+                 * that is not covered by its guard then trips an assert instead of
+                 * silently using whatever the previous precinct left behind. */
+#ifndef NDEBUG
+                for (uint32_t i = 0; i <= TRUNCATION_MAX; ++i) {
+                    cache_line->gc_lookup_table_size_data_sign_handling[i] = RC_LUT_POISON_U32;
+                    cache_line->significance_max_lookup_table[i] = RC_LUT_POISON_U16;
+                }
+#endif /*NDEBUG*/
                 gc_histogram_16(gc_data, group_conding_width, gc_lookup_table);
 #if LUT_GC_SERIAL_SUMMATION
                 if (coding_signs_handling == SIGN_HANDLING_STRATEGY_OFF) {
@@ -176,6 +195,9 @@ static void rate_control_lut_summarize_non_significance_gc_and_data_code_sum(rc_
     if (coding_signs_handling) {
         uint32_t sum_non_significance_zero = table[gtli];
         uint32_t sum_data_no_signs = cache_line->gc_lookup_table_size_data_no_sign_handling[gtli];
+        /* Filled by rate_control_lut_fill() only when coding_signs_handling != OFF,
+         * which is the condition guarding this branch. */
+        assert(cache_line->gc_lookup_table_size_data_sign_handling[gtli] != RC_LUT_POISON_U32);
         uint32_t sum_data_signs = cache_line->gc_lookup_table_size_data_sign_handling[gtli];
         *out_sum_data = sum_data_signs;
         *sum_data_non_significance_code_gc = sum_data_no_signs + sum_non_significance_zero;
@@ -244,6 +266,9 @@ static void rate_control_lut_summarize_non_significance_gc_and_data_code_sum(rc_
 #if LUT_SIGNIFICANE
 static uint32_t rate_control_lut_significance_elements_less_equal_gtli(rc_cache_band_line_t *cache_line, int gtli) {
     uint16_t *table = cache_line->significance_max_lookup_table;
+    /* Filled by rate_control_lut_fill() only when coding_significance is set, which
+     * every caller of this function is required to have checked. */
+    assert(table[gtli] != RC_LUT_POISON_U16);
     /* Pseudo code unsigned significances:
      * GCLI value 0 is compressed by VLC on 1 bit so always can remove
      * from pack_size_gcli number of bits equal size significance group.
