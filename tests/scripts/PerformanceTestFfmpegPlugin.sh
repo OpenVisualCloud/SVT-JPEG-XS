@@ -12,31 +12,49 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FFMPEG_BIN="ffmpeg"
 SAMPLES_DIR="${1:-$SCRIPT_DIR/../../Conformance-tests}"
 CSV_FILE="$SCRIPT_DIR/ffmpeg_results.csv"
-RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_ffmpeg_XXXXXX)
-RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_ffmpeg_XXXXXX)
-SYNTH_YUVA422=$(mktemp --suffix=.yuv /dev/shm/synth_yuva422_ffmpeg_XXXXXX)
-SYNTH_YUVA444=$(mktemp --suffix=.yuv /dev/shm/synth_yuva444_ffmpeg_XXXXXX)
 NUMA_NODE=1
 FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
 
-# Cleanup on exit
-trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS" "$SYNTH_YUVA422" "$SYNTH_YUVA444"' EXIT
+# Remove stale /dev/shm files left by any previously killed run BEFORE creating new ones.
+# Accumulated files (especially large JXS bitstreams) can fill the ramdisk and cause synthesis to fail.
+rm -f /dev/shm/test_stream_ffmpeg_*.yuv /dev/shm/test_stream_ffmpeg_*.jxs \
+      /dev/shm/synth_yuva422_ffmpeg_*.yuv /dev/shm/synth_yuva422_ffmpeg_*.yuv.y \
+      /dev/shm/synth_yuva422_ffmpeg_*.yuv.cb /dev/shm/synth_yuva422_ffmpeg_*.yuv.cr \
+      /dev/shm/synth_yuva444_ffmpeg_*.yuv 2>/dev/null || true
+
+RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_ffmpeg_XXXXXX)
+RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_ffmpeg_XXXXXX)
+SYNTH_YUVA422=$(mktemp --suffix=.yuv /dev/shm/synth_yuva422_ffmpeg_XXXXXX)
+SYNTH_YUVA444=$(mktemp --suffix=.yuv /dev/shm/synth_yuva444_ffmpeg_XXXXXX)
+
+# Cleanup on exit (includes intermediate .y/.cb/.cr temp files used during synthesis)
+trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS" "$SYNTH_YUVA422" "$SYNTH_YUVA444" \
+           "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr"' EXIT
 
 # No real 4-component (alpha) sample YUV exists in $SAMPLES_DIR. Synthesize a single-frame fixture
 # (ffmpeg's -stream_loop -1 below repeats it to reach $FRAMES) from the existing 1080p 8bit yuv422
 # fixture: real Y/Cb/Cr planes kept as-is, alpha/extra-chroma planes are Y duplicates.
+#
+# Use dd with iflag=skip_bytes,count_bytes instead of tail|head: dd seeks directly without a pipe so
+# there is no SIGPIPE, and any write failure (e.g. ENOSPC) propagates as a non-zero exit code that
+# is not masked by set -o pipefail.
 SYNTH_SRC="$SAMPLES_DIR/encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
+SYNTH_Y_SIZE=$((1920 * 1080))
+SYNTH_C_SIZE=$((1920 * 1080 / 2))
+
 if [ -f "$SYNTH_SRC" ]; then
-    SYNTH_Y_SIZE=$((1920 * 1080))
-    SYNTH_C_SIZE=$((1920 * 1080 / 2))
-    head -c $SYNTH_Y_SIZE "$SYNTH_SRC" > "${SYNTH_YUVA422}.y"
-    tail -c +$((SYNTH_Y_SIZE + 1)) "$SYNTH_SRC" | head -c $SYNTH_C_SIZE > "${SYNTH_YUVA422}.cb" || true
-    tail -c +$((SYNTH_Y_SIZE + SYNTH_C_SIZE + 1)) "$SYNTH_SRC" | head -c $SYNTH_C_SIZE > "${SYNTH_YUVA422}.cr" || true
+    dd if="$SYNTH_SRC" iflag=count_bytes count="$SYNTH_Y_SIZE" status=none > "${SYNTH_YUVA422}.y"
+    dd if="$SYNTH_SRC" iflag=skip_bytes,count_bytes skip="$SYNTH_Y_SIZE" count="$SYNTH_C_SIZE" status=none > "${SYNTH_YUVA422}.cb"
+    dd if="$SYNTH_SRC" iflag=skip_bytes,count_bytes skip="$((SYNTH_Y_SIZE + SYNTH_C_SIZE))" count="$SYNTH_C_SIZE" status=none > "${SYNTH_YUVA422}.cr"
     cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr" "${SYNTH_YUVA422}.y" > "$SYNTH_YUVA422"
     cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" > "$SYNTH_YUVA444"
     rm -f "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr"
+    if [ ! -s "$SYNTH_YUVA422" ] || [ ! -s "$SYNTH_YUVA444" ]; then
+        echo "ERROR: synthesis of YUVA input files failed — check /dev/shm space: $(df -h /dev/shm | awk 'NR==2')"
+        exit 1
+    fi
 fi
 
 # Ensure CSV header exists. TestCase is the matching MATRIX line below.
@@ -46,6 +64,14 @@ fi
 
 # Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS|ExtraEncArgs(optional)|ExtraDecArgs(optional)
 MATRIX=(
+    # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling.
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH|40|37"
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|8|SYNTH|185|124"
+
+    # 1080p rgba/yuva444 (4:4:4:4) 8-bit - 5.0 BPP Thread Scaling.
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|1|SYNTH|32|38"
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|8|SYNTH|152|110"
+
     # 1080p 422p 10-bit - 1.5 BPP Thread Scaling
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|74|128"
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|392|589"
@@ -73,18 +99,6 @@ MATRIX=(
     # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output: same baseline as the equivalent
     # LSB row above (msb-aligned kernels have same perf as LSB, verified separately).
     "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|313|480|-msb_aligned 1|-msb_aligned 1"
-
-    # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling (SDBQ-3776). SourceFile "SYNTH" is a
-    # sentinel meaning "use the on-the-fly synthesized $SYNTH_YUVA422 file above". Baselines
-    # measured locally on this sandbox - re-calibrate on the real target CI hardware.
-    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH|40|37"
-    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|8|SYNTH|185|124"
-
-    # 1080p rgba/yuva444 (4:4:4:4) 8-bit - 5.0 BPP Thread Scaling (SDBQ-3776). SourceFile "SYNTH" is
-    # a sentinel meaning "use the on-the-fly synthesized $SYNTH_YUVA444 file above". Baselines
-    # measured locally on this sandbox - re-calibrate on the real target CI hardware.
-    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|1|SYNTH|32|38"
-    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|8|SYNTH|152|110"
 )
 
 # get_ffmpeg_pix_fmt colour_format bit_depth: maps to the ffmpeg pix_fmt name.
@@ -149,6 +163,7 @@ function check_result() {
 
 for test_case in "${MATRIX[@]}"; do
     IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
+
     case "$file" in
         SYNTH)
             case "$fmt" in
@@ -185,7 +200,7 @@ for test_case in "${MATRIX[@]}"; do
 
     # --- Decode ---
     if [ ! -s "$RAMDISK_JXS" ]; then
-        echo "ERROR: No bitstream produced by encode step, skipping decode."
+        echo "ERROR: No bitstream produced by encode step, skipping decode. /dev/shm: $(df -h /dev/shm | awk 'NR==2')"
         SCRIPT_FAILED=1
         echo "DECODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
         rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"
