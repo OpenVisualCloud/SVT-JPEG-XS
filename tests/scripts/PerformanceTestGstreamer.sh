@@ -15,6 +15,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Configuration
 SAMPLES_DIR="${1:-$SCRIPT_DIR/../../Conformance-tests}"
 CSV_FILE="$SCRIPT_DIR/gstreamer_results.csv"
+# Remove stale /dev/shm files left by any previously killed run BEFORE creating new ones; GStreamer
+# JXS bitstreams can be up to ~1.5 GB and would fill the ramdisk if left behind.
+rm -f /dev/shm/test_stream_gst_*.yuv /dev/shm/test_stream_gst_*.jxs 2>/dev/null || true
+
 RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_gst_XXXXXX)
 RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_gst_XXXXXX)
 NUMA_NODE=1
