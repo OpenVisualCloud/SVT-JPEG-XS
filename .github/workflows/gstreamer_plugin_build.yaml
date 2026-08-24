@@ -39,6 +39,11 @@ jobs:
       # inputs arrive as strings, so compare against 'true' rather than the boolean.
       changed: ${{ steps.filter.outputs.gstreamer_plugin_build == 'true' || github.event.inputs.force == 'true' }}
     steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -57,6 +62,11 @@ jobs:
     outputs:
       artifact_name: ${{ env.GST_ARTIFACTS }}
     steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -162,6 +172,11 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
     timeout-minutes: 120
     steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:

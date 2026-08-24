@@ -51,6 +51,11 @@ jobs:
       # inputs arrive as strings, so compare against 'true' rather than the boolean.
       changed: ${{ steps.filter.outputs.ffmpeg_plugin_build == 'true' || github.event.inputs.force == 'true' }}
     steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -68,6 +73,11 @@ jobs:
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 30
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -109,6 +119,11 @@ jobs:
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 60
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -156,6 +171,11 @@ jobs:
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -204,6 +224,11 @@ jobs:
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -253,6 +278,11 @@ jobs:
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -302,6 +332,11 @@ jobs:
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -351,6 +386,11 @@ jobs:
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -402,6 +442,11 @@ jobs:
       outputs:
         artifact_name: ${{ env.LINUX_ARTIFACTS_9_0 }}
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -461,6 +506,11 @@ jobs:
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -530,6 +580,11 @@ jobs:
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -599,6 +654,11 @@ jobs:
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -668,6 +728,11 @@ jobs:
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -737,6 +802,11 @@ jobs:
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -806,6 +876,11 @@ jobs:
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -874,6 +949,11 @@ jobs:
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
       timeout-minutes: 120
       steps:
+        - name: 'Clear Runner Action Cache'
+          run: |
+            echo "Clearing runner action cache..."
+            rm -rf ${{ github.workspace }}/../../_actions
+
         - name: 'Harden Runner'
           uses: step-security/harden-runner@v2
           with:
@@ -957,6 +1037,11 @@ jobs:
       runs-on: 'windows-2022'
       timeout-minutes: 60
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1000,6 +1085,11 @@ jobs:
       runs-on: 'windows-2022'
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1056,6 +1146,11 @@ jobs:
       runs-on: 'windows-2022'
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1111,6 +1206,11 @@ jobs:
       runs-on: 'windows-2022'
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1166,6 +1266,11 @@ jobs:
       runs-on: 'windows-2022'
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1221,6 +1326,11 @@ jobs:
       runs-on: 'windows-2022'
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1276,6 +1386,11 @@ jobs:
       runs-on: 'windows-2022'
       timeout-minutes: 120
       steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:

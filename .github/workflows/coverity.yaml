@@ -24,6 +24,11 @@ jobs:
     runs-on: 'ubuntu-22.04'
     timeout-minutes: 90
     steps:
+    - name: 'Clear Runner Action Cache'
+      run: |
+        echo "Clearing runner action cache..."
+        rm -rf ${{ github.workspace }}/../../_actions
+
     - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:

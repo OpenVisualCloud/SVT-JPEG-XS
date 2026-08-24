@@ -33,6 +33,11 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
+    - name: 'Clear Runner Action Cache'
+      run: |
+        echo "Clearing runner action cache..."
+        rm -rf ${{ github.workspace }}/../../_actions
+
     - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
@@ -84,6 +89,11 @@ jobs:
     needs: build-lib
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
+    - name: 'Clear Runner Action Cache'
+      run: |
+        echo "Clearing runner action cache..."
+        rm -rf ${{ github.workspace }}/../../_actions
+
     - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
@@ -131,6 +141,11 @@ jobs:
     needs: [build-lib, decoder]
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
+    - name: 'Clear Runner Action Cache'
+      run: |
+        echo "Clearing runner action cache..."
+        rm -rf ${{ github.workspace }}/../../_actions
+
     - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:

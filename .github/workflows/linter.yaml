@@ -19,6 +19,11 @@ jobs:
       # To report GitHub Actions status checks
       statuses: write
     steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - name: Harden Runner
         uses: step-security/harden-runner@v2
         with:

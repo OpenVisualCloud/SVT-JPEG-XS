@@ -34,6 +34,11 @@ jobs:
       # inputs arrive as strings, so compare against 'true' rather than the boolean.
       changed: ${{ steps.filter.outputs.oomify_tests == 'true' || github.event.inputs.force == 'true' }}
     steps:
+      - name: 'Clear Runner Action Cache'
+        run: |
+          echo "Clearing runner action cache..."
+          rm -rf ${{ github.workspace }}/../../_actions
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -51,6 +56,11 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 60
     steps:
+    - name: 'Clear Runner Action Cache'
+      run: |
+        echo "Clearing runner action cache..."
+        rm -rf ${{ github.workspace }}/../../_actions
+
     - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
