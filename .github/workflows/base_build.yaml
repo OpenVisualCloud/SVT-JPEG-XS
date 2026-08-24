@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.7
 
-      - uses: dorny/paths-filter@v3.0.3-beta
+      - uses: dorny/paths-filter@v3.0.2
         id: filter
         with:
           filters: .github/config/path_filters.yaml
