@@ -23,14 +23,7 @@ jobs:
     name: 'Setup: checkout + toolchain'
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
     timeout-minutes: 30
-    steps:
-    - name: 'Clear Runner Action Cache'
-      run: |
-        echo "Clearing runner action cache..."
-        # This corrected command deletes the contents of _actions, not the folder itself.
-        # The '|| true' ensures the step doesn't fail if the directory is already empty.
-        rm -rf ${{ github.workspace }}/../../_actions/* || true
-    - name: 'Harden Runner'
+    steps:    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
@@ -41,7 +34,7 @@ jobs:
         rm -rf ./.??* || true
 
     - name: 'Checkout repository'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.1.7
 
     - name: 'Setup: Install dependencies'
       run: |
@@ -70,14 +63,7 @@ jobs:
     timeout-minutes: 180
     env:
       INPUT_FILES_PATH: /opt/samples
-    steps:
-    - name: 'Clear Runner Action Cache'
-      run: |
-        echo "Clearing runner action cache..."
-        # This corrected command deletes the contents of _actions, not the folder itself.
-        # The '|| true' ensures the step doesn't fail if the directory is already empty.
-        rm -rf ${{ github.workspace }}/../../_actions/* || true
-    # Harden Runner is per-job network egress monitoring, not shared setup -
+    steps:    # Harden Runner is per-job network egress monitoring, not shared setup -
     # it has to run in every job it should actually cover, so it's repeated here.
     - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
@@ -107,7 +93,7 @@ jobs:
 
     - name: 'Archive: upload logs'
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4.3.4
       with:
         name: sanitizer-logs-${{ matrix.sanitizer }}-${{ github.run_number }}
         retention-days: 7
@@ -135,14 +121,7 @@ jobs:
     needs: [setup, sanitizer]
     if: always()
     runs-on: ubuntu-latest
-    steps:
-    - name: 'Clear Runner Action Cache'
-      run: |
-        echo "Clearing runner action cache..."
-        # This corrected command deletes the contents of _actions, not the folder itself.
-        # The '|| true' ensures the step doesn't fail if the directory is already empty.
-        rm -rf ${{ github.workspace }}/../../_actions/* || true
-    - name: 'Check sanitizer matrix result'
+    steps:    - name: 'Check sanitizer matrix result'
       run: |
         setup_result="${{ needs.setup.result }}"
         sanitizer_results="${{ needs.sanitizer.result }}"

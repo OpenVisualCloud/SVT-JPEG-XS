@@ -23,20 +23,13 @@ jobs:
   coverity:
     runs-on: 'ubuntu-22.04'
     timeout-minutes: 90
-    steps:
-    - name: 'Clear Runner Action Cache'
-      run: |
-        echo "Clearing runner action cache..."
-        # This corrected command deletes the contents of _actions, not the folder itself.
-        # The '|| true' ensures the step doesn't fail if the directory is already empty.
-        rm -rf ${{ github.workspace }}/../../_actions/* || true
-    - name: 'Harden Runner'
+    steps:    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
 
     - name: 'Checkout repository'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.1.7
       with:
         ref: ${{ inputs.branch }}
 
@@ -57,7 +50,7 @@ jobs:
         working-directory: '${{ github.workspace }}/Build/linux'
         command: '${{ github.workspace }}/Build/linux/build.sh --release'
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v4.3.4
       with:
         name: coverity-reports
         path: '${{ github.workspace }}/cov-int'
