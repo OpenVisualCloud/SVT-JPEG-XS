@@ -33,7 +33,8 @@ jobs:
       # 'force' is a workflow_dispatch checkbox that skips the path filter. dispatch
       # inputs arrive as strings, so compare against 'true' rather than the boolean.
       changed: ${{ steps.filter.outputs.oomify_tests == 'true' || github.event.inputs.force == 'true' }}
-    steps:      - uses: actions/checkout@v4.1.7
+    steps:
+      - uses: actions/checkout@v4.1.7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
@@ -49,7 +50,8 @@ jobs:
     name: "OOMify: malloc failure injection"
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 60
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit

@@ -23,7 +23,8 @@ jobs:
   coverity:
     runs-on: 'ubuntu-22.04'
     timeout-minutes: 90
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit

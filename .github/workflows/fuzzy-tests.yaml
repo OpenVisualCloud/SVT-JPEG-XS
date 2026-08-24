@@ -32,7 +32,8 @@ jobs:
   build-lib:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
@@ -82,7 +83,8 @@ jobs:
   decoder:
     needs: build-lib
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
@@ -128,7 +130,8 @@ jobs:
   encoder:
     needs: [build-lib, decoder]
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit

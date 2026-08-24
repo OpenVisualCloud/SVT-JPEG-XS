@@ -35,7 +35,8 @@ jobs:
       # 'force' is a workflow_dispatch checkbox that skips the path filter. dispatch
       # inputs arrive as strings, so compare against 'true' rather than the boolean.
       changed: ${{ steps.filter.outputs.base_build == 'true' || github.event.inputs.force == 'true' }}
-    steps:      - uses: actions/checkout@v4.1.7
+    steps:
+      - uses: actions/checkout@v4.1.7
 
       - uses: dorny/paths-filter@v3.0.3-beta
         id: filter
@@ -48,7 +49,8 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     outputs:
       artifact_name: ${{ env.LINUX_ARTIFACTS }}
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
@@ -89,7 +91,8 @@ jobs:
     needs: linux-build
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
@@ -118,7 +121,8 @@ jobs:
     needs: linux-build
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
@@ -147,7 +151,8 @@ jobs:
     needs: linux-build
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
@@ -181,7 +186,8 @@ jobs:
     needs: linux-build
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     timeout-minutes: 120
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
@@ -251,7 +257,8 @@ jobs:
     timeout-minutes: 120
     env:
       INPUT_FILES_PATH: /opt/samples
-    steps:      - name: 'Harden Runner'
+    steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -327,7 +334,8 @@ jobs:
     timeout-minutes: 120
     env:
       YASM_PATH: C:\Yasm
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
@@ -362,7 +370,8 @@ jobs:
     needs: windows-build
     runs-on: 'windows-2022'
     timeout-minutes: 120
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit

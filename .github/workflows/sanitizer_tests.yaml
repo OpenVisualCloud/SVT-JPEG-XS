@@ -23,7 +23,8 @@ jobs:
     name: 'Setup: checkout + toolchain'
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
     timeout-minutes: 30
-    steps:    - name: 'Harden Runner'
+    steps:
+    - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
         egress-policy: audit
@@ -121,7 +122,8 @@ jobs:
     needs: [setup, sanitizer]
     if: always()
     runs-on: ubuntu-latest
-    steps:    - name: 'Check sanitizer matrix result'
+    steps:
+    - name: 'Check sanitizer matrix result'
       run: |
         setup_result="${{ needs.setup.result }}"
         sanitizer_results="${{ needs.sanitizer.result }}"

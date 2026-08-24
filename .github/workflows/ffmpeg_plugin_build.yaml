@@ -50,7 +50,8 @@ jobs:
       # 'force' is a workflow_dispatch checkbox that skips the path filter. dispatch
       # inputs arrive as strings, so compare against 'true' rather than the boolean.
       changed: ${{ steps.filter.outputs.ffmpeg_plugin_build == 'true' || github.event.inputs.force == 'true' }}
-    steps:      - uses: actions/checkout@v4.1.7
+    steps:
+      - uses: actions/checkout@v4.1.7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
@@ -66,7 +67,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 30
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -106,7 +108,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 60
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -152,7 +155,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -199,7 +203,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -247,7 +252,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -295,7 +301,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -343,7 +350,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'ubuntu-22.04'
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -393,7 +401,8 @@ jobs:
       timeout-minutes: 120
       outputs:
         artifact_name: ${{ env.LINUX_ARTIFACTS_9_0 }}
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -451,7 +460,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -519,7 +529,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -587,7 +598,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -655,7 +667,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -723,7 +736,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -791,7 +805,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -858,7 +873,8 @@ jobs:
       needs: ffmpeg-9-0-linux-build
       runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
       timeout-minutes: 120
-      steps:        - name: 'Harden Runner'
+      steps:
+        - name: 'Harden Runner'
           uses: step-security/harden-runner@v2
           with:
             egress-policy: audit
@@ -940,7 +956,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 60
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -982,7 +999,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -1037,7 +1055,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -1091,7 +1110,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -1145,7 +1165,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -1199,7 +1220,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
@@ -1253,7 +1275,8 @@ jobs:
       if: ${{ needs.changes.outputs.changed == 'true' }}
       runs-on: 'windows-2022'
       timeout-minutes: 120
-      steps:      - name: 'Harden Runner'
+      steps:
+      - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
