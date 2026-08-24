@@ -20,11 +20,9 @@ REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
 
 # Remove stale /dev/shm files left by any previously killed run BEFORE creating new ones.
-# Large test_stream files (RAMDISK_JXS up to 1.5 GB each) are cleaned aggressively; synth files
-# are only cleaned if >60 min old to avoid deleting a concurrent run's freshly created files.
-rm -f /dev/shm/test_stream_*.yuv /dev/shm/test_stream_*.jxs 2>/dev/null || true
-find /dev/shm -maxdepth 1 \( -name 'synth_yuva422_*.yuv' -o -name 'synth_yuva444_*.yuv' \) \
-     -mmin +60 -delete 2>/dev/null || true
+# Accumulated files (especially large JXS bitstreams) can fill the ramdisk and cause synthesis to fail.
+rm -f /dev/shm/test_stream_*.yuv /dev/shm/test_stream_*.jxs \
+      /dev/shm/synth_yuva422_*.yuv /dev/shm/synth_yuva444_*.yuv 2>/dev/null || true
 
 RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_XXXXXX)
 RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_XXXXXX)
@@ -71,14 +69,12 @@ fi
 # SourceFile "SYNTH:yuva422"/"SYNTH:yuva444" is a sentinel meaning "use the on-the-fly synthesized file above",
 # since no real 4-component sample fixture exists in $SAMPLES_DIR.
 MATRIX=(
-    # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling. Run first so the synthesized
-    # fixture files are used immediately after creation and cannot be aged out by a host
-    # tmpfiles daemon before they are needed. Baselines calibrated from the CI runner's own
-    # measurements (dev-sandbox numbers were faster/slower than this host).
+    # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling. Baselines calibrated from the
+    # CI runner's own measurements (dev-sandbox numbers were faster/slower than this host).
     "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH:yuva422|39|40"
     "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|8|SYNTH:yuva422|235|146"
 
-    # 1080p rgba/yuva444 (4:4:4:4) 8-bit - 5.0 BPP Thread Scaling. Same rationale as yuva422.
+    # 1080p rgba/yuva444 (4:4:4:4) 8-bit - 5.0 BPP Thread Scaling.
     "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|1|SYNTH:yuva444|30|33"
     "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|8|SYNTH:yuva444|180|210"
 
@@ -156,10 +152,6 @@ function check_result() {
 
 for test_case in "${MATRIX[@]}"; do
     IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
-
-    # Keep synth file mtimes current so the host tmpfiles daemon does not age them out
-    # mid-run (confirmed: daemon threshold is ~3 min; tests take ~8 min total).
-    touch "$SYNTH_YUVA422" "$SYNTH_YUVA444" 2>/dev/null || true
 
     case "$file" in
         SYNTH:yuva422) source_path="$SYNTH_YUVA422" ;;
