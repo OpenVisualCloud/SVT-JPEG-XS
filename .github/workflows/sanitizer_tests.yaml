@@ -27,8 +27,9 @@ jobs:
     - name: 'Clear Runner Action Cache'
       run: |
         echo "Clearing runner action cache..."
-        rm -rf ${{ github.workspace }}/../../_actions
-
+        # This corrected command deletes the contents of _actions, not the folder itself.
+        # The '|| true' ensures the step doesn't fail if the directory is already empty.
+        rm -rf ${{ github.workspace }}/../../_actions/* || true
     - name: 'Harden Runner'
       uses: step-security/harden-runner@v2
       with:
@@ -73,8 +74,9 @@ jobs:
     - name: 'Clear Runner Action Cache'
       run: |
         echo "Clearing runner action cache..."
-        rm -rf ${{ github.workspace }}/../../_actions
-
+        # This corrected command deletes the contents of _actions, not the folder itself.
+        # The '|| true' ensures the step doesn't fail if the directory is already empty.
+        rm -rf ${{ github.workspace }}/../../_actions/* || true
     # Harden Runner is per-job network egress monitoring, not shared setup -
     # it has to run in every job it should actually cover, so it's repeated here.
     - name: 'Harden Runner'
@@ -137,8 +139,9 @@ jobs:
     - name: 'Clear Runner Action Cache'
       run: |
         echo "Clearing runner action cache..."
-        rm -rf ${{ github.workspace }}/../../_actions
-
+        # This corrected command deletes the contents of _actions, not the folder itself.
+        # The '|| true' ensures the step doesn't fail if the directory is already empty.
+        rm -rf ${{ github.workspace }}/../../_actions/* || true
     - name: 'Check sanitizer matrix result'
       run: |
         setup_result="${{ needs.setup.result }}"

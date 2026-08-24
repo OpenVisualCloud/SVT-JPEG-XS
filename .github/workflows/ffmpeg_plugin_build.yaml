@@ -54,8 +54,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -76,8 +77,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -122,8 +124,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -174,8 +177,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -227,8 +231,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -281,8 +286,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -335,8 +341,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -389,8 +396,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -445,8 +453,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -509,8 +518,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -583,8 +593,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -657,8 +668,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -731,8 +743,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -805,8 +818,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -879,8 +893,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -952,8 +967,9 @@ jobs:
         - name: 'Clear Runner Action Cache'
           run: |
             echo "Clearing runner action cache..."
-            rm -rf ${{ github.workspace }}/../../_actions
-
+            # This corrected command deletes the contents of _actions, not the folder itself.
+            # The '|| true' ensures the step doesn't fail if the directory is already empty.
+            rm -rf ${{ github.workspace }}/../../_actions/* || true
         - name: 'Harden Runner'
           uses: step-security/harden-runner@v2
           with:
@@ -1040,8 +1056,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1088,8 +1105,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1149,8 +1167,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1209,8 +1228,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1269,8 +1289,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1329,8 +1350,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
@@ -1389,8 +1411,9 @@ jobs:
       - name: 'Clear Runner Action Cache'
         run: |
           echo "Clearing runner action cache..."
-          rm -rf ${{ github.workspace }}/../../_actions
-
+          # This corrected command deletes the contents of _actions, not the folder itself.
+          # The '|| true' ensures the step doesn't fail if the directory is already empty.
+          rm -rf ${{ github.workspace }}/../../_actions/* || true
       - name: 'Harden Runner'
         uses: step-security/harden-runner@v2
         with:
