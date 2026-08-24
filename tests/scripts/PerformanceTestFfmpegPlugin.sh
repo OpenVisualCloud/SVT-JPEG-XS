@@ -12,31 +12,49 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FFMPEG_BIN="ffmpeg"
 SAMPLES_DIR="${1:-$SCRIPT_DIR/../../Conformance-tests}"
 CSV_FILE="$SCRIPT_DIR/ffmpeg_results.csv"
-RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_ffmpeg_XXXXXX)
-RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_ffmpeg_XXXXXX)
-SYNTH_YUVA422=$(mktemp --suffix=.yuv /dev/shm/synth_yuva422_ffmpeg_XXXXXX)
-SYNTH_YUVA444=$(mktemp --suffix=.yuv /dev/shm/synth_yuva444_ffmpeg_XXXXXX)
 NUMA_NODE=1
 FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
 
-# Cleanup on exit
-trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS" "$SYNTH_YUVA422" "$SYNTH_YUVA444"' EXIT
+# Remove stale /dev/shm files left by any previously killed run BEFORE creating new ones; if they
+# accumulate they can fill the ramdisk and silently cause the synthesis below to produce empty files
+# (ENOSPC masked by || true in the original code, or a failed dd here).
+rm -f /dev/shm/test_stream_ffmpeg_*.yuv /dev/shm/test_stream_ffmpeg_*.jxs \
+      /dev/shm/synth_yuva422_ffmpeg_*.yuv /dev/shm/synth_yuva422_ffmpeg_*.yuv.y \
+      /dev/shm/synth_yuva422_ffmpeg_*.yuv.cb /dev/shm/synth_yuva422_ffmpeg_*.yuv.cr \
+      /dev/shm/synth_yuva444_ffmpeg_*.yuv 2>/dev/null || true
+
+RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_ffmpeg_XXXXXX)
+RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_ffmpeg_XXXXXX)
+SYNTH_YUVA422=$(mktemp --suffix=.yuv /dev/shm/synth_yuva422_ffmpeg_XXXXXX)
+SYNTH_YUVA444=$(mktemp --suffix=.yuv /dev/shm/synth_yuva444_ffmpeg_XXXXXX)
+
+# Cleanup on exit (includes intermediate .y/.cb/.cr temp files used during synthesis)
+trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS" "$SYNTH_YUVA422" "$SYNTH_YUVA444" \
+           "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr"' EXIT
 
 # No real 4-component (alpha) sample YUV exists in $SAMPLES_DIR. Synthesize a single-frame fixture
 # (ffmpeg's -stream_loop -1 below repeats it to reach $FRAMES) from the existing 1080p 8bit yuv422
 # fixture: real Y/Cb/Cr planes kept as-is, alpha/extra-chroma planes are Y duplicates.
+#
+# Use dd with iflag=skip_bytes,count_bytes instead of tail|head: dd seeks directly without a pipe so
+# there is no SIGPIPE, and any write failure (e.g. ENOSPC) propagates as a non-zero exit code that
+# is not masked by set -o pipefail.
 SYNTH_SRC="$SAMPLES_DIR/encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
 if [ -f "$SYNTH_SRC" ]; then
     SYNTH_Y_SIZE=$((1920 * 1080))
     SYNTH_C_SIZE=$((1920 * 1080 / 2))
     head -c $SYNTH_Y_SIZE "$SYNTH_SRC" > "${SYNTH_YUVA422}.y"
-    tail -c +$((SYNTH_Y_SIZE + 1)) "$SYNTH_SRC" | head -c $SYNTH_C_SIZE > "${SYNTH_YUVA422}.cb" || true
-    tail -c +$((SYNTH_Y_SIZE + SYNTH_C_SIZE + 1)) "$SYNTH_SRC" | head -c $SYNTH_C_SIZE > "${SYNTH_YUVA422}.cr" || true
+    dd if="$SYNTH_SRC" iflag=skip_bytes,count_bytes skip="$SYNTH_Y_SIZE" count="$SYNTH_C_SIZE" status=none > "${SYNTH_YUVA422}.cb"
+    dd if="$SYNTH_SRC" iflag=skip_bytes,count_bytes skip="$((SYNTH_Y_SIZE + SYNTH_C_SIZE))" count="$SYNTH_C_SIZE" status=none > "${SYNTH_YUVA422}.cr"
     cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr" "${SYNTH_YUVA422}.y" > "$SYNTH_YUVA422"
     cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" > "$SYNTH_YUVA444"
     rm -f "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr"
+    if [ ! -s "$SYNTH_YUVA422" ] || [ ! -s "$SYNTH_YUVA444" ]; then
+        echo "ERROR: synthesis of YUVA input files failed — check /dev/shm space: $(df -h /dev/shm | awk 'NR==2')"
+        exit 1
+    fi
 fi
 
 # Ensure CSV header exists. TestCase is the matching MATRIX line below.
