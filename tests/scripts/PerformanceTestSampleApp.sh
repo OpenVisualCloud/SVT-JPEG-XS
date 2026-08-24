@@ -43,20 +43,11 @@ trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS" "$SYNTH_YUVA422" "$SYNTH_YUVA444"' EXI
 # there is no SIGPIPE, and any write failure (e.g. ENOSPC) propagates as a non-zero exit code that
 # is not masked by set -o pipefail.
 SYNTH_SRC="$SAMPLES_DIR/encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
-SYNTH_FRAMES=5
-SYNTH_Y_SIZE=$((1920 * 1080))
-SYNTH_C_SIZE=$((1920 * 1080 / 2))
-SYNTH_422_FRAME_SIZE=$((SYNTH_Y_SIZE + 2 * SYNTH_C_SIZE))
-
-# Synthesis can be called more than once: the initial run and any on-demand re-creation
-# if the host's tmpfiles daemon removes /dev/shm files that have gone stale between the
-# initial synthesis and the YUVA test cases (which run ~8 min after startup).
-function synthesize_yuva_files() {
-    if [ ! -f "$SYNTH_SRC" ]; then
-        return
-    fi
-    : > "$SYNTH_YUVA422"
-    : > "$SYNTH_YUVA444"
+if [ -f "$SYNTH_SRC" ]; then
+    SYNTH_FRAMES=5
+    SYNTH_Y_SIZE=$((1920 * 1080))
+    SYNTH_C_SIZE=$((1920 * 1080 / 2))
+    SYNTH_422_FRAME_SIZE=$((SYNTH_Y_SIZE + 2 * SYNTH_C_SIZE))
     for ((f = 0; f < SYNTH_FRAMES; f++)); do
         off=$((f * SYNTH_422_FRAME_SIZE))
         dd if="$SYNTH_SRC" iflag=skip_bytes,count_bytes skip="$off" count="$SYNTH_422_FRAME_SIZE" status=none >> "$SYNTH_YUVA422"
@@ -69,10 +60,6 @@ function synthesize_yuva_files() {
         echo "ERROR: synthesis of YUVA input files failed — check /dev/shm space: $(df -h /dev/shm | awk 'NR==2')"
         exit 1
     fi
-}
-
-if [ -f "$SYNTH_SRC" ]; then
-    synthesize_yuva_files
 fi
 
 # Ensure CSV header exists. TestCase is the matching MATRIX line below.
@@ -84,6 +71,17 @@ fi
 # SourceFile "SYNTH:yuva422"/"SYNTH:yuva444" is a sentinel meaning "use the on-the-fly synthesized file above",
 # since no real 4-component sample fixture exists in $SAMPLES_DIR.
 MATRIX=(
+    # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling. Run first so the synthesized
+    # fixture files are used immediately after creation and cannot be aged out by a host
+    # tmpfiles daemon before they are needed. Baselines calibrated from the CI runner's own
+    # measurements (dev-sandbox numbers were faster/slower than this host).
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH:yuva422|39|40"
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|8|SYNTH:yuva422|235|146"
+
+    # 1080p rgba/yuva444 (4:4:4:4) 8-bit - 5.0 BPP Thread Scaling. Same rationale as yuva422.
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|1|SYNTH:yuva444|30|33"
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|8|SYNTH:yuva444|180|210"
+
     # 1080p 422p 10-bit - 1.5 BPP Thread Scaling
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|77|145"
     "1080p60_422p10|1920|1080|10|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|442|709"
@@ -111,18 +109,6 @@ MATRIX=(
     # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output: same baseline as the equivalent
     # LSB row above (msb-aligned kernels have same perf as LSB, verified separately).
     "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|359|571|--input-msb-aligned 1|--output-msb-aligned 1"
-
-    # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling. Baselines calibrated from the CI
-    # runner's own measurements (dev-sandbox numbers were faster/slower than this host and tripped
-    # false regressions).
-    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH:yuva422|39|40"
-    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|8|SYNTH:yuva422|235|146"
-
-    # 1080p rgba/yuva444 (4:4:4:4) 8-bit - 5.0 BPP Thread Scaling. Baselines calibrated from the CI
-    # runner's own measurements (dev-sandbox numbers were faster/slower than this host and tripped
-    # false regressions).
-    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|1|SYNTH:yuva444|30|33"
-    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|8|SYNTH:yuva444|180|210"
 )
 
 # run_measured cmd...: single run, prints parsed FPS (empty if unparseable).
@@ -171,26 +157,11 @@ function check_result() {
 for test_case in "${MATRIX[@]}"; do
     IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
 
-    # Refresh synth file mtimes so any host-level tmpfiles daemon (e.g. systemd-tmpfiles-clean)
-    # does not remove them based on age while the regular tests are running.  If the files have
-    # already been removed, touch re-creates them as empty files and the -s check below triggers
-    # an immediate re-synthesis rather than a cryptic "not found or empty" failure.
-    if [ -f "$SYNTH_SRC" ]; then
-        touch "$SYNTH_YUVA422" "$SYNTH_YUVA444" 2>/dev/null || true
-    fi
-
     case "$file" in
         SYNTH:yuva422) source_path="$SYNTH_YUVA422" ;;
         SYNTH:yuva444) source_path="$SYNTH_YUVA444" ;;
         *) source_path="$SAMPLES_DIR/$file" ;;
     esac
-
-    # Re-synthesize on demand if the files were removed or emptied by the host between
-    # the initial synthesis and now.
-    if [[ "$file" == SYNTH:* ]] && [ ! -s "$source_path" ]; then
-        echo "WARNING: synth file $source_path missing/empty mid-run — re-synthesizing (df: $(df -h /dev/shm | awk 'NR==2'))"
-        synthesize_yuva_files
-    fi
 
     if [ ! -s "$source_path" ]; then
         echo "ERROR: File $source_path not found or empty!"
