@@ -10,6 +10,9 @@
 #include "Packing.h"
 #include "BitstreamWriter.h"
 #include "common_dsp_rtcd.h"
+#include "unpack_common.h"
+#include "SvtUtility.h"
+#include "EncDec.h" /* TRUNCATION_MAX */
 
 typedef SvtJxsErrorType_t (*unpack_data)(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                          uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
@@ -426,5 +429,205 @@ TEST(unpack_data_test, unpack_sign) {
     free(bitstream_mem);
     free(buf);
     free(buf_expected);
+    delete rnd;
+}
+
+/* The AVX-512 parser on well-formed streams. Until now it was only reached by
+ * the corrupt-stream test above, so the ordinary path - the one that actually
+ * decodes pictures - had no test of its own on this tier. */
+TEST(unpack_data_test, unpack_data_AVX512) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & required) != required) {
+        GTEST_SKIP();
+    }
+    unpack_test(unpack_data_avx512);
+}
+
+/* The logic shared by both vector parsers - counting the consumed bits, the end
+ * of the line, handing the position back to the common reader - with the group
+ * parser passed in. Both wrappers are nothing but a choice of that pair, so it
+ * is checked here on its own. */
+static SvtJxsErrorType_t unpack_data_common_avx2_parsers(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
+                                                         uint32_t group_size, uint8_t gtli, uint8_t sign_flag,
+                                                         uint8_t* leftover_signs_num, int32_t* precinct_bits_left) {
+    return unpack_data_common(bitstream,
+                              buf,
+                              w,
+                              gclis,
+                              group_size,
+                              gtli,
+                              sign_flag,
+                              leftover_signs_num,
+                              precinct_bits_left,
+                              unpack_n_groups,
+                              unpack_n_groups_nosign);
+}
+
+TEST(unpack_data_test, unpack_data_common) {
+    unpack_test(unpack_data_common_avx2_parsers);
+}
+
+/* Nibble n of the stream: bytes carry the high nibble first. */
+static uint32_t one_nibble_ref(const uint8_t* mem, uint32_t nib) {
+    return (nib & 1) ? (mem[nib >> 1] & 0xF) : (uint32_t)(mem[nib >> 1] >> 4);
+}
+
+/* The single load that takes a whole group has to give the same nibbles the
+ * per-nibble reader gives, at both halves of the starting byte and at every
+ * length the group can have - up to fifteen bit planes. */
+TEST(unpack_common, load_nibbles_matches_one_nibble) {
+    const uint32_t mem_size = 64;
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    uint8_t mem[64];
+
+    for (uint32_t test_num = 0; test_num < 500; test_num++) {
+        for (uint32_t i = 0; i < mem_size; i++) {
+            mem[i] = rnd->Rand8();
+        }
+        /* the load reaches eight bytes past the start of the group */
+        for (uint32_t nib = 0; nib + 15 < 2 * (mem_size - 8); nib++) {
+            ASSERT_EQ(one_nibble_ref(mem, nib), unpack_one_nibble(mem, nib));
+            for (uint32_t count = 1; count <= 15; count++) {
+                uint64_t ref = 0;
+                for (uint32_t i = 0; i < count; i++) {
+                    ref = (ref << 4) | one_nibble_ref(mem, nib + i);
+                }
+                ASSERT_EQ(ref, unpack_load_nibbles(mem, nib, count)) << "nib " << nib << " count " << count;
+            }
+        }
+    }
+    delete rnd;
+}
+
+/* The right to make an over-reading load: eight bytes have to remain past the
+ * start of the group, and a count is returned so that zero means "not at all". */
+TEST(unpack_common, safe_byte_count) {
+    for (uint32_t bytes_left = 0; bytes_left < 8; bytes_left++) {
+        ASSERT_EQ(0u, unpack_safe_byte_count(bytes_left));
+    }
+    for (uint32_t bytes_left = 8; bytes_left < 100; bytes_left++) {
+        ASSERT_EQ(bytes_left - 7, unpack_safe_byte_count(bytes_left));
+    }
+}
+
+/* The two group parsers of a line, called by their own names rather than
+ * through the wrappers. Random memory is a legitimate input here: the parser is
+ * driven by the GCLI table, and both levels have to read the same nibbles out
+ * of it and leave the reader in the same place.
+ *
+ * safe_bytes is walked from zero upwards, because it is what splits the fast
+ * path from the sequential tail: at zero every group goes the slow way. */
+TEST(unpack_n_groups, AVX512_matches_AVX2) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & required) != required) {
+        GTEST_SKIP();
+    }
+
+    const uint32_t max_groups = 40;
+    const uint32_t mem_size = 1024;
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+
+    uint8_t* mem = (uint8_t*)malloc(mem_size);
+    uint8_t* gclis = (uint8_t*)malloc(max_groups);
+    uint16_t* buf_ref = (uint16_t*)malloc(max_groups * GROUP_SIZE * sizeof(uint16_t));
+    uint16_t* buf_cmp = (uint16_t*)malloc(max_groups * GROUP_SIZE * sizeof(uint16_t));
+    ASSERT_TRUE(mem != NULL && gclis != NULL && buf_ref != NULL && buf_cmp != NULL);
+
+    for (uint32_t nosign = 0; nosign < 2; nosign++) {
+        for (uint32_t test_num = 0; test_num < 400; test_num++) {
+            for (uint32_t i = 0; i < mem_size; i++) {
+                mem[i] = rnd->Rand8();
+            }
+            const uint32_t n_groups = 1 + rnd->Rand8() % max_groups;
+            const uint8_t gtli = (uint8_t)(rnd->Rand8() % (TRUNCATION_MAX + 1));
+            for (uint32_t i = 0; i < n_groups; i++) {
+                gclis[i] = (uint8_t)(rnd->Rand8() % (TRUNCATION_MAX + 1));
+            }
+            const uint8_t start_bits_used = (uint8_t)(rnd->Rand8() % 2 ? 4 : 0);
+            /* zero, a boundary and a value that lets every group take the fast
+             * path; the parser never leaves the buffer either way */
+            const uint32_t safe_choice = rnd->Rand8() % 3;
+            const uint32_t safe_bytes = safe_choice == 0 ? 0 : (safe_choice == 1 ? 1 + rnd->Rand8() % 16 : mem_size - 8);
+
+            memset(buf_ref, 0, max_groups * GROUP_SIZE * sizeof(uint16_t));
+            memset(buf_cmp, 0, max_groups * GROUP_SIZE * sizeof(uint16_t));
+
+            reader_short_t r_ref, r_cmp;
+            r_ref.mem = mem;
+            r_ref.bits_used = start_bits_used;
+            r_cmp = r_ref;
+
+            if (nosign) {
+                unpack_n_groups_nosign(gclis, gtli, &r_ref, buf_ref, n_groups, safe_bytes);
+                unpack_n_groups_nosign_avx512(gclis, gtli, &r_cmp, buf_cmp, n_groups, safe_bytes);
+            }
+            else {
+                unpack_n_groups(gclis, gtli, &r_ref, buf_ref, n_groups, safe_bytes);
+                unpack_n_groups_avx512(gclis, gtli, &r_cmp, buf_cmp, n_groups, safe_bytes);
+            }
+
+            ASSERT_EQ(r_ref.mem - mem, r_cmp.mem - mem);
+            ASSERT_EQ(r_ref.bits_used, r_cmp.bits_used);
+            ASSERT_EQ(memcmp(buf_ref, buf_cmp, n_groups * GROUP_SIZE * sizeof(uint16_t)), 0);
+        }
+    }
+
+    free(mem);
+    free(gclis);
+    free(buf_ref);
+    free(buf_cmp);
+    delete rnd;
+}
+
+/* The two bit scans that replaced dispatched calls on the hot paths. Both are
+ * undefined on zero and neither is asked for it. */
+TEST(bit_scan, svt_first_set_bit) {
+    for (uint32_t bit = 0; bit < 64; bit++) {
+        const uint64_t mask = (uint64_t)1 << bit;
+        ASSERT_EQ(bit, svt_first_set_bit(mask));
+        /* the higher bits must not shift the answer */
+        ASSERT_EQ(bit, svt_first_set_bit(mask | (mask << 1)));
+        ASSERT_EQ(bit, svt_first_set_bit(~(uint64_t)0 << bit));
+    }
+
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    for (uint32_t test_num = 0; test_num < 10000; test_num++) {
+        uint64_t mask = 0;
+        for (uint32_t i = 0; i < 4; i++) {
+            mask = (mask << 16) | rnd->Rand16();
+        }
+        if (mask == 0) {
+            continue;
+        }
+        uint32_t ref = 0;
+        while (!((mask >> ref) & 1)) {
+            ref++;
+        }
+        ASSERT_EQ(ref, svt_first_set_bit(mask));
+    }
+    delete rnd;
+}
+
+TEST(bit_scan, vlc_leading_run) {
+    for (uint32_t bit = 0; bit < 32; bit++) {
+        /* the length of a unary code is the number of leading zeroes plus one */
+        const uint32_t v = 1u << bit;
+        ASSERT_EQ((int8_t)(32 - bit), vlc_leading_run(v));
+        /* the lower bits must not shift the answer */
+        ASSERT_EQ((int8_t)(32 - bit), vlc_leading_run(v | (v - 1)));
+    }
+
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    for (uint32_t test_num = 0; test_num < 10000; test_num++) {
+        const uint32_t v = ((uint32_t)rnd->Rand16() << 16) | rnd->Rand16();
+        if (v == 0) {
+            continue;
+        }
+        uint32_t top = 31;
+        while (!((v >> top) & 1)) {
+            top--;
+        }
+        ASSERT_EQ((int8_t)(32 - top), vlc_leading_run(v));
+    }
     delete rnd;
 }

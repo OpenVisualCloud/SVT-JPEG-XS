@@ -7,6 +7,7 @@
 #include <immintrin.h>
 #include "UnPack_avx512.h"
 #include "unpack_common.h"
+#include "unpack_common_avx512.h"
 #include "Definitions.h"
 #include "EncDec.h" /* TRUNCATION_MAX: the single load holds fifteen planes at most */
 #include "SvtUtility.h"
@@ -28,15 +29,6 @@
  * PEXT is used here without hesitation: it is microcoded and slow only on Zen 1
  * and Zen 2, and this function is only reached when AVX-512 is present, that is
  * on Skylake-X and newer or Zen 4 and newer, where PEXT is a single uop. */
-
-/* Spreads count nibbles, right aligned, into four coefficients. */
-static INLINE uint64_t unpack_planes_to_lanes(uint64_t acc, uint8_t gtli) {
-    const uint64_t v0 = _pext_u64(acc, 0x8888888888888888ULL);
-    const uint64_t v1 = _pext_u64(acc, 0x4444444444444444ULL);
-    const uint64_t v2 = _pext_u64(acc, 0x2222222222222222ULL);
-    const uint64_t v3 = _pext_u64(acc, 0x1111111111111111ULL);
-    return (v0 | (v1 << 16) | (v2 << 32) | (v3 << 48)) << gtli;
-}
 
 void unpack_n_groups_avx512(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups,
                             uint32_t safe_bytes) {

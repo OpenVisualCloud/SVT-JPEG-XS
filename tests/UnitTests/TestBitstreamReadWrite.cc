@@ -254,3 +254,175 @@ TEST(BitstreamReadWrite, update_N_bits) {
     }
     free(bitstream_mem);
 }
+
+/* The two accumulating writers of the packing path.
+ *
+ * Both exist only to spare the stream a call per bit or per nibble, so the one
+ * thing that has to hold is that they are indistinguishable from the generic
+ * writers they replace: the same bytes, the same offset, the same number of
+ * used bits - including when the line starts in the middle of a byte and when
+ * it ends there. */
+
+#define ACC_WRITER_BUF_SIZE 512
+
+/* Both streams are started the same way, so the state the accumulator picks up
+ * in its init is the state the reference writer left behind.
+ *
+ * The buffers are cleared after the init and not before it: a debug build fills
+ * them with 0xFF in there, and write_4_bits_align4 only ORs its nibble into the
+ * second half of a byte - what was left in the first half would then be part of
+ * the answer. */
+static void acc_writer_prepare(bitstream_writer_t* ref, bitstream_writer_t* cmp, uint8_t* mem_ref, uint8_t* mem_cmp,
+                               uint32_t prefix_bits, uint32_t prefix_value) {
+    bitstream_writer_init(ref, mem_ref, ACC_WRITER_BUF_SIZE);
+    bitstream_writer_init(cmp, mem_cmp, ACC_WRITER_BUF_SIZE);
+    memset(mem_ref, 0, ACC_WRITER_BUF_SIZE);
+    memset(mem_cmp, 0, ACC_WRITER_BUF_SIZE);
+    if (prefix_bits) {
+        /* write_N_bits takes exactly as many significant positions as it is told */
+        prefix_value &= (1u << prefix_bits) - 1;
+        write_N_bits(ref, prefix_value, (uint8_t)prefix_bits);
+        write_N_bits(cmp, prefix_value, (uint8_t)prefix_bits);
+    }
+}
+
+TEST(BitstreamWriteAccumulators, bit_writer_matches_write_N_bits) {
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    uint8_t* mem_ref = (uint8_t*)malloc(ACC_WRITER_BUF_SIZE);
+    uint8_t* mem_cmp = (uint8_t*)malloc(ACC_WRITER_BUF_SIZE);
+    ASSERT_TRUE(mem_ref != NULL && mem_cmp != NULL);
+
+    for (uint32_t prefix_bits = 0; prefix_bits < 8; prefix_bits++) {
+        for (uint32_t test_num = 0; test_num < 300; test_num++) {
+            const uint32_t portions = 1 + rnd->Rand8() % 40;
+            uint32_t lens[40];
+            uint32_t values[40];
+            for (uint32_t i = 0; i < portions; i++) {
+                lens[i] = 1 + rnd->Rand8() % 32;
+                const uint32_t raw = ((uint32_t)rnd->Rand16() << 16) | rnd->Rand16();
+                values[i] = lens[i] == 32 ? raw : (raw & ((1u << lens[i]) - 1));
+            }
+
+            bitstream_writer_t ref, cmp;
+            acc_writer_prepare(&ref, &cmp, mem_ref, mem_cmp, prefix_bits, rnd->Rand8());
+
+            for (uint32_t i = 0; i < portions; i++) {
+                write_N_bits(&ref, values[i], (uint8_t)lens[i]);
+            }
+
+            bit_writer_t w;
+            bitw_init(&w, &cmp);
+            for (uint32_t i = 0; i < portions; i++) {
+                bitw_put(&w, values[i], lens[i]);
+            }
+            bitw_finish(&w, &cmp);
+
+            ASSERT_EQ(ref.offset, cmp.offset);
+            ASSERT_EQ(ref.bits_used, cmp.bits_used);
+            ASSERT_EQ(memcmp(mem_ref, mem_cmp, ACC_WRITER_BUF_SIZE), 0);
+        }
+    }
+    free(mem_ref);
+    free(mem_cmp);
+    delete rnd;
+}
+
+TEST(BitstreamWriteAccumulators, nibble_writer_matches_write_4_bits_align4) {
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    uint8_t* mem_ref = (uint8_t*)malloc(ACC_WRITER_BUF_SIZE);
+    uint8_t* mem_cmp = (uint8_t*)malloc(ACC_WRITER_BUF_SIZE);
+    ASSERT_TRUE(mem_ref != NULL && mem_cmp != NULL);
+
+    /* write_4_bits_align4 is only defined on a nibble boundary, and so is the
+     * accumulator: a line always starts on one. */
+    for (uint32_t prefix_bits = 0; prefix_bits <= 4; prefix_bits += 4) {
+        for (uint32_t test_num = 0; test_num < 500; test_num++) {
+            const uint32_t count = rnd->Rand8() % 200;
+            uint8_t nibbles[200];
+            for (uint32_t i = 0; i < count; i++) {
+                nibbles[i] = (uint8_t)(rnd->Rand8() & 0xF);
+            }
+
+            bitstream_writer_t ref, cmp;
+            acc_writer_prepare(&ref, &cmp, mem_ref, mem_cmp, prefix_bits, rnd->Rand8() & 0xF);
+
+            for (uint32_t i = 0; i < count; i++) {
+                write_4_bits_align4(&ref, nibbles[i]);
+            }
+
+            nib_writer_t w;
+            nibw_init(&w, &cmp);
+            for (uint32_t i = 0; i < count; i++) {
+                nibw_put(&w, nibbles[i]);
+            }
+            nibw_finish(&w, &cmp);
+
+            ASSERT_EQ(ref.offset, cmp.offset);
+            ASSERT_EQ(ref.bits_used, cmp.bits_used);
+            ASSERT_EQ(memcmp(mem_ref, mem_cmp, ACC_WRITER_BUF_SIZE), 0);
+        }
+    }
+    free(mem_ref);
+    free(mem_cmp);
+    delete rnd;
+}
+
+/* The batch entries have to be the same as the nibbles fed one by one: the
+ * group packer hands over a whole group in a single call, up to fifteen planes
+ * and a sign. */
+TEST(BitstreamWriteAccumulators, nibble_writer_batches_match_single_nibbles) {
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    uint8_t* mem_ref = (uint8_t*)malloc(ACC_WRITER_BUF_SIZE);
+    uint8_t* mem_cmp = (uint8_t*)malloc(ACC_WRITER_BUF_SIZE);
+    ASSERT_TRUE(mem_ref != NULL && mem_cmp != NULL);
+
+    for (uint32_t use_group = 0; use_group < 2; use_group++) {
+        const uint32_t max_count = use_group ? 16 : 8;
+        for (uint32_t prefix_bits = 0; prefix_bits <= 4; prefix_bits += 4) {
+            for (uint32_t test_num = 0; test_num < 500; test_num++) {
+                const uint32_t batches = 1 + rnd->Rand8() % 20;
+                uint32_t counts[20];
+                uint64_t words[20];
+                for (uint32_t i = 0; i < batches; i++) {
+                    counts[i] = 1 + rnd->Rand8() % max_count;
+                    uint64_t w = 0;
+                    for (uint32_t j = 0; j < counts[i]; j++) {
+                        w = (w << 4) | (rnd->Rand8() & 0xF);
+                    }
+                    words[i] = w;
+                }
+
+                bitstream_writer_t ref, cmp;
+                acc_writer_prepare(&ref, &cmp, mem_ref, mem_cmp, prefix_bits, rnd->Rand8() & 0xF);
+
+                nib_writer_t w_ref;
+                nibw_init(&w_ref, &ref);
+                for (uint32_t i = 0; i < batches; i++) {
+                    for (uint32_t j = counts[i]; j > 0; j--) {
+                        nibw_put(&w_ref, (uint32_t)((words[i] >> (4 * (j - 1))) & 0xF));
+                    }
+                }
+                nibw_finish(&w_ref, &ref);
+
+                nib_writer_t w_cmp;
+                nibw_init(&w_cmp, &cmp);
+                for (uint32_t i = 0; i < batches; i++) {
+                    if (use_group) {
+                        nibw_put_group(&w_cmp, words[i], counts[i]);
+                    }
+                    else {
+                        nibw_put_chunk(&w_cmp, words[i], counts[i]);
+                    }
+                }
+                nibw_finish(&w_cmp, &cmp);
+
+                ASSERT_EQ(ref.offset, cmp.offset);
+                ASSERT_EQ(ref.bits_used, cmp.bits_used);
+                ASSERT_EQ(memcmp(mem_ref, mem_cmp, ACC_WRITER_BUF_SIZE), 0);
+            }
+        }
+    }
+    free(mem_ref);
+    free(mem_cmp);
+    delete rnd;
+}

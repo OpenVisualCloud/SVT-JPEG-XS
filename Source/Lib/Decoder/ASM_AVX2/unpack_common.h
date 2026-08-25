@@ -78,4 +78,29 @@ static INLINE uint32_t unpack_safe_byte_count(uint32_t bytes_left) {
     return bytes_left >= 8 ? bytes_left - 7 : 0;
 }
 
+/* Spreads count nibbles, right aligned, into four coefficients.
+ *
+ * PEXT would do this in four instructions, but this path also runs on Zen 1 and
+ * Zen 2 where it is microcoded and costs tens of cycles. So the nibbles are
+ * first unpacked one per byte (byte j holds nibble j), and then, for each
+ * coefficient, the required bit of every byte is raised into the sign position
+ * and collected by VPMOVMSKB. The value is exactly the same: bit j of the
+ * result is bit (3 - k) of nibble j, that is, the plane with weight 2^j.
+ *
+ * Nibbles past count are zero in acc, so the result needs no masking. */
+static INLINE uint64_t unpack_planes_to_lanes_sse(uint64_t acc, uint8_t gtli) {
+    const __m128i lo_mask = _mm_set1_epi8(0x0F);
+    const __m128i packed = _mm_cvtsi64_si128((int64_t)acc);
+    const __m128i lo = _mm_and_si128(packed, lo_mask);
+    const __m128i hi = _mm_and_si128(_mm_srli_epi16(packed, 4), lo_mask);
+    /* byte 2i is the low nibble of source byte i, byte 2i+1 is the high one */
+    const __m128i nibbles = _mm_unpacklo_epi8(lo, hi);
+
+    const uint64_t v0 = (uint32_t)_mm_movemask_epi8(_mm_slli_epi16(nibbles, 4));
+    const uint64_t v1 = (uint32_t)_mm_movemask_epi8(_mm_slli_epi16(nibbles, 5));
+    const uint64_t v2 = (uint32_t)_mm_movemask_epi8(_mm_slli_epi16(nibbles, 6));
+    const uint64_t v3 = (uint32_t)_mm_movemask_epi8(_mm_slli_epi16(nibbles, 7));
+    return (v0 | (v1 << 16) | (v2 << 32) | (v3 << 48)) << gtli;
+}
+
 #endif /*__UNPACK_COMMON_H__*/
