@@ -527,21 +527,37 @@ TEST(unpack_n_groups, AVX512_matches_AVX2) {
     const uint32_t mem_size = 1024;
     svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
 
-    uint8_t* mem = (uint8_t*)malloc(mem_size);
+    /* Two separately allocated source buffers, not one shared by both readers:
+     * a read that runs past the intended data reads past the end of a
+     * specific allocation, and two distinct allocations are never adjacent to
+     * the same bytes. A shared buffer would let such a read return identical
+     * garbage to both tiers, agree with itself, and hide the very thing this
+     * test exists to catch - the parser is trusted to stay in its lane, this
+     * is what checks that trust. */
+    uint8_t* mem_ref = (uint8_t*)malloc(mem_size);
+    uint8_t* mem_cmp = (uint8_t*)malloc(mem_size);
     uint8_t* gclis = (uint8_t*)malloc(max_groups);
     uint16_t* buf_ref = (uint16_t*)malloc(max_groups * GROUP_SIZE * sizeof(uint16_t));
     uint16_t* buf_cmp = (uint16_t*)malloc(max_groups * GROUP_SIZE * sizeof(uint16_t));
-    ASSERT_TRUE(mem != NULL && gclis != NULL && buf_ref != NULL && buf_cmp != NULL);
+    ASSERT_TRUE(mem_ref != NULL && mem_cmp != NULL && gclis != NULL && buf_ref != NULL && buf_cmp != NULL);
 
     for (uint32_t nosign = 0; nosign < 2; nosign++) {
         for (uint32_t test_num = 0; test_num < 400; test_num++) {
             for (uint32_t i = 0; i < mem_size; i++) {
-                mem[i] = rnd->Rand8();
+                mem_ref[i] = mem_cmp[i] = rnd->Rand8();
             }
             const uint32_t n_groups = 1 + rnd->Rand8() % max_groups;
             const uint8_t gtli = (uint8_t)(rnd->Rand8() % (TRUNCATION_MAX + 1));
+            /* Half the runs keep GCLI legal, [0, TRUNCATION_MAX]; the other
+             * half let it be anything a byte can hold. The unary code that
+             * carries GCLI in the real stream yields up to thirty-one, and
+             * vertical prediction can wrap it further still, so a corrupt or
+             * adversarial stream can and does present values past fifteen -
+             * that is exactly the input this parser has to survive without
+             * the two tiers disagreeing or either one reading past its data. */
+            const bool corrupt_domain = (test_num % 2) != 0;
             for (uint32_t i = 0; i < n_groups; i++) {
-                gclis[i] = (uint8_t)(rnd->Rand8() % (TRUNCATION_MAX + 1));
+                gclis[i] = corrupt_domain ? rnd->Rand8() : (uint8_t)(rnd->Rand8() % (TRUNCATION_MAX + 1));
             }
             const uint8_t start_bits_used = (uint8_t)(rnd->Rand8() % 2 ? 4 : 0);
             /* zero, a boundary and a value that lets every group take the fast
@@ -553,9 +569,9 @@ TEST(unpack_n_groups, AVX512_matches_AVX2) {
             memset(buf_cmp, 0, max_groups * GROUP_SIZE * sizeof(uint16_t));
 
             reader_short_t r_ref, r_cmp;
-            r_ref.mem = mem;
-            r_ref.bits_used = start_bits_used;
-            r_cmp = r_ref;
+            r_ref.mem = mem_ref;
+            r_cmp.mem = mem_cmp;
+            r_ref.bits_used = r_cmp.bits_used = start_bits_used;
 
             if (nosign) {
                 unpack_n_groups_nosign(gclis, gtli, &r_ref, buf_ref, n_groups, safe_bytes);
@@ -566,13 +582,18 @@ TEST(unpack_n_groups, AVX512_matches_AVX2) {
                 unpack_n_groups_avx512(gclis, gtli, &r_cmp, buf_cmp, n_groups, safe_bytes);
             }
 
-            ASSERT_EQ(r_ref.mem - mem, r_cmp.mem - mem);
+            ASSERT_EQ(r_ref.mem - mem_ref, r_cmp.mem - mem_cmp)
+                << "n_groups=" << n_groups << " gtli=" << (int)gtli << " corrupt_domain=" << corrupt_domain
+                << " safe_bytes=" << safe_bytes;
             ASSERT_EQ(r_ref.bits_used, r_cmp.bits_used);
-            ASSERT_EQ(memcmp(buf_ref, buf_cmp, n_groups * GROUP_SIZE * sizeof(uint16_t)), 0);
+            ASSERT_EQ(memcmp(buf_ref, buf_cmp, n_groups * GROUP_SIZE * sizeof(uint16_t)), 0)
+                << "n_groups=" << n_groups << " gtli=" << (int)gtli << " corrupt_domain=" << corrupt_domain
+                << " safe_bytes=" << safe_bytes;
         }
     }
 
-    free(mem);
+    free(mem_ref);
+    free(mem_cmp);
     free(gclis);
     free(buf_ref);
     free(buf_cmp);

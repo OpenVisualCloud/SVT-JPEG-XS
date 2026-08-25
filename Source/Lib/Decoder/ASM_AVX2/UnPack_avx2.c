@@ -84,8 +84,15 @@ tail:
         const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
         if (size > 0) {
             const uint64_t signs = unpack_sign_spread[read_4_bits_align4_fast(r)];
+            /* A corrupt stream can carry a GCLI far above the truncation maximum: the
+             * unary code yields up to thirty-one, and vertical prediction can wrap it
+             * to anything up to two hundred and fifty-five. The fast path above
+             * already declines to touch such a group at all; this sequential reader
+             * has to decline the same way, or it reads size nibbles - unbounded by
+             * anything - straight past the end of whatever buffer backs it. */
+            const int32_t read_planes = (size > TRUNCATION_MAX) ? TRUNCATION_MAX : size;
             uint64_t acc = 0;
-            for (int32_t i = 0; i < size; i++) {
+            for (int32_t i = 0; i < read_planes; i++) {
                 acc = (acc << 4) | read_4_bits_align4_fast(r);
             }
             const uint64_t out = unpack_planes_to_lanes_sse(acc, gtli) | signs;
@@ -156,8 +163,15 @@ tail:
     for (; group < n_groups; group++) {
         const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
         if (size > 0) {
+            /* A corrupt stream can carry a GCLI far above the truncation maximum: the
+             * unary code yields up to thirty-one, and vertical prediction can wrap it
+             * to anything up to two hundred and fifty-five. The fast path above
+             * already declines to touch such a group at all; this sequential reader
+             * has to decline the same way, or it reads size nibbles - unbounded by
+             * anything - straight past the end of whatever buffer backs it. */
+            const int32_t read_planes = (size > TRUNCATION_MAX) ? TRUNCATION_MAX : size;
             uint64_t acc = 0;
-            for (int32_t i = 0; i < size; i++) {
+            for (int32_t i = 0; i < read_planes; i++) {
                 acc = (acc << 4) | read_4_bits_align4_fast(r);
             }
             const uint64_t out = unpack_planes_to_lanes_sse(acc, gtli);
