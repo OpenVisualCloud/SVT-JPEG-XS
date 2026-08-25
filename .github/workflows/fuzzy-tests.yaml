@@ -39,9 +39,10 @@ jobs:
         egress-policy: audit
 
     - name: 'Checkout repository'
-      uses: actions/checkout@v4.1.7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
+        allow-unsafe-pr-checkout: true
 
     - name: 'Setup:  Install dependencies'
       run: |
@@ -90,9 +91,10 @@ jobs:
         egress-policy: audit
 
     - name: 'Checkout repository'
-      uses: actions/checkout@v4.1.7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
+        allow-unsafe-pr-checkout: true
 
     - name: 'Setup:  Install dependencies'
       run: |
@@ -137,9 +139,10 @@ jobs:
         egress-policy: audit
 
     - name: 'Checkout repository'
-      uses: actions/checkout@v4.1.7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
+        allow-unsafe-pr-checkout: true
 
     - name: 'Setup:  Install dependencies'
       run: |

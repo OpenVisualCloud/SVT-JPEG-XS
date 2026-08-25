@@ -39,9 +39,10 @@ jobs:
       # inputs arrive as strings, so compare against 'true' rather than the boolean.
       changed: ${{ steps.filter.outputs.gstreamer_plugin_build == 'true' || github.event.inputs.force == 'true' }}
     steps:
-      - uses: actions/checkout@v4.1.7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          allow-unsafe-pr-checkout: true
 
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
@@ -63,9 +64,10 @@ jobs:
           egress-policy: audit
 
       - name: 'Checkout repository'
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          allow-unsafe-pr-checkout: true
 
       - name: 'Setup: Install dependencies'
         run: |
@@ -173,9 +175,10 @@ jobs:
           sudo apt-get -y install numactl
 
       - name: 'Checkout repository'
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          allow-unsafe-pr-checkout: true
 
       - name: 'Setup: Download build artifacts'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
