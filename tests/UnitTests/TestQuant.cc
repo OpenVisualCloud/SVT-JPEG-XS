@@ -123,9 +123,11 @@ class QuantTest : public ::testing::TestWithParam<int> {
     uint32_t buffer_size;
     uint32_t gtli;
     QUANT_TYPE dq_type;
-    uint16_t* buf_ref;
-    uint16_t* buf_mod;
-    uint8_t* gclis;
+    // Default-initialized: corectness_test_avx512 skips set_up_corectness() on CPUs without
+    // AVX512F, but gtest's TearDown() always runs and frees whatever these hold.
+    uint16_t* buf_ref = nullptr;
+    uint16_t* buf_mod = nullptr;
+    uint8_t* gclis = nullptr;
 
   protected:
     static void SetUpTestCase() {
