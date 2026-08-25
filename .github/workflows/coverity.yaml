@@ -25,12 +25,12 @@ jobs:
     timeout-minutes: 90
     steps:
     - name: 'Harden Runner'
-      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
         egress-policy: audit
 
     - name: 'Checkout repository'
-      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ inputs.branch }}
 
@@ -51,7 +51,7 @@ jobs:
         working-directory: '${{ github.workspace }}/Build/linux'
         command: '${{ github.workspace }}/Build/linux/build.sh --release'
 
-    - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: coverity-reports
         path: '${{ github.workspace }}/cov-int'
