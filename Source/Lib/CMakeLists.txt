@@ -29,6 +29,7 @@ if(ARCH_X86_64)
     add_subdirectory(Decoder/ASM_AVX2)
     add_subdirectory(Decoder/ASM_AVX512)
 elseif(ARCH_AARCH64)
+    add_subdirectory(Encoder/ASM_NEON)
     add_subdirectory(Decoder/ASM_NEON)
 endif()
 
