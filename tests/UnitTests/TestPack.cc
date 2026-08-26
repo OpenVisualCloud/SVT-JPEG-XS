@@ -13,6 +13,10 @@
 
 #include "Codestream.h"
 
+#ifdef ARCH_AARCH64
+#include "Pack_neon.h"
+#endif /* ARCH_AARCH64 */
+
 #ifdef ARCH_X86_64
 #include "pack_group_helper.h"
 #include "Pack_avx512.h"
@@ -473,6 +477,12 @@ TEST(pack_data_groups, AVX2) {
     pack_data_groups_test(pack_data_groups_avx2);
 }
 #endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+TEST(pack_data_groups, NEON) {
+    pack_data_groups_test(pack_data_groups_neon);
+}
+#endif /* ARCH_AARCH64 */
 
 #ifdef ARCH_X86_64
 TEST(pack_data_groups, AVX512) {
