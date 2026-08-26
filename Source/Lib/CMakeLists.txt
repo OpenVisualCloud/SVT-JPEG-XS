@@ -12,17 +12,23 @@ set(SVT_LIB_VERSION_PATCH 0)
 set(SVT_LIB_VERSION ${SVT_LIB_VERSION_MAJOR}.${SVT_LIB_VERSION_MINOR}.${SVT_LIB_VERSION_PATCH})
 
 add_subdirectory(Common/Codec)
-add_subdirectory(Common/ASM_SSE2)
-add_subdirectory(Common/ASM_AVX2)
 add_subdirectory(Encoder/Codec)
-add_subdirectory(Encoder/ASM_SSE2)
-add_subdirectory(Encoder/ASM_SSE4_1)
-add_subdirectory(Encoder/ASM_AVX2)
-add_subdirectory(Encoder/ASM_AVX512)
 add_subdirectory(Decoder/Codec)
-add_subdirectory(Decoder/ASM_SSE4_1)
-add_subdirectory(Decoder/ASM_AVX2)
-add_subdirectory(Decoder/ASM_AVX512)
+
+# The architecture-specific implementations. On a processor with no SIMD tree of
+# its own these lists are empty and the library is built from the portable C
+# sources alone.
+if(ARCH_X86_64)
+    add_subdirectory(Common/ASM_SSE2)
+    add_subdirectory(Common/ASM_AVX2)
+    add_subdirectory(Encoder/ASM_SSE2)
+    add_subdirectory(Encoder/ASM_SSE4_1)
+    add_subdirectory(Encoder/ASM_AVX2)
+    add_subdirectory(Encoder/ASM_AVX512)
+    add_subdirectory(Decoder/ASM_SSE4_1)
+    add_subdirectory(Decoder/ASM_AVX2)
+    add_subdirectory(Decoder/ASM_AVX512)
+endif()
 
 if(UNIX)
     if(NOT APPLE)
@@ -60,17 +66,11 @@ endif()
 # Decoder Lib Source Files
 add_library(SvtJpegxsLib
     $<TARGET_OBJECTS:COMMON_CODEC>
-    $<TARGET_OBJECTS:COMMON_ASM_AVX2>
-    $<TARGET_OBJECTS:COMMON_ASM_SSE2>
     $<TARGET_OBJECTS:ENCODER_CODEC>
-    $<TARGET_OBJECTS:ENCODER_ASM_SSE2>
-    $<TARGET_OBJECTS:ENCODER_ASM_SSE4_1>
-    $<TARGET_OBJECTS:ENCODER_ASM_AVX2>
-    $<TARGET_OBJECTS:ENCODER_ASM_AVX512>
     $<TARGET_OBJECTS:DECODER_CODEC>
-    $<TARGET_OBJECTS:DECODER_ASM_AVX512>
-    $<TARGET_OBJECTS:DECODER_ASM_AVX2>
-    $<TARGET_OBJECTS:DECODER_ASM_SSE4_1>
+    ${SVT_JXS_SIMD_OBJECTS_COMMON}
+    ${SVT_JXS_SIMD_OBJECTS_ENCODER}
+    ${SVT_JXS_SIMD_OBJECTS_DECODER}
     )
 
 set_target_properties(SvtJpegxsLib PROPERTIES OUTPUT_NAME "SvtJpegxs")

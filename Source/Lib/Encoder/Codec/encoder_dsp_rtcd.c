@@ -6,23 +6,26 @@
 #define ENCODER_RTCD_C
 #include "encoder_dsp_rtcd.h"
 #include "GcStageProcess.h"
-#include "NltEnc_avx2.h"
 #include "DwtStageProcess.h"
-#include "Enc_avx512.h"
 #include "GcStageProcess.h"
 #include "Dwt.h"
-#include "Dwt_AVX2.h"
 #include "NltEnc.h"
+#include "Quant.h"
+#include "PackPrecinct.h"
+#include "RateControl.h"
+
+#ifdef ARCH_X86_64
+#include "NltEnc_avx2.h"
+#include "Enc_avx512.h"
+#include "Dwt_AVX2.h"
 #include "Quant_sse4_1.h"
 #include "Quant_avx2.h"
 #include "Quant_avx512.h"
-#include "Quant.h"
-#include "PackPrecinct.h"
 #include "Pack_avx512.h"
 #include "Pack_avx2.h"
 #include "group_coding_sse4_1.h"
-#include "RateControl.h"
 #include "RateControl_avx2.h"
+#endif /* ARCH_X86_64 */
 
 /**************************************
  * Instruction Set Support

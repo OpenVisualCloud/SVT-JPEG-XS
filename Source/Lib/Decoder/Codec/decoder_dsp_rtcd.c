@@ -5,19 +5,22 @@
 
 #define DECODER_RTCD_C
 #include "decoder_dsp_rtcd.h"
-#include "Dwt53Decoder_AVX2.h"
 #include "Dequant.h"
-#include "Dequant_SSE4.h"
 #include "Idwt.h"
 #include "NltDec.h"
-#include "NltDec_AVX2.h"
 #include "Precinct.h"
+#include "Packing.h"
+
+#ifdef ARCH_X86_64
+#include "Dwt53Decoder_AVX2.h"
+#include "Dequant_SSE4.h"
+#include "NltDec_AVX2.h"
 #include "UnPack_avx2.h"
 #include "UnPack_avx512.h"
-#include "Packing.h"
 #include "idwt-avx512.h"
 #include "NltDec_avx512.h"
 #include "Dequant_avx512.h"
+#endif /* ARCH_X86_64 */
 
 /**************************************
  * Instruction Set Support
