@@ -22,6 +22,10 @@
 #include "Dequant_avx512.h"
 #endif /* ARCH_X86_64 */
 
+#ifdef ARCH_AARCH64
+#include "Dequant_neon.h"
+#endif /* ARCH_AARCH64 */
+
 /**************************************
  * Instruction Set Support
  **************************************/
@@ -80,6 +84,19 @@
 #define SET_AVX2(ptr, c, avx2)                              SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, 0, 0, 0, avx2, 0)
 #define SET_AVX2_AVX512(ptr, c, avx2, avx512)               SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, 0, 0, 0, avx2, avx512)
 
+/* Narrows a pointer already set by one of the macros above to its AArch64
+ * implementation. Written as a separate line rather than as another column of
+ * SET_FUNCTIONS because the two architectures are mutually exclusive: on x86
+ * this expands to nothing, and on AArch64 the SET_* line above it has left the
+ * pointer on the C implementation. */
+#ifdef ARCH_AARCH64
+#define SET_NEON(ptr, neon)                                               \
+    if (((uintptr_t)NULL != (uintptr_t)neon) && (flags & CPU_FLAGS_NEON)) \
+        ptr = neon;
+#else /* ARCH_AARCH64 */
+#define SET_NEON(ptr, neon)
+#endif /* ARCH_AARCH64 */
+
 void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
     /* Avoid check that pointer is set double, after first  setup. */
     static uint8_t first_call_setup = 1;
@@ -107,6 +124,7 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
 #endif
 
     SET_SSE41_AVX2_AVX512(dequant, dequant_c, dequant_sse4_1, NULL, dequant_avx512);
+    SET_NEON(dequant, dequant_neon);
     SET_AVX2(linear_output_scaling_8bit, linear_output_scaling_8bit_c, linear_output_scaling_8bit_avx2);
     SET_AVX2_AVX512(linear_output_scaling_8bit_line,
                     linear_output_scaling_8bit_line_c,
