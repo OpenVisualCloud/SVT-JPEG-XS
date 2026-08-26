@@ -29,6 +29,7 @@
 
 #ifdef ARCH_AARCH64
 #include "Quant_neon.h"
+#include "Pack_neon.h"
 #endif /* ARCH_AARCH64 */
 
 /**************************************
@@ -199,6 +200,7 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
         pack_data_groups = pack_data_groups_avx2_bmi2;
     }
 #endif /* ARCH_X86_64 */
+    SET_NEON(pack_data_groups, pack_data_groups_neon);
     SET_AVX2_AVX512(gc_histogram_16, gc_histogram_16_c, gc_histogram_16_avx2, gc_histogram_16_avx512);
     SET_SSE41(gc_precinct_sigflags_max, gc_precinct_sigflags_max_c, gc_precinct_sigflags_max_sse4_1);
     SET_AVX2_AVX512(rate_control_calc_vpred_cost_nosigf,

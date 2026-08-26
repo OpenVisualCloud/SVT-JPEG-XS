@@ -28,20 +28,9 @@ static INLINE void unpack_n_groups_impl_neon(uint8_t* gclis, uint8_t gtli, reade
     /* Fast path: a group's position in the stream comes from adding up lengths
      * rather than from finishing the previous group, so the group loads are
      * independent of each other. */
-    const uint8x16_t gtli_vec = vdupq_n_u8(gtli);
     while (group < n_groups) {
         const uint32_t chunk = MIN(n_groups - group, 16u);
-        uint8x16_t gcli_vec;
-        if (chunk >= 16) {
-            gcli_vec = vld1q_u8(gclis + group);
-        }
-        else {
-            uint8_t padded[16] = {0};
-            memcpy(padded, gclis + group, chunk);
-            gcli_vec = vld1q_u8(padded);
-        }
-        const uint8x16_t planes = vqsubq_u8(gcli_vec, gtli_vec);
-        uint64_t todo = unpack_mask_from_bytes_neon(vtstq_u8(planes, planes));
+        uint64_t todo = neon_nonempty_group_mask(gclis + group, chunk, gtli);
         while (todo) {
             const uint32_t k = svt_first_set_bit(todo);
             const uint32_t size = (uint32_t)gclis[group + k] - gtli;

@@ -8,17 +8,7 @@
 
 #include <arm_neon.h>
 #include "UnpackShared.h"
-
-/* One bit per byte of a comparison result, low byte first - the answer x86 gets
- * from a single MOVMSKB. Advanced SIMD has no such instruction: each byte is
- * weighted by its position instead and the two halves are reduced separately,
- * because ADDV sums a whole vector and the sixteen weights would not fit one
- * byte otherwise. */
-static INLINE uint32_t unpack_mask_from_bytes_neon(uint8x16_t nonzero) {
-    static const uint8_t weights_tbl[16] = {1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128};
-    const uint8x16_t weighted = vandq_u8(nonzero, vld1q_u8(weights_tbl));
-    return (uint32_t)vaddv_u8(vget_low_u8(weighted)) | ((uint32_t)vaddv_u8(vget_high_u8(weighted)) << 8);
-}
+#include "NeonMask.h"
 
 /* Spreads count nibbles, right aligned, into four coefficients.
  *
@@ -38,7 +28,7 @@ static INLINE uint64_t unpack_planes_to_lanes_neon(uint64_t acc, uint8_t gtli) {
     for (uint32_t coeff = 0; coeff < GROUP_SIZE; coeff++) {
         const uint8x16_t plane = vdupq_n_u8((uint8_t)(1u << (GROUP_SIZE - 1 - coeff)));
         const uint8x16_t taken = vandq_u8(nibbles, plane);
-        out |= (uint64_t)unpack_mask_from_bytes_neon(vtstq_u8(taken, taken)) << (16 * coeff);
+        out |= (uint64_t)neon_mask_from_bytes(vtstq_u8(taken, taken)) << (16 * coeff);
     }
     return out << gtli;
 }
