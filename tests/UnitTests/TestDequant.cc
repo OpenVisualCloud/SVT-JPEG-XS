@@ -16,9 +16,9 @@
 #include "Dequant_avx512.h"
 #endif /* ARCH_X86_64 */
 
-/* Every case here compares an SSE4.1 or AVX-512 dequant against the C reference,
- * so the whole file is x86-only. */
-#ifdef ARCH_X86_64
+#ifdef ARCH_AARCH64
+#include "Dequant_neon.h"
+#endif /* ARCH_AARCH64 */
 
 enum DEQUANT_RAND_TYPE { RAND_CUSTOM = 0, RAND_ONE, RAND_ZERO, RAND_FULL, RAND_SIZE };
 
@@ -144,6 +144,7 @@ class DequantFixture : public ::testing::TestWithParam<int> {
 
 svt_jxs_test_tool::SVTRandom* DequantFixture::rnd = NULL;
 
+#ifdef ARCH_X86_64
 TEST_P(DequantFixture, Uniform_SSE4_1) {
     run_test_uniform(dequant_sse4_1);
 }
@@ -168,6 +169,21 @@ TEST_P(DequantFixture, DISABLED_speed_SSE4_1) {
     run_test_speed(QUANT_TYPE_UNIFORM, dequant_sse4_1);
     run_test_speed(QUANT_TYPE_DEADZONE, dequant_sse4_1);
 }
+#endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+TEST_P(DequantFixture, Uniform_NEON) {
+    run_test_uniform(dequant_neon);
+}
+
+TEST_P(DequantFixture, Deadzone_NEON) {
+    run_test_deadzone(dequant_neon);
+}
+
+TEST_P(DequantFixture, DISABLED_speed_NEON) {
+    run_test_speed(QUANT_TYPE_UNIFORM, dequant_neon);
+    run_test_speed(QUANT_TYPE_DEADZONE, dequant_neon);
+}
+#endif /* ARCH_AARCH64 */
 
 INSTANTIATE_TEST_SUITE_P(Dequant, DequantFixture, ::testing::Range(0, (int)RAND_SIZE));
-#endif /* ARCH_X86_64 */
