@@ -43,6 +43,16 @@ CPU_FLAGS get_cpu_flags() {
 
     return flags;
 }
+#elif defined(ARCH_AARCH64)
+CPU_FLAGS get_cpu_flags() {
+    /* Advanced SIMD is part of the AArch64 baseline: there is nothing to probe.
+     * Optional extensions (dotprod, i8mm, SVE) would be asked about here. */
+    return CPU_FLAGS_NEON;
+}
+#else
+CPU_FLAGS get_cpu_flags() {
+    return CPU_FLAGS_C;
+}
 #endif /*ARCH_X86_64*/
 
 #ifdef ARCH_X86_64
