@@ -197,7 +197,8 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
         //Calculate how many bits will be used from bitstream to avoid reading out of memory allocation
         {
             uint8_t* gclis_ptr = gclis;
-            __m256i sum_epi16_avx2 = _mm256_setzero_si256();
+            const __m256i zero = _mm256_setzero_si256();
+            __m256i sum_epi32 = zero;
             for (uint32_t group = 0; group < (group_num / 16); group++) {
                 __m128i bits_epu8 = _mm_subs_epu8(_mm_loadu_si128((__m128i*)gclis_ptr), gtli_const);
                 /* Unsigned widening: subs_epu8 is an unsigned saturating subtract, so on a
@@ -205,27 +206,29 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
                  * would make such a group subtract from the budget instead of adding to it,
                  * and the bitstream would not be rejected. */
                 __m256i bits_epu16 = _mm256_cvtepu8_epi16(bits_epu8);
-                __m256i signs = _mm256_cmpgt_epi16(bits_epu16, _mm256_setzero_si256());
+                __m256i signs = _mm256_cmpgt_epi16(bits_epu16, zero);
                 signs = _mm256_srli_epi16(signs, 15);
-                sum_epi16_avx2 = _mm256_add_epi16(sum_epi16_avx2, bits_epu16);
-                sum_epi16_avx2 = _mm256_add_epi16(sum_epi16_avx2, signs);
+                /* Cost of one group: its planes plus one nibble of signs. At most 256, so
+                 * the per-group value still fits a 16-bit lane; the running total does not
+                 * and is widened before it is added. */
+                __m256i group_bits = _mm256_add_epi16(bits_epu16, signs);
+                sum_epi32 = _mm256_add_epi32(sum_epi32, _mm256_unpacklo_epi16(group_bits, zero));
+                sum_epi32 = _mm256_add_epi32(sum_epi32, _mm256_unpackhi_epi16(group_bits, zero));
                 gclis_ptr += 16;
             }
-            __m128i sum_epi16_sse = _mm_hadd_epi16(_mm256_castsi256_si128(sum_epi16_avx2),
-                                                   _mm256_extracti128_si256(sum_epi16_avx2, 0x1)); // 0..7 16bit
-            sum_epi16_sse = _mm_hadd_epi16(sum_epi16_sse, sum_epi16_sse);                          // 0..3, 0..3 16bit
-            sum_epi16_sse = _mm_unpacklo_epi16(sum_epi16_sse, _mm_setzero_si128());                //0..3 32bit
-            sum_epi16_sse = _mm_hadd_epi32(sum_epi16_sse, sum_epi16_sse);                          // 0..1, 0..1 32bit
-            uint32_t bits_sum = _mm_cvtsi128_si32(sum_epi16_sse) + _mm_extract_epi32(sum_epi16_sse, 1);
+            uint32_t bits_sum = unpack_budget_hsum_epi32(sum_epi32);
             for (uint32_t group = 0; group < (group_num % 16) + !!leftover; group++) {
                 if (gclis_ptr[group] > gtli) {
                     bits_sum += (gclis_ptr[group] - gtli) + 1;
                 }
             }
-            *precinct_bits_left -= (int32_t)(bits_sum * 4);
-            if (*precinct_bits_left < 0) {
+            /* The cost is compared before it is subtracted, so that the widened sum
+             * cannot be lost again in the last step: a line whose nibble count exceeds
+             * what int32_t holds is rejected rather than wrapped into a small debit. */
+            if (*precinct_bits_left < 0 || (uint64_t)bits_sum * 4 > (uint64_t)*precinct_bits_left) {
                 return SvtJxsErrorDecoderInvalidBitstream;
             }
+            *precinct_bits_left -= (int32_t)(bits_sum * 4);
         }
         reader_short_t reader;
         reader.mem = (uint8_t*)(bitstream->mem) + bitstream->offset;
@@ -245,28 +248,30 @@ SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* bu
         //Calculate how many bits will be used from bitstream to avoid reading out of memory allocation
         {
             uint8_t* gclis_ptr = gclis;
-            __m256i sum_epi16_avx2 = _mm256_setzero_si256();
+            const __m256i zero = _mm256_setzero_si256();
+            __m256i sum_epi32 = zero;
             for (uint32_t group = 0; group < (group_num / 16); group++) {
                 __m128i bits_epu8 = _mm_subs_epu8(_mm_loadu_si128((__m128i*)gclis_ptr), gtli_const);
-                /* Unsigned widening, for the same reason as in the branch above. */
-                sum_epi16_avx2 = _mm256_add_epi16(sum_epi16_avx2, _mm256_cvtepu8_epi16(bits_epu8));
+                /* Unsigned widening, and 32-bit accumulation, for the same reasons as in
+                 * the branch above. */
+                __m256i group_bits = _mm256_cvtepu8_epi16(bits_epu8);
+                sum_epi32 = _mm256_add_epi32(sum_epi32, _mm256_unpacklo_epi16(group_bits, zero));
+                sum_epi32 = _mm256_add_epi32(sum_epi32, _mm256_unpackhi_epi16(group_bits, zero));
                 gclis_ptr += 16;
             }
-            __m128i sum_epi16_sse = _mm_hadd_epi16(_mm256_castsi256_si128(sum_epi16_avx2),
-                                                   _mm256_extracti128_si256(sum_epi16_avx2, 0x1)); // 0..7 16bit
-            sum_epi16_sse = _mm_hadd_epi16(sum_epi16_sse, sum_epi16_sse);                          // 0..3, 0..3 16bit
-            sum_epi16_sse = _mm_unpacklo_epi16(sum_epi16_sse, _mm_setzero_si128());                //0..3 32bit
-            sum_epi16_sse = _mm_hadd_epi32(sum_epi16_sse, sum_epi16_sse);                          // 0..1, 0..1 32bit
-            uint32_t bits_sum = _mm_cvtsi128_si32(sum_epi16_sse) + _mm_extract_epi32(sum_epi16_sse, 1);
+            uint32_t bits_sum = unpack_budget_hsum_epi32(sum_epi32);
             for (uint32_t group = 0; group < (group_num % 16) + !!leftover; group++) {
                 if (gclis_ptr[group] > gtli) {
                     bits_sum += (gclis_ptr[group] - gtli);
                 }
             }
-            *precinct_bits_left -= (int32_t)(bits_sum * 4);
-            if (*precinct_bits_left < 0) {
+            /* The cost is compared before it is subtracted, so that the widened sum
+             * cannot be lost again in the last step: a line whose nibble count exceeds
+             * what int32_t holds is rejected rather than wrapped into a small debit. */
+            if (*precinct_bits_left < 0 || (uint64_t)bits_sum * 4 > (uint64_t)*precinct_bits_left) {
                 return SvtJxsErrorDecoderInvalidBitstream;
             }
+            *precinct_bits_left -= (int32_t)(bits_sum * 4);
         }
         reader_short_t reader;
         reader.mem = (uint8_t*)(bitstream->mem) + bitstream->offset;

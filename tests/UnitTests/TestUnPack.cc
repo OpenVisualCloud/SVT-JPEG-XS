@@ -652,3 +652,56 @@ TEST(bit_scan, vlc_leading_run) {
     }
     delete rnd;
 }
+
+/* The budget precheck in unpack_data_common sums per-group bit costs in 16-bit
+ * SIMD lanes before widening to 32 bits. At group_num=1024 with every GCLI
+ * corrupted to 255 (gtli=0, sign_flag=0), each of the four values entering the
+ * last 16-bit hadd stage is exactly 32768, and 32768+32768 wraps to 0 - the
+ * computed bits_sum is 0 instead of the true 262144. precinct_bits_left is
+ * then reduced by zero instead of by 262144*4 bits, so a stream requesting a
+ * precinct with almost no declared budget left is accepted instead of
+ * rejected. This models an 8K+-class band line: level-1 band width for a
+ * >=8192-wide image - already an existing, named level - exceeds the
+ * ~1024-group threshold where this wrap starts.
+ *
+ * The backing buffer is sized for the fixed per-group read bound (at most one
+ * sign nibble plus TRUNCATION_MAX data nibbles, i.e. 8 bytes/group here) so
+ * that whichever way the budget check goes, the parser that follows it never
+ * runs past real data - this test is about the wrong verdict, not about
+ * re-triggering the over-read the bound already fixed.
+ *
+ * Currently fails: the wrap lets the stream through. Passes once the
+ * accumulation is widened to 32 bits, as the correct answer is rejection. */
+TEST(unpack_data_common, budget_precheck_does_not_wrap) {
+    const uint32_t n_groups = 1024;
+    const uint32_t width = n_groups * GROUP_SIZE;
+    uint8_t* gclis = (uint8_t*)malloc(n_groups + 1);
+    ASSERT_TRUE(gclis != NULL);
+    for (uint32_t i = 0; i < n_groups; i++) {
+        gclis[i] = 255; // corrupt: far above TRUNCATION_MAX
+    }
+
+    const uint32_t bitstream_buf_size = 16384; // >= 8 bytes/group * n_groups, see comment above
+    uint8_t* bitstream_mem = (uint8_t*)malloc(bitstream_buf_size);
+    ASSERT_TRUE(bitstream_mem != NULL);
+    memset(bitstream_mem, 0xAA, bitstream_buf_size);
+
+    uint16_t* buf = (uint16_t*)malloc((n_groups + 1) * GROUP_SIZE * sizeof(uint16_t));
+    ASSERT_TRUE(buf != NULL);
+    uint8_t leftover_signs_num = 0;
+
+    bitstream_reader_t bitstream;
+    bitstream_reader_init(&bitstream, bitstream_mem, bitstream_buf_size);
+
+    int32_t precinct_bits_left = 10; // far short of the true 262144*4-bit cost
+    SvtJxsErrorType_t ret =
+        unpack_data_avx2(&bitstream, buf, width, gclis, GROUP_SIZE, 0, 0, &leftover_signs_num, &precinct_bits_left);
+
+    /* 10 bits cannot possibly cover 1024 groups' worth of GCLI=255 data, so a
+     * correct budget computation must reject this stream. */
+    EXPECT_EQ(ret, SvtJxsErrorDecoderInvalidBitstream);
+
+    free(gclis);
+    free(bitstream_mem);
+    free(buf);
+}

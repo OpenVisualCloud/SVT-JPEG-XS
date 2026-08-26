@@ -103,4 +103,18 @@ static INLINE uint64_t unpack_planes_to_lanes_sse(uint64_t acc, uint8_t gtli) {
     return (v0 | (v1 << 16) | (v2 << 32) | (v3 << 48)) << gtli;
 }
 
+/* Horizontal sum of eight 32-bit lanes.
+ *
+ * The budget of a band line is accumulated in 32-bit lanes and not in 16-bit
+ * ones. A single group costs at most 256, which a 16-bit lane holds, but a line
+ * of a couple of thousand groups does not, and the fold of a wrapped sum reads
+ * as a cheap line: a corrupt stream would pass the budget check instead of
+ * being rejected. Lines that wide occur at 8K and above. */
+static INLINE uint32_t unpack_budget_hsum_epi32(__m256i sum_epi32) {
+    __m128i sum_sse = _mm_add_epi32(_mm256_castsi256_si128(sum_epi32), _mm256_extracti128_si256(sum_epi32, 0x1));
+    sum_sse = _mm_add_epi32(sum_sse, _mm_shuffle_epi32(sum_sse, 0x4E)); /* lanes 0+2 and 1+3 */
+    sum_sse = _mm_add_epi32(sum_sse, _mm_shuffle_epi32(sum_sse, 0xB1)); /* all four */
+    return (uint32_t)_mm_cvtsi128_si32(sum_sse);
+}
+
 #endif /*__UNPACK_COMMON_H__*/
