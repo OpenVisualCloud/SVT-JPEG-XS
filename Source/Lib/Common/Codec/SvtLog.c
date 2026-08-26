@@ -179,7 +179,11 @@ void svt_jxs_log_reset_for_testing(void) {
 #ifdef _WIN32
     g_logger_once = (INIT_ONCE)INIT_ONCE_STATIC_INIT;
 #else
-    g_logger_once = PTHREAD_ONCE_INIT;
+    /* Assigned from a copy rather than directly: on glibc PTHREAD_ONCE_INIT is a
+     * plain 0, but on other libcs (macOS among them) it is a brace initializer,
+     * which is only valid where an initializer is expected. */
+    static const pthread_once_t once_init = PTHREAD_ONCE_INIT;
+    g_logger_once = once_init;
 #endif // _WIN32
 }
 #endif // BUILD_TESTING

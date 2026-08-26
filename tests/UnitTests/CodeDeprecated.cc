@@ -5,11 +5,14 @@
 
 #define RTC_EXTERN
 
-#include "CodeDeprecated-avx512.h"
 #include "CodeDeprecated.h"
 #include "random.h"
-#include <immintrin.h>
 #include <Pi.h>
+
+#ifdef ARCH_X86_64
+#include "CodeDeprecated-avx512.h"
+#include <immintrin.h>
+#endif /* ARCH_X86_64 */
 
 #define SILENT_OUTPUT 1
 #if SILENT_OUTPUT
@@ -74,6 +77,9 @@ void setup_depricated_test_rtcd_internal(CPU_FLAGS flags) {
     static uint8_t first_call_setup = 1;
     uint8_t check_pointer_was_set = first_call_setup;
     first_call_setup = 0;
+#ifndef ARCH_X86_64
+    (void)flags;
+#endif
 
     SET_AVX2_AVX512(dwt_horizontal_depricated, dwt_horizontal_depricated_c, NULL, dwt_horizontal_depricated_avx512);
     SET_AVX2_AVX512(dwt_vertical_depricated, dwt_vertical_depricated_c, NULL, dwt_vertical_depricated_avx512);
@@ -124,6 +130,7 @@ int dwt_horizontal_depricated_c(int32_t* out_lf, int32_t* out_hf, const int32_t*
     return 0;
 }
 
+#ifdef ARCH_X86_64
 void idwt_deprecated_vertical_avx2(const int32_t* in_lf, const int32_t* in_hf, int32_t* out, uint32_t width, uint32_t height,
                                    uint32_t stride_lf, uint32_t stride_hf, uint32_t stride_out) {
     if (width < 8) {
@@ -337,6 +344,7 @@ void idwt_deprecated_horizontal_avx2(const int32_t* in_lf, const int32_t* in_hf,
         free(tmp_out);
     }
 }
+#endif /* ARCH_X86_64 */
 
 void reference_idwt_c(const int32_t* in_lf, const int32_t* in_hf, int32_t* out, uint32_t len, uint32_t stride_lf,
                       uint32_t stride_hf, uint32_t stride_out) {
