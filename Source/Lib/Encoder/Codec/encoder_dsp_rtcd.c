@@ -32,6 +32,7 @@
 #include "Pack_neon.h"
 #include "Dwt_neon.h"
 #include "GcStage_neon.h"
+#include "NltEnc_neon.h"
 #endif /* ARCH_AARCH64 */
 
 /**************************************
@@ -181,14 +182,17 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
                     linear_input_scaling_line_8bit_c,
                     linear_input_scaling_line_8bit_avx2,
                     linear_input_scaling_line_8bit_avx512);
+    SET_NEON(linear_input_scaling_line_8bit, linear_input_scaling_line_8bit_neon);
     SET_AVX2_AVX512(linear_input_scaling_line_16bit,
                     linear_input_scaling_line_16bit_c,
                     linear_input_scaling_line_16bit_avx2,
                     linear_input_scaling_line_16bit_avx512);
+    SET_NEON(linear_input_scaling_line_16bit, linear_input_scaling_line_16bit_neon);
     SET_AVX2_AVX512(linear_input_scaling_line_16bit_msb,
                     linear_input_scaling_line_16bit_msb_c,
                     linear_input_scaling_line_16bit_msb_avx2,
                     linear_input_scaling_line_16bit_msb_avx512);
+    SET_NEON(linear_input_scaling_line_16bit_msb, linear_input_scaling_line_16bit_msb_neon);
 
     SET_AVX2_AVX512(pack_data_single_group, pack_data_single_group_c, pack_data_single_group_avx2, pack_data_single_group_avx512);
     SET_SSE2(gc_precinct_stage_scalar_loop, gc_precinct_stage_scalar_loop_c, gc_precinct_stage_scalar_loop_ASM);
