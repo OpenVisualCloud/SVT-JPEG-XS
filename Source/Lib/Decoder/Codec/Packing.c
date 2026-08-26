@@ -143,7 +143,14 @@ static INLINE int8_t vlc_reader_get_next_value(vlc_reader_t* vlc_reader) {
 static void unpack_data_single_group(bitstream_reader_t* bitstream, uint16_t* buf, int32_t size, int8_t gtli) {
     uint8_t val;
     uint32_t tmp_buf[4] = {0};
-    for (int32_t bits = 0; bits < (size - 1); bits++) {
+    /* A corrupt stream can carry a GCLI far above the truncation maximum: the caller's
+     * budget check only verifies that the declared cost fits the remaining bits, not that
+     * a single group's plane count is sane, so size can arrive here as large as 254. The
+     * AVX2 and AVX512 sequential readers cap their equivalent read at TRUNCATION_MAX for
+     * exactly this reason (see UnPack_avx2.c/UnPack_avx512.c); this scalar path needs the
+     * same bound, or it reads far past the plane count any real group can have. */
+    const int32_t read_planes = (size > TRUNCATION_MAX) ? TRUNCATION_MAX : size;
+    for (int32_t bits = 0; bits < (read_planes - 1); bits++) {
         val = read_4_bits_align4(bitstream);
         tmp_buf[3] = (tmp_buf[3] | (val & 1)) << 1;
         tmp_buf[2] = (tmp_buf[2] | (val & 2)) << 1;

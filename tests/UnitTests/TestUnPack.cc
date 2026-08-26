@@ -705,3 +705,50 @@ TEST(unpack_data_common, budget_precheck_does_not_wrap) {
     free(bitstream_mem);
     free(buf);
 }
+
+/* unpack_data_single_group (Packing.c, the scalar/C group reader) never got the
+ * plane-count bound that bbe0e0f added to the AVX2/AVX512 sequential tail
+ * readers. Its caller, unpack_data_c, checks the budget per group before
+ * calling it - *precinct_bits_left -= 4 * (bitplanes_size + 1) - but that check
+ * only verifies the corrupt stream's *declared* cost fits the remaining
+ * budget; it does not bound how many planes a single group can really have.
+ * A single group with GCLI corrupted to 254 declares a cost of only
+ * 4*(254+1)=1020 bits, comfortably affordable by almost any real precinct's
+ * remaining budget, so the check passes and unpack_data_single_group then
+ * reads 254 planes with no cap - the same unbounded read bbe0e0f fixed in the
+ * two vector siblings, just reached through a per-group budget check that
+ * happens to be large enough, instead of a whole-line sum that wraps.
+ *
+ * The backing buffer here is sized generously so the read itself never runs
+ * past real memory regardless of which way this test goes - this is about the
+ * wrong bit count, not about re-triggering the over-read directly. */
+TEST(unpack_data_c, single_group_plane_read_is_bounded) {
+    const uint32_t bitstream_buf_size = 512; // >> worst case (1 sign + 254 planes) nibbles
+    uint8_t* bitstream_mem = (uint8_t*)malloc(bitstream_buf_size);
+    ASSERT_TRUE(bitstream_mem != NULL);
+    memset(bitstream_mem, 0xAA, bitstream_buf_size);
+
+    uint8_t gclis[1] = {254}; // corrupt: far above TRUNCATION_MAX
+    const uint8_t gtli = 0;
+    uint16_t buf[GROUP_SIZE];
+    uint8_t leftover_signs_num = 0;
+
+    bitstream_reader_t bitstream;
+    bitstream_reader_init(&bitstream, bitstream_mem, bitstream_buf_size);
+
+    // Comfortably covers this one group's declared cost (4*(254+1)=1020 bits);
+    // the point is that the check passes, same as it would for any real precinct.
+    int32_t precinct_bits_left = 2000;
+    SvtJxsErrorType_t ret =
+        unpack_data_c(&bitstream, buf, GROUP_SIZE, gclis, GROUP_SIZE, gtli, 0, &leftover_signs_num, &precinct_bits_left);
+    ASSERT_EQ(ret, SvtJxsErrorNone); // the budget check is not the bug; it correctly affords the declared cost
+
+    // The physical read must stay bounded to one sign nibble plus at most
+    // TRUNCATION_MAX plane nibbles, matching the bound already applied to the
+    // AVX2/AVX512 tail readers - not the full (corrupt) 254 planes.
+    const uint64_t bits_used = (uint64_t)bitstream_buf_size * 8 - bitstream_reader_get_left_bits(&bitstream);
+    const uint64_t max_expected_bits = 4ULL * (1 + TRUNCATION_MAX);
+    EXPECT_LE(bits_used, max_expected_bits) << "bits_used=" << bits_used << " max_expected=" << max_expected_bits;
+
+    free(bitstream_mem);
+}
