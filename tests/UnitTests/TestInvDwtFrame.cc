@@ -5,8 +5,6 @@
 
 #include "gtest/gtest.h"
 #include "random.h"
-#include "Enc_avx512.h"
-#include "Dwt53Decoder_AVX2.h"
 #include "SvtUtility.h"
 #include "NltEnc.h"
 #include "Pi.h"
@@ -16,6 +14,11 @@
 #include "NltDec.h"
 #include "DwtDecoder.h"
 #include "CodeDeprecated.h"
+
+#ifdef ARCH_X86_64
+#include "Enc_avx512.h"
+#include "Dwt53Decoder_AVX2.h"
+#endif /* ARCH_X86_64 */
 
 #define SILENT_OUTPUT 1
 #if SILENT_OUTPUT
@@ -378,33 +381,41 @@ class FRAME_IDWT : public ::testing::TestWithParam<fixture_param_t> {
         test_transform_result();
     }
 
+#ifdef ARCH_X86_64
     void run_test_transform_avx2() {
         setup_decoder_rtcd_internal(CPU_FLAGS_AVX2);
         setup_depricated_test_rtcd_internal(CPU_FLAGS_AVX2);
         test_transform_result();
     }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
     void run_test_transform_avx512() {
         setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
         setup_depricated_test_rtcd_internal(CPU_FLAGS_ALL);
         test_transform_result();
     }
+#endif /* ARCH_X86_64 */
 };
 
 TEST_P(FRAME_IDWT, TRANSFORM_FRAME_C) {
     run_test_transform_c();
 }
 
+#ifdef ARCH_X86_64
 TEST_P(FRAME_IDWT, TRANSFORM_FRAME_AVX2) {
     run_test_transform_avx2();
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST_P(FRAME_IDWT, TRANSFORM_FRAME_AVX512) {
     if (!(CPU_FLAGS_AVX512F & get_cpu_flags())) {
         return;
     }
     run_test_transform_avx512();
 }
+#endif /* ARCH_X86_64 */
 
 INSTANTIATE_TEST_SUITE_P(FRAME_IDWT, FRAME_IDWT,
                          ::testing::Combine(::testing::Values(8, 10), ::testing::ValuesIn(params_block_sizes),

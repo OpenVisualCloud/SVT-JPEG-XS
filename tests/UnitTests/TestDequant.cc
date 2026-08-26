@@ -5,13 +5,20 @@
 
 #include "gtest/gtest.h"
 #include "random.h"
-#include <immintrin.h>
 #include "SvtUtility.h"
 #include "DecHandle.h"
 #include "SvtType.h"
 #include "Dequant.h"
+
+#ifdef ARCH_X86_64
+#include <immintrin.h>
 #include "Dequant_SSE4.h"
 #include "Dequant_avx512.h"
+#endif /* ARCH_X86_64 */
+
+/* Every case here compares an SSE4.1 or AVX-512 dequant against the C reference,
+ * so the whole file is x86-only. */
+#ifdef ARCH_X86_64
 
 enum DEQUANT_RAND_TYPE { RAND_CUSTOM = 0, RAND_ONE, RAND_ZERO, RAND_FULL, RAND_SIZE };
 
@@ -163,3 +170,4 @@ TEST_P(DequantFixture, DISABLED_speed_SSE4_1) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Dequant, DequantFixture, ::testing::Range(0, (int)RAND_SIZE));
+#endif /* ARCH_X86_64 */
