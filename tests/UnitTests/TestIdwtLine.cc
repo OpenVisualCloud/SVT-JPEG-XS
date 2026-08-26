@@ -32,6 +32,8 @@ typedef void (*idwt_vertical_line_fn)(const int32_t* in_lf, const int32_t* in_hf
                                       uint32_t len, int32_t first_precinct, int32_t last_precinct, int32_t height);
 typedef void (*idwt_vertical_line_recalc_fn)(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1, int32_t* out[4],
                                              uint32_t len, uint32_t precinct_line_idx);
+typedef void (*idwt_horizontal_lf16_fn)(const int16_t* in_lf, const int16_t* in_hf, int32_t* out, uint32_t len, uint8_t shift);
+typedef void (*idwt_horizontal_lf32_fn)(const int32_t* in_lf, const int16_t* in_hf, int32_t* out, uint32_t len, uint8_t shift);
 
 namespace {
 
@@ -145,6 +147,82 @@ class IdwtVerticalLine : public ::testing::Test {
     int32_t* mod_rows_[4];
 };
 
+/* The horizontal half. Both entry points read one low-pass and one high-pass row
+ * and write a single interleaved row, so what has to hold across a length is the
+ * placement as much as the arithmetic: the last output is produced by a rule of
+ * its own that depends on whether the length is odd or even, and an
+ * implementation that gets the general step right can still misplace that one.
+ * Lengths are therefore walked one by one from the shortest the function accepts,
+ * and the tail past the line is checked for not having been written. */
+class IdwtHorizontalLine : public ::testing::Test {
+  protected:
+    void SetUp() override {
+        rnd_ = new svt_jxs_test_tool::SVTRandom(kCoeffBits, true);
+    }
+    void TearDown() override {
+        delete rnd_;
+    }
+
+    void fill_input(uint32_t len, uint8_t shift) {
+        /* The 16-bit inputs are shifted left by shift before they are used, so
+         * they are drawn narrow enough that the shift stays inside int32. */
+        svt_jxs_test_tool::SVTRandom narrow(16 - shift > 1 ? 16 - shift : 1, true);
+        for (uint32_t i = 0; i < kMaxLen; i++) {
+            in_lf16_[i] = (int16_t)narrow.random();
+            in_hf16_[i] = (int16_t)narrow.random();
+            in_lf32_[i] = rnd_->random();
+        }
+        (void)len;
+    }
+
+    void reset_output() {
+        for (uint32_t i = 0; i < kMaxLen * 2; i++) {
+            out_ref_[i] = kMarker;
+            out_mod_[i] = kMarker;
+        }
+    }
+
+    void compare(uint32_t len, const char* what) {
+        for (uint32_t i = 0; i < kMaxLen * 2; i++) {
+            ASSERT_EQ(out_ref_[i], out_mod_[i]) << what << " index " << i << " len " << len;
+            if (i >= len) {
+                ASSERT_EQ(kMarker, out_mod_[i]) << what << " wrote past the line, index " << i << " len " << len;
+            }
+        }
+    }
+
+    svt_jxs_test_tool::SVTRandom* rnd_;
+    int16_t in_lf16_[kMaxLen];
+    int16_t in_hf16_[kMaxLen];
+    int32_t in_lf32_[kMaxLen];
+    int32_t out_ref_[kMaxLen * 2];
+    int32_t out_mod_[kMaxLen * 2];
+};
+
+TEST_F(IdwtHorizontalLine, lf16_hf16_C) {
+    for (uint8_t shift = 0; shift <= 4; shift++) {
+        for (uint32_t len = 2; len <= kMaxLen; len++) {
+            fill_input(len, shift);
+            reset_output();
+            idwt_horizontal_line_lf16_hf16_c(in_lf16_, in_hf16_, out_ref_, len, shift);
+            idwt_horizontal_line_lf16_hf16_c(in_lf16_, in_hf16_, out_mod_, len, shift);
+            ASSERT_NO_FATAL_FAILURE(compare(len, "idwt_horizontal_line_lf16_hf16_c"));
+        }
+    }
+}
+
+TEST_F(IdwtHorizontalLine, lf32_hf16_C) {
+    for (uint8_t shift = 0; shift <= 4; shift++) {
+        for (uint32_t len = 2; len <= kMaxLen; len++) {
+            fill_input(len, shift);
+            reset_output();
+            idwt_horizontal_line_lf32_hf16_c(in_lf32_, in_hf16_, out_ref_, len, shift);
+            idwt_horizontal_line_lf32_hf16_c(in_lf32_, in_hf16_, out_mod_, len, shift);
+            ASSERT_NO_FATAL_FAILURE(compare(len, "idwt_horizontal_line_lf32_hf16_c"));
+        }
+    }
+}
+
 /* The C implementation against itself: not a tautology here, because what is
  * being established is that the harness drives every branch and that the rows
  * outside a branch's own are really left untouched. */
@@ -185,6 +263,30 @@ TEST_F(IdwtVerticalLine, recalc_AVX512) {
 #endif /* ARCH_X86_64 */
 
 #ifdef ARCH_AARCH64
+TEST_F(IdwtHorizontalLine, lf16_hf16_NEON) {
+    for (uint8_t shift = 0; shift <= 4; shift++) {
+        for (uint32_t len = 2; len <= kMaxLen; len++) {
+            fill_input(len, shift);
+            reset_output();
+            idwt_horizontal_line_lf16_hf16_c(in_lf16_, in_hf16_, out_ref_, len, shift);
+            idwt_horizontal_line_lf16_hf16_neon(in_lf16_, in_hf16_, out_mod_, len, shift);
+            ASSERT_NO_FATAL_FAILURE(compare(len, "idwt_horizontal_line_lf16_hf16_neon"));
+        }
+    }
+}
+
+TEST_F(IdwtHorizontalLine, lf32_hf16_NEON) {
+    for (uint8_t shift = 0; shift <= 4; shift++) {
+        for (uint32_t len = 2; len <= kMaxLen; len++) {
+            fill_input(len, shift);
+            reset_output();
+            idwt_horizontal_line_lf32_hf16_c(in_lf32_, in_hf16_, out_ref_, len, shift);
+            idwt_horizontal_line_lf32_hf16_neon(in_lf32_, in_hf16_, out_mod_, len, shift);
+            ASSERT_NO_FATAL_FAILURE(compare(len, "idwt_horizontal_line_lf32_hf16_neon"));
+        }
+    }
+}
+
 TEST_F(IdwtVerticalLine, NEON) {
     run(idwt_vertical_line_neon, "idwt_vertical_line_neon");
 }

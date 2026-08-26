@@ -139,3 +139,123 @@ void idwt_vertical_line_recalc_neon(const int32_t *in_lf, const int32_t *in_hf0,
         }
     }
 }
+
+/* The horizontal half. One low-pass and one high-pass row go in, a single
+ * interleaved row comes out, which is what makes this worth vectorizing on
+ * Advanced SIMD in particular: the even and the odd samples are computed as two
+ * separate vectors and handed to a two-register interleaving store, so the
+ * result lands in place without a shuffle. x86 has to build the interleaving by
+ * hand.
+ *
+ * The lifting is the same as in the C reference. The even sample of a pair is
+ * produced from the two high-pass neighbours around it, the odd one from the two
+ * even samples around it - so a block of four pairs needs five even samples, and
+ * the fifth comes from the next block through a lane-shift rather than from a
+ * second pass over the data.
+ *
+ * The first pair and the last one follow rules of their own (there is no
+ * high-pass sample before the first, and none after the last when the length is
+ * even), so both ends are done scalar. */
+
+/* LSHIFT32 on a vector: the shift is on the unsigned reinterpretation for the
+ * same reason it is in the scalar macro - shifting a negative value left is
+ * undefined, and the wavelet coefficients are signed. */
+static INLINE int32x4_t idwt_lshift32(int32x4_t v, int32x4_t shift) {
+    return vreinterpretq_s32_u32(vshlq_u32(vreinterpretq_u32_s32(v), shift));
+}
+
+static INLINE int32x4_t idwt_load_hf(const int16_t *in_hf, int32x4_t shift) {
+    return idwt_lshift32(vmovl_s16(vld1_s16(in_hf)), shift);
+}
+
+/* E[k] = L[k] - ((H[k - 1] + H[k] + 2) >> 2), four at a time */
+static INLINE int32x4_t idwt_even_block(int32x4_t lf, const int16_t *in_hf, uint32_t k, int32x4_t shift) {
+    const int32x4_t hf_prev = idwt_load_hf(in_hf + k - 1, shift);
+    const int32x4_t hf_cur = idwt_load_hf(in_hf + k, shift);
+    return vsubq_s32(lf, vshrq_n_s32(vaddq_s32(vaddq_s32(hf_prev, hf_cur), vdupq_n_s32(2)), 2));
+}
+
+void idwt_horizontal_line_lf16_hf16_neon(const int16_t *in_lf, const int16_t *in_hf, int32_t *out, uint32_t len, uint8_t shift) {
+    assert((len >= 2) && "[idwt_c()] ERROR: Length is too small!");
+    const uint32_t pairs = len / 2;
+    const int32x4_t shift_vec = vdupq_n_s32(shift);
+    uint32_t k = 1;
+
+    out[0] = LSHIFT32(in_lf[0], shift) - (((LSHIFT32(in_hf[0], shift)) + 1) >> 1);
+
+    /* The block writes the odd sample of pair k together with the even sample of
+     * pair k + 1, so the even sample of the first pair and the odd sample of the
+     * one before it are produced before the loop starts. */
+    if (pairs >= 9) {
+        out[2] = LSHIFT32(in_lf[1], shift) - (((LSHIFT32(in_hf[0], shift)) + LSHIFT32(in_hf[1], shift) + 2) >> 2);
+        out[1] = LSHIFT32(in_hf[0], shift) + ((out[0] + out[2]) >> 1);
+
+        int32x4_t even = idwt_even_block(idwt_lshift32(vmovl_s16(vld1_s16(in_lf + k)), shift_vec), in_hf, k, shift_vec);
+        while (k + 8 <= pairs) {
+            const uint32_t next = k + 4;
+            const int32x4_t even_next =
+                idwt_even_block(idwt_lshift32(vmovl_s16(vld1_s16(in_lf + next)), shift_vec), in_hf, next, shift_vec);
+            const int32x4_t even_shifted = vextq_s32(even, even_next, 1);
+            int32x4x2_t pair;
+            pair.val[0] = vaddq_s32(idwt_load_hf(in_hf + k, shift_vec),
+                                    vshrq_n_s32(vaddq_s32(even, even_shifted), 1));
+            pair.val[1] = even_shifted;
+            vst2q_s32(out + 2 * k + 1, pair);
+            even = even_next;
+            k = next;
+        }
+    }
+
+    for (; k < pairs; k++) {
+        out[2 * k] = LSHIFT32(in_lf[k], shift) -
+            (((LSHIFT32(in_hf[k - 1], shift)) + LSHIFT32(in_hf[k], shift) + 2) >> 2);
+        out[2 * k - 1] = LSHIFT32(in_hf[k - 1], shift) + ((out[2 * k - 2] + out[2 * k]) >> 1);
+    }
+    if (len & 1) {
+        out[len - 1] = LSHIFT32(in_lf[pairs], shift) - (((LSHIFT32(in_hf[pairs - 1], shift)) + 1) >> 1);
+        out[len - 2] = LSHIFT32(in_hf[pairs - 1], shift) + ((out[len - 3] + out[len - 1]) >> 1);
+    }
+    else {
+        out[len - 1] = LSHIFT32(in_hf[pairs - 1], shift) + out[len - 2];
+    }
+}
+
+void idwt_horizontal_line_lf32_hf16_neon(const int32_t *in_lf, const int16_t *in_hf, int32_t *out, uint32_t len, uint8_t shift) {
+    assert((len >= 2) && "[idwt_c()] ERROR: Length is too small!");
+    const uint32_t pairs = len / 2;
+    const int32x4_t shift_vec = vdupq_n_s32(shift);
+    uint32_t k = 1;
+
+    out[0] = in_lf[0] - (((LSHIFT32(in_hf[0], shift)) + 1) >> 1);
+
+    if (pairs >= 9) {
+        out[2] = in_lf[1] - (((LSHIFT32(in_hf[0], shift)) + LSHIFT32(in_hf[1], shift) + 2) >> 2);
+        out[1] = LSHIFT32(in_hf[0], shift) + ((out[0] + out[2]) >> 1);
+
+        int32x4_t even = idwt_even_block(vld1q_s32(in_lf + k), in_hf, k, shift_vec);
+        while (k + 8 <= pairs) {
+            const uint32_t next = k + 4;
+            const int32x4_t even_next = idwt_even_block(vld1q_s32(in_lf + next), in_hf, next, shift_vec);
+            const int32x4_t even_shifted = vextq_s32(even, even_next, 1);
+            int32x4x2_t pair;
+            pair.val[0] = vaddq_s32(idwt_load_hf(in_hf + k, shift_vec),
+                                    vshrq_n_s32(vaddq_s32(even, even_shifted), 1));
+            pair.val[1] = even_shifted;
+            vst2q_s32(out + 2 * k + 1, pair);
+            even = even_next;
+            k = next;
+        }
+    }
+
+    for (; k < pairs; k++) {
+        out[2 * k] = in_lf[k] - (((LSHIFT32(in_hf[k - 1], shift)) + LSHIFT32(in_hf[k], shift) + 2) >> 2);
+        out[2 * k - 1] = LSHIFT32(in_hf[k - 1], shift) + ((out[2 * k - 2] + out[2 * k]) >> 1);
+    }
+    if (len & 1) {
+        out[len - 1] = in_lf[pairs] - (((LSHIFT32(in_hf[pairs - 1], shift)) + 1) >> 1);
+        out[len - 2] = LSHIFT32(in_hf[pairs - 1], shift) + ((out[len - 3] + out[len - 1]) >> 1);
+    }
+    else {
+        out[len - 1] = LSHIFT32(in_hf[pairs - 1], shift) + out[len - 2];
+    }
+}
