@@ -149,10 +149,12 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
                     idwt_horizontal_line_lf16_hf16_c,
                     idwt_horizontal_line_lf16_hf16_avx2,
                     idwt_horizontal_line_lf16_hf16_avx512);
+    SET_NEON(idwt_horizontal_line_lf16_hf16, idwt_horizontal_line_lf16_hf16_neon);
     SET_AVX2_AVX512(idwt_horizontal_line_lf32_hf16,
                     idwt_horizontal_line_lf32_hf16_c,
                     idwt_horizontal_line_lf32_hf16_avx2,
                     idwt_horizontal_line_lf32_hf16_avx512);
+    SET_NEON(idwt_horizontal_line_lf32_hf16, idwt_horizontal_line_lf32_hf16_neon);
     SET_AVX2_AVX512(idwt_vertical_line, idwt_vertical_line_c, idwt_vertical_line_avx2, idwt_vertical_line_avx512);
     SET_NEON(idwt_vertical_line, idwt_vertical_line_neon);
     SET_AVX2_AVX512(
