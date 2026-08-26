@@ -7,10 +7,13 @@
 #include <RateControl.h>
 #include <BinarySearch.h>
 #include "random.h"
-#include "RateControl_avx2.h"
-#include "Enc_avx512.h"
 #include "encoder_dsp_rtcd.h"
 #include "EncDec.h" /* TRUNCATION_MAX */
+
+#ifdef ARCH_X86_64
+#include "RateControl_avx2.h"
+#include "Enc_avx512.h"
+#endif /* ARCH_X86_64 */
 
 TEST(RateControl, EqualSimple) {
     BinarySearch_t search;
@@ -388,13 +391,16 @@ TEST(gc_histogram_16, C) {
     gc_histogram_16_test(gc_histogram_16_c);
 }
 
+#ifdef ARCH_X86_64
 TEST(gc_histogram_16, AVX2) {
     if (!(get_cpu_flags() & CPU_FLAGS_AVX2)) {
         GTEST_SKIP();
     }
     gc_histogram_16_test(gc_histogram_16_avx2);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(gc_histogram_16, AVX512) {
     const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT;
     if ((get_cpu_flags() & required) != required) {
@@ -402,3 +408,4 @@ TEST(gc_histogram_16, AVX512) {
     }
     gc_histogram_16_test(gc_histogram_16_avx512);
 }
+#endif /* ARCH_X86_64 */

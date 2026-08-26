@@ -6,15 +6,18 @@
 #include "gtest/gtest.h"
 #include "PictureControlSet.h"
 #include "random.h"
-#include <immintrin.h>
 #include "GcStageProcess.h"
-#include "Enc_avx512.h"
 #include "PiEnc.h"
 #include "EncDec.h"
 #include "encoder_dsp_rtcd.h"
 #include "Codestream.h"
+
+#ifdef ARCH_X86_64
+#include <immintrin.h>
+#include "Enc_avx512.h"
 #include "group_coding_sse4_1.h"
 #include "RateControl_avx2.h"
+#endif /* ARCH_X86_64 */
 
 void test_gc_stage_scalar(void (*test_fn)(uint8_t* gcli_data_ptr, uint16_t* coeff_data_ptr_16bit, uint32_t group_size,
                                           uint32_t width)) {
@@ -79,16 +82,21 @@ void test_gc_stage_scalar(void (*test_fn)(uint8_t* gcli_data_ptr, uint16_t* coef
     free(out_compare_msb);
 }
 
+#ifdef ARCH_X86_64
 TEST(GcStage, gc_stage_scalar_avx2) {
     test_gc_stage_scalar(gc_precinct_stage_scalar_avx2);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(GcStage, gc_stage_scalar_avx512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         test_gc_stage_scalar(gc_precinct_stage_scalar_avx512);
     }
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(GcStage, gc_precinct_sigflags_max_sse41) {
     uint32_t gcli_width = 383;
     uint32_t significance_size = DIV_ROUND_UP(gcli_width, SIGNIFICANCE_GROUP_SIZE);
@@ -113,3 +121,4 @@ TEST(GcStage, gc_precinct_sigflags_max_sse41) {
     free(ref_significance_data_ptr);
     free(mod_significance_data_ptr);
 }
+#endif /* ARCH_X86_64 */

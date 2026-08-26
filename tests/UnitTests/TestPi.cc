@@ -5,8 +5,11 @@
 
 #include "gtest/gtest.h"
 #include "random.h"
-#include <immintrin.h>
 #include <Pi.h>
+
+#ifdef ARCH_X86_64
+#include <immintrin.h>
+#endif /* ARCH_X86_64 */
 
 struct TestTopology {
     ColourFormat_t format;
