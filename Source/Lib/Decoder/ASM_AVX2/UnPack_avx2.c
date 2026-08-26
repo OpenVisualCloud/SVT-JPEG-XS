@@ -17,7 +17,15 @@ uint8_t read_4_bits_align4_fast(reader_short_t* r) {
     return (*r->mem >> 4);
 }
 
-void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups, uint32_t safe_bytes) {
+/* Shared walk for unpack_n_groups/unpack_n_groups_nosign: the two differ only in
+ * whether a sign nibble is read alongside the planes. has_sign is a parameter
+ * rather than two separate bodies, but both call sites below pass a compile-time
+ * constant (0 or 1), so the compiler specializes this into the same two variants
+ * that used to be written out by hand, with no runtime branch inside either loop -
+ * the same reasoning pack_groups_masked's emit_signs parameter already relies on, on
+ * the encoder side (see pack_group_helper.h). */
+static INLINE void unpack_n_groups_impl(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups,
+                                        uint32_t safe_bytes, const int has_sign) {
     uint8_t* const base = r->mem;
     uint32_t nib = r->bits_used ? 1u : 0u;
     uint32_t group = 0;
@@ -60,14 +68,16 @@ void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* 
              * bit planes than the single load can take - fifteen - and the
              * shift that would extract it would be undefined, so the group is
              * left to the sequential reader below. */
-            if (size > TRUNCATION_MAX || ((nib + 1) >> 1) >= safe_bytes) {
+            if (size > TRUNCATION_MAX || ((nib + (uint32_t)has_sign) >> 1) >= safe_bytes) {
                 group += k;
                 goto tail;
             }
-            const uint64_t signs = unpack_sign_spread[unpack_one_nibble(base, nib)];
-            const uint64_t out = unpack_planes_to_lanes_sse(unpack_load_nibbles(base, nib + 1, size), gtli) | signs;
+            uint64_t out = unpack_planes_to_lanes_sse(unpack_load_nibbles(base, nib + (uint32_t)has_sign, size), gtli);
+            if (has_sign) {
+                out |= unpack_sign_spread[unpack_one_nibble(base, nib)];
+            }
             memcpy(buf + (size_t)(group + k) * GROUP_SIZE, &out, sizeof(out));
-            nib += size + 1;
+            nib += size + (uint32_t)has_sign;
             todo &= todo - 1;
         }
         group += chunk;
@@ -83,7 +93,10 @@ tail:
     for (; group < n_groups; group++) {
         const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
         if (size > 0) {
-            const uint64_t signs = unpack_sign_spread[read_4_bits_align4_fast(r)];
+            uint64_t signs = 0;
+            if (has_sign) {
+                signs = unpack_sign_spread[read_4_bits_align4_fast(r)];
+            }
             /* A corrupt stream can carry a GCLI far above the truncation maximum: the
              * unary code yields up to thirty-one, and vertical prediction can wrap it
              * to anything up to two hundred and fifty-five. The fast path above
@@ -102,83 +115,13 @@ tail:
     }
 }
 
+void unpack_n_groups(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups, uint32_t safe_bytes) {
+    unpack_n_groups_impl(gclis, gtli, r, buf, n_groups, safe_bytes, 1);
+}
+
 void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups,
                             uint32_t safe_bytes) {
-    uint8_t* const base = r->mem;
-    uint32_t nib = r->bits_used ? 1u : 0u;
-    uint32_t group = 0;
-
-    /* The vast majority of groups are empty: about eighty-seven per cent on
-     * 1080p at 4 bits per pixel. Each of them used to cost a GCLI load, a
-     * compare, a poorly predicted branch and a store of eight zeroes. Now the
-     * output is zeroed in one pass and the walk follows the bits of a non-empty
-     * mask, so an empty group costs nothing and the per-group branch is gone.
-     *
-     * The mask comes from a saturating subtract: subs_epu8 yields zero exactly
-     * where GCLI does not exceed the truncation level. Testing that result for
-     * equality with zero and inverting the mask is therefore an exact unsigned
-     * comparison, which a signed compare against zero would not be: a corrupt
-     * stream can put any byte value into GCLI, and AVX-512 tests it unsigned. */
-    memset(buf, 0, (size_t)n_groups * GROUP_SIZE * sizeof(uint16_t));
-
-    const __m256i gtli_vec = _mm256_set1_epi8((char)gtli);
-    const __m256i zero = _mm256_setzero_si256();
-    while (group < n_groups) {
-        const uint32_t chunk = MIN(n_groups - group, 32u);
-        __m256i gcli_vec;
-        if (chunk >= 32) {
-            gcli_vec = _mm256_loadu_si256((const __m256i*)(gclis + group));
-        }
-        else {
-            uint8_t padded[32] = {0};
-            memcpy(padded, gclis + group, chunk);
-            gcli_vec = _mm256_loadu_si256((const __m256i*)padded);
-        }
-        uint64_t todo = (uint32_t)~_mm256_movemask_epi8(_mm256_cmpeq_epi8(_mm256_subs_epu8(gcli_vec, gtli_vec), zero));
-        while (todo) {
-            const uint32_t k = svt_first_set_bit(todo);
-            const uint32_t size = (uint32_t)gclis[group + k] - gtli;
-            /* A corrupt stream can carry a GCLI above the truncation maximum:
-             * the unary code yields up to thirty-one. Such a group holds more
-             * bit planes than the single load can take - fifteen - and the
-             * shift that would extract it would be undefined, so the group is
-             * left to the sequential reader below. */
-            if (size > TRUNCATION_MAX || (nib >> 1) >= safe_bytes) {
-                group += k;
-                goto tail;
-            }
-            const uint64_t out = unpack_planes_to_lanes_sse(unpack_load_nibbles(base, nib, size), gtli);
-            memcpy(buf + (size_t)(group + k) * GROUP_SIZE, &out, sizeof(out));
-            nib += size;
-            todo &= todo - 1;
-        }
-        group += chunk;
-    }
-
-tail:
-    r->mem = base + (nib >> 1);
-    r->bits_used = (uint8_t)((nib & 1) * 4);
-    buf += (size_t)group * GROUP_SIZE;
-
-    for (; group < n_groups; group++) {
-        const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
-        if (size > 0) {
-            /* A corrupt stream can carry a GCLI far above the truncation maximum: the
-             * unary code yields up to thirty-one, and vertical prediction can wrap it
-             * to anything up to two hundred and fifty-five. The fast path above
-             * already declines to touch such a group at all; this sequential reader
-             * has to decline the same way, or it reads size nibbles - unbounded by
-             * anything - straight past the end of whatever buffer backs it. */
-            const int32_t read_planes = (size > TRUNCATION_MAX) ? TRUNCATION_MAX : size;
-            uint64_t acc = 0;
-            for (int32_t i = 0; i < read_planes; i++) {
-                acc = (acc << 4) | read_4_bits_align4_fast(r);
-            }
-            const uint64_t out = unpack_planes_to_lanes_sse(acc, gtli);
-            memcpy(buf, &out, sizeof(out));
-        }
-        buf += GROUP_SIZE;
-    }
+    unpack_n_groups_impl(gclis, gtli, r, buf, n_groups, safe_bytes, 0);
 }
 
 SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
