@@ -16,6 +16,10 @@
 
 #include "Codestream.h"
 
+#ifdef ARCH_AARCH64
+#include "NltEnc_neon.h"
+#endif /* ARCH_AARCH64 */
+
 #ifdef ARCH_X86_64
 #include "NltEnc_avx2.h"
 #include "NltDec_AVX2.h"
@@ -267,6 +271,13 @@ TEST(Nlt_Linear_Input_8bit, AVX512) {
 }
 #endif /* ARCH_X86_64 */
 
+#ifdef ARCH_AARCH64
+TEST(Nlt_Linear_Input_8bit, NEON) {
+    test_linear_input_scaling_line_8bit(linear_input_scaling_line_8bit_neon);
+}
+#endif /* ARCH_AARCH64 */
+
+
 void test_inv_sign(void (*test_fn)(uint16_t* in_out, uint32_t width)) {
     const uint32_t w = 1999;
 
@@ -352,6 +363,13 @@ TEST(Nlt_Linear_Input_16bit, AVX2) {
 }
 #endif /* ARCH_X86_64 */
 
+#ifdef ARCH_AARCH64
+TEST(Nlt_Linear_Input_16bit, NEON) {
+    test_linear_input_scaling_line_16bit(linear_input_scaling_line_16bit_neon);
+}
+#endif /* ARCH_AARCH64 */
+
+
 #ifdef ARCH_X86_64
 TEST(Nlt_Linear_Input_16bit, AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
@@ -409,6 +427,13 @@ TEST(Nlt_Linear_Input_16bit_MSB, AVX2) {
     test_linear_input_scaling_line_16bit_msb(linear_input_scaling_line_16bit_msb_avx2);
 }
 #endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+TEST(Nlt_Linear_Input_16bit_MSB, NEON) {
+    test_linear_input_scaling_line_16bit_msb(linear_input_scaling_line_16bit_msb_neon);
+}
+#endif /* ARCH_AARCH64 */
+
 
 #ifdef ARCH_X86_64
 TEST(Nlt_Linear_Input_16bit_MSB, AVX512) {
