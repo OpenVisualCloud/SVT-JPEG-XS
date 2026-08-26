@@ -92,8 +92,12 @@ void dwt_horizontal_line_avx512(int32_t* out_lf, int32_t* out_hf, const int32_t*
         0x00, 0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e, 0x10, 0x12, 0x14, 0x16, 0x18, 0x1a, 0x1c, 0x1e);
     const __m512i reg1_permutex2var_mask = _mm512_setr_epi32(
         0x01, 0x03, 0x05, 0x07, 0x09, 0x0b, 0x0d, 0x0f, 0x11, 0x13, 0x15, 0x17, 0x19, 0x1b, 0x1d, 0x1f);
-    const __m512i reg_permutevar_mask = _mm512_setr_epi32(
-        0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e);
+    /* The previous high-frequency sample stays in a vector instead of being
+     * re-read from out_hf. Every iteration used to load the value from the very
+     * cell the vector had just been stored to: the load waited on its own store,
+     * and store-to-load forwarding costs about a dozen cycles. The element is
+     * already sitting in the last lane of the previous iteration's result. */
+    __m512i prev_hf = _mm512_set1_epi32(out_hf[0]);
 
     uint32_t id = 1;
 
@@ -117,11 +121,8 @@ void dwt_horizontal_line_avx512(int32_t* out_lf, int32_t* out_hf, const int32_t*
         _mm512_storeu_si512((__m512i*)(out_hf + id), hf);
 
         //out_hf[id - 1]
-        //const __m512i hf_m1 = _mm512_loadu_si512((__m512i*)(out_hf + id - 1));
-        __m512i hf_m1 = _mm512_permutexvar_epi32(reg_permutevar_mask, hf);
-        __m128i tmp = _mm512_castsi512_si128(hf_m1);
-        tmp = _mm_insert_epi32(tmp, out_hf[id - 1], 0);
-        hf_m1 = _mm512_inserti32x4(hf_m1, tmp, 0);
+        const __m512i hf_m1 = _mm512_alignr_epi32(hf, prev_hf, 15);
+        prev_hf = hf;
 
         //out_lf[id] = in[id * 2] + ((out_hf[id - 1] + out_hf[id] + 2) >> 2);
         __m512i lf = _mm512_add_epi32(hf, hf_m1);
@@ -199,22 +200,35 @@ void image_shift_avx512(uint16_t* out_coeff_16bit, int32_t* in_coeff_32bit, uint
 
 void linear_input_scaling_line_8bit_avx512(const uint8_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset) {
     const __m512i offset_avx512 = _mm512_set1_epi32(offset);
-    const uint32_t simd_batch = w / 16;
-    const uint32_t remaining = w % 16;
+    uint32_t j = 0;
 
-    for (uint32_t j = 0; j < simd_batch; j++) {
-        __m128i temp_data = _mm_loadu_si128((__m128i*)src);
-        __m512i data = _mm512_cvtepu8_epi32(temp_data);
+    /* Four vectors per turn: a body of three operations also paid for two
+     * pointer bumps and a branch, so a noticeable share of the work went into
+     * something other than the data. Four independent chains also give the
+     * pipeline something to do while the byte-to-word widening is in flight. */
+    for (; j + 64 <= w; j += 64) {
+        __m512i d0 = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j)));
+        __m512i d1 = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j + 16)));
+        __m512i d2 = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j + 32)));
+        __m512i d3 = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j + 48)));
 
+        d0 = _mm512_sub_epi32(_mm512_slli_epi32(d0, shift), offset_avx512);
+        d1 = _mm512_sub_epi32(_mm512_slli_epi32(d1, shift), offset_avx512);
+        d2 = _mm512_sub_epi32(_mm512_slli_epi32(d2, shift), offset_avx512);
+        d3 = _mm512_sub_epi32(_mm512_slli_epi32(d3, shift), offset_avx512);
+
+        _mm512_storeu_si512(dst + j, d0);
+        _mm512_storeu_si512(dst + j + 16, d1);
+        _mm512_storeu_si512(dst + j + 32, d2);
+        _mm512_storeu_si512(dst + j + 48, d3);
+    }
+    for (; j + 16 <= w; j += 16) {
+        __m512i data = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j)));
         data = _mm512_slli_epi32(data, shift);
         data = _mm512_sub_epi32(data, offset_avx512);
-
-        _mm512_storeu_si512(dst, data);
-
-        src += 16;
-        dst += 16;
+        _mm512_storeu_si512(dst + j, data);
     }
-    for (uint32_t j = 0; j < remaining; j++) {
+    for (; j < w; j++) {
         dst[j] = (int32_t)((uint32_t)src[j] << shift) - (int32_t)offset;
     }
 }
@@ -723,5 +737,55 @@ void gc_precinct_stage_scalar_avx512(uint8_t* gcli_data_ptr, uint16_t* coeff_dat
                 gcli_data_ptr[0] = 0;
             }
         }
+    }
+}
+
+/* Histogram of sixteen bins over bytes from [0, TRUNCATION_MAX].
+ *
+ * Built the same way as the AVX2 version (population of a compare mask, no
+ * prologue and no epilogue), except that here the compare mask is a ready k
+ * register rather than the result of VPMOVMSKB, and sixty-four bytes are
+ * handled per pass instead of thirty-two. The tail is read by a masked load
+ * into a vector pre-filled with 0xFF, so no copying into a buffer is needed at
+ * all. */
+#define GC_HIST_BIN_AVX512(v, K) \
+    total[K] += (uint32_t)_mm_popcnt_u64((uint64_t)_mm512_cmpeq_epi8_mask((v), _mm512_set1_epi8((char)(K))))
+
+#define GC_HIST_ALL_AVX512(v)      \
+    do {                           \
+        GC_HIST_BIN_AVX512(v, 0);  \
+        GC_HIST_BIN_AVX512(v, 1);  \
+        GC_HIST_BIN_AVX512(v, 2);  \
+        GC_HIST_BIN_AVX512(v, 3);  \
+        GC_HIST_BIN_AVX512(v, 4);  \
+        GC_HIST_BIN_AVX512(v, 5);  \
+        GC_HIST_BIN_AVX512(v, 6);  \
+        GC_HIST_BIN_AVX512(v, 7);  \
+        GC_HIST_BIN_AVX512(v, 8);  \
+        GC_HIST_BIN_AVX512(v, 9);  \
+        GC_HIST_BIN_AVX512(v, 10); \
+        GC_HIST_BIN_AVX512(v, 11); \
+        GC_HIST_BIN_AVX512(v, 12); \
+        GC_HIST_BIN_AVX512(v, 13); \
+        GC_HIST_BIN_AVX512(v, 14); \
+        GC_HIST_BIN_AVX512(v, 15); \
+    } while (0)
+
+void gc_histogram_16_avx512(const uint8_t* data, uint32_t width, uint16_t* hist) {
+    uint32_t total[TRUNCATION_MAX + 1] = {0};
+    uint32_t i = 0;
+
+    for (; i + 64 <= width; i += 64) {
+        const __m512i v = _mm512_loadu_si512((const void*)(data + i));
+        GC_HIST_ALL_AVX512(v);
+    }
+    if (i < width) {
+        /* Unused lanes stay at 0xFF and land in no bin. */
+        const __mmask64 m = ((__mmask64)1 << (width - i)) - 1;
+        const __m512i v = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0xFF), m, data + i);
+        GC_HIST_ALL_AVX512(v);
+    }
+    for (uint32_t k = 0; k <= TRUNCATION_MAX; ++k) {
+        hist[k] = (uint16_t)total[k];
     }
 }

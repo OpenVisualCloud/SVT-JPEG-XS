@@ -26,6 +26,20 @@ void assert_err(uint32_t condition, char* err_msg);
 #define DIV_ROUND_UP(val, round)   (((val) + (round)-1) / (round))
 #define DIV_ROUND_DOWN(val, round) ((val) / (round))
 
+/* Index of the lowest set bit. The wrapper exists for MSVC, which has no
+ * __builtin_ctzll. TZCNT cannot be assumed either - BMI1 is not enabled for
+ * every target - but BSF returns the same index for a non-zero mask. */
+static INLINE uint32_t svt_first_set_bit(uint64_t mask) {
+    assert(mask != 0);
+#if defined(_MSC_VER)
+    unsigned long index;
+    _BitScanForward64(&index, mask);
+    return (uint32_t)index;
+#else
+    return (uint32_t)__builtin_ctzll(mask);
+#endif
+}
+
 static INLINE void get_current_time(uint64_t* const seconds, uint64_t* const mseconds) {
 #ifdef _WIN32
     struct _timeb curr_time;

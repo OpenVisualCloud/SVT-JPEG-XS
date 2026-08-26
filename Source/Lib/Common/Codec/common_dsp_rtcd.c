@@ -29,6 +29,8 @@ CPU_FLAGS get_cpu_flags() {
     flags |= cpuinfo_has_x86_ssse3() ? CPU_FLAGS_SSSE3 : 0;
     flags |= cpuinfo_has_x86_sse4_1() ? CPU_FLAGS_SSE4_1 : 0;
     flags |= cpuinfo_has_x86_sse4_2() ? CPU_FLAGS_SSE4_2 : 0;
+    flags |= cpuinfo_has_x86_popcnt() ? CPU_FLAGS_POPCNT : 0;
+    flags |= cpuinfo_has_x86_bmi2() ? CPU_FLAGS_BMI2 : 0;
 
     flags |= cpuinfo_has_x86_avx() ? CPU_FLAGS_AVX : 0;
     flags |= cpuinfo_has_x86_avx2() ? CPU_FLAGS_AVX2 : 0;

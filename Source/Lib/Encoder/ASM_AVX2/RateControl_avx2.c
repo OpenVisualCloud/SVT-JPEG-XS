@@ -8,6 +8,7 @@
 #include "rate_control_helper_avx2.h"
 #include "encoder_dsp_rtcd.h"
 #include "EncDec.h"
+#include <string.h>
 
 uint32_t rate_control_calc_vpred_cost_nosigf_avx2(uint32_t gcli_width, uint8_t *gcli_data_top_ptr, uint8_t *gcli_data_ptr,
                                                   uint8_t *vpred_bits_pack, uint8_t gtli, uint8_t gtli_max) {
@@ -306,5 +307,61 @@ void convert_packed_to_planar_rgb_16bit_avx2(const void *in_rgb, void *out_comp1
         out_c2++;
         out_c3++;
         in += 3;
+    }
+}
+
+/* Histogram of sixteen bins over bytes from [0, TRUNCATION_MAX].
+ *
+ * Every bin is counted as the population of a compare mask. This variant was
+ * chosen not for peak throughput on long lines but because it has neither a
+ * prologue nor an epilogue: sixteen byte accumulators would have to be cleared
+ * and folded, which is some fifty extra operations per call. Meanwhile on a
+ * 1080p422 frame more than half of the calls arrive with a width below sixteen
+ * (bands of the upper decomposition levels are narrow), and there the fixed
+ * cost decides everything.
+ *
+ * The tail is copied into a buffer padded with 0xFF: that value matches no bin,
+ * so the extra bytes land nowhere and no separate scalar tail is needed - which
+ * is essential for narrow bands, where the whole array is the tail. */
+#define GC_HIST_BIN_AVX2(v, K) \
+    total[K] += (uint32_t)_mm_popcnt_u32((uint32_t)_mm256_movemask_epi8(_mm256_cmpeq_epi8((v), _mm256_set1_epi8((char)(K)))))
+
+#define GC_HIST_ALL_AVX2(v)      \
+    do {                         \
+        GC_HIST_BIN_AVX2(v, 0);  \
+        GC_HIST_BIN_AVX2(v, 1);  \
+        GC_HIST_BIN_AVX2(v, 2);  \
+        GC_HIST_BIN_AVX2(v, 3);  \
+        GC_HIST_BIN_AVX2(v, 4);  \
+        GC_HIST_BIN_AVX2(v, 5);  \
+        GC_HIST_BIN_AVX2(v, 6);  \
+        GC_HIST_BIN_AVX2(v, 7);  \
+        GC_HIST_BIN_AVX2(v, 8);  \
+        GC_HIST_BIN_AVX2(v, 9);  \
+        GC_HIST_BIN_AVX2(v, 10); \
+        GC_HIST_BIN_AVX2(v, 11); \
+        GC_HIST_BIN_AVX2(v, 12); \
+        GC_HIST_BIN_AVX2(v, 13); \
+        GC_HIST_BIN_AVX2(v, 14); \
+        GC_HIST_BIN_AVX2(v, 15); \
+    } while (0)
+
+void gc_histogram_16_avx2(const uint8_t *data, uint32_t width, uint16_t *hist) {
+    uint32_t total[TRUNCATION_MAX + 1] = {0};
+    uint32_t i = 0;
+
+    for (; i + 32 <= width; i += 32) {
+        const __m256i v = _mm256_loadu_si256((const __m256i *)(data + i));
+        GC_HIST_ALL_AVX2(v);
+    }
+    if (i < width) {
+        uint8_t tail[32];
+        memset(tail, 0xFF, sizeof(tail));
+        memcpy(tail, data + i, width - i);
+        const __m256i v = _mm256_loadu_si256((const __m256i *)tail);
+        GC_HIST_ALL_AVX2(v);
+    }
+    for (uint32_t k = 0; k <= TRUNCATION_MAX; ++k) {
+        hist[k] = (uint16_t)total[k];
     }
 }

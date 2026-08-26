@@ -16,6 +16,20 @@ extern "C" {
 SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinct_enc_t* precinct,
                                 SignHandlingStrategy coding_signs_handling);
 
+void pack_data_groups_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint8_t* gclis, uint32_t groups, uint8_t gtli,
+                        uint8_t sign_flag);
+
+/* A GCLI unary code: nbits ones and a terminating zero.
+ *
+ * Written through bit_writer_t (see BitstreamWriter.h): the codes are glued
+ * together in an accumulator and the stream is touched once per thirty-two
+ * bits, that is about six times more rarely than with a separate call per code
+ * - the average code is shorter than six bits. */
+static INLINE void vlc_put_unary(bit_writer_t* w, uint8_t nbits) {
+    assert(nbits < 32);
+    bitw_put(w, (((uint64_t)1 << nbits) - 1) << 1, (uint32_t)nbits + 1);
+}
+
 /*Variable Length Coding
  * Params:
  * nbits - bits to coding

@@ -12,6 +12,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+void gc_histogram_16_c(const uint8_t *data, uint32_t width, uint16_t *hist);
 
 struct PictureControlSet;
 

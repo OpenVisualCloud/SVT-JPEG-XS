@@ -6,6 +6,11 @@
 #include "gtest/gtest.h"
 #include <RateControl.h>
 #include <BinarySearch.h>
+#include "random.h"
+#include "RateControl_avx2.h"
+#include "Enc_avx512.h"
+#include "encoder_dsp_rtcd.h"
+#include "EncDec.h" /* TRUNCATION_MAX */
 
 TEST(RateControl, EqualSimple) {
     BinarySearch_t search;
@@ -332,4 +337,68 @@ TEST(RateControl, NotEqualSmallerFull) {
 TEST(RateControl, NotEqualBiggerFull) {
     Test_next_step_full(0, 1);
     Test_next_step_full(0, -1);
+}
+
+/* The histogram of GCLI values over one band line.
+ *
+ * The three implementations fill all sixteen bins themselves - nobody clears
+ * the table for them - so the test hands them a table pre-filled with a value
+ * no count can be: a bin left untouched shows up as a mismatch rather than as a
+ * lucky zero. Width zero is part of the contract as well: an empty line has to
+ * leave an all-zero histogram, not the previous one. */
+typedef void (*gc_histogram_16_fn)(const uint8_t* data, uint32_t width, uint16_t* hist);
+
+static void gc_histogram_16_test(gc_histogram_16_fn hist_fn) {
+    /* the widths around the vector step, plus a few long lines */
+    const uint32_t widths[] = {0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129, 255, 480, 1920, 3840};
+    const uint32_t widths_num = sizeof(widths) / sizeof(widths[0]);
+    const uint32_t max_width = 3840;
+
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    uint8_t* data = (uint8_t*)malloc(max_width);
+    ASSERT_TRUE(data != NULL);
+
+    for (uint32_t width_idx = 0; width_idx < widths_num; width_idx++) {
+        const uint32_t width = widths[width_idx];
+        for (uint32_t test_num = 0; test_num < 20; test_num++) {
+            uint16_t ref[TRUNCATION_MAX + 1];
+            uint16_t cmp[TRUNCATION_MAX + 1];
+            memset(ref, 0, sizeof(ref));
+            for (uint32_t i = 0; i <= TRUNCATION_MAX; i++) {
+                cmp[i] = 0xDEAD;
+            }
+
+            for (uint32_t i = 0; i < width; i++) {
+                /* the first round is the extreme case of a single bin: GCLI is
+                 * spatially correlated and whole lines of one value do occur */
+                data[i] = (uint8_t)(test_num == 0 ? TRUNCATION_MAX : rnd->Rand8() % (TRUNCATION_MAX + 1));
+                ref[data[i]]++;
+            }
+
+            hist_fn(data, width, cmp);
+            ASSERT_EQ(memcmp(ref, cmp, sizeof(ref)), 0) << "width " << width << " round " << test_num;
+        }
+    }
+
+    free(data);
+    delete rnd;
+}
+
+TEST(gc_histogram_16, C) {
+    gc_histogram_16_test(gc_histogram_16_c);
+}
+
+TEST(gc_histogram_16, AVX2) {
+    if (!(get_cpu_flags() & CPU_FLAGS_AVX2)) {
+        GTEST_SKIP();
+    }
+    gc_histogram_16_test(gc_histogram_16_avx2);
+}
+
+TEST(gc_histogram_16, AVX512) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT;
+    if ((get_cpu_flags() & required) != required) {
+        GTEST_SKIP();
+    }
+    gc_histogram_16_test(gc_histogram_16_avx512);
 }

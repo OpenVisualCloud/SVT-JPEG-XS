@@ -21,7 +21,12 @@ void dwt_horizontal_line_avx2(int32_t* out_lf, int32_t* out_hf, const int32_t* i
     const uint32_t count = ((len - 1) / 2);
     const __m256i two = _mm256_set1_epi32(2);
     const uint32_t count_all = (count - 1) / 8;
-    const __m256i reg_permutevar_mask_move_right = _mm256_setr_epi32(0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06);
+    /* The previous high-frequency sample stays in a vector instead of being
+     * re-read from out_hf. Every iteration used to load the value from the very
+     * cell the vector had just been stored to: the load waited on its own store,
+     * and store-to-load forwarding costs about a dozen cycles. The element is
+     * already sitting in the last lane of the previous iteration's result. */
+    __m256i prev_hf = _mm256_set1_epi32(out_hf[0]);
     const __m256i reg_permutevar_mask_move_left = _mm256_setr_epi32(0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x07);
     const __m256i reg_permutevar_mask_A = _mm256_setr_epi32(0x00, 0x02, 0x04, 0x06, 0x01, 0x03, 0x05, 0x07);
     const __m256i reg_permutevar_mask_B = _mm256_setr_epi32(0x01, 0x03, 0x05, 0x07, 0x00, 0x02, 0x04, 0x06);
@@ -45,8 +50,9 @@ void dwt_horizontal_line_avx2(int32_t* out_lf, int32_t* out_hf, const int32_t* i
         hf_out = _mm256_sub_epi32(in_1, hf_out);
         _mm256_storeu_si256((__m256i*)(out_hf + id), hf_out); //out_hf[id]
 
-        __m256i hf_m1 = _mm256_permutevar8x32_epi32(hf_out, reg_permutevar_mask_move_right);
-        hf_m1 = _mm256_insert_epi32(hf_m1, out_hf[id - 1], 0);
+        const __m256i shifted = _mm256_permute2x128_si256(prev_hf, hf_out, 0x21);
+        const __m256i hf_m1 = _mm256_alignr_epi8(hf_out, shifted, 12);
+        prev_hf = hf_out;
 
         __m256i lf = _mm256_add_epi32(hf_out, hf_m1);
         lf = _mm256_add_epi32(lf, two);

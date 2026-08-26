@@ -10,6 +10,13 @@
 #include "Codestream.h"
 #include "decoder_dsp_rtcd.h"
 #include "SvtLog.h"
+#include <string.h>
+
+#if defined(_MSC_VER)
+#define VLC_BSWAP64(x) _byteswap_uint64(x)
+#else
+#define VLC_BSWAP64(x) __builtin_bswap64(x)
+#endif
 
 typedef struct vlc_reader {
     uint8_t const* mem;
@@ -42,7 +49,25 @@ static INLINE uint32_t vlc_reader_end(vlc_reader_t* vlc_reader, bitstream_reader
 static INLINE int8_t vlc_reader_get_next_value(vlc_reader_t* vlc_reader) {
     if (!(vlc_reader->register64 >> 32)) { //Because can not be more than 32 bits for test
         if (vlc_reader->register_bits <= 32) {
-            if (vlc_reader->bits_to_use >= vlc_reader->bits_used + 64) {
+            /* One 64-bit load instead of "32 bits, then a loop of 16-bit top-ups".
+             * The bytes of a code run from most to least significant, so the word is
+             * reversed with bswap rather than assembled from bytes by shifts. The
+             * condition is stricter than the former one by exactly register_bits:
+             * eight bytes are read only when they are certainly there, and the end
+             * of the stream keeps the previous careful path. */
+            if (vlc_reader->bits_to_use >= vlc_reader->bits_used + vlc_reader->register_bits + 64) {
+                uint64_t word;
+                memcpy(&word, vlc_reader->mem, sizeof(word));
+                word = ~VLC_BSWAP64(word);
+                /* Only whole bytes are appended: the positions below register_bits must
+                 * stay zero, otherwise the next refill would land on top of them. */
+                const uint32_t add = (64 - vlc_reader->register_bits) & ~7u;
+                const uint64_t keep = (add == 64) ? word : ((word >> (64 - add)) << (64 - add));
+                vlc_reader->register64 |= keep >> vlc_reader->register_bits;
+                vlc_reader->mem += add >> 3;
+                vlc_reader->register_bits += add;
+            }
+            else if (vlc_reader->bits_to_use >= vlc_reader->bits_used + 64) {
                 //Load 32
                 vlc_reader->register64 |= ((uint64_t)((uint32_t)~(
                                               (((uint32_t)vlc_reader->mem[0]) << 24) | (((uint32_t)vlc_reader->mem[1]) << 16) |
@@ -108,7 +133,7 @@ static INLINE int8_t vlc_reader_get_next_value(vlc_reader_t* vlc_reader) {
         }
     }
 
-    int8_t res = 32 - svt_log2_32(vlc_reader->register64 >> 32); //Possible values: 1-32
+    int8_t res = vlc_leading_run((uint32_t)(vlc_reader->register64 >> 32)); //Possible values: 1-32
     vlc_reader->register_bits -= res;
     vlc_reader->bits_used += res;
     vlc_reader->register64 <<= res;
@@ -118,7 +143,14 @@ static INLINE int8_t vlc_reader_get_next_value(vlc_reader_t* vlc_reader) {
 static void unpack_data_single_group(bitstream_reader_t* bitstream, uint16_t* buf, int32_t size, int8_t gtli) {
     uint8_t val;
     uint32_t tmp_buf[4] = {0};
-    for (int32_t bits = 0; bits < (size - 1); bits++) {
+    /* A corrupt stream can carry a GCLI far above the truncation maximum: the caller's
+     * budget check only verifies that the declared cost fits the remaining bits, not that
+     * a single group's plane count is sane, so size can arrive here as large as 254. The
+     * AVX2 and AVX512 sequential readers cap their equivalent read at TRUNCATION_MAX for
+     * exactly this reason (see UnPack_avx2.c/UnPack_avx512.c); this scalar path needs the
+     * same bound, or it reads far past the plane count any real group can have. */
+    const int32_t read_planes = (size > TRUNCATION_MAX) ? TRUNCATION_MAX : size;
+    for (int32_t bits = 0; bits < (read_planes - 1); bits++) {
         val = read_4_bits_align4(bitstream);
         tmp_buf[3] = (tmp_buf[3] | (val & 1)) << 1;
         tmp_buf[2] = (tmp_buf[2] | (val & 2)) << 1;

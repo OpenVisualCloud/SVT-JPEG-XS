@@ -13,6 +13,7 @@ uint32_t loop_short_lf32_hf16(uint32_t len, const int32_t** lf_ptr, const int16_
                               uint8_t shift) {
     const uint32_t batch = (len - 2) / 8;
     const __m128i two = _mm_set1_epi32(2);
+    __m128i prev_vec = _mm_set1_epi32(*prev_even);
 
     for (uint32_t i = 0; i < batch; i++) {
         const __m128i lf_ = _mm_loadu_si128((__m128i*)(*lf_ptr + 1));
@@ -24,9 +25,7 @@ uint32_t loop_short_lf32_hf16(uint32_t len, const int32_t** lf_ptr, const int16_
         even = _mm_srai_epi32(even, 2);
         even = _mm_sub_epi32(lf_, even);
 
-        int32_t next_even = _mm_extract_epi32(even, 3);
-        __m128i even_m1 = _mm_bslli_si128(even, 4);
-        even_m1 = _mm_insert_epi32(even_m1, *prev_even, 0);
+        const __m128i even_m1 = _mm_alignr_epi8(even, prev_vec, 12);
 
         //out[0] + out[2]
         __m128i odd = _mm_add_epi32(even_m1, even);
@@ -39,12 +38,13 @@ uint32_t loop_short_lf32_hf16(uint32_t len, const int32_t** lf_ptr, const int16_
         _mm_storeu_si128((__m128i*)(*out_ptr + 0), unpack1);
         _mm_storeu_si128((__m128i*)(*out_ptr + 4), unpack2);
 
-        *prev_even = next_even;
+        prev_vec = even;
 
         *out_ptr += 8;
         *lf_ptr += 4;
         *hf_ptr += 4;
     }
+    *prev_even = _mm_extract_epi32(prev_vec, 3);
     return batch;
 }
 
@@ -55,8 +55,13 @@ void idwt_horizontal_line_lf32_hf16_avx512(const int32_t* lf_ptr, const int16_t*
     /* UBSan fix: use LSHIFT32 to avoid UB when left-shifting negative wavelet coefficients. */
     int32_t prev_even = lf_ptr[0] - (((LSHIFT32(hf_ptr[0], shift)) + 1) >> 1);
 
-    const __m512i permutevar_mask = _mm512_setr_epi32(
-        0x10, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e);
+    /* The carry of the last even sample into the next block stays in a vector.
+     * It used to travel through a general purpose register - extract from the
+     * vector, then broadcast back - four extra operations per iteration for a
+     * single value. valignd takes the element straight out of the previous
+     * iteration's vector, so the previous "even" itself serves as the carry. */
+    __m512i prev_vec = _mm512_set1_epi32(prev_even);
+
     const __m512i store1_perm = _mm512_setr_epi64(0x00, 0x01, 0x08, 0x09, 0x02, 0x03, 0x0a, 0x0b);
     const __m512i store2_perm = _mm512_setr_epi64(0x04, 0x05, 0x0c, 0x0d, 0x06, 0x07, 0x0e, 0x0f);
 
@@ -74,10 +79,7 @@ void idwt_horizontal_line_lf32_hf16_avx512(const int32_t* lf_ptr, const int16_t*
         even = _mm512_srai_epi32(even, 2);
         even = _mm512_sub_epi32(lf_avx2, even);
 
-        int32_t next_even = _mm_extract_epi32(_mm512_extracti32x4_epi32(even, 3), 3);
-
-        __m512i duplicate = _mm512_set1_epi32(prev_even);
-        __m512i even_m1 = _mm512_permutex2var_epi32(even, permutevar_mask, duplicate);
+        const __m512i even_m1 = _mm512_alignr_epi32(even, prev_vec, 15);
 
         //out[0] + out[2]
         __m512i odd = _mm512_add_epi32(even_m1, even);
@@ -93,12 +95,14 @@ void idwt_horizontal_line_lf32_hf16_avx512(const int32_t* lf_ptr, const int16_t*
         _mm512_storeu_si512(out_ptr, store1);
         _mm512_storeu_si512(out_ptr + 16, store2);
 
-        prev_even = next_even;
+        prev_vec = even;
 
         out_ptr += 32;
         lf_ptr += 16;
         hf_ptr += 16;
     }
+
+    prev_even = _mm_extract_epi32(_mm512_extracti32x4_epi32(prev_vec, 3), 3);
 
     uint32_t leftover = len - simd_batch_512 * 32;
     if (leftover > 8) {
@@ -127,6 +131,7 @@ uint32_t loop_short_lf16_hf16(uint32_t len, const int16_t** lf_ptr, const int16_
                               uint8_t shift) {
     const uint32_t batch = (len - 2) / 8;
     const __m128i two = _mm_set1_epi32(2);
+    __m128i prev_vec = _mm_set1_epi32(*prev_even);
 
     for (uint32_t i = 0; i < batch; i++) {
         const __m128i lf_ = _mm_slli_epi32(_mm_cvtepi16_epi32(_mm_loadl_epi64((__m128i*)(*lf_ptr + 1))), shift);
@@ -138,9 +143,7 @@ uint32_t loop_short_lf16_hf16(uint32_t len, const int16_t** lf_ptr, const int16_
         even = _mm_srai_epi32(even, 2);
         even = _mm_sub_epi32(lf_, even);
 
-        int32_t next_even = _mm_extract_epi32(even, 3);
-        __m128i even_m1 = _mm_bslli_si128(even, 4);
-        even_m1 = _mm_insert_epi32(even_m1, *prev_even, 0);
+        const __m128i even_m1 = _mm_alignr_epi8(even, prev_vec, 12);
 
         //out[0] + out[2]
         __m128i odd = _mm_add_epi32(even_m1, even);
@@ -153,12 +156,13 @@ uint32_t loop_short_lf16_hf16(uint32_t len, const int16_t** lf_ptr, const int16_
         _mm_storeu_si128((__m128i*)(*out_ptr + 0), unpack1);
         _mm_storeu_si128((__m128i*)(*out_ptr + 4), unpack2);
 
-        *prev_even = next_even;
+        prev_vec = even;
 
         *out_ptr += 8;
         *lf_ptr += 4;
         *hf_ptr += 4;
     }
+    *prev_even = _mm_extract_epi32(prev_vec, 3);
     return batch;
 }
 
@@ -169,8 +173,13 @@ void idwt_horizontal_line_lf16_hf16_avx512(const int16_t* lf_ptr, const int16_t*
     /* UBSan fix: use LSHIFT32 to avoid UB when left-shifting negative wavelet coefficients. */
     int32_t prev_even = LSHIFT32(lf_ptr[0], shift) - (((LSHIFT32(hf_ptr[0], shift)) + 1) >> 1);
 
-    const __m512i permutevar_mask = _mm512_setr_epi32(
-        0x10, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e);
+    /* The carry of the last even sample into the next block stays in a vector.
+     * It used to travel through a general purpose register - extract from the
+     * vector, then broadcast back - four extra operations per iteration for a
+     * single value. valignd takes the element straight out of the previous
+     * iteration's vector, so the previous "even" itself serves as the carry. */
+    __m512i prev_vec = _mm512_set1_epi32(prev_even);
+
     const __m512i store1_perm = _mm512_setr_epi64(0x00, 0x01, 0x08, 0x09, 0x02, 0x03, 0x0a, 0x0b);
     const __m512i store2_perm = _mm512_setr_epi64(0x04, 0x05, 0x0c, 0x0d, 0x06, 0x07, 0x0e, 0x0f);
 
@@ -188,10 +197,7 @@ void idwt_horizontal_line_lf16_hf16_avx512(const int16_t* lf_ptr, const int16_t*
         even = _mm512_srai_epi32(even, 2);
         even = _mm512_sub_epi32(lf_avx2, even);
 
-        int32_t next_even = _mm_extract_epi32(_mm512_extracti32x4_epi32(even, 3), 3);
-
-        __m512i duplicate = _mm512_set1_epi32(prev_even);
-        __m512i even_m1 = _mm512_permutex2var_epi32(even, permutevar_mask, duplicate);
+        const __m512i even_m1 = _mm512_alignr_epi32(even, prev_vec, 15);
 
         //out[0] + out[2]
         __m512i odd = _mm512_add_epi32(even_m1, even);
@@ -207,12 +213,14 @@ void idwt_horizontal_line_lf16_hf16_avx512(const int16_t* lf_ptr, const int16_t*
         _mm512_storeu_si512(out_ptr, store1);
         _mm512_storeu_si512(out_ptr + 16, store2);
 
-        prev_even = next_even;
+        prev_vec = even;
 
         out_ptr += 32;
         lf_ptr += 16;
         hf_ptr += 16;
     }
+
+    prev_even = _mm_extract_epi32(_mm512_extracti32x4_epi32(prev_vec, 3), 3);
 
     uint32_t leftover = len - simd_batch_512 * 32;
     if (leftover > 8) {

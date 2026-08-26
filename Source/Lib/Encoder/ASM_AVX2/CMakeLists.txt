@@ -17,6 +17,7 @@ include_directories(
     )
 
 check_both_flags_add(-mavx2)
+check_both_flags_add(-mpopcnt)
 
 if(MSVC)
     check_both_flags_add(/arch:AVX2)

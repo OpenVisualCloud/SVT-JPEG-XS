@@ -40,6 +40,179 @@ void write_4_bits(bitstream_writer_t* bitstream, uint8_t input);
 void write_N_bits(bitstream_writer_t* bitstream, uint32_t input, uint8_t bits);
 void update_N_bits(bitstream_writer_t* bitstream, uint32_t offset_bits, uint32_t input, uint8_t bits);
 
+/* Bit writer for long runs of unary codes.
+ *
+ * Built like the nibble writer below and for the same reason: the flush is a
+ * direct four-byte store rather than a call to write_N_bits. That one is
+ * generic - a branch on alignment up front and a per-byte loop inside - so
+ * every thirty-two bits cost a call doing four single-byte stores instead of
+ * one word-sized store.
+ *
+ * Bits sit in the accumulator most significant first, right aligned. Before an
+ * append there are fewer than thirty-two of them and a portion is at most
+ * thirty-two bits long, so sixty-four positions are always enough.
+ *
+ * If the stream does not sit on a byte boundary, the already started positions
+ * of the current byte are pulled into the accumulator. bitw_finish is mandatory
+ * before any other write to the same stream. */
+typedef struct bit_writer {
+    uint8_t* mem;
+    uint64_t acc;
+    uint32_t nbits;
+} bit_writer_t;
+
+static INLINE void bitw_init(bit_writer_t* w, bitstream_writer_t* bitstream) {
+    w->mem = bitstream->mem + bitstream->offset;
+    const uint32_t used = bitstream->bits_used;
+    if (used) {
+        w->acc = (uint64_t)(w->mem[0] >> (8 - used));
+        w->nbits = used;
+    }
+    else {
+        w->acc = 0;
+        w->nbits = 0;
+    }
+}
+
+/* len is at most thirty-two; value carries len significant positions on the
+ * right. */
+static INLINE void bitw_put(bit_writer_t* w, uint64_t value, uint32_t len) {
+    assert(len <= 32);
+    w->acc = (w->acc << len) | value;
+    w->nbits += len;
+    if (w->nbits >= 32) {
+        w->nbits -= 32;
+        const uint32_t be = (uint32_t)(w->acc >> w->nbits);
+        w->mem[0] = (uint8_t)(be >> 24);
+        w->mem[1] = (uint8_t)(be >> 16);
+        w->mem[2] = (uint8_t)(be >> 8);
+        w->mem[3] = (uint8_t)be;
+        w->mem += 4;
+        w->acc &= ((uint64_t)1 << w->nbits) - 1;
+    }
+}
+
+static INLINE void bitw_finish(bit_writer_t* w, bitstream_writer_t* bitstream) {
+    uint32_t n = w->nbits;
+    const uint64_t a = w->acc;
+    while (n >= 8) {
+        n -= 8;
+        w->mem[0] = (uint8_t)(a >> n);
+        w->mem++;
+    }
+    if (n) {
+        /* the tail is shorter than a byte: it is the high part of its byte, the
+         * low positions are written later */
+        w->mem[0] = (uint8_t)((a & (((uint64_t)1 << n) - 1)) << (8 - n));
+    }
+    bitstream->offset = (uint32_t)(w->mem - bitstream->mem);
+    bitstream->bits_used = n;
+}
+
+/* Nibble writer for packing group data.
+ *
+ * At this point the stream always sits on a nibble boundary, and
+ * write_4_bits_align4 relies on that, but every nibble still costs a byte load
+ * from memory in order to fill in its low half. A load-store dependency on one
+ * and the same address is dragged across the whole line, and it takes a quarter
+ * of the packing time.
+ *
+ * Here the nibbles accumulate in a register and are flushed eight at a time by
+ * a single four-byte store. The flush goes straight to memory rather than
+ * through write_N_bits: that one is generic, with branches on alignment and a
+ * per-byte loop, and trading eight cheap stores for one such call would be a
+ * loss.
+ *
+ * If the stream sits on a low nibble, the high half of the current byte is
+ * pulled into the accumulator as the first nibble - everything is byte aligned
+ * from there on. nibw_finish is mandatory before any other write to the same
+ * stream. */
+typedef struct nib_writer {
+    uint8_t* mem;
+    uint64_t acc;
+    uint32_t nnib;
+} nib_writer_t;
+
+static INLINE void nibw_init(nib_writer_t* w, bitstream_writer_t* bitstream) {
+    w->mem = bitstream->mem + bitstream->offset;
+    if (bitstream->bits_used) {
+        w->acc = (uint64_t)(w->mem[0] >> 4);
+        w->nnib = 1;
+    }
+    else {
+        w->acc = 0;
+        w->nnib = 0;
+    }
+}
+
+static INLINE void nibw_put(nib_writer_t* w, uint32_t nibble) {
+    w->acc = (w->acc << 4) | nibble;
+    if (++w->nnib == 8) {
+        const uint32_t be = (uint32_t)w->acc;
+        w->mem[0] = (uint8_t)(be >> 24);
+        w->mem[1] = (uint8_t)(be >> 16);
+        w->mem[2] = (uint8_t)(be >> 8);
+        w->mem[3] = (uint8_t)be;
+        w->mem += 4;
+        w->acc = 0;
+        w->nnib = 0;
+    }
+}
+
+/* A batch of nibbles at once: value carries count nibbles, right aligned, and
+ * the most significant of them is emitted first. At most eight per call - then
+ * the accumulator certainly cannot overflow (it already holds at most seven). */
+static INLINE void nibw_put_chunk(nib_writer_t* w, uint64_t value, uint32_t count) {
+    assert(count <= 8);
+    w->acc = (w->acc << (4 * count)) | value;
+    w->nnib += count;
+    if (w->nnib >= 8) {
+        const uint32_t rest = w->nnib - 8;
+        const uint32_t be = (uint32_t)(w->acc >> (4 * rest));
+        w->mem[0] = (uint8_t)(be >> 24);
+        w->mem[1] = (uint8_t)(be >> 16);
+        w->mem[2] = (uint8_t)(be >> 8);
+        w->mem[3] = (uint8_t)be;
+        w->mem += 4;
+        w->acc &= ((uint64_t)1 << (4 * rest)) - 1;
+        w->nnib = rest;
+    }
+}
+
+/* All the nibbles of one group in a single call.
+ *
+ * The "have eight accumulated" branch used to be taken per nibble, and a group
+ * has up to sixteen of them. The planes are computed one after another anyway,
+ * so accumulating them in a register is free, and it spares the writer a chain
+ * of short dependent steps. There are never more than sixteen: fifteen planes
+ * and a sign. */
+static INLINE void nibw_put_group(nib_writer_t* w, uint64_t value, uint32_t count) {
+    assert(count <= 16);
+    if (count > 8) {
+        nibw_put_chunk(w, value >> (4 * (count - 8)), 8);
+        count -= 8;
+        value &= ((uint64_t)1 << (4 * count)) - 1;
+    }
+    nibw_put_chunk(w, value, count);
+}
+
+static INLINE void nibw_finish(nib_writer_t* w, bitstream_writer_t* bitstream) {
+    uint32_t n = w->nnib;
+    const uint64_t a = w->acc;
+    while (n >= 2) {
+        w->mem[0] = (uint8_t)((a >> ((n - 2) * 4)) & 0xFF);
+        w->mem++;
+        n -= 2;
+    }
+    if (n == 1) {
+        /* one nibble is left: it is the high half of its byte, the low half is
+         * written later */
+        w->mem[0] = (uint8_t)((a & 0xF) << 4);
+    }
+    bitstream->offset = (uint32_t)(w->mem - bitstream->mem);
+    bitstream->bits_used = n * 4;
+}
+
 /*
 * write_4_bits_align4() Can be used only when bitstream is padded to 0 or 4 bits, otherwise data will be corrupted
 */

@@ -19,6 +19,7 @@
 #include "Quant.h"
 #include "PackPrecinct.h"
 #include "Pack_avx512.h"
+#include "Pack_avx2.h"
 #include "group_coding_sse4_1.h"
 #include "RateControl.h"
 #include "RateControl_avx2.h"
@@ -90,7 +91,26 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
 #ifdef ARCH_X86_64
     /** Should be done during library initialization,
       but for safe limiting cpu flags again. */
-    flags &= get_cpu_flags();
+    const CPU_FLAGS host_flags = get_cpu_flags();
+    flags &= host_flags;
+    /* The AVX-512 kernels are built with -mpopcnt and -mbmi2 for the whole directory, so
+     * the compiler is free to emit those instructions anywhere in them, not
+     * only where an intrinsic asks for them. Without a processor to back
+     * them the whole tier has to stay unused.
+     *
+     * The test is on the host, not on the caller's request: a caller built
+     * against an older header passes a mask with these bits clear, and it must
+     * not lose AVX-512 on hardware that supports it. */
+    if ((host_flags & (CPU_FLAGS_POPCNT | CPU_FLAGS_BMI2)) != (CPU_FLAGS_POPCNT | CPU_FLAGS_BMI2)) {
+        flags &= ~(CPU_FLAGS)CPU_FLAGS_AVX512F;
+    }
+    /* The AVX2 directory is built with -mpopcnt as well, and RateControl_avx2.c
+     * asks for POPCNT by intrinsic, so the same rule applies one tier down.
+     * Every processor with AVX2 also has POPCNT, so this only matters where a
+     * hypervisor or emulator masks the feature bits apart. */
+    if (!(host_flags & CPU_FLAGS_POPCNT)) {
+        flags &= ~(CPU_FLAGS)CPU_FLAGS_AVX2;
+    }
     // to use C: flags=0
 #else
     (void)flags;
@@ -145,8 +165,10 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
                     linear_input_scaling_line_16bit_msb_avx2,
                     linear_input_scaling_line_16bit_msb_avx512);
 
-    SET_AVX2_AVX512(pack_data_single_group, pack_data_single_group_c, NULL, pack_data_single_group_avx512);
+    SET_AVX2_AVX512(pack_data_single_group, pack_data_single_group_c, pack_data_single_group_avx2, pack_data_single_group_avx512);
     SET_SSE2(gc_precinct_stage_scalar_loop, gc_precinct_stage_scalar_loop_c, gc_precinct_stage_scalar_loop_ASM);
+    SET_AVX2_AVX512(pack_data_groups, pack_data_groups_c, pack_data_groups_avx2, pack_data_groups_avx512);
+    SET_AVX2_AVX512(gc_histogram_16, gc_histogram_16_c, gc_histogram_16_avx2, gc_histogram_16_avx512);
     SET_SSE41(gc_precinct_sigflags_max, gc_precinct_sigflags_max_c, gc_precinct_sigflags_max_sse4_1);
     SET_AVX2_AVX512(rate_control_calc_vpred_cost_nosigf,
                     rate_control_calc_vpred_cost_nosigf_c,

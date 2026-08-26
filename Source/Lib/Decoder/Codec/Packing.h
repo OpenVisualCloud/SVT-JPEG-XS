@@ -13,6 +13,22 @@
 extern "C" {
 #endif
 
+/* The length of a unary code is the number of leading zeroes plus one.
+ *
+ * This used to call svt_log2_32, which is dispatched: every decoded symbol paid
+ * for an indirect call to reach a single bit-scan instruction. There are
+ * hundreds of symbols per line, and the call costs more than the work. */
+static INLINE int8_t vlc_leading_run(uint32_t v) {
+    assert(v != 0);
+#if defined(_MSC_VER)
+    unsigned long idx;
+    _BitScanReverse(&idx, v);
+    return (int8_t)(32 - idx);
+#else
+    return (int8_t)(1 + __builtin_clz(v));
+#endif
+}
+
 SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* prec, precinct_t* prec_top, const pi_t* pi,
                                   const picture_header_dynamic_t* picture_header_dynamic, uint32_t verbose);
 SvtJxsErrorType_t unpack_data_c(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis, uint32_t group_size,
