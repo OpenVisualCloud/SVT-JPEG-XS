@@ -31,6 +31,7 @@
 #include "Quant_neon.h"
 #include "Pack_neon.h"
 #include "Dwt_neon.h"
+#include "GcStage_neon.h"
 #endif /* ARCH_AARCH64 */
 
 /**************************************
@@ -191,6 +192,7 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
 
     SET_AVX2_AVX512(pack_data_single_group, pack_data_single_group_c, pack_data_single_group_avx2, pack_data_single_group_avx512);
     SET_SSE2(gc_precinct_stage_scalar_loop, gc_precinct_stage_scalar_loop_c, gc_precinct_stage_scalar_loop_ASM);
+    SET_NEON(gc_precinct_stage_scalar_loop, gc_precinct_stage_scalar_loop_neon);
     SET_AVX2_AVX512(pack_data_groups, pack_data_groups_c, pack_data_groups_avx2, pack_data_groups_avx512);
 #ifdef ARCH_X86_64
     /* pack_data_groups_avx2 packs a group's planes with a per-plane loop; PDEP does the same
