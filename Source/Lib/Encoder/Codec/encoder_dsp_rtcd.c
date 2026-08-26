@@ -30,6 +30,7 @@
 #ifdef ARCH_AARCH64
 #include "Quant_neon.h"
 #include "Pack_neon.h"
+#include "Dwt_neon.h"
 #endif /* ARCH_AARCH64 */
 
 /**************************************
@@ -140,6 +141,7 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
     //SET_AVX2(get_sigflags_gc, get_sigflags_gc_c, get_sigflags_gc_avx2);
     SET_AVX2_AVX512(image_shift, image_shift_c, image_shift_avx2, image_shift_avx512);
     SET_AVX2_AVX512(dwt_horizontal_line, dwt_horizontal_line_c, dwt_horizontal_line_avx2, dwt_horizontal_line_avx512);
+    SET_NEON(dwt_horizontal_line, dwt_horizontal_line_neon);
 
     SET_AVX2_AVX512(transform_V1_Hx_precinct_recalc_HF_prev,
                     transform_V1_Hx_precinct_recalc_HF_prev_c,
