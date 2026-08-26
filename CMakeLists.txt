@@ -25,27 +25,71 @@ endif()
 
 include(CheckCSourceCompiles)
 
-find_program(YASM_EXE yasm)
-option(ENABLE_NASM "Use nasm if available (Uses yasm by default if found)" OFF)
-if(YASM_EXE AND NOT CMAKE_ASM_NASM_COMPILER MATCHES "yasm" AND NOT ENABLE_NASM)
-    set(CMAKE_ASM_NASM_COMPILER "${YASM_EXE}" CACHE FILEPATH "Path to nasm compatible compiler" FORCE)
+# Target architecture. ARCH_X86_64 and ARCH_AARCH64 select which SIMD trees are
+# compiled and are exported to the sources as compile definitions of the same
+# name. An unknown processor is not an error: the portable C paths build and run
+# everywhere, only without the vectorized implementations.
+if(CMAKE_OSX_ARCHITECTURES)
+    set(SVT_JXS_TARGET_PROCESSOR "${CMAKE_OSX_ARCHITECTURES}")
 else()
-    set(NASM_VERSION "0.0.0")
-    include(CheckLanguage)
-    check_language(ASM_NASM)
-    execute_process(COMMAND ${CMAKE_ASM_NASM_COMPILER} -v
-        OUTPUT_VARIABLE NASM_VERSION
-        ERROR_QUIET
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-    string(REGEX MATCH "([.0-9])+" NASM_VERSION "${NASM_VERSION}")
-    # NASM_VERSION should now contain something like 2.14.02
-    # Needs to error out on a version less than 2.14
-    if(NASM_VERSION VERSION_LESS "2.14" AND CMAKE_ASM_NASM_COMPILER MATCHES "nasm")
-        message(FATAL_ERROR "Found nasm is too old (requires at least 2.14, found ${NASM_VERSION})!")
-    endif()
+    set(SVT_JXS_TARGET_PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}")
 endif()
-enable_language(ASM_NASM)
-add_definitions(-DARCH_X86_64=1)
+
+if(SVT_JXS_TARGET_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
+    set(ARCH_X86_64 1)
+elseif(SVT_JXS_TARGET_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
+    set(ARCH_AARCH64 1)
+else()
+    message(WARNING "Unrecognized target processor \"${SVT_JXS_TARGET_PROCESSOR}\": "
+                    "building the portable C implementations only")
+endif()
+message(STATUS "Target processor: ${SVT_JXS_TARGET_PROCESSOR}")
+
+# Architecture-specific object libraries, split the way the sample apps consume
+# them: each links only its own half so that the linker still catches a stray
+# reference from the decoder into the encoder and back. Empty on a processor
+# with no SIMD tree of its own.
+set(SVT_JXS_SIMD_TARGETS_COMMON "")
+set(SVT_JXS_SIMD_TARGETS_ENCODER "")
+set(SVT_JXS_SIMD_TARGETS_DECODER "")
+if(ARCH_X86_64)
+    set(SVT_JXS_SIMD_TARGETS_COMMON COMMON_ASM_SSE2 COMMON_ASM_AVX2)
+    set(SVT_JXS_SIMD_TARGETS_ENCODER ENCODER_ASM_SSE2 ENCODER_ASM_SSE4_1 ENCODER_ASM_AVX2 ENCODER_ASM_AVX512)
+    set(SVT_JXS_SIMD_TARGETS_DECODER DECODER_ASM_SSE4_1 DECODER_ASM_AVX2 DECODER_ASM_AVX512)
+endif()
+
+foreach(simd_part COMMON ENCODER DECODER)
+    set(SVT_JXS_SIMD_OBJECTS_${simd_part} "")
+    foreach(simd_target IN LISTS SVT_JXS_SIMD_TARGETS_${simd_part})
+        list(APPEND SVT_JXS_SIMD_OBJECTS_${simd_part} "$<TARGET_OBJECTS:${simd_target}>")
+    endforeach()
+endforeach()
+
+if(ARCH_X86_64)
+    find_program(YASM_EXE yasm)
+    option(ENABLE_NASM "Use nasm if available (Uses yasm by default if found)" OFF)
+    if(YASM_EXE AND NOT CMAKE_ASM_NASM_COMPILER MATCHES "yasm" AND NOT ENABLE_NASM)
+        set(CMAKE_ASM_NASM_COMPILER "${YASM_EXE}" CACHE FILEPATH "Path to nasm compatible compiler" FORCE)
+    else()
+        set(NASM_VERSION "0.0.0")
+        include(CheckLanguage)
+        check_language(ASM_NASM)
+        execute_process(COMMAND ${CMAKE_ASM_NASM_COMPILER} -v
+            OUTPUT_VARIABLE NASM_VERSION
+            ERROR_QUIET
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+        string(REGEX MATCH "([.0-9])+" NASM_VERSION "${NASM_VERSION}")
+        # NASM_VERSION should now contain something like 2.14.02
+        # Needs to error out on a version less than 2.14
+        if(NASM_VERSION VERSION_LESS "2.14" AND CMAKE_ASM_NASM_COMPILER MATCHES "nasm")
+            message(FATAL_ERROR "Found nasm is too old (requires at least 2.14, found ${NASM_VERSION})!")
+        endif()
+    endif()
+    enable_language(ASM_NASM)
+    add_definitions(-DARCH_X86_64=1)
+elseif(ARCH_AARCH64)
+    add_definitions(-DARCH_AARCH64=1)
+endif()
 
 include(GNUInstallDirs)
 include(CheckCCompilerFlag)
@@ -96,10 +140,12 @@ message(STATUS "BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
 option(COVERAGE "Generate coverage report")
 option(BUILD_APPS "Build Enc and Dec Apps" ON)
 
-if(WIN32)
-    set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -DWIN64")
-else()
-    set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -DUNIX64")
+if(ARCH_X86_64)
+    if(WIN32)
+        set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -DWIN64")
+    else()
+        set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -DUNIX64")
+    endif()
 endif()
 
 if(UNIX AND NOT APPLE)

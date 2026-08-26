@@ -22,13 +22,9 @@ add_executable(SvtJpegxsSampleEncoder
 #Link only with required libraries to detect in linker time references between decoder_lib an encoder_lib
 set(lib_list_encoder
     $<TARGET_OBJECTS:COMMON_CODEC>
-    $<TARGET_OBJECTS:COMMON_ASM_SSE2>
-    $<TARGET_OBJECTS:COMMON_ASM_AVX2>
+    ${SVT_JXS_SIMD_OBJECTS_COMMON}
     $<TARGET_OBJECTS:ENCODER_CODEC>
-    $<TARGET_OBJECTS:ENCODER_ASM_SSE2>
-    $<TARGET_OBJECTS:ENCODER_ASM_SSE4_1>
-    $<TARGET_OBJECTS:ENCODER_ASM_AVX2>
-    $<TARGET_OBJECTS:ENCODER_ASM_AVX512>
+    ${SVT_JXS_SIMD_OBJECTS_ENCODER}
     cpuinfo_public
     )
 
@@ -45,13 +41,9 @@ endif()
 
 add_dependencies(SvtJpegxsSampleEncoder
     COMMON_CODEC
-    COMMON_ASM_SSE2
-    COMMON_ASM_AVX2
+    ${SVT_JXS_SIMD_TARGETS_COMMON}
     ENCODER_CODEC
-    ENCODER_ASM_SSE2
-    ENCODER_ASM_SSE4_1
-    ENCODER_ASM_AVX2
-    ENCODER_ASM_AVX512
+    ${SVT_JXS_SIMD_TARGETS_ENCODER}
     cpuinfo_public)
 
 install(TARGETS SvtJpegxsSampleEncoder RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
