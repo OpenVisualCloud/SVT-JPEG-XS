@@ -13,6 +13,10 @@
 
 #include "Codestream.h"
 
+#ifdef ARCH_AARCH64
+#include "UnPack_neon.h"
+#endif /* ARCH_AARCH64 */
+
 #ifdef ARCH_X86_64
 #include "unpack_common.h"
 #include "UnPack_avx2.h"
@@ -248,7 +252,12 @@ TEST(unpack_data_test, unpack_data_AVX2) {
 }
 #endif /* ARCH_X86_64 */
 
-#ifdef ARCH_X86_64
+#ifdef ARCH_AARCH64
+TEST(unpack_data_test, unpack_data_NEON) {
+    unpack_test(unpack_data_neon);
+}
+#endif /* ARCH_AARCH64 */
+
 /* GCLI out of range is what a corrupt stream looks like: the unary code yields
  * up to thirty-one, and vertical prediction can wrap the byte to any value at
  * all. Two properties are checked here.
@@ -339,7 +348,6 @@ static void unpack_test_gcli_out_of_range(unpack_data unpack_ref, unpack_data un
     free(gclis);
     delete rnd;
 }
-#endif /* ARCH_X86_64 */
 
 #ifdef ARCH_X86_64
 TEST(unpack_data_test, unpack_data_out_of_range_gcli) {
@@ -350,6 +358,15 @@ TEST(unpack_data_test, unpack_data_out_of_range_gcli) {
     unpack_test_gcli_out_of_range(unpack_data_avx2, has_avx512 ? unpack_data_avx512 : NULL);
 }
 #endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+/* Only one vector level exists on AArch64, so there is no second one to agree
+ * with: what is checked here is that the parser stays inside the language on an
+ * out-of-range GCLI. */
+TEST(unpack_data_test, unpack_data_out_of_range_gcli_NEON) {
+    unpack_test_gcli_out_of_range(unpack_data_neon, NULL);
+}
+#endif /* ARCH_AARCH64 */
 
 TEST(unpack_data_test, unpack_sign) {
     const uint32_t bitstream_reader_size = 80;

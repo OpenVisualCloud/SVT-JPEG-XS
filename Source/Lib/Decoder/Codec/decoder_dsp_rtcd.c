@@ -24,6 +24,7 @@
 
 #ifdef ARCH_AARCH64
 #include "Dequant_neon.h"
+#include "UnPack_neon.h"
 #endif /* ARCH_AARCH64 */
 
 /**************************************
@@ -142,6 +143,7 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
 
     SET_AVX2(inv_sign, inv_sign_c, inv_sign_avx2);
     SET_AVX2_AVX512(unpack_data, unpack_data_c, unpack_data_avx2, unpack_data_avx512);
+    SET_NEON(unpack_data, unpack_data_neon);
     SET_AVX2_AVX512(idwt_horizontal_line_lf16_hf16,
                     idwt_horizontal_line_lf16_hf16_c,
                     idwt_horizontal_line_lf16_hf16_avx2,
