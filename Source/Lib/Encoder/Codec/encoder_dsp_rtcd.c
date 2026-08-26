@@ -27,6 +27,10 @@
 #include "RateControl_avx2.h"
 #endif /* ARCH_X86_64 */
 
+#ifdef ARCH_AARCH64
+#include "Quant_neon.h"
+#endif /* ARCH_AARCH64 */
+
 /**************************************
  * Instruction Set Support
  **************************************/
@@ -84,6 +88,19 @@
 #define SET_SSE41_AVX2_AVX512(ptr, c, sse4_1, avx2, avx512) SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, sse4_1, 0, 0, avx2, avx512)
 #define SET_AVX2(ptr, c, avx2)                              SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, 0, 0, 0, avx2, 0)
 #define SET_AVX2_AVX512(ptr, c, avx2, avx512)               SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, 0, 0, 0, avx2, avx512)
+
+/* Narrows a pointer already set by one of the macros above to its AArch64
+ * implementation. Written as a separate line rather than as another column of
+ * SET_FUNCTIONS because the two architectures are mutually exclusive: on x86
+ * this expands to nothing, and on AArch64 the SET_* line above it has left the
+ * pointer on the C implementation. */
+#ifdef ARCH_AARCH64
+#define SET_NEON(ptr, neon)                                               \
+    if (((uintptr_t)NULL != (uintptr_t)neon) && (flags & CPU_FLAGS_NEON)) \
+        ptr = neon;
+#else /* ARCH_AARCH64 */
+#define SET_NEON(ptr, neon)
+#endif /* ARCH_AARCH64 */
 #define SET_AVX512(ptr, c, avx512)                          SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, 0, 0, 0, 0, avx512)
 
 void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
@@ -155,6 +172,7 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
     SET_AVX2_AVX512(
         gc_precinct_stage_scalar, gc_precinct_stage_scalar_c, gc_precinct_stage_scalar_avx2, gc_precinct_stage_scalar_avx512);
     SET_SSE41_AVX2_AVX512(quantization, quantization_c, quantization_sse4_1, quantization_avx2, quantization_avx512);
+    SET_NEON(quantization, quantization_neon);
     SET_AVX2_AVX512(linear_input_scaling_line_8bit,
                     linear_input_scaling_line_8bit_c,
                     linear_input_scaling_line_8bit_avx2,
