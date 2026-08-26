@@ -19,6 +19,10 @@
 #include "RateControl_avx2.h"
 #endif /* ARCH_X86_64 */
 
+#ifdef ARCH_AARCH64
+#include "GcStage_neon.h"
+#endif /* ARCH_AARCH64 */
+
 void test_gc_stage_scalar(void (*test_fn)(uint8_t* gcli_data_ptr, uint16_t* coeff_data_ptr_16bit, uint32_t group_size,
                                           uint32_t width)) {
     /*Set pointers directly before calling the RTC function may cause an assert for Debug in other tests.*/
@@ -81,6 +85,44 @@ void test_gc_stage_scalar(void (*test_fn)(uint8_t* gcli_data_ptr, uint16_t* coef
     free(gc_data_avx2_ptr);
     free(out_compare_msb);
 }
+
+#ifdef ARCH_AARCH64
+/* The group loop on its own, against the C one. The group count is walked from
+ * zero upwards because the vector body takes eight groups at a time and the
+ * remainder is what the scalar tail has to pick up; the coefficients include
+ * values with the sign bit set, which must not raise the reported index. */
+TEST(GcStage, gc_stage_scalar_loop_neon) {
+    const uint32_t max_groups = 40;
+    svt_jxs_test_tool::SVTRandom rnd(16, false);
+    uint16_t coeff[max_groups * GROUP_SIZE];
+    uint8_t gcli_ref[max_groups];
+    uint8_t gcli_mod[max_groups];
+
+    svt_log2_32 = log2_32_c;
+    for (uint32_t groups = 0; groups <= max_groups; groups++) {
+        for (uint32_t i = 0; i < max_groups * GROUP_SIZE; i++) {
+            /* a mix of zeroes, small values and values carrying a sign */
+            const uint32_t r = rnd.random();
+            coeff[i] = (r % 5 == 0) ? 0 : (uint16_t)(r & 0x7FFF);
+            if (r & 0x10000) {
+                coeff[i] |= BITSTREAM_MASK_SIGN;
+            }
+        }
+        memset(gcli_ref, 0xAA, sizeof(gcli_ref));
+        memset(gcli_mod, 0xAA, sizeof(gcli_mod));
+
+        gc_precinct_stage_scalar_loop_c(groups, coeff, gcli_ref);
+        gc_precinct_stage_scalar_loop_neon(groups, coeff, gcli_mod);
+
+        for (uint32_t g = 0; g < max_groups; g++) {
+            ASSERT_EQ(gcli_ref[g], gcli_mod[g]) << "group " << g << " of " << groups;
+            if (g >= groups) {
+                ASSERT_EQ(0xAA, gcli_mod[g]) << "wrote past the group count " << groups;
+            }
+        }
+    }
+}
+#endif /* ARCH_AARCH64 */
 
 #ifdef ARCH_X86_64
 TEST(GcStage, gc_stage_scalar_avx2) {
