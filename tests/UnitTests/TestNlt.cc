@@ -212,6 +212,12 @@ void test_image_shift(void (*test_fn)(uint16_t* out_coeff_16bit, int32_t* in_coe
     delete rnd;
 }
 
+#ifdef ARCH_AARCH64
+TEST(image_shift, NEON) {
+    test_image_shift(image_shift_neon);
+}
+#endif /* ARCH_AARCH64 */
+
 #ifdef ARCH_X86_64
 TEST(image_shift, AVX2) {
     test_image_shift(image_shift_avx2);
