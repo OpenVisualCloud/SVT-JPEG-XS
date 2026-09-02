@@ -149,30 +149,37 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
                     transform_V1_Hx_precinct_recalc_HF_prev_c,
                     transform_V1_Hx_precinct_recalc_HF_prev_avx2,
                     transform_V1_Hx_precinct_recalc_HF_prev_avx512);
+    SET_NEON(transform_V1_Hx_precinct_recalc_HF_prev, transform_V1_Hx_precinct_recalc_HF_prev_neon);
     SET_AVX2_AVX512(transform_vertical_loop_hf_line_0,
                     transform_vertical_loop_hf_line_0_c,
                     transform_vertical_loop_hf_line_0_avx2,
                     transform_vertical_loop_hf_line_0_avx512);
+    SET_NEON(transform_vertical_loop_hf_line_0, transform_vertical_loop_hf_line_0_neon);
     SET_AVX2_AVX512(transform_vertical_loop_lf_line_0,
                     transform_vertical_loop_lf_line_0_c,
                     transform_vertical_loop_lf_line_0_avx2,
                     transform_vertical_loop_lf_line_0_avx512);
+    SET_NEON(transform_vertical_loop_lf_line_0, transform_vertical_loop_lf_line_0_neon);
     SET_AVX2_AVX512(transform_vertical_loop_lf_hf_line_0,
                     transform_vertical_loop_lf_hf_line_0_c,
                     transform_vertical_loop_lf_hf_line_0_avx2,
                     transform_vertical_loop_lf_hf_line_0_avx512);
+    SET_NEON(transform_vertical_loop_lf_hf_line_0, transform_vertical_loop_lf_hf_line_0_neon);
     SET_AVX2_AVX512(transform_vertical_loop_lf_hf_line_x_prev,
                     transform_vertical_loop_lf_hf_line_x_prev_c,
                     transform_vertical_loop_lf_hf_line_x_prev_avx2,
                     transform_vertical_loop_lf_hf_line_x_prev_avx512);
+    SET_NEON(transform_vertical_loop_lf_hf_line_x_prev, transform_vertical_loop_lf_hf_line_x_prev_neon);
     SET_AVX2_AVX512(transform_vertical_loop_lf_hf_hf_line_x,
                     transform_vertical_loop_lf_hf_hf_line_x_c,
                     transform_vertical_loop_lf_hf_hf_line_x_avx2,
                     transform_vertical_loop_lf_hf_hf_line_x_avx512);
+    SET_NEON(transform_vertical_loop_lf_hf_hf_line_x, transform_vertical_loop_lf_hf_hf_line_x_neon);
     SET_AVX2_AVX512(transform_vertical_loop_lf_hf_hf_line_last_even,
                     transform_vertical_loop_lf_hf_hf_line_last_even_c,
                     transform_vertical_loop_lf_hf_hf_line_last_even_avx2,
                     transform_vertical_loop_lf_hf_hf_line_last_even_avx512);
+    SET_NEON(transform_vertical_loop_lf_hf_hf_line_last_even, transform_vertical_loop_lf_hf_hf_line_last_even_neon);
 
     SET_AVX2_AVX512(
         gc_precinct_stage_scalar, gc_precinct_stage_scalar_c, gc_precinct_stage_scalar_avx2, gc_precinct_stage_scalar_avx512);
