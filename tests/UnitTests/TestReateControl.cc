@@ -15,6 +15,10 @@
 #include "Enc_avx512.h"
 #endif /* ARCH_X86_64 */
 
+#ifdef ARCH_AARCH64
+#include "RateControl_neon.h"
+#endif /* ARCH_AARCH64 */
+
 TEST(RateControl, EqualSimple) {
     BinarySearch_t search;
     int test_array[36] = {1,  3,  5,  7,  9,  11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35,
@@ -390,6 +394,12 @@ static void gc_histogram_16_test(gc_histogram_16_fn hist_fn) {
 TEST(gc_histogram_16, C) {
     gc_histogram_16_test(gc_histogram_16_c);
 }
+
+#ifdef ARCH_AARCH64
+TEST(gc_histogram_16, NEON) {
+    gc_histogram_16_test(gc_histogram_16_neon);
+}
+#endif /* ARCH_AARCH64 */
 
 #ifdef ARCH_X86_64
 TEST(gc_histogram_16, AVX2) {
