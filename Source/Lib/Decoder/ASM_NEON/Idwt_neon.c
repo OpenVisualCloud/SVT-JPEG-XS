@@ -168,11 +168,24 @@ static INLINE int32x4_t idwt_load_hf(const int16_t *in_hf, int32x4_t shift) {
     return idwt_lshift32(vmovl_s16(vld1_s16(in_hf)), shift);
 }
 
-/* E[k] = L[k] - ((H[k - 1] + H[k] + 2) >> 2), four at a time */
-static INLINE int32x4_t idwt_even_block(int32x4_t lf, const int16_t *in_hf, uint32_t k, int32x4_t shift) {
-    const int32x4_t hf_prev = idwt_load_hf(in_hf + k - 1, shift);
-    const int32x4_t hf_cur = idwt_load_hf(in_hf + k, shift);
+/* E[k] = L[k] - ((H[k - 1] + H[k] + 2) >> 2), four at a time.
+ *
+ * The two windows of the high-pass row a block needs overlap the windows the
+ * next block needs, so the loop carries the current one and reaches the one
+ * before the next block by a lane shift rather than by loading, widening and
+ * shifting it again. */
+static INLINE int32x4_t idwt_even_block(int32x4_t lf, int32x4_t hf_prev, int32x4_t hf_cur) {
     return vsubq_s32(lf, vshrq_n_s32(vaddq_s32(vaddq_s32(hf_prev, hf_cur), vdupq_n_s32(2)), 2));
+}
+
+/* The two rows go out interleaved. A pair of zips and one plain store of two
+ * registers does that; the interleaving store does it in one instruction and
+ * costs more than the three on this core. */
+static INLINE void idwt_store_pair(int32_t *out, int32x4_t odd, int32x4_t even) {
+    int32x4x2_t zipped;
+    zipped.val[0] = vzip1q_s32(odd, even);
+    zipped.val[1] = vzip2q_s32(odd, even);
+    vst1q_s32_x2(out, zipped);
 }
 
 void idwt_horizontal_line_lf16_hf16_neon(const int16_t *in_lf, const int16_t *in_hf, int32_t *out, uint32_t len, uint8_t shift) {
@@ -190,18 +203,20 @@ void idwt_horizontal_line_lf16_hf16_neon(const int16_t *in_lf, const int16_t *in
         out[2] = LSHIFT32(in_lf[1], shift) - (((LSHIFT32(in_hf[0], shift)) + LSHIFT32(in_hf[1], shift) + 2) >> 2);
         out[1] = LSHIFT32(in_hf[0], shift) + ((out[0] + out[2]) >> 1);
 
-        int32x4_t even = idwt_even_block(idwt_lshift32(vmovl_s16(vld1_s16(in_lf + k)), shift_vec), in_hf, k, shift_vec);
+        int32x4_t hf_cur = idwt_load_hf(in_hf + k, shift_vec);
+        int32x4_t even = idwt_even_block(
+            idwt_lshift32(vmovl_s16(vld1_s16(in_lf + k)), shift_vec), idwt_load_hf(in_hf + k - 1, shift_vec), hf_cur);
         while (k + 8 <= pairs) {
             const uint32_t next = k + 4;
-            const int32x4_t even_next =
-                idwt_even_block(idwt_lshift32(vmovl_s16(vld1_s16(in_lf + next)), shift_vec), in_hf, next, shift_vec);
+            const int32x4_t hf_next = idwt_load_hf(in_hf + next, shift_vec);
+            const int32x4_t even_next = idwt_even_block(idwt_lshift32(vmovl_s16(vld1_s16(in_lf + next)), shift_vec),
+                                                        vextq_s32(hf_cur, hf_next, 3),
+                                                        hf_next);
             const int32x4_t even_shifted = vextq_s32(even, even_next, 1);
-            int32x4x2_t pair;
-            pair.val[0] = vaddq_s32(idwt_load_hf(in_hf + k, shift_vec),
-                                    vshrq_n_s32(vaddq_s32(even, even_shifted), 1));
-            pair.val[1] = even_shifted;
-            vst2q_s32(out + 2 * k + 1, pair);
+            const int32x4_t odd = vaddq_s32(hf_cur, vshrq_n_s32(vaddq_s32(even, even_shifted), 1));
+            idwt_store_pair(out + 2 * k + 1, odd, even_shifted);
             even = even_next;
+            hf_cur = hf_next;
             k = next;
         }
     }
@@ -232,17 +247,18 @@ void idwt_horizontal_line_lf32_hf16_neon(const int32_t *in_lf, const int16_t *in
         out[2] = in_lf[1] - (((LSHIFT32(in_hf[0], shift)) + LSHIFT32(in_hf[1], shift) + 2) >> 2);
         out[1] = LSHIFT32(in_hf[0], shift) + ((out[0] + out[2]) >> 1);
 
-        int32x4_t even = idwt_even_block(vld1q_s32(in_lf + k), in_hf, k, shift_vec);
+        int32x4_t hf_cur = idwt_load_hf(in_hf + k, shift_vec);
+        int32x4_t even = idwt_even_block(vld1q_s32(in_lf + k), idwt_load_hf(in_hf + k - 1, shift_vec), hf_cur);
         while (k + 8 <= pairs) {
             const uint32_t next = k + 4;
-            const int32x4_t even_next = idwt_even_block(vld1q_s32(in_lf + next), in_hf, next, shift_vec);
+            const int32x4_t hf_next = idwt_load_hf(in_hf + next, shift_vec);
+            const int32x4_t even_next =
+                idwt_even_block(vld1q_s32(in_lf + next), vextq_s32(hf_cur, hf_next, 3), hf_next);
             const int32x4_t even_shifted = vextq_s32(even, even_next, 1);
-            int32x4x2_t pair;
-            pair.val[0] = vaddq_s32(idwt_load_hf(in_hf + k, shift_vec),
-                                    vshrq_n_s32(vaddq_s32(even, even_shifted), 1));
-            pair.val[1] = even_shifted;
-            vst2q_s32(out + 2 * k + 1, pair);
+            const int32x4_t odd = vaddq_s32(hf_cur, vshrq_n_s32(vaddq_s32(even, even_shifted), 1));
+            idwt_store_pair(out + 2 * k + 1, odd, even_shifted);
             even = even_next;
+            hf_cur = hf_next;
             k = next;
         }
     }
