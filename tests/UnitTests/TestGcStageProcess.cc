@@ -138,29 +138,70 @@ TEST(GcStage, gc_stage_scalar_avx512) {
 }
 #endif /* ARCH_X86_64 */
 
-#ifdef ARCH_X86_64
-TEST(GcStage, gc_precinct_sigflags_max_sse41) {
-    uint32_t gcli_width = 383;
-    uint32_t significance_size = DIV_ROUND_UP(gcli_width, SIGNIFICANCE_GROUP_SIZE);
-    uint8_t* gcli_data_ptr = (uint8_t*)malloc(gcli_width * sizeof(uint8_t));
-    uint8_t* ref_significance_data_ptr = (uint8_t*)calloc(significance_size, sizeof(uint8_t));
-    uint8_t* mod_significance_data_ptr = (uint8_t*)calloc(significance_size, sizeof(uint8_t));
+/* The largest coded line index within each significance group.
+ *
+ * Widths are walked one by one rather than tried at a single convenient one:
+ * the group is eight indices and the vector step is eight groups, so a line
+ * ends inside a group as often as not, and both ends have rules of their own -
+ * a whole group short of the step, and a partial group at the very end. The
+ * output is marker-filled, so a write past the number of groups the width
+ * implies shows up as a mismatch and is asserted on directly. */
+static void test_gc_precinct_sigflags_max(void (*test_fn)(uint8_t*, uint8_t*, uint32_t, uint32_t)) {
+    const uint32_t widths[] = {0,  1,  2,   7,   8,   9,   15,  16,  17,  31,  32,  33,  63,  64,
+                               65, 71, 127, 128, 129, 255, 256, 383, 511, 512, 513, 1024};
+    const uint32_t widths_num = sizeof(widths) / sizeof(widths[0]);
+    const uint32_t max_width = 1024;
+    const uint32_t sig_max = DIV_ROUND_UP(max_width, SIGNIFICANCE_GROUP_SIZE) + 8;
+    const uint8_t marker = 0xAA;
+
+    uint8_t* gcli_data_ptr = (uint8_t*)malloc(max_width);
+    uint8_t* ref = (uint8_t*)malloc(sig_max);
+    uint8_t* mod = (uint8_t*)malloc(sig_max);
+    ASSERT_TRUE(gcli_data_ptr != NULL && ref != NULL && mod != NULL);
 
     svt_jxs_test_tool::SVTRandom rand(0, TRUNCATION_MAX);
 
-    for (uint32_t i = 0; i < gcli_width; i++) {
-        gcli_data_ptr[i] = rand.random();
-    }
+    for (uint32_t width_idx = 0; width_idx < widths_num; width_idx++) {
+        const uint32_t gcli_width = widths[width_idx];
+        for (uint32_t round = 0; round < 4; round++) {
+            for (uint32_t i = 0; i < max_width; i++) {
+                /* the first round is a whole line of the same index: GCLI is
+                 * spatially correlated and such lines do occur */
+                gcli_data_ptr[i] = (uint8_t)(round == 0 ? TRUNCATION_MAX : rand.random());
+            }
+            memset(ref, marker, sig_max);
+            memset(mod, marker, sig_max);
 
-    gc_precinct_sigflags_max_c(ref_significance_data_ptr, gcli_data_ptr, SIGNIFICANCE_GROUP_SIZE, gcli_width);
-    gc_precinct_sigflags_max_sse4_1(mod_significance_data_ptr, gcli_data_ptr, SIGNIFICANCE_GROUP_SIZE, gcli_width);
+            gc_precinct_sigflags_max_c(ref, gcli_data_ptr, SIGNIFICANCE_GROUP_SIZE, gcli_width);
+            test_fn(mod, gcli_data_ptr, SIGNIFICANCE_GROUP_SIZE, gcli_width);
 
-    if (memcmp(ref_significance_data_ptr, mod_significance_data_ptr, significance_size * sizeof(uint8_t))) {
-        ASSERT_FALSE(1);
+            const uint32_t significance_size = DIV_ROUND_UP(gcli_width, SIGNIFICANCE_GROUP_SIZE);
+            ASSERT_EQ(memcmp(ref, mod, sig_max), 0) << "width " << gcli_width << " round " << round;
+            for (uint32_t i = significance_size; i < sig_max; i++) {
+                ASSERT_EQ(marker, mod[i]) << "wrote past the group count, width " << gcli_width;
+            }
+        }
     }
 
     free(gcli_data_ptr);
-    free(ref_significance_data_ptr);
-    free(mod_significance_data_ptr);
+    free(ref);
+    free(mod);
+}
+
+/* The C implementation against itself: establishes that the harness reaches
+ * every width and that nothing is written past the group count. */
+TEST(GcStage, gc_precinct_sigflags_max_c) {
+    test_gc_precinct_sigflags_max(gc_precinct_sigflags_max_c);
+}
+
+#ifdef ARCH_X86_64
+TEST(GcStage, gc_precinct_sigflags_max_sse41) {
+    test_gc_precinct_sigflags_max(gc_precinct_sigflags_max_sse4_1);
 }
 #endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+TEST(GcStage, gc_precinct_sigflags_max_neon) {
+    test_gc_precinct_sigflags_max(gc_precinct_sigflags_max_neon);
+}
+#endif /* ARCH_AARCH64 */
