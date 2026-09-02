@@ -211,6 +211,7 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
     SET_AVX2_AVX512(gc_histogram_16, gc_histogram_16_c, gc_histogram_16_avx2, gc_histogram_16_avx512);
     SET_NEON(gc_histogram_16, gc_histogram_16_neon);
     SET_SSE41(gc_precinct_sigflags_max, gc_precinct_sigflags_max_c, gc_precinct_sigflags_max_sse4_1);
+    SET_NEON(gc_precinct_sigflags_max, gc_precinct_sigflags_max_neon);
     SET_AVX2_AVX512(rate_control_calc_vpred_cost_nosigf,
                     rate_control_calc_vpred_cost_nosigf_c,
                     rate_control_calc_vpred_cost_nosigf_avx2,

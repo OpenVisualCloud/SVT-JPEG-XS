@@ -49,3 +49,46 @@ void gc_precinct_stage_scalar_loop_neon(uint32_t line_groups_num, uint16_t *coef
         gcli_data_ptr++;
     }
 }
+
+/* The largest coded line index within each significance group - eight code
+ * groups, a constant of the format.
+ *
+ * A pairwise maximum halves the number of values and leaves them in place, so
+ * three rounds of it turn sixty-four indices into the eight maxima they belong
+ * to, in order and ready to store. x86 gets there by transposing an eight by
+ * eight block first; here the reduction is the shuffle. */
+void gc_precinct_sigflags_max_neon(uint8_t *significance_data_max_ptr, uint8_t *gcli_data_ptr, uint32_t group_sign_size,
+                                   uint32_t gcli_width) {
+    UNUSED(group_sign_size);
+    assert(group_sign_size == SIGNIFICANCE_GROUP_SIZE);
+    const uint32_t group_number = gcli_width / SIGNIFICANCE_GROUP_SIZE;
+    const uint32_t size_leftover = gcli_width % SIGNIFICANCE_GROUP_SIZE;
+    const uint8_t *in = gcli_data_ptr;
+    uint32_t group = 0;
+
+    for (; group + 8 <= group_number; group += 8) {
+        const uint8x16_t v0 = vld1q_u8(in);
+        const uint8x16_t v1 = vld1q_u8(in + 16);
+        const uint8x16_t v2 = vld1q_u8(in + 32);
+        const uint8x16_t v3 = vld1q_u8(in + 48);
+        const uint8x16_t pairs = vpmaxq_u8(vpmaxq_u8(v0, v1), vpmaxq_u8(v2, v3));
+        vst1_u8(significance_data_max_ptr + group, vget_low_u8(vpmaxq_u8(pairs, pairs)));
+        in += 8 * SIGNIFICANCE_GROUP_SIZE;
+    }
+
+    for (; group < group_number; group++) {
+        significance_data_max_ptr[group] = vmaxv_u8(vld1_u8(in));
+        in += SIGNIFICANCE_GROUP_SIZE;
+    }
+
+    /*Leftover last column*/
+    if (size_leftover) {
+        uint8_t max = 0;
+        for (uint32_t j = 0; j < size_leftover; j++) {
+            if (in[j] > max) {
+                max = in[j];
+            }
+        }
+        significance_data_max_ptr[group] = max;
+    }
+}
