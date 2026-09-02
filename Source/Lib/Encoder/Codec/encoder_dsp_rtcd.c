@@ -6,23 +6,35 @@
 #define ENCODER_RTCD_C
 #include "encoder_dsp_rtcd.h"
 #include "GcStageProcess.h"
-#include "NltEnc_avx2.h"
 #include "DwtStageProcess.h"
-#include "Enc_avx512.h"
 #include "GcStageProcess.h"
 #include "Dwt.h"
-#include "Dwt_AVX2.h"
 #include "NltEnc.h"
+#include "Quant.h"
+#include "PackPrecinct.h"
+#include "RateControl.h"
+
+#ifdef ARCH_X86_64
+#include "NltEnc_avx2.h"
+#include "Enc_avx512.h"
+#include "Dwt_AVX2.h"
 #include "Quant_sse4_1.h"
 #include "Quant_avx2.h"
 #include "Quant_avx512.h"
-#include "Quant.h"
-#include "PackPrecinct.h"
 #include "Pack_avx512.h"
 #include "Pack_avx2.h"
 #include "group_coding_sse4_1.h"
-#include "RateControl.h"
 #include "RateControl_avx2.h"
+#endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+#include "Quant_neon.h"
+#include "Pack_neon.h"
+#include "Dwt_neon.h"
+#include "GcStage_neon.h"
+#include "NltEnc_neon.h"
+#include "RateControl_neon.h"
+#endif /* ARCH_AARCH64 */
 
 /**************************************
  * Instruction Set Support
@@ -81,6 +93,19 @@
 #define SET_SSE41_AVX2_AVX512(ptr, c, sse4_1, avx2, avx512) SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, sse4_1, 0, 0, avx2, avx512)
 #define SET_AVX2(ptr, c, avx2)                              SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, 0, 0, 0, avx2, 0)
 #define SET_AVX2_AVX512(ptr, c, avx2, avx512)               SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, 0, 0, 0, avx2, avx512)
+
+/* Narrows a pointer already set by one of the macros above to its AArch64
+ * implementation. Written as a separate line rather than as another column of
+ * SET_FUNCTIONS because the two architectures are mutually exclusive: on x86
+ * this expands to nothing, and on AArch64 the SET_* line above it has left the
+ * pointer on the C implementation. */
+#ifdef ARCH_AARCH64
+#define SET_NEON(ptr, neon)                                               \
+    if (((uintptr_t)NULL != (uintptr_t)neon) && (flags & CPU_FLAGS_NEON)) \
+        ptr = neon;
+#else /* ARCH_AARCH64 */
+#define SET_NEON(ptr, neon)
+#endif /* ARCH_AARCH64 */
 #define SET_AVX512(ptr, c, avx512)                          SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, 0, 0, 0, 0, avx512)
 
 void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
@@ -118,58 +143,75 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
 
     //SET_AVX2(get_sigflags_gc, get_sigflags_gc_c, get_sigflags_gc_avx2);
     SET_AVX2_AVX512(image_shift, image_shift_c, image_shift_avx2, image_shift_avx512);
+    SET_NEON(image_shift, image_shift_neon);
     SET_AVX2_AVX512(dwt_horizontal_line, dwt_horizontal_line_c, dwt_horizontal_line_avx2, dwt_horizontal_line_avx512);
+    SET_NEON(dwt_horizontal_line, dwt_horizontal_line_neon);
 
     SET_AVX2_AVX512(transform_V1_Hx_precinct_recalc_HF_prev,
                     transform_V1_Hx_precinct_recalc_HF_prev_c,
                     transform_V1_Hx_precinct_recalc_HF_prev_avx2,
                     transform_V1_Hx_precinct_recalc_HF_prev_avx512);
+    SET_NEON(transform_V1_Hx_precinct_recalc_HF_prev, transform_V1_Hx_precinct_recalc_HF_prev_neon);
     SET_AVX2_AVX512(transform_vertical_loop_hf_line_0,
                     transform_vertical_loop_hf_line_0_c,
                     transform_vertical_loop_hf_line_0_avx2,
                     transform_vertical_loop_hf_line_0_avx512);
+    SET_NEON(transform_vertical_loop_hf_line_0, transform_vertical_loop_hf_line_0_neon);
     SET_AVX2_AVX512(transform_vertical_loop_lf_line_0,
                     transform_vertical_loop_lf_line_0_c,
                     transform_vertical_loop_lf_line_0_avx2,
                     transform_vertical_loop_lf_line_0_avx512);
+    SET_NEON(transform_vertical_loop_lf_line_0, transform_vertical_loop_lf_line_0_neon);
     SET_AVX2_AVX512(transform_vertical_loop_lf_hf_line_0,
                     transform_vertical_loop_lf_hf_line_0_c,
                     transform_vertical_loop_lf_hf_line_0_avx2,
                     transform_vertical_loop_lf_hf_line_0_avx512);
+    SET_NEON(transform_vertical_loop_lf_hf_line_0, transform_vertical_loop_lf_hf_line_0_neon);
     SET_AVX2_AVX512(transform_vertical_loop_lf_hf_line_x_prev,
                     transform_vertical_loop_lf_hf_line_x_prev_c,
                     transform_vertical_loop_lf_hf_line_x_prev_avx2,
                     transform_vertical_loop_lf_hf_line_x_prev_avx512);
+    SET_NEON(transform_vertical_loop_lf_hf_line_x_prev, transform_vertical_loop_lf_hf_line_x_prev_neon);
     SET_AVX2_AVX512(transform_vertical_loop_lf_hf_hf_line_x,
                     transform_vertical_loop_lf_hf_hf_line_x_c,
                     transform_vertical_loop_lf_hf_hf_line_x_avx2,
                     transform_vertical_loop_lf_hf_hf_line_x_avx512);
+    SET_NEON(transform_vertical_loop_lf_hf_hf_line_x, transform_vertical_loop_lf_hf_hf_line_x_neon);
     SET_AVX2_AVX512(transform_vertical_loop_lf_hf_hf_line_last_even,
                     transform_vertical_loop_lf_hf_hf_line_last_even_c,
                     transform_vertical_loop_lf_hf_hf_line_last_even_avx2,
                     transform_vertical_loop_lf_hf_hf_line_last_even_avx512);
+    SET_NEON(transform_vertical_loop_lf_hf_hf_line_last_even, transform_vertical_loop_lf_hf_hf_line_last_even_neon);
 
     SET_AVX2_AVX512(
         gc_precinct_stage_scalar, gc_precinct_stage_scalar_c, gc_precinct_stage_scalar_avx2, gc_precinct_stage_scalar_avx512);
     SET_SSE41_AVX2_AVX512(quantization, quantization_c, quantization_sse4_1, quantization_avx2, quantization_avx512);
+    SET_NEON(quantization, quantization_neon);
     SET_AVX2_AVX512(linear_input_scaling_line_8bit,
                     linear_input_scaling_line_8bit_c,
                     linear_input_scaling_line_8bit_avx2,
                     linear_input_scaling_line_8bit_avx512);
+    SET_NEON(linear_input_scaling_line_8bit, linear_input_scaling_line_8bit_neon);
     SET_AVX2_AVX512(linear_input_scaling_line_16bit,
                     linear_input_scaling_line_16bit_c,
                     linear_input_scaling_line_16bit_avx2,
                     linear_input_scaling_line_16bit_avx512);
+    SET_NEON(linear_input_scaling_line_16bit, linear_input_scaling_line_16bit_neon);
     SET_AVX2_AVX512(linear_input_scaling_line_16bit_msb,
                     linear_input_scaling_line_16bit_msb_c,
                     linear_input_scaling_line_16bit_msb_avx2,
                     linear_input_scaling_line_16bit_msb_avx512);
+    SET_NEON(linear_input_scaling_line_16bit_msb, linear_input_scaling_line_16bit_msb_neon);
 
     SET_AVX2_AVX512(pack_data_single_group, pack_data_single_group_c, pack_data_single_group_avx2, pack_data_single_group_avx512);
     SET_SSE2(gc_precinct_stage_scalar_loop, gc_precinct_stage_scalar_loop_c, gc_precinct_stage_scalar_loop_ASM);
+    SET_NEON(gc_precinct_stage_scalar_loop, gc_precinct_stage_scalar_loop_neon);
     SET_AVX2_AVX512(pack_data_groups, pack_data_groups_c, pack_data_groups_avx2, pack_data_groups_avx512);
+    SET_NEON(pack_data_groups, pack_data_groups_neon);
     SET_AVX2_AVX512(gc_histogram_16, gc_histogram_16_c, gc_histogram_16_avx2, gc_histogram_16_avx512);
+    SET_NEON(gc_histogram_16, gc_histogram_16_neon);
     SET_SSE41(gc_precinct_sigflags_max, gc_precinct_sigflags_max_c, gc_precinct_sigflags_max_sse4_1);
+    SET_NEON(gc_precinct_sigflags_max, gc_precinct_sigflags_max_neon);
     SET_AVX2_AVX512(rate_control_calc_vpred_cost_nosigf,
                     rate_control_calc_vpred_cost_nosigf_c,
                     rate_control_calc_vpred_cost_nosigf_avx2,

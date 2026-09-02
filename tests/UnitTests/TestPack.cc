@@ -5,16 +5,26 @@
 
 #include "gtest/gtest.h"
 #include "random.h"
-#include "Pack_avx512.h"
-#include "RateControl_avx2.h"
 #include "RateControl.h"
 #include "PackPrecinct.h"
 #include "SvtUtility.h"
 #include "encoder_dsp_rtcd.h"
-#include "Pack_avx2.h"
-#include "pack_group_helper.h"
 #include "EncDec.h" /* TRUNCATION_MAX */
 
+#include "Codestream.h"
+
+#ifdef ARCH_AARCH64
+#include "Pack_neon.h"
+#endif /* ARCH_AARCH64 */
+
+#ifdef ARCH_X86_64
+#include "pack_group_helper.h"
+#include "Pack_avx512.h"
+#include "RateControl_avx2.h"
+#include "Pack_avx2.h"
+#endif /* ARCH_X86_64 */
+
+#ifdef ARCH_X86_64
 TEST(pack_data_single_group, AVX512) {
     if (!(CPU_FLAGS_AVX512F & get_cpu_flags())) {
         return;
@@ -62,6 +72,7 @@ TEST(pack_data_single_group, AVX512) {
     free(buf);
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
 #define MAX_WIDTH_VLC_ENCODE_GET_BITS 3840
 uint32_t vlc_encode_get_bits_sizes[] = {
@@ -107,16 +118,21 @@ void rate_control_calc_vpred_cost_nosigf_test(uint32_t (*test_fn)(uint32_t, uint
     delete rnd;
 }
 
+#ifdef ARCH_X86_64
 TEST(rate_control_calc_vpred_cost_nosigf_, AVX2) {
     rate_control_calc_vpred_cost_nosigf_test(rate_control_calc_vpred_cost_nosigf_avx2);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(rate_control_calc_vpred_cost_nosigf_, AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         rate_control_calc_vpred_cost_nosigf_test(rate_control_calc_vpred_cost_nosigf_avx512);
     }
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(rate_control_calc_vpred_cost_sigf_nosigf_, AVX512) {
     if (!(CPU_FLAGS_AVX512F & get_cpu_flags())) {
         return;
@@ -200,10 +216,12 @@ TEST(rate_control_calc_vpred_cost_sigf_nosigf_, AVX512) {
     free(out_sigf_mod);
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
 /* Packing one group with the 128-bit implementation shared by AVX2 and
  * AVX-512. The AVX-512 wrapper has had a test since the beginning; the AVX2 one
  * is the same code behind a different name, and it had none. */
+#ifdef ARCH_X86_64
 TEST(pack_data_single_group, AVX2) {
     const uint32_t max_buff_size = 50;
     svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
@@ -242,7 +260,9 @@ TEST(pack_data_single_group, AVX2) {
     free(buf);
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 /* The shared 128-bit implementation itself, reached by its own name rather
  * than through either wrapper. */
 TEST(pack_group_helper, data_single_group_sse_matches_c) {
@@ -282,6 +302,7 @@ TEST(pack_group_helper, data_single_group_sse_matches_c) {
     free(buf);
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
 /* The nibble of a bit plane: bit (3 - k) belongs to coefficient k. */
 static uint32_t group_plane_nibble_ref(const uint16_t* buf, uint32_t plane) {
@@ -292,6 +313,7 @@ static uint32_t group_plane_nibble_ref(const uint16_t* buf, uint32_t plane) {
     return nibble;
 }
 
+#ifdef ARCH_X86_64
 /* The lane reversal and the sign mask that stand in for a horizontal fold. The
  * sign nibble is the plane of weight 2^15, so one reference serves both. */
 TEST(pack_group_helper, load_reversed_and_nibble) {
@@ -313,7 +335,9 @@ TEST(pack_group_helper, load_reversed_and_nibble) {
     }
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 /* All the planes of a group in one word, the top plane in the top nibble. */
 TEST(pack_group_helper, planes_word_matches_reference) {
     svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
@@ -334,7 +358,9 @@ TEST(pack_group_helper, planes_word_matches_reference) {
     }
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 /* The mask of non-empty groups, including a partial chunk at the end of a line:
  * the padding must not add groups that do not exist. */
 TEST(pack_group_helper, nonempty_mask_matches_reference) {
@@ -356,6 +382,7 @@ TEST(pack_group_helper, nonempty_mask_matches_reference) {
     }
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
 #define PACK_GROUPS_MAX_GROUPS 70
 #define PACK_GROUPS_BUF_SIZE   1024
@@ -445,10 +472,19 @@ TEST(pack_data_groups, C) {
     pack_data_groups_test(pack_data_groups_c);
 }
 
+#ifdef ARCH_X86_64
 TEST(pack_data_groups, AVX2) {
     pack_data_groups_test(pack_data_groups_avx2);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_AARCH64
+TEST(pack_data_groups, NEON) {
+    pack_data_groups_test(pack_data_groups_neon);
+}
+#endif /* ARCH_AARCH64 */
+
+#ifdef ARCH_X86_64
 TEST(pack_data_groups, AVX512) {
     /* the same pair of conditions the encoder dispatch checks: the directory is
      * built with -mbmi2 and -mpopcnt */
@@ -458,7 +494,9 @@ TEST(pack_data_groups, AVX512) {
     }
     pack_data_groups_test(pack_data_groups_avx512);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 /* The line packer that walks the mask, called directly rather than through the
  * dispatched wrapper: the wrapper only owns the nibble writer around it. */
 TEST(pack_group_helper, groups_masked_matches_reference) {
@@ -509,12 +547,15 @@ TEST(pack_group_helper, groups_masked_matches_reference) {
     free(mem_cmp);
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 /* pack_data_groups_sse is what both wrappers call; it is reached here by its
  * own name rather than through them. */
 TEST(pack_group_helper, data_groups_sse_matches_reference) {
     pack_data_groups_test(pack_data_groups_sse);
 }
+#endif /* ARCH_X86_64 */
 
 /* A unary code through the accumulating bit writer must be the code the generic
  * writer produces, at every starting alignment and at every length - including

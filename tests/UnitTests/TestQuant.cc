@@ -6,10 +6,17 @@
 #include "gtest/gtest.h"
 #include "random.h"
 #include "Quant.h"
+#include "encoder_dsp_rtcd.h"
+
+#ifdef ARCH_X86_64
 #include "Quant_sse4_1.h"
 #include "Quant_avx2.h"
 #include "Quant_avx512.h"
-#include "encoder_dsp_rtcd.h"
+#endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+#include "Quant_neon.h"
+#endif /* ARCH_AARCH64 */
 
 #define QUANT_MAX_SIZE 128
 #define GROUP_SIZE     4
@@ -204,18 +211,30 @@ svt_jxs_test_tool::SVTRandom* QuantTest::rand = NULL;
 TEST_P(QuantTest, corectness_test_c) {
     run_correctness(quantization_c);
 }
+#ifdef ARCH_X86_64
 TEST_P(QuantTest, corectness_test_sse41) {
     run_correctness(quantization_sse4_1);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST_P(QuantTest, corectness_test_avx2) {
     run_correctness(quantization_avx2);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST_P(QuantTest, corectness_test_avx512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         run_correctness(quantization_avx512);
     }
 }
+#endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+TEST_P(QuantTest, corectness_test_neon) {
+    run_correctness(quantization_neon);
+}
+#endif /* ARCH_AARCH64 */
 
 INSTANTIATE_TEST_SUITE_P(Quant, QuantTest, ::testing::Range(0, (int)RAND_SIZE));

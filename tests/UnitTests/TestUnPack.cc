@@ -5,14 +5,23 @@
 
 #include "gtest/gtest.h"
 #include "random.h"
-#include "UnPack_avx2.h"
-#include "UnPack_avx512.h"
 #include "Packing.h"
 #include "BitstreamWriter.h"
 #include "common_dsp_rtcd.h"
-#include "unpack_common.h"
 #include "SvtUtility.h"
 #include "EncDec.h" /* TRUNCATION_MAX */
+
+#include "Codestream.h"
+
+#ifdef ARCH_AARCH64
+#include "UnPack_neon.h"
+#endif /* ARCH_AARCH64 */
+
+#ifdef ARCH_X86_64
+#include "unpack_common.h"
+#include "UnPack_avx2.h"
+#include "UnPack_avx512.h"
+#endif /* ARCH_X86_64 */
 
 typedef SvtJxsErrorType_t (*unpack_data)(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                          uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
@@ -237,9 +246,17 @@ TEST(unpack_data_test, unpack_data_C) {
     unpack_test(unpack_data_c);
 }
 
+#ifdef ARCH_X86_64
 TEST(unpack_data_test, unpack_data_AVX2) {
     unpack_test(unpack_data_avx2);
 }
+#endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+TEST(unpack_data_test, unpack_data_NEON) {
+    unpack_test(unpack_data_neon);
+}
+#endif /* ARCH_AARCH64 */
 
 /* GCLI out of range is what a corrupt stream looks like: the unary code yields
  * up to thirty-one, and vertical prediction can wrap the byte to any value at
@@ -332,6 +349,7 @@ static void unpack_test_gcli_out_of_range(unpack_data unpack_ref, unpack_data un
     delete rnd;
 }
 
+#ifdef ARCH_X86_64
 TEST(unpack_data_test, unpack_data_out_of_range_gcli) {
     /* Same condition the decoder dispatch uses: the AVX-512 directory is built
      * with -mbmi2, so the tier is only usable when the processor has BMI2 too. */
@@ -339,6 +357,16 @@ TEST(unpack_data_test, unpack_data_out_of_range_gcli) {
     const bool has_avx512 = (get_cpu_flags() & required) == required;
     unpack_test_gcli_out_of_range(unpack_data_avx2, has_avx512 ? unpack_data_avx512 : NULL);
 }
+#endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+/* Only one vector level exists on AArch64, so there is no second one to agree
+ * with: what is checked here is that the parser stays inside the language on an
+ * out-of-range GCLI. */
+TEST(unpack_data_test, unpack_data_out_of_range_gcli_NEON) {
+    unpack_test_gcli_out_of_range(unpack_data_neon, NULL);
+}
+#endif /* ARCH_AARCH64 */
 
 TEST(unpack_data_test, unpack_sign) {
     const uint32_t bitstream_reader_size = 80;
@@ -435,6 +463,7 @@ TEST(unpack_data_test, unpack_sign) {
 /* The AVX-512 parser on well-formed streams. Until now it was only reached by
  * the corrupt-stream test above, so the ordinary path - the one that actually
  * decodes pictures - had no test of its own on this tier. */
+#ifdef ARCH_X86_64
 TEST(unpack_data_test, unpack_data_AVX512) {
     const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2;
     if ((get_cpu_flags() & required) != required) {
@@ -442,7 +471,9 @@ TEST(unpack_data_test, unpack_data_AVX512) {
     }
     unpack_test(unpack_data_avx512);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 /* The logic shared by both vector parsers - counting the consumed bits, the end
  * of the line, handing the position back to the common reader - with the group
  * parser passed in. Both wrappers are nothing but a choice of that pair, so it
@@ -462,16 +493,22 @@ static SvtJxsErrorType_t unpack_data_common_avx2_parsers(bitstream_reader_t* bit
                               unpack_n_groups,
                               unpack_n_groups_nosign);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(unpack_data_test, unpack_data_common) {
     unpack_test(unpack_data_common_avx2_parsers);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 /* Nibble n of the stream: bytes carry the high nibble first. */
 static uint32_t one_nibble_ref(const uint8_t* mem, uint32_t nib) {
     return (nib & 1) ? (mem[nib >> 1] & 0xF) : (uint32_t)(mem[nib >> 1] >> 4);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 /* The single load that takes a whole group has to give the same nibbles the
  * per-nibble reader gives, at both halves of the starting byte and at every
  * length the group can have - up to fifteen bit planes. */
@@ -498,7 +535,9 @@ TEST(unpack_common, load_nibbles_matches_one_nibble) {
     }
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 /* The right to make an over-reading load: eight bytes have to remain past the
  * start of the group, and a count is returned so that zero means "not at all". */
 TEST(unpack_common, safe_byte_count) {
@@ -509,6 +548,7 @@ TEST(unpack_common, safe_byte_count) {
         ASSERT_EQ(bytes_left - 7, unpack_safe_byte_count(bytes_left));
     }
 }
+#endif /* ARCH_X86_64 */
 
 /* The two group parsers of a line, called by their own names rather than
  * through the wrappers. Random memory is a legitimate input here: the parser is
@@ -517,6 +557,7 @@ TEST(unpack_common, safe_byte_count) {
  *
  * safe_bytes is walked from zero upwards, because it is what splits the fast
  * path from the sequential tail: at zero every group goes the slow way. */
+#ifdef ARCH_X86_64
 TEST(unpack_n_groups, AVX512_matches_AVX2) {
     const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2;
     if ((get_cpu_flags() & required) != required) {
@@ -599,6 +640,7 @@ TEST(unpack_n_groups, AVX512_matches_AVX2) {
     free(buf_cmp);
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
 /* The two bit scans that replaced dispatched calls on the hot paths. Both are
  * undefined on zero and neither is asked for it. */
@@ -672,6 +714,7 @@ TEST(bit_scan, vlc_leading_run) {
  *
  * Currently fails: the wrap lets the stream through. Passes once the
  * accumulation is widened to 32 bits, as the correct answer is rejection. */
+#ifdef ARCH_X86_64
 TEST(unpack_data_common, budget_precheck_does_not_wrap) {
     const uint32_t n_groups = 1024;
     const uint32_t width = n_groups * GROUP_SIZE;
@@ -705,6 +748,7 @@ TEST(unpack_data_common, budget_precheck_does_not_wrap) {
     free(bitstream_mem);
     free(buf);
 }
+#endif /* ARCH_X86_64 */
 
 /* unpack_data_single_group (Packing.c, the scalar/C group reader) never got the
  * plane-count bound that bbe0e0f added to the AVX2/AVX512 sequential tail

@@ -7,11 +7,14 @@
 #include "random.h"
 #include "Dwt.h"
 #include "Idwt.h"
-#include "Enc_avx512.h"
-#include "Dwt53Decoder_AVX2.h"
 #include "SvtUtility.h"
 #include "CodeDeprecated.h"
+
+#ifdef ARCH_X86_64
+#include "Enc_avx512.h"
+#include "Dwt53Decoder_AVX2.h"
 #include "CodeDeprecated-avx512.h"
+#endif /* ARCH_X86_64 */
 
 typedef ::testing::tuple<int, int> size_param_t;
 
@@ -80,6 +83,7 @@ class DWT_IDWT : public ::testing::TestWithParam<fixture_param_t> {
         }
     }
 
+#ifdef ARCH_X86_64
     void run_test_dwt_vertical_avx512() {
         memset(lf_buf_c, 0, buffer_len);
         memset(hf_buf_c, 0, buffer_len);
@@ -96,7 +100,9 @@ class DWT_IDWT : public ::testing::TestWithParam<fixture_param_t> {
             ASSERT_EQ(0, memcmp(hf_buf_c, hf_buf_avx, buffer_len));
         }
     }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
     void run_test_dwt_horizontal_avx512() {
         memset(lf_buf_c, 0, buffer_len);
         memset(hf_buf_c, 0, buffer_len);
@@ -113,7 +119,9 @@ class DWT_IDWT : public ::testing::TestWithParam<fixture_param_t> {
             ASSERT_EQ(0, memcmp(hf_buf_c, hf_buf_avx, buffer_len));
         }
     }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
     void run_test_idwt_vertical_avx2() {
         memset(lf_buf_c, 0, buffer_len);
         memset(hf_buf_c, 0, buffer_len);
@@ -131,7 +139,9 @@ class DWT_IDWT : public ::testing::TestWithParam<fixture_param_t> {
             ASSERT_EQ(0, memcmp(data_out_c, data_out_avx, buffer_len));
         }
     }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
     void run_test_idwt_horizontal_avx2() {
         memset(data_out_c, 0, buffer_len);
         memset(data_out_avx, 0, buffer_len);
@@ -143,6 +153,7 @@ class DWT_IDWT : public ::testing::TestWithParam<fixture_param_t> {
 
         ASSERT_EQ(0, memcmp(data_out_c, data_out_avx, buffer_len));
     }
+#endif /* ARCH_X86_64 */
 
     void run_test_vertical_c() {
         for (int i = 0; i < 5; ++i) {
@@ -200,25 +211,33 @@ class DWT_IDWT : public ::testing::TestWithParam<fixture_param_t> {
     svt_jxs_test_tool::SVTRandom* rnd;
 };
 
+#ifdef ARCH_X86_64
 TEST_P(DWT_IDWT, VERTICAL_DWT_AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         run_test_dwt_vertical_avx512();
     }
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST_P(DWT_IDWT, HORIZONTAL_DWT_AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         run_test_dwt_horizontal_avx512();
     }
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST_P(DWT_IDWT, VERTICAL_IDWT_AVX2) {
     run_test_idwt_vertical_avx2();
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST_P(DWT_IDWT, DISABLED_HORIZONTAL_IDWT_AVX2) {
     run_test_idwt_horizontal_avx2();
 }
+#endif /* ARCH_X86_64 */
 
 TEST_P(DWT_IDWT, VERTICAL_ALL_C) {
     run_test_vertical_c();

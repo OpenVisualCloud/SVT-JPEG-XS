@@ -109,6 +109,7 @@ static void set_asm_type(const char* value, DecoderConfig_t* cfg) {
         {"9", (CPU_FLAGS_AVX2 << 1) - 1},
         {"avx512", CPU_FLAGS_ALL},
         {"10", CPU_FLAGS_ALL},
+        {"neon", CPU_FLAGS_NEON},
         {"max", CPU_FLAGS_ALL},
         {"11", CPU_FLAGS_ALL},
     };
@@ -183,7 +184,7 @@ ConfigEntry config_entry[] = {
     {OUTPUT_OPTIONS, OUTPUT_MSB_ALIGNED_TOKEN,  "Non-standard: 10/12-bit output samples are MSB-aligned in each 16-bit word instead of LSB-aligned (enabled:1, disabled:0, default:0)", 0, 1, set_output_msb_aligned},
     {THREAD_PERF_OPTIONS, ASM_TYPE_TOKEN,       "Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2, sse3, "
                                                 "ssse3, sse4_1, sse4_2,"
-                                                " avx, avx2, avx512, max], by default highest level supported by CPU", 0, 1,
+                                                " avx, avx2, avx512, neon, max], by default highest level supported by CPU", 0, 1,
                                                 set_asm_type},
     {THREAD_PERF_OPTIONS, THREADS_TOKEN,        "Thread Scaling parameter, the higher the value the more threads are created and thus lower latency and/or higher FPS can be achieved (default: 0, which means lowest possible number of threads is created)", 0, 1, set_num_thread},
     // Termination
