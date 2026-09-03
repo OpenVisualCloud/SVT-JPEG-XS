@@ -140,25 +140,27 @@ function run_measured() {
     [ -n "$fps" ] && echo "$fps"
 }
 
-# check_result label fps baseline_fps: sets $STATUS/$PERCENT, sets SCRIPT_FAILED=1 on failure.
+# check_result label fps baseline_fps [enforce=1]: sets $STATUS/$PERCENT; sets SCRIPT_FAILED=1
+# on failure only when enforce=1 - otherwise STATUS is always INFO and SCRIPT_FAILED is untouched.
 function check_result() {
     local label="$1" measured_fps="$2" baseline_fps="$3" enforce="${4:-1}"
 
     if [ -z "$baseline_fps" ] || [ "$baseline_fps" = "N/A" ]; then
-        STATUS="INFO"
         PERCENT="N/A"
         if [ "$enforce" = "1" ]; then
             STATUS="FAIL"
             SCRIPT_FAILED=1
+        else
+            STATUS="INFO"
         fi
         echo "${STATUS}: $label - missing baseline FPS target in MATRIX"
         return
     fi
 
     if [ -z "$measured_fps" ]; then
-        STATUS="FAIL"
         PERCENT="N/A"
         if [ "$enforce" = "1" ]; then
+            STATUS="FAIL"
             SCRIPT_FAILED=1
         else
             STATUS="INFO"
@@ -171,16 +173,24 @@ function check_result() {
     min_allowed=$(awk -v b="$baseline_fps" -v t="$REGRESSION_THRESHOLD_PCT" 'BEGIN { printf "%.2f", b * (1 - t / 100) }')
     PERCENT=$(awk -v f="$measured_fps" -v b="$baseline_fps" 'BEGIN { printf "%.1f", (f / b) * 100 }')
 
+    # Not the enforced tier: always INFO, regardless of whether the measurement happens to
+    # clear the avx512-calibrated threshold - there is no real pass/fail criterion for this
+    # tier, only a number to compare by eye. Checked first so nothing below can ever produce
+    # PASS/FAIL for a non-enforced tier, matching the closing summary's "results above are
+    # informational only" claim in every case, not just some.
+    if [ "$enforce" != "1" ]; then
+        STATUS="INFO"
+        echo "INFO: $label -> $measured_fps FPS (baseline=$baseline_fps FPS, ${PERCENT}% of target, not enforced for this tier)"
+        return
+    fi
+
     if awk -v f="$measured_fps" -v m="$min_allowed" 'BEGIN { exit !(f >= m) }'; then
         STATUS="PASS"
         echo "SUCCESS: $label -> $measured_fps FPS (baseline=$baseline_fps FPS, ${PERCENT}% of target)"
-    elif [ "$enforce" = "1" ]; then
+    else
         STATUS="FAIL"
         SCRIPT_FAILED=1
         echo "FAIL (REGRESSION): $label -> $measured_fps FPS, below allowed min $min_allowed FPS (baseline=$baseline_fps FPS, ${PERCENT}% of target, -${REGRESSION_THRESHOLD_PCT}% threshold)"
-    else
-        STATUS="INFO"
-        echo "INFO: $label -> $measured_fps FPS (baseline=$baseline_fps FPS, ${PERCENT}% of target, not enforced for this tier)"
     fi
 }
 
