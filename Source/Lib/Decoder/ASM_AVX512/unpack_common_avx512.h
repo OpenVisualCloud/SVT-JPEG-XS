@@ -8,14 +8,14 @@
 
 #include <immintrin.h>
 #include "Definitions.h"
+#include "unpack_common.h"
 
-/* Spreads count nibbles, right aligned, into four coefficients. */
+/* unpack_planes_to_lanes used to be defined here as a plain PEXT-based spread,
+ * but it needs only BMI2, nothing AVX-512 - it is now unpack_planes_to_lanes_pext
+ * in unpack_common.h so the AVX2 tier can use it too on hosts with BMI2 but no
+ * AVX-512. See setup_decoder_rtcd_internal for the dispatch. */
 static INLINE uint64_t unpack_planes_to_lanes(uint64_t acc, uint8_t gtli) {
-    const uint64_t v0 = _pext_u64(acc, 0x8888888888888888ULL);
-    const uint64_t v1 = _pext_u64(acc, 0x4444444444444444ULL);
-    const uint64_t v2 = _pext_u64(acc, 0x2222222222222222ULL);
-    const uint64_t v3 = _pext_u64(acc, 0x1111111111111111ULL);
-    return (v0 | (v1 << 16) | (v2 << 32) | (v3 << 48)) << gtli;
+    return unpack_planes_to_lanes_pext(acc, gtli);
 }
 
 #endif /*__UNPACK_COMMON_AVX512_H__*/

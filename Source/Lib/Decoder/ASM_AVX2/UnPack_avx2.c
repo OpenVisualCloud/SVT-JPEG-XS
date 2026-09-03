@@ -124,6 +124,104 @@ void unpack_n_groups_nosign(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uin
     unpack_n_groups_impl(gclis, gtli, r, buf, n_groups, safe_bytes, 0);
 }
 
+/* Same as unpack_n_groups_impl, but the plane spread is PEXT (unpack_planes_to_lanes_pext)
+ * instead of the nibble-split-and-movemask sequence - see that function's comment.
+ * Needs BMI2; callers must gate on CPU_FLAGS_BMI2. */
+TARGET_BMI2 static INLINE void unpack_n_groups_bmi2_impl(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf,
+                                                         uint32_t n_groups, uint32_t safe_bytes, const int has_sign) {
+    uint8_t* const base = r->mem;
+    uint32_t nib = r->bits_used ? 1u : 0u;
+    uint32_t group = 0;
+
+    memset(buf, 0, (size_t)n_groups * GROUP_SIZE * sizeof(uint16_t));
+
+    const __m256i gtli_vec = _mm256_set1_epi8((char)gtli);
+    const __m256i zero = _mm256_setzero_si256();
+    while (group < n_groups) {
+        const uint32_t chunk = MIN(n_groups - group, 32u);
+        __m256i gcli_vec;
+        if (chunk >= 32) {
+            gcli_vec = _mm256_loadu_si256((const __m256i*)(gclis + group));
+        }
+        else {
+            uint8_t padded[32] = {0};
+            memcpy(padded, gclis + group, chunk);
+            gcli_vec = _mm256_loadu_si256((const __m256i*)padded);
+        }
+        uint64_t todo = (uint32_t)~_mm256_movemask_epi8(_mm256_cmpeq_epi8(_mm256_subs_epu8(gcli_vec, gtli_vec), zero));
+        while (todo) {
+            const uint32_t k = svt_first_set_bit(todo);
+            const uint32_t size = (uint32_t)gclis[group + k] - gtli;
+            if (size > TRUNCATION_MAX || ((nib + (uint32_t)has_sign) >> 1) >= safe_bytes) {
+                group += k;
+                goto tail;
+            }
+            uint64_t out = unpack_planes_to_lanes_pext(unpack_load_nibbles(base, nib + (uint32_t)has_sign, size), gtli);
+            if (has_sign) {
+                out |= unpack_sign_spread[unpack_one_nibble(base, nib)];
+            }
+            memcpy(buf + (size_t)(group + k) * GROUP_SIZE, &out, sizeof(out));
+            nib += size + (uint32_t)has_sign;
+            todo &= todo - 1;
+        }
+        group += chunk;
+    }
+
+tail:
+    r->mem = base + (nib >> 1);
+    r->bits_used = (uint8_t)((nib & 1) * 4);
+    buf += (size_t)group * GROUP_SIZE;
+
+    for (; group < n_groups; group++) {
+        const int32_t size = (int32_t)gclis[group] - (int32_t)gtli;
+        if (size > 0) {
+            uint64_t signs = 0;
+            if (has_sign) {
+                signs = unpack_sign_spread[read_4_bits_align4_fast(r)];
+            }
+            const int32_t read_planes = (size > TRUNCATION_MAX) ? TRUNCATION_MAX : size;
+            uint64_t acc = 0;
+            for (int32_t i = 0; i < read_planes; i++) {
+                acc = (acc << 4) | read_4_bits_align4_fast(r);
+            }
+            const uint64_t out = unpack_planes_to_lanes_pext(acc, gtli) | signs;
+            memcpy(buf, &out, sizeof(out));
+        }
+        buf += GROUP_SIZE;
+    }
+}
+
+/* No TARGET_BMI2 here: neither wrapper touches a BMI2 intrinsic directly, only
+ * unpack_n_groups_bmi2_impl does. Matches pack_data_groups_avx2_bmi2 on the encoder
+ * side, which likewise leaves the outer wrapper un-attributed. Tagging these too
+ * made the header declaration and this definition disagree on the attribute -
+ * flagged in review as a GCC/Clang attribute mismatch (fatal under -Werror). */
+void unpack_n_groups_bmi2(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups,
+                          uint32_t safe_bytes) {
+    unpack_n_groups_bmi2_impl(gclis, gtli, r, buf, n_groups, safe_bytes, 1);
+}
+
+void unpack_n_groups_nosign_bmi2(uint8_t* gclis, uint8_t gtli, reader_short_t* r, uint16_t* buf, uint32_t n_groups,
+                                 uint32_t safe_bytes) {
+    unpack_n_groups_bmi2_impl(gclis, gtli, r, buf, n_groups, safe_bytes, 0);
+}
+
+SvtJxsErrorType_t unpack_data_avx2_bmi2(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
+                                        uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
+                                        int32_t* precinct_bits_left) {
+    return unpack_data_common(bitstream,
+                              buf,
+                              w,
+                              gclis,
+                              group_size,
+                              gtli,
+                              sign_flag,
+                              leftover_signs_num,
+                              precinct_bits_left,
+                              unpack_n_groups_bmi2,
+                              unpack_n_groups_nosign_bmi2);
+}
+
 SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                      uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                      int32_t* precinct_bits_left, unpack_groups_fn groups_sign, unpack_groups_fn groups_nosign) {
