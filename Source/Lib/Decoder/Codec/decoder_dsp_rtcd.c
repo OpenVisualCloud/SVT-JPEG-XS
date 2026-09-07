@@ -104,11 +104,11 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
     static uint8_t first_call_setup = 1;
     uint8_t check_pointer_was_set = first_call_setup;
     first_call_setup = 0;
-#ifdef ARCH_X86_64
     /** Should be done during library initialization,
       but for safe limiting cpu flags again. */
     const CPU_FLAGS host_flags = get_cpu_flags();
     flags &= host_flags;
+#ifdef ARCH_X86_64
     /* The AVX-512 kernels are built with -mbmi2 for the whole directory, so
      * the compiler is free to emit those instructions anywhere in them, not
      * only where an intrinsic asks for them. Without a processor to back
@@ -120,10 +120,11 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
     if (!(host_flags & CPU_FLAGS_BMI2)) {
         flags &= ~(CPU_FLAGS)CPU_FLAGS_AVX512F;
     }
-    // to use C: flags=0
-#else
-    (void)flags;
 #endif
+    // to use C: flags=0
+    /* A build for a processor with no SIMD tree of its own has no setter left
+     * to read the mask. */
+    (void)flags;
 
     SET_SSE41_AVX2_AVX512(dequant, dequant_c, dequant_sse4_1, NULL, dequant_avx512);
     SET_NEON(dequant, dequant_neon);
