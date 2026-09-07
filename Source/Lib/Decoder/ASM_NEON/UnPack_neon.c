@@ -1,5 +1,5 @@
 /*
-* Copyright(c) 2024 Intel Corporation
+* Copyright(c) 2026 Intel Corporation
 * SPDX - License - Identifier: BSD - 2 - Clause - Patent
 */
 
@@ -123,7 +123,7 @@ SvtJxsErrorType_t unpack_data_neon(bitstream_reader_t* bitstream, uint16_t* buf,
                                    int32_t* precinct_bits_left) {
     UNUSED(group_size);
     assert(group_size == GROUP_SIZE);
-    assert((bitstream->bits_used != 0) || (bitstream->bits_used != 4));
+    assert((bitstream->bits_used == 0) || (bitstream->bits_used == 4));
     const uint32_t group_num = w / GROUP_SIZE;
     const uint32_t leftover = w % GROUP_SIZE;
     const uint32_t safe_bytes = unpack_safe_byte_count(bitstream->size > bitstream->offset ? bitstream->size - bitstream->offset
