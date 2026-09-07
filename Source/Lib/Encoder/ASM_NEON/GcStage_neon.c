@@ -1,11 +1,12 @@
 /*
-* Copyright(c) 2024 Intel Corporation
+* Copyright(c) 2026 Intel Corporation
 * SPDX - License - Identifier: BSD - 2 - Clause - Patent
 */
 
 #include "GcStage_neon.h"
 #include "Definitions.h"
 #include "SvtUtility.h"
+#include "EncDec.h" /* TRUNCATION_MAX, used by an assertion below */
 #include <arm_neon.h>
 
 /* The greatest coded line index of a group is the position of the highest set
