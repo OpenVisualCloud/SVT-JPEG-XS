@@ -114,14 +114,13 @@ void setup_common_rtcd_internal(CPU_FLAGS flags) {
     static uint8_t first_call_setup = 1;
     uint8_t check_pointer_was_set = first_call_setup;
     first_call_setup = 0;
-#ifdef ARCH_X86_64
     /** Should be done during library initialization,
       but for safe limiting CPU flags again. */
     flags &= get_cpu_flags();
     // to use C: flags=0
-#else
+    /* A build for a processor with no SIMD tree of its own has no setter left
+     * to read the mask; the same is true of this table on AArch64. */
     (void)flags;
-#endif
 
     SET_SSE2(svt_log2_32, log2_32_c, Log2_32_ASM);
 }
