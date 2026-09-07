@@ -1,5 +1,5 @@
 /*
-* Copyright(c) 2024 Intel Corporation
+* Copyright(c) 2026 Intel Corporation
 * SPDX - License - Identifier: BSD - 2 - Clause - Patent
 */
 
@@ -13,6 +13,7 @@
 #ifdef ARCH_AARCH64
 
 #include <arm_neon.h>
+#include <string.h>
 #include "SvtType.h"
 
 /* Each byte is weighted by its position and the two halves are reduced
