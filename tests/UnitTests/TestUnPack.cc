@@ -367,6 +367,14 @@ TEST(unpack_data_test, unpack_data_out_of_range_gcli) {
     const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2;
     const bool has_avx512 = (get_cpu_flags() & required) == required;
     unpack_test_gcli_out_of_range(unpack_data_avx2, has_avx512 ? unpack_data_avx512 : NULL);
+
+    /* The BMI2 spread is a third vector level, taken over plain AVX2 wherever the
+     * host has BMI2 and AVX-512 is not in play, so it has to agree on a corrupt
+     * stream too. */
+    const CPU_FLAGS required_bmi2 = CPU_FLAGS_AVX2 | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & required_bmi2) == required_bmi2) {
+        unpack_test_gcli_out_of_range(unpack_data_avx2, unpack_data_avx2_bmi2);
+    }
 }
 #endif /* ARCH_X86_64 */
 
