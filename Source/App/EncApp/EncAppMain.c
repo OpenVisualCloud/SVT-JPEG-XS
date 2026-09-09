@@ -16,6 +16,7 @@
  * Includes
  ***************************************/
 #include <assert.h>
+#include <errno.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -171,6 +172,7 @@ static void *thread_send(void *arg) {
  * Encoder App Main
  ***************************************/
 #define ENC_IGNORE_SOME_FRAMES (11)
+#define ENC_FILE_WRITE_ERROR (12)
 
 int32_t main(int32_t argc, char *argv[]) {
     if (get_help(argc, argv)) {
@@ -339,7 +341,16 @@ int32_t main(int32_t argc, char *argv[]) {
         }
         if (ret == SvtJxsErrorNone) {
             if (config_enc.out_file) {
-                fwrite(enc_output.bitstream.buffer, 1, enc_output.bitstream.used_size, config_enc.out_file);
+                size_t written = fwrite(
+                    enc_output.bitstream.buffer, 1, enc_output.bitstream.used_size, config_enc.out_file);
+                if (written != enc_output.bitstream.used_size) {
+                    fprintf(stderr,
+                            "---------Error writing bitstream to output file: %s---------\n",
+                            strerror(errno));
+                    return_error = ENC_FILE_WRITE_ERROR;
+                    svt_jpeg_xs_frame_pool_release(config_enc.frame_pool, &enc_output);
+                    goto fail;
+                }
             }
         }
         else {
@@ -403,7 +414,12 @@ fail:
     }
 
     if (config_enc.out_file) {
-        fclose(config_enc.out_file);
+        if (fclose(config_enc.out_file) != 0) {
+            fprintf(stderr, "---------Error closing output file: %s---------\n", strerror(errno));
+            if (return_error == SvtJxsErrorNone) {
+                return_error = ENC_FILE_WRITE_ERROR;
+            }
+        }
         config_enc.out_file = NULL;
     }
 

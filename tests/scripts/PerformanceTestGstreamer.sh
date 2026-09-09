@@ -15,19 +15,43 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Configuration
 SAMPLES_DIR="${1:-$SCRIPT_DIR/../../Conformance-tests}"
 CSV_FILE="$SCRIPT_DIR/gstreamer_results.csv"
-# Remove stale /dev/shm files left by any previously killed run BEFORE creating new ones; GStreamer
-# JXS bitstreams can be up to ~1.5 GB and would fill the ramdisk if left behind.
-rm -f /dev/shm/test_stream_gst_*.yuv /dev/shm/test_stream_gst_*.jxs 2>/dev/null || true
-
-RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_gst_XXXXXX)
-RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_gst_XXXXXX)
 NUMA_NODE=1
 FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
 
-# Cleanup on exit
-trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"' EXIT
+# Use a dedicated tmpfs mount instead of a directory under the shared /dev/shm. /dev/shm is
+# machine-wide on this self-hosted runner, and PerformanceTestSampleApp.sh/PerformanceTestFfmpegPlugin.sh
+# may run concurrently with this script on the same host - a name-only glob cleanup (the previous
+# approach here) can delete a concurrent run's live files just as easily as a truly orphaned one.
+# A mount this script creates itself, at a path nothing else on the host has any reason to know
+# about, sidesteps that class of collision entirely. mount/umount need root; 'gta' (the account
+# Actions job steps run as) has confirmed passwordless sudo on this fleet.
+RAMDISK_MOUNT="/mnt/svt_jpegxs_perf_gst_ramdisk_$$_${RANDOM}${RANDOM}"
+
+# Unmount+remove ramdisk mountpoints abandoned by a previously killed run (its own EXIT trap
+# never got to fire). Age-gated on the mountpoint directory's mtime (untouched since creation),
+# not unmounted unconditionally, so a live concurrent run's own mount is never touched.
+while read -r stale_mount; do
+    [ -d "$stale_mount" ] || continue
+    if [ -n "$(find "$stale_mount" -maxdepth 0 -mmin +180)" ]; then
+        sudo umount "$stale_mount" 2>/dev/null || true
+        sudo rmdir "$stale_mount" 2>/dev/null || true
+    fi
+done < <(mount | awk '$3 ~ /^\/mnt\/svt_jpegxs_perf_gst_ramdisk_/ {print $3}')
+
+# 3G (matching the other two performance scripts): RAMDISK_JXS is reassigned to a fresh mktemp
+# path each iteration below (GStreamer's filesink needs a name it can create/open itself), but
+# the old path is rm'd first, so only one row's bitstream ever exists at a time. This MATRIX
+# never exceeds bpp=3.0, so the largest single row needs ~1.45 GiB for the JXS (2000 frames *
+# 1920*1080*3/8 bytes) plus the small raw YUV input, comfortably under this.
+sudo mkdir -p "$RAMDISK_MOUNT"
+sudo mount -t tmpfs -o size=3G,mode=1777 tmpfs "$RAMDISK_MOUNT"
+trap 'sudo umount "$RAMDISK_MOUNT" 2>/dev/null || sudo umount -l "$RAMDISK_MOUNT" 2>/dev/null; sudo rmdir "$RAMDISK_MOUNT" 2>/dev/null' EXIT
+
+RUN_DIR="$RAMDISK_MOUNT"
+RAMDISK_YUV=$(mktemp --suffix=.yuv "$RUN_DIR/test_stream_gst_XXXXXX")
+RAMDISK_JXS=$(mktemp --suffix=.jxs "$RUN_DIR/test_stream_gst_XXXXXX")
 
 # Ensure CSV header exists. TestCase is the matching MATRIX line below.
 if [ ! -f "$CSV_FILE" ]; then
@@ -194,7 +218,7 @@ fdsrc \
         SCRIPT_FAILED=1
         echo "DECODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
         rm -f "$RAMDISK_JXS"
-        RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_gst_XXXXXX)
+        RAMDISK_JXS=$(mktemp --suffix=.jxs "$RUN_DIR/test_stream_gst_XXXXXX")
         continue
     fi
 
@@ -222,7 +246,7 @@ filesrc location=$RAMDISK_JXS blocksize=$frame_jxsc_size \
     echo "DECODE,$test_case,\"$dec_cmd\",${dec_fps:-N/A},${baseline_dec_fps:-N/A},$PERCENT,$STATUS" >> "$CSV_FILE"
 
     rm -f "$RAMDISK_JXS"
-    RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_gst_XXXXXX)
+    RAMDISK_JXS=$(mktemp --suffix=.jxs "$RUN_DIR/test_stream_gst_XXXXXX")
 done
 
 if [ "$SCRIPT_FAILED" -eq 1 ]; then
