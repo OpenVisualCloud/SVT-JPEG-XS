@@ -121,6 +121,16 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
 
     SET_AVX2(inv_sign, inv_sign_c, inv_sign_avx2);
     SET_AVX2_AVX512(unpack_data, unpack_data_c, unpack_data_avx2, unpack_data_avx512);
+#ifdef ARCH_X86_64
+    /* unpack_data_avx2 spreads a group's planes with a nibble-split-and-movemask sequence;
+     * PEXT does the same spread in four instructions (see unpack_common.h), but needs BMI2.
+     * It is microcoded and slow on some older CPUs, so this only overrides the AVX2 pick -
+     * never AVX-512, which already uses PEXT - and only when the host (not just the requested
+     * tier) actually has BMI2. */
+    if ((flags & CPU_FLAGS_AVX2) && !(flags & CPU_FLAGS_AVX512F) && (host_flags & CPU_FLAGS_BMI2)) {
+        unpack_data = unpack_data_avx2_bmi2;
+    }
+#endif /* ARCH_X86_64 */
     SET_AVX2_AVX512(idwt_horizontal_line_lf16_hf16,
                     idwt_horizontal_line_lf16_hf16_c,
                     idwt_horizontal_line_lf16_hf16_avx2,

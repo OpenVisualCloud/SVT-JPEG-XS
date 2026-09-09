@@ -58,6 +58,16 @@ extern "C" {
 #define DECLARE_ALIGNED(n, typ, val) typ val
 #endif
 
+// Marks a function as needing BMI2 (PDEP/PEXT) without requiring the whole translation
+// unit to be built with -mbmi2. GNU/Clang support per-function target attributes; other
+// compilers (MSVC) do not, but also do not gate <immintrin.h> intrinsics behind /arch, so
+// the function compiles fine there without it.
+#if defined(__GNUC__) || defined(__clang__)
+#define TARGET_BMI2 __attribute__((target("bmi2")))
+#else
+#define TARGET_BMI2
+#endif
+
 /* This is a 32 bit pointer and is aligned on a 32 bit word boundary.
 */
 typedef void *void_ptr;

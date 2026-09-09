@@ -168,6 +168,16 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
     SET_AVX2_AVX512(pack_data_single_group, pack_data_single_group_c, pack_data_single_group_avx2, pack_data_single_group_avx512);
     SET_SSE2(gc_precinct_stage_scalar_loop, gc_precinct_stage_scalar_loop_c, gc_precinct_stage_scalar_loop_ASM);
     SET_AVX2_AVX512(pack_data_groups, pack_data_groups_c, pack_data_groups_avx2, pack_data_groups_avx512);
+#ifdef ARCH_X86_64
+    /* pack_data_groups_avx2 packs a group's planes with a per-plane loop; PDEP does the same
+     * work in four instructions regardless of plane count (see pack_group_helper.h), but needs
+     * BMI2 and is microcoded and slow on some older CPUs, so this only overrides the AVX2 pick -
+     * never AVX-512, which already uses PDEP - and only when the host (not just the requested
+     * tier) actually has BMI2. */
+    if ((flags & CPU_FLAGS_AVX2) && !(flags & CPU_FLAGS_AVX512F) && (host_flags & CPU_FLAGS_BMI2)) {
+        pack_data_groups = pack_data_groups_avx2_bmi2;
+    }
+#endif /* ARCH_X86_64 */
     SET_AVX2_AVX512(gc_histogram_16, gc_histogram_16_c, gc_histogram_16_avx2, gc_histogram_16_avx512);
     SET_SSE41(gc_precinct_sigflags_max, gc_precinct_sigflags_max_c, gc_precinct_sigflags_max_sse4_1);
     SET_AVX2_AVX512(rate_control_calc_vpred_cost_nosigf,

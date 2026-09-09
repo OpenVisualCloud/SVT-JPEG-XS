@@ -241,6 +241,15 @@ TEST(unpack_data_test, unpack_data_AVX2) {
     unpack_test(unpack_data_avx2);
 }
 
+TEST(unpack_data_test, unpack_data_AVX2_BMI2) {
+    /* BMI2 is independent of AVX2 - unpack_data_avx2_bmi2 uses both. */
+    const CPU_FLAGS required = CPU_FLAGS_AVX2 | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & required) != required) {
+        GTEST_SKIP();
+    }
+    unpack_test(unpack_data_avx2_bmi2);
+}
+
 /* GCLI out of range is what a corrupt stream looks like: the unary code yields
  * up to thirty-one, and vertical prediction can wrap the byte to any value at
  * all. Two properties are checked here.

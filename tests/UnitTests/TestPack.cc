@@ -449,6 +449,15 @@ TEST(pack_data_groups, AVX2) {
     pack_data_groups_test(pack_data_groups_avx2);
 }
 
+TEST(pack_data_groups, AVX2_BMI2) {
+    /* BMI2 is independent of AVX2 - pack_data_groups_avx2_bmi2 uses both. */
+    const CPU_FLAGS required = CPU_FLAGS_AVX2 | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & required) != required) {
+        GTEST_SKIP();
+    }
+    pack_data_groups_test(pack_data_groups_avx2_bmi2);
+}
+
 TEST(pack_data_groups, AVX512) {
     /* the same pair of conditions the encoder dispatch checks: the directory is
      * built with -mbmi2 and -mpopcnt */

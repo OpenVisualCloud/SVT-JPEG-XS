@@ -13,9 +13,30 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENC_APP="$SCRIPT_DIR/../../Bin/Release/SvtJpegxsEncApp"
 DEC_APP="$SCRIPT_DIR/../../Bin/Release/SvtJpegxsDecApp"
 SAMPLES_DIR="${1:-$SCRIPT_DIR/../../Conformance-tests}"
+ASM_LEVEL="${2:-avx512}"
 CSV_FILE="$SCRIPT_DIR/svt_app_results.csv"
-NUMA_NODE=1
+# Node 1 is what the dual-socket CI runner is calibrated against; a single-node host (no node1
+# under sysfs) has nothing to bind to there, so fall back to node 0.
+if [ -d /sys/devices/system/node/node1 ]; then
+    NUMA_NODE=1
+else
+    NUMA_NODE=0
+fi
 FRAMES=2000
+
+case "$ASM_LEVEL" in
+    avx512 | avx2 | sse | c) ;;
+    *)
+        echo "ERROR: unknown asm level '$ASM_LEVEL' - expected one of: avx512 avx2 sse c" >&2
+        exit 1
+        ;;
+esac
+
+# Baselines in MATRIX below are calibrated for avx512 only - the default and the only tier this
+# script enforces a regression threshold against. avx2/sse/c have no calibrated baseline, so they
+# are measured and reported (Status=INFO) but never fail the script.
+ENFORCE=1
+[ "$ASM_LEVEL" != "avx512" ] && ENFORCE=0
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
 
@@ -60,9 +81,12 @@ if [ -f "$SYNTH_SRC" ]; then
     fi
 fi
 
-# Ensure CSV header exists. TestCase is the matching MATRIX line below.
-if [ ! -f "$CSV_FILE" ]; then
-    echo "Operation,TestCase,Command,Result_FPS,Target_FPS,Percent_Of_Target,Status" > "$CSV_FILE"
+# Ensure the CSV header matches the current schema. TestCase is the matching MATRIX line below.
+# A stale header left over from before AsmLevel existed would otherwise get new rows appended
+# under it with a mismatched column count, so rewrite the file whenever the header differs too.
+CSV_HEADER="Operation,TestCase,AsmLevel,Command,Result_FPS,Target_FPS,Percent_Of_Target,Status"
+if [ ! -f "$CSV_FILE" ] || [ "$(head -n 1 "$CSV_FILE")" != "$CSV_HEADER" ]; then
+    echo "$CSV_HEADER" > "$CSV_FILE"
 fi
 
 # Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS|ExtraEncArgs(optional)|ExtraDecArgs(optional)
@@ -116,29 +140,49 @@ function run_measured() {
     [ -n "$fps" ] && echo "$fps"
 }
 
-# check_result label fps baseline_fps: sets $STATUS/$PERCENT, sets SCRIPT_FAILED=1 on failure.
+# check_result label fps baseline_fps [enforce=1]: sets $STATUS/$PERCENT; sets SCRIPT_FAILED=1
+# on failure only when enforce=1 - otherwise STATUS is always INFO and SCRIPT_FAILED is untouched.
 function check_result() {
-    local label="$1" measured_fps="$2" baseline_fps="$3"
+    local label="$1" measured_fps="$2" baseline_fps="$3" enforce="${4:-1}"
 
     if [ -z "$baseline_fps" ] || [ "$baseline_fps" = "N/A" ]; then
-        STATUS="FAIL"
         PERCENT="N/A"
-        SCRIPT_FAILED=1
-        echo "FAILED: $label - missing baseline FPS target in MATRIX"
+        if [ "$enforce" = "1" ]; then
+            STATUS="FAIL"
+            SCRIPT_FAILED=1
+        else
+            STATUS="INFO"
+        fi
+        echo "${STATUS}: $label - missing baseline FPS target in MATRIX"
         return
     fi
 
     if [ -z "$measured_fps" ]; then
-        STATUS="FAIL"
         PERCENT="N/A"
-        SCRIPT_FAILED=1
-        echo "FAILED: $label - no FPS measured"
+        if [ "$enforce" = "1" ]; then
+            STATUS="FAIL"
+            SCRIPT_FAILED=1
+        else
+            STATUS="INFO"
+        fi
+        echo "${STATUS}: $label - no FPS measured"
         return
     fi
 
     local min_allowed
     min_allowed=$(awk -v b="$baseline_fps" -v t="$REGRESSION_THRESHOLD_PCT" 'BEGIN { printf "%.2f", b * (1 - t / 100) }')
     PERCENT=$(awk -v f="$measured_fps" -v b="$baseline_fps" 'BEGIN { printf "%.1f", (f / b) * 100 }')
+
+    # Not the enforced tier: always INFO, regardless of whether the measurement happens to
+    # clear the avx512-calibrated threshold - there is no real pass/fail criterion for this
+    # tier, only a number to compare by eye. Checked first so nothing below can ever produce
+    # PASS/FAIL for a non-enforced tier, matching the closing summary's "results above are
+    # informational only" claim in every case, not just some.
+    if [ "$enforce" != "1" ]; then
+        STATUS="INFO"
+        echo "INFO: $label -> $measured_fps FPS (baseline=$baseline_fps FPS, ${PERCENT}% of target, not enforced for this tier)"
+        return
+    fi
 
     if awk -v f="$measured_fps" -v m="$min_allowed" 'BEGIN { exit !(f >= m) }'; then
         STATUS="PASS"
@@ -162,40 +206,40 @@ for test_case in "${MATRIX[@]}"; do
     if [ ! -s "$source_path" ]; then
         echo "ERROR: File $source_path not found or empty!"
         SCRIPT_FAILED=1
-        echo "ENCODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
-        echo "DECODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
+        echo "ENCODE,$test_case,$ASM_LEVEL,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
+        echo "DECODE,$test_case,$ASM_LEVEL,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
         continue
     fi
     cp -f "$source_path" "$RAMDISK_YUV"
 
     # --- Encode ---
-    echo "Encoding: $name (bpp=$bpp, threads=$threads)"
+    echo "Encoding: $name (bpp=$bpp, threads=$threads, asm=$ASM_LEVEL)"
     enc_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
         "$ENC_APP" -i "$RAMDISK_YUV" -b "$RAMDISK_JXS" -w "$w" -h "$h" \
-        --input-depth "$depth" --colour-format "$fmt" --bpp "$bpp" -n "$FRAMES" --lp "$threads" $extra_enc_args)
+        --input-depth "$depth" --colour-format "$fmt" --bpp "$bpp" -n "$FRAMES" --lp "$threads" --asm "$ASM_LEVEL" $extra_enc_args)
     enc_cmd=$(printf '%q ' "${enc_cmd_arr[@]}")
     enc_fps=$(run_measured "${enc_cmd_arr[@]}")
 
-    check_result "ENCODE $name (bpp=$bpp, threads=$threads)" "$enc_fps" "$baseline_enc_fps"
-    echo "ENCODE,$test_case,\"$enc_cmd\",${enc_fps:-N/A},${baseline_enc_fps:-N/A},$PERCENT,$STATUS" >> "$CSV_FILE"
+    check_result "ENCODE $name (bpp=$bpp, threads=$threads, asm=$ASM_LEVEL)" "$enc_fps" "$baseline_enc_fps" "$ENFORCE"
+    echo "ENCODE,$test_case,$ASM_LEVEL,\"$enc_cmd\",${enc_fps:-N/A},${baseline_enc_fps:-N/A},$PERCENT,$STATUS" >> "$CSV_FILE"
 
     # --- Decode ---
     if [ ! -s "$RAMDISK_JXS" ]; then
         echo "ERROR: No bitstream produced by encode step, skipping decode. /dev/shm: $(df -h /dev/shm | awk 'NR==2')"
-        SCRIPT_FAILED=1
-        echo "DECODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
+        [ "$ENFORCE" = "1" ] && SCRIPT_FAILED=1
+        echo "DECODE,$test_case,$ASM_LEVEL,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
         rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"
         continue
     fi
 
-    echo "Decoding: $name (bpp=$bpp, threads=$threads)"
+    echo "Decoding: $name (bpp=$bpp, threads=$threads, asm=$ASM_LEVEL)"
     dec_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
-        "$DEC_APP" -i "$RAMDISK_JXS" -o /dev/null -n "$FRAMES" --lp "$threads" $extra_dec_args)
+        "$DEC_APP" -i "$RAMDISK_JXS" -o /dev/null -n "$FRAMES" --lp "$threads" --asm "$ASM_LEVEL" $extra_dec_args)
     dec_cmd=$(printf '%q ' "${dec_cmd_arr[@]}")
     dec_fps=$(run_measured "${dec_cmd_arr[@]}")
 
-    check_result "DECODE $name (bpp=$bpp, threads=$threads)" "$dec_fps" "$baseline_dec_fps"
-    echo "DECODE,$test_case,\"$dec_cmd\",${dec_fps:-N/A},${baseline_dec_fps:-N/A},$PERCENT,$STATUS" >> "$CSV_FILE"
+    check_result "DECODE $name (bpp=$bpp, threads=$threads, asm=$ASM_LEVEL)" "$dec_fps" "$baseline_dec_fps" "$ENFORCE"
+    echo "DECODE,$test_case,$ASM_LEVEL,\"$dec_cmd\",${dec_fps:-N/A},${baseline_dec_fps:-N/A},$PERCENT,$STATUS" >> "$CSV_FILE"
 
     rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"
 done
@@ -207,4 +251,8 @@ if [ "$SCRIPT_FAILED" -eq 1 ]; then
 fi
 
 echo ""
-echo "All performance tests passed within the ${REGRESSION_THRESHOLD_PCT}% regression threshold."
+if [ "$ENFORCE" = "1" ]; then
+    echo "All performance tests passed within the ${REGRESSION_THRESHOLD_PCT}% regression threshold."
+else
+    echo "asm=$ASM_LEVEL has no calibrated baseline - results above are informational only (Status=INFO), not a pass/fail gate."
+fi
