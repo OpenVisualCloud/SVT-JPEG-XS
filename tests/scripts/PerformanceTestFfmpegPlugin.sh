@@ -17,21 +17,40 @@ FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
 
-# Remove stale /dev/shm files left by any previously killed run BEFORE creating new ones.
-# Accumulated files (especially large JXS bitstreams) can fill the ramdisk and cause synthesis to fail.
-rm -f /dev/shm/test_stream_ffmpeg_*.yuv /dev/shm/test_stream_ffmpeg_*.jxs \
-      /dev/shm/synth_yuva422_ffmpeg_*.yuv /dev/shm/synth_yuva422_ffmpeg_*.yuv.y \
-      /dev/shm/synth_yuva422_ffmpeg_*.yuv.cb /dev/shm/synth_yuva422_ffmpeg_*.yuv.cr \
-      /dev/shm/synth_yuva444_ffmpeg_*.yuv 2>/dev/null || true
+# Use a dedicated tmpfs mount instead of a directory under the shared /dev/shm. /dev/shm is
+# machine-wide on this self-hosted runner, and PerformanceTestSampleApp.sh/PerformanceTestGstreamer.sh
+# may run concurrently with this script on the same host - a name-only glob cleanup (the previous
+# approach here) can delete a concurrent run's live files just as easily as a truly orphaned one.
+# A mount this script creates itself, at a path nothing else on the host has any reason to know
+# about, sidesteps that class of collision entirely. mount/umount need root; 'gta' (the account
+# Actions job steps run as) has confirmed passwordless sudo on this fleet.
+RAMDISK_MOUNT="/mnt/svt_jpegxs_perf_ffmpeg_ramdisk_$$_${RANDOM}${RANDOM}"
 
-RAMDISK_YUV=$(mktemp --suffix=.yuv /dev/shm/test_stream_ffmpeg_XXXXXX)
-RAMDISK_JXS=$(mktemp --suffix=.jxs /dev/shm/test_stream_ffmpeg_XXXXXX)
-SYNTH_YUVA422=$(mktemp --suffix=.yuv /dev/shm/synth_yuva422_ffmpeg_XXXXXX)
-SYNTH_YUVA444=$(mktemp --suffix=.yuv /dev/shm/synth_yuva444_ffmpeg_XXXXXX)
+# Unmount+remove ramdisk mountpoints abandoned by a previously killed run (its own EXIT trap
+# never got to fire). Age-gated on the mountpoint directory's mtime (untouched since creation),
+# not unmounted unconditionally, so a live concurrent run's own mount is never touched.
+while read -r stale_mount; do
+    [ -d "$stale_mount" ] || continue
+    if [ -n "$(find "$stale_mount" -maxdepth 0 -mmin +180)" ]; then
+        sudo umount "$stale_mount" 2>/dev/null || true
+        sudo rmdir "$stale_mount" 2>/dev/null || true
+    fi
+done < <(mount | awk '$3 ~ /^\/mnt\/svt_jpegxs_perf_ffmpeg_ramdisk_/ {print $3}')
 
-# Cleanup on exit (includes intermediate .y/.cb/.cr temp files used during synthesis)
-trap 'rm -f "$RAMDISK_YUV" "$RAMDISK_JXS" "$SYNTH_YUVA422" "$SYNTH_YUVA444" \
-           "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr"' EXIT
+# 3G: RAMDISK_YUV/RAMDISK_JXS are fixed paths overwritten every iteration and cleared once no
+# longer needed (see the loop below), so the real peak is one row's worth: the largest MATRIX row
+# (yuva444p8, bpp=5.0) needs ~2.4 GiB for the JXS bitstream (2000 frames * 1920*1080*5/8 bytes)
+# plus the raw YUV input and synth files - this leaves only modest headroom, so don't shrink
+# further than this.
+sudo mkdir -p "$RAMDISK_MOUNT"
+sudo mount -t tmpfs -o size=3G,mode=1777 tmpfs "$RAMDISK_MOUNT"
+trap 'sudo umount "$RAMDISK_MOUNT" 2>/dev/null || sudo umount -l "$RAMDISK_MOUNT" 2>/dev/null; sudo rmdir "$RAMDISK_MOUNT" 2>/dev/null' EXIT
+
+RUN_DIR="$RAMDISK_MOUNT"
+RAMDISK_YUV=$(mktemp --suffix=.yuv "$RUN_DIR/test_stream_ffmpeg_XXXXXX")
+RAMDISK_JXS=$(mktemp --suffix=.jxs "$RUN_DIR/test_stream_ffmpeg_XXXXXX")
+SYNTH_YUVA422=$(mktemp --suffix=.yuv "$RUN_DIR/synth_yuva422_ffmpeg_XXXXXX")
+SYNTH_YUVA444=$(mktemp --suffix=.yuv "$RUN_DIR/synth_yuva444_ffmpeg_XXXXXX")
 
 # No real 4-component (alpha) sample YUV exists in $SAMPLES_DIR. Synthesize a single-frame fixture
 # (ffmpeg's -stream_loop -1 below repeats it to reach $FRAMES) from the existing 1080p 8bit yuv422
@@ -52,7 +71,7 @@ if [ -f "$SYNTH_SRC" ]; then
     cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" > "$SYNTH_YUVA444"
     rm -f "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr"
     if [ ! -s "$SYNTH_YUVA422" ] || [ ! -s "$SYNTH_YUVA444" ]; then
-        echo "ERROR: synthesis of YUVA input files failed — check /dev/shm space: $(df -h /dev/shm | awk 'NR==2')"
+        echo "ERROR: synthesis of YUVA input files failed — check ramdisk space: $(df -h "$RUN_DIR" | awk 'NR==2')"
         exit 1
     fi
 fi
@@ -115,16 +134,26 @@ function get_ffmpeg_pix_fmt() {
     esac
 }
 
-# run_measured cmd...: single run, prints FPS computed from ffmpeg's rtime= (empty if unparseable).
+# run_measured cmd...: single run, prints FPS computed from ffmpeg's rtime= (empty if unparseable
+# or if the command exited non-zero - a close-only failure can still print a valid rtime= line).
+# Must never itself return non-zero: the script runs under `set -eo pipefail`, and a bare failing
+# command in `enc_fps=$(run_measured ...)` position would abort the whole matrix loop instead of
+# letting check_result report a normal FAIL and continue to the next test case.
 function run_measured() {
-    local output rtime fps
-    output=$("$@" 2>&1) || true
+    local output rtime fps exit_code
+    output=$("$@" 2>&1) && exit_code=0 || exit_code=$?
     rtime=$(echo "$output" | grep -oE 'rtime=[0-9.]+' | cut -d= -f2 | tail -1) || true
 
     if [ -n "$rtime" ]; then
         fps=$(awk -v f="$FRAMES" -v r="$rtime" 'BEGIN { if (r > 0) printf "%.2f", f / r }')
-        [ -n "$fps" ] && echo "$fps"
     fi
+
+    if [ "$exit_code" -ne 0 ]; then
+        echo "$output" >&2
+        fps=""
+    fi
+
+    echo "$fps"
 }
 
 # check_result label fps baseline_fps: sets $STATUS/$PERCENT, sets SCRIPT_FAILED=1 on failure.
@@ -200,7 +229,7 @@ for test_case in "${MATRIX[@]}"; do
 
     # --- Decode ---
     if [ ! -s "$RAMDISK_JXS" ]; then
-        echo "ERROR: No bitstream produced by encode step, skipping decode. /dev/shm: $(df -h /dev/shm | awk 'NR==2')"
+        echo "ERROR: No bitstream produced by encode step, skipping decode. ramdisk: $(df -h "$RUN_DIR" | awk 'NR==2')"
         SCRIPT_FAILED=1
         echo "DECODE,$test_case,N/A,N/A,N/A,N/A,FAIL" >> "$CSV_FILE"
         rm -f "$RAMDISK_YUV" "$RAMDISK_JXS"
