@@ -8,7 +8,9 @@
  ***************************************/
 #include <stdlib.h>
 #include <assert.h>
+#include <errno.h>
 #include <inttypes.h>
+#include <string.h>
 #include "DecParamParser.h"
 #include "SemaphoreApp.h"
 #include "UtilityApp.h"
@@ -46,7 +48,7 @@ int32_t write_frame(svt_jpeg_xs_image_config_t* image_config, svt_jpeg_xs_image_
         uint32_t byte_size = image_config->components[c].byte_size;
         size_t ret = fwrite(image_buffer->data_yuv[c], 1, byte_size, f_out);
         if (ret != byte_size) {
-            fprintf(stderr, "error while writing to file!\n");
+            fprintf(stderr, "error while writing to file: %s\n", strerror(errno));
             return -1;
         }
 #endif
@@ -71,6 +73,7 @@ SvtJxsErrorType_t read_data_from_file(FILE* f, uint8_t* buf, size_t size) {
 #define DEC_INVALID_BITSTREAM  (2)
 #define DEC_CAN_NOT_DECODE     (3)
 #define DEC_INVALID_PARAMETER  (4)
+#define DEC_FILE_WRITE_ERROR   (5)
 
 static void* thread_send(void* arg) {
     DecoderConfig_t* config_dec = (DecoderConfig_t*)arg;
@@ -464,7 +467,11 @@ int32_t main(int32_t argc, char* argv[]) {
         frames_received++;
         if (ret == SvtJxsErrorNone) {
             if (config_dec.out_file != NULL) {
-                write_frame(&config_dec.image_config, &dec_output.image, config_dec.out_file);
+                if (write_frame(&config_dec.image_config, &dec_output.image, config_dec.out_file) != 0) {
+                    return_error = DEC_FILE_WRITE_ERROR;
+                    svt_jpeg_xs_frame_pool_release(config_dec.frame_pool, &dec_output);
+                    goto fail;
+                }
             }
             if (config_dec.decoder.verbose >= VERBOSE_INFO_MULTITHREADING) {
                 fprintf(stderr, "Release frame received_frame %lu\n", (unsigned long)frames_received);
@@ -533,7 +540,12 @@ fail:
     }
 
     if (config_dec.out_file) {
-        fclose(config_dec.out_file);
+        if (fclose(config_dec.out_file) != 0) {
+            fprintf(stderr, "---------Error closing output file: %s---------\n", strerror(errno));
+            if (return_error == SvtJxsErrorNone) {
+                return_error = DEC_FILE_WRITE_ERROR;
+            }
+        }
         config_dec.out_file = NULL;
     }
 
