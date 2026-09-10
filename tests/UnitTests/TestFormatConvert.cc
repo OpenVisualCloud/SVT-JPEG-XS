@@ -6,9 +6,12 @@
 #include "gtest/gtest.h"
 #include "random.h"
 #include "GcStageProcess.h"
+#include "encoder_dsp_rtcd.h"
+
+#ifdef ARCH_X86_64
 #include "RateControl_avx2.h"
 #include "Enc_avx512.h"
-#include "encoder_dsp_rtcd.h"
+#endif /* ARCH_X86_64 */
 
 void test_packed_to_planar_rgb_8bit(void (*test_fn)(const void*, void*, void*, void*, uint32_t)) {
     const uint32_t width_max = 1999;
@@ -55,15 +58,19 @@ void test_packed_to_planar_rgb_8bit(void (*test_fn)(const void*, void*, void*, v
     delete rnd;
 }
 
+#ifdef ARCH_X86_64
 TEST(test_packed_to_planar_rgb_8bit, AVX2) {
     test_packed_to_planar_rgb_8bit(convert_packed_to_planar_rgb_8bit_avx2);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(test_packed_to_planar_rgb_8bit, AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         test_packed_to_planar_rgb_8bit(convert_packed_to_planar_rgb_8bit_avx512);
     }
 }
+#endif /* ARCH_X86_64 */
 
 void test_packed_to_planar_rgb_16bit(void (*test_fn)(const void*, void*, void*, void*, uint32_t)) {
     const uint32_t width_max = 1999;
@@ -110,12 +117,16 @@ void test_packed_to_planar_rgb_16bit(void (*test_fn)(const void*, void*, void*, 
     delete rnd;
 }
 
+#ifdef ARCH_X86_64
 TEST(test_packed_to_planar_rgb_16bit, AVX2) {
     test_packed_to_planar_rgb_16bit(convert_packed_to_planar_rgb_16bit_avx2);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(test_packed_to_planar_rgb_16bit, AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         test_packed_to_planar_rgb_16bit(convert_packed_to_planar_rgb_16bit_avx512);
     }
 }
+#endif /* ARCH_X86_64 */

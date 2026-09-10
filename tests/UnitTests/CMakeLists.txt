@@ -5,7 +5,9 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-add_subdirectory(UnitTest_AVX512)
+if(ARCH_X86_64)
+    add_subdirectory(UnitTest_AVX512)
+endif()
 
 include_directories(
     ${gtest_SOURCE_DIR}/include
@@ -18,31 +20,29 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/Source/Lib/Common/ASM_AVX2
     ${PROJECT_SOURCE_DIR}/Source/Lib/Encoder/Codec
     ${PROJECT_SOURCE_DIR}/Source/Lib/Encoder/ASM_SSE4_1
+    ${PROJECT_SOURCE_DIR}/Source/Lib/Encoder/ASM_NEON
     ${PROJECT_SOURCE_DIR}/Source/Lib/Encoder/ASM_AVX2
     ${PROJECT_SOURCE_DIR}/Source/Lib/Encoder/ASM_AVX512
     ${PROJECT_SOURCE_DIR}/Source/Lib/Decoder/Codec/
     ${PROJECT_SOURCE_DIR}/Source/Lib/Decoder/ASM_AVX512/
     ${PROJECT_SOURCE_DIR}/Source/Lib/Decoder/ASM_AVX2/
     ${PROJECT_SOURCE_DIR}/Source/Lib/Decoder/ASM_SSE4_1/
+    ${PROJECT_SOURCE_DIR}/Source/Lib/Decoder/ASM_NEON/
 )
 
 #ALL LIBS
 set(lib_list_all
     $<TARGET_OBJECTS:COMMON_CODEC>
-    $<TARGET_OBJECTS:COMMON_ASM_SSE2>
-    $<TARGET_OBJECTS:COMMON_ASM_AVX2>
     $<TARGET_OBJECTS:ENCODER_CODEC>
-    $<TARGET_OBJECTS:ENCODER_ASM_SSE2>
-    $<TARGET_OBJECTS:ENCODER_ASM_SSE4_1>
-    $<TARGET_OBJECTS:ENCODER_ASM_AVX2>
-    $<TARGET_OBJECTS:ENCODER_ASM_AVX512>
     $<TARGET_OBJECTS:DECODER_CODEC>
-    $<TARGET_OBJECTS:DECODER_ASM_AVX512>
-    $<TARGET_OBJECTS:DECODER_ASM_AVX2>
-    $<TARGET_OBJECTS:DECODER_ASM_SSE4_1>
-    $<TARGET_OBJECTS:SvtJpegxsUnitTests_AVX512>
+    ${SVT_JXS_SIMD_OBJECTS_COMMON}
+    ${SVT_JXS_SIMD_OBJECTS_ENCODER}
+    ${SVT_JXS_SIMD_OBJECTS_DECODER}
     cpuinfo_public
     )
+if(ARCH_X86_64)
+    list(APPEND lib_list_all $<TARGET_OBJECTS:SvtJpegxsUnitTests_AVX512>)
+endif()
 
 #UT TESTS SOURCES
 file(GLOB all_files
@@ -50,10 +50,12 @@ file(GLOB all_files
     "*.cc"
     "*.cpp")
 
-check_both_flags_add(-mavx2)
+if(ARCH_X86_64)
+    check_both_flags_add(-mavx2)
 
-if(MSVC)
-    check_both_flags_add(/arch:AVX2)
+    if(MSVC)
+        check_both_flags_add(/arch:AVX2)
+    endif()
 endif()
 
 #UT MAIN
@@ -65,6 +67,9 @@ target_link_libraries(SvtJpegxsUnitTests PUBLIC
     gtest
     gtest_main)
 
-add_dependencies(SvtJpegxsUnitTests SvtJpegxsLib SvtJpegxsUnitTests_AVX512)
+add_dependencies(SvtJpegxsUnitTests SvtJpegxsLib)
+if(ARCH_X86_64)
+    add_dependencies(SvtJpegxsUnitTests SvtJpegxsUnitTests_AVX512)
+endif()
 
 add_test(SvtJpegxsUnitTests ${CMAKE_OUTPUT_DIRECTORY}/SvtJpegxsUnitTests)
