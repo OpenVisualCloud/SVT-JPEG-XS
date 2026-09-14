@@ -129,8 +129,13 @@ acquire_performance_governor() {
     # instead of world-writable. A pre-existing directory at this path is only trusted once its
     # ownership, permissions and type are all verified - mkdir -p succeeding on it proves nothing
     # by itself, since a hostile local user could have planted it (or a symlink) first.
-    mkdir -p "$GOV_LOCK_DIR" 2>/dev/null
-    chmod 0700 "$GOV_LOCK_DIR" 2>/dev/null
+    # || true on both: a failure here (this path already existing, root-owned, from an older
+    # version of this script that used sudo mkdir/chmod 1777, is exactly the case that bit us)
+    # must fall through to the verification below instead of killing the whole calling script
+    # outright under set -e - stderr is discarded on both, so an unguarded failure here would be
+    # silent too, with nothing printed to explain why the script just died.
+    mkdir -p "$GOV_LOCK_DIR" 2>/dev/null || true
+    chmod 0700 "$GOV_LOCK_DIR" 2>/dev/null || true
     if [ ! -d "$GOV_LOCK_DIR" ] || [ -L "$GOV_LOCK_DIR" ] ||
         [ "$(stat -c '%u' "$GOV_LOCK_DIR" 2>/dev/null)" != "$(id -u)" ] ||
         [ "$(stat -c '%a' "$GOV_LOCK_DIR" 2>/dev/null)" != "700" ]; then
