@@ -12,10 +12,25 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FFMPEG_BIN="ffmpeg"
 SAMPLES_DIR="${1:-$SCRIPT_DIR/../../Conformance-tests}"
 CSV_FILE="$SCRIPT_DIR/ffmpeg_results.csv"
-NUMA_NODE=1
+# Node 1 is what the dual-socket CI runner is calibrated against; a single-node host (no node1
+# under sysfs) has nothing to bind to there, so fall back to node 0.
+if [ -d /sys/devices/system/node/node1 ]; then
+    NUMA_NODE=1
+else
+    NUMA_NODE=0
+fi
 FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
+
+# Pin the CPU frequency governor to 'performance' for this run and restore it on exit; see
+# perf_governor.sh for why this needs a refcount instead of a plain save/restore.
+source "$SCRIPT_DIR/perf_governor.sh"
+acquire_performance_governor
+# Installed right after acquiring, not after the ramdisk mount below: a failed mkdir/mount under
+# set -e would otherwise exit with no trap installed yet, leaking the governor pin and refcount.
+# $RAMDISK_MOUNT is empty until assigned below - harmless, the guarded umount/rmdir just no-op.
+trap 'release_performance_governor; sudo umount "$RAMDISK_MOUNT" 2>/dev/null || sudo umount -l "$RAMDISK_MOUNT" 2>/dev/null; sudo rmdir "$RAMDISK_MOUNT" 2>/dev/null' EXIT
 
 # Use a dedicated tmpfs mount instead of a directory under the shared /dev/shm. /dev/shm is
 # machine-wide on this self-hosted runner, and PerformanceTestSampleApp.sh/PerformanceTestGstreamer.sh
@@ -44,7 +59,6 @@ done < <(mount | awk '$3 ~ /^\/mnt\/svt_jpegxs_perf_ffmpeg_ramdisk_/ {print $3}'
 # further than this.
 sudo mkdir -p "$RAMDISK_MOUNT"
 sudo mount -t tmpfs -o size=3G,mode=1777 tmpfs "$RAMDISK_MOUNT"
-trap 'sudo umount "$RAMDISK_MOUNT" 2>/dev/null || sudo umount -l "$RAMDISK_MOUNT" 2>/dev/null; sudo rmdir "$RAMDISK_MOUNT" 2>/dev/null' EXIT
 
 RUN_DIR="$RAMDISK_MOUNT"
 RAMDISK_YUV=$(mktemp --suffix=.yuv "$RUN_DIR/test_stream_ffmpeg_XXXXXX")
