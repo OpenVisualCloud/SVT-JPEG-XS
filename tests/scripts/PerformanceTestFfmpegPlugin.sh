@@ -27,6 +27,7 @@ SCRIPT_FAILED=0             # set by check_result() on any failure
 # perf_governor.sh for why this needs a refcount instead of a plain save/restore.
 source "$SCRIPT_DIR/perf_governor.sh"
 acquire_performance_governor
+echo "governor acquired"
 # Installed right after acquiring, not after the ramdisk mount below: a failed mkdir/mount under
 # set -e would otherwise exit with no trap installed yet, leaking the governor pin and refcount.
 # $RAMDISK_MOUNT is empty until assigned below - harmless, the guarded umount/rmdir just no-op.
@@ -50,7 +51,8 @@ while read -r stale_mount; do
         sudo umount "$stale_mount" 2>/dev/null || true
         sudo rmdir "$stale_mount" 2>/dev/null || true
     fi
-done < <(mount | awk '$3 ~ /^\/mnt\/svt_jpegxs_perf_ffmpeg_ramdisk_/ {print $3}')
+done < <(mount | awk '$3 ~ /^\/mnt\/svt_jpegxs_perf_ffmpeg_ramdisk_/ {print $3}') || true
+echo "stale mount cleanup done"
 
 # 3G: RAMDISK_YUV/RAMDISK_JXS are fixed paths overwritten every iteration and cleared once no
 # longer needed (see the loop below), so the real peak is one row's worth: the largest MATRIX row
@@ -59,12 +61,14 @@ done < <(mount | awk '$3 ~ /^\/mnt\/svt_jpegxs_perf_ffmpeg_ramdisk_/ {print $3}'
 # further than this.
 sudo mkdir -p "$RAMDISK_MOUNT"
 sudo mount -t tmpfs -o size=3G,mode=1777 tmpfs "$RAMDISK_MOUNT"
+echo "ramdisk mounted at $RAMDISK_MOUNT"
 
 RUN_DIR="$RAMDISK_MOUNT"
 RAMDISK_YUV=$(mktemp --suffix=.yuv "$RUN_DIR/test_stream_ffmpeg_XXXXXX")
 RAMDISK_JXS=$(mktemp --suffix=.jxs "$RUN_DIR/test_stream_ffmpeg_XXXXXX")
 SYNTH_YUVA422=$(mktemp --suffix=.yuv "$RUN_DIR/synth_yuva422_ffmpeg_XXXXXX")
 SYNTH_YUVA444=$(mktemp --suffix=.yuv "$RUN_DIR/synth_yuva444_ffmpeg_XXXXXX")
+echo "mktemp scratch files created on ramdisk"
 
 # No real 4-component (alpha) sample YUV exists in $SAMPLES_DIR. Synthesize a single-frame fixture
 # (ffmpeg's -stream_loop -1 below repeats it to reach $FRAMES) from the existing 1080p 8bit yuv422
@@ -89,11 +93,13 @@ if [ -f "$SYNTH_SRC" ]; then
         exit 1
     fi
 fi
+echo "synth YUVA files ready"
 
 # Ensure CSV header exists. TestCase is the matching MATRIX line below.
 if [ ! -f "$CSV_FILE" ]; then
     echo "Operation,TestCase,Command,Result_FPS,Target_FPS,Percent_Of_Target,Status" > "$CSV_FILE"
 fi
+echo "CSV ready, entering test matrix loop"
 
 # Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS|ExtraEncArgs(optional)|ExtraDecArgs(optional)
 MATRIX=(
@@ -204,8 +210,12 @@ function check_result() {
     fi
 }
 
+MATRIX_TOTAL=${#MATRIX[@]}
+MATRIX_INDEX=0
 for test_case in "${MATRIX[@]}"; do
+    MATRIX_INDEX=$((MATRIX_INDEX + 1))
     IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
+    echo "$MATRIX_INDEX/$MATRIX_TOTAL:"
 
     case "$file" in
         SYNTH)
