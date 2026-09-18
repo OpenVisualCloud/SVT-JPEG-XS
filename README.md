@@ -62,6 +62,18 @@ Supported OS versions:
   - `cd Build/linux`
   - `./build.sh <release | debug>`
 
+- __Build options__
+  - Link-Time Optimization (LTO) is on by default for Release builds; disable with `./build.sh release --lto=off`
+  - Profile-Guided Optimization (PGO) is off by default; enable with `./build.sh release --pgo=on` (Release builds only, requires the apps to be built to train against)
+    - Training data: seed stills committed under `Build/linux/PGO/` (one single frame per
+      resolution/bit-depth/colour-format combination) are each repeated to a short multi-frame clip,
+      encoded, and the encoder's own output is immediately decoded - this self-contained
+      encode-then-decode pass needs nothing beyond a plain `git clone` and is what every build trains on
+    - If a `test_bitsreams/` conformance corpus is present under the samples root passed to RunPGO, an
+      additional decode-only pass also runs over it for extra profile/level/format coverage the seed
+      stills don't reach - this is a separate, optional addition, skipped gracefully (no error) when
+      that corpus isn't available
+
 - __Binaries and libraries location__
   - Binaries can be found under `Bin/Release` and/or `Bin/Debug`
 

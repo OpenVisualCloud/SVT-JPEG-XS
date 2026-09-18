@@ -30,6 +30,7 @@ SCRIPT_FAILED=0             # set by check_result() on any failure
 # perf_governor.sh for why this needs a refcount instead of a plain save/restore.
 source "$SCRIPT_DIR/perf_governor.sh"
 acquire_performance_governor
+echo "governor acquired"
 # Installed right after acquiring, not after the ramdisk mount below: a failed mkdir/mount under
 # set -e would otherwise exit with no trap installed yet, leaking the governor pin and refcount.
 # $RAMDISK_MOUNT is empty until assigned below - harmless, the guarded umount/rmdir just no-op.
@@ -53,7 +54,8 @@ while read -r stale_mount; do
         sudo umount "$stale_mount" 2>/dev/null || true
         sudo rmdir "$stale_mount" 2>/dev/null || true
     fi
-done < <(mount | awk '$3 ~ /^\/mnt\/svt_jpegxs_perf_gst_ramdisk_/ {print $3}')
+done < <(mount | awk '$3 ~ /^\/mnt\/svt_jpegxs_perf_gst_ramdisk_/ {print $3}') || true
+echo "stale mount cleanup done"
 
 # 3G (matching the other two performance scripts): RAMDISK_JXS is reassigned to a fresh mktemp
 # path each iteration below (GStreamer's filesink needs a name it can create/open itself), but
@@ -62,15 +64,18 @@ done < <(mount | awk '$3 ~ /^\/mnt\/svt_jpegxs_perf_gst_ramdisk_/ {print $3}')
 # 1920*1080*3/8 bytes) plus the small raw YUV input, comfortably under this.
 sudo mkdir -p "$RAMDISK_MOUNT"
 sudo mount -t tmpfs -o size=3G,mode=1777 tmpfs "$RAMDISK_MOUNT"
+echo "ramdisk mounted at $RAMDISK_MOUNT"
 
 RUN_DIR="$RAMDISK_MOUNT"
 RAMDISK_YUV=$(mktemp --suffix=.yuv "$RUN_DIR/test_stream_gst_XXXXXX")
 RAMDISK_JXS=$(mktemp --suffix=.jxs "$RUN_DIR/test_stream_gst_XXXXXX")
+echo "mktemp scratch files created on ramdisk"
 
 # Ensure CSV header exists. TestCase is the matching MATRIX line below.
 if [ ! -f "$CSV_FILE" ]; then
     echo "Operation,TestCase,Command,Result_FPS,Target_FPS,Percent_Of_Target,Status" > "$CSV_FILE"
 fi
+echo "CSV ready, entering test matrix loop"
 
 # Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS
 MATRIX=(
@@ -174,8 +179,12 @@ function measure_fps() {
         'BEGIN { elapsed = (e - s) / 1e9; if (elapsed > 0) printf "%.2f", f / elapsed }'
 }
 
+MATRIX_TOTAL=${#MATRIX[@]}
+MATRIX_INDEX=0
 for test_case in "${MATRIX[@]}"; do
+    MATRIX_INDEX=$((MATRIX_INDEX + 1))
     IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps <<< "$test_case"
+    echo "$MATRIX_INDEX/$MATRIX_TOTAL:"
     source_path="$SAMPLES_DIR/$file"
 
     if [ ! -f "$source_path" ]; then

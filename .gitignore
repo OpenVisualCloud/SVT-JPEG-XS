@@ -18,3 +18,10 @@ Build/coverage_linux/*
 .vscode/
 .github/skills/
 .github/instructions/
+
+# PGO helper script and its training seed frames (single frame per config, concatenated at
+# RunPGO time into the multi-frame input EncApp trains on). Committed on purpose, overrides the
+# Build/linux/* and *.yuv rules above.
+!Build/linux/PGO/
+!Build/linux/PGO/*.yuv
+!Build/linux/PGO/*.cmake

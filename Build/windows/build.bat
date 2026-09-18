@@ -145,7 +145,14 @@ if -%1-==-- (
     set "build=n"
     shift
 ) else if /I "%1"=="lto" (
-    set "cmake_eflags=%cmake_eflags% -DSVT_AV1_LTO=ON"
+    set "cmake_eflags=%cmake_eflags% -DJPEGXS_LTO=ON"
+    shift
+) else if /I "%1"=="nolto" (
+    set "cmake_eflags=%cmake_eflags% -DJPEGXS_LTO=OFF"
+    shift
+) else if /I "%1"=="pgo" (
+    echo PGO is not supported for MSVC builds - CMakeLists.txt forces JPEGXS_PGO off for MSVC.
+    echo For PGO on Windows, build with MinGW-w64 GCC under MSYS2 via Build/linux/build.sh instead.
     shift
 )  else (
     echo Unknown argument "%1"
@@ -155,7 +162,7 @@ if -%1-==-- (
 goto :args
 
 :help
-    echo Batch file to build SVT-AV1 on Windows
-    echo Usage: build.bat [2022^|2019^|2017^|2015^|clean] [release^|debug] [nobuild] [test] [shared^|static] [c-only]
+    echo Batch file to build SVT-JPEG-XS on Windows
+    echo Usage: build.bat [2022^|2019^|2017^|2015^|clean] [release^|debug] [nobuild] [test] [shared^|static] [lto^|nolto] [pgo]
     exit /b 1
 goto :EOF

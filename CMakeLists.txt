@@ -141,7 +141,59 @@ option(BUILD_SHARED_LIBS "Build shared libraries (DLLs)." ON)
 message(STATUS "BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
 
 option(COVERAGE "Generate coverage report")
+if(NOT MSVC)
+    option(JPEGXS_PGO "Enable profile guided optimization. Creates the RunPGO and CompilePGO targets")
+    # options for internal use
+    option(JPEGXS_INTERNAL_PGO_GENERATE "Generate a profile guided optimization profile")
+    option(JPEGXS_INTERNAL_PGO_USE "Use a profile for profile guided optimization")
+    mark_as_advanced(JPEGXS_INTERNAL_PGO_GENERATE JPEGXS_INTERNAL_PGO_USE)
+    set(JPEGXS_PGO_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "Path to the directory passed to -fprofile-dir for use with profile guided optimization")
+    set(JPEGXS_PGO_SAMPLES_DIR "" CACHE PATH "Path to the samples root (containing encoder_tests/, reference_decode/, test_bitsreams/) to run PGO training on instead of the default corpus")
+else()
+    set(JPEGXS_PGO OFF)
+endif()
 option(BUILD_APPS "Build Enc and Dec Apps" ON)
+if(JPEGXS_PGO AND NOT BUILD_APPS)
+    message(WARNING "PGO needs the apps to train on - disabling JPEGXS_PGO since BUILD_APPS is off.")
+    set(JPEGXS_PGO OFF)
+endif()
+
+# PGO defaults on (see build.sh), so a missing llvm-profdata shouldn't be a hard configure
+# failure - fall back through the versioned binary name every distro actually ships (matching
+# the installed Clang's own major version, e.g. llvm-profdata-21 alongside clang-21) before
+# giving up and just disabling PGO instead of failing the whole configure over a tool most
+# people never asked for by name.
+if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND JPEGXS_PGO)
+    find_program(LLVM_PROFDATA llvm-profdata)
+    if(NOT LLVM_PROFDATA)
+        string(REGEX MATCH "^[0-9]+" clang_major_version "${CMAKE_C_COMPILER_VERSION}")
+        find_program(LLVM_PROFDATA "llvm-profdata-${clang_major_version}")
+    endif()
+    if(NOT LLVM_PROFDATA)
+        message(WARNING "Neither llvm-profdata nor llvm-profdata-${clang_major_version} found - disabling JPEGXS_PGO.")
+        set(JPEGXS_PGO OFF)
+    endif()
+endif()
+
+if(JPEGXS_INTERNAL_PGO_USE)
+    set(PGO_COMPILER_FLAGS "-fprofile-use=${JPEGXS_PGO_DIR}")
+    set(PGO_LINKER_FLAGS "-fprofile-use=${JPEGXS_PGO_DIR}")
+    if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+        # We want unprofiled code optimised for speed, not size, so we mark the profiling data as "partial".
+        set(PGO_COMPILER_FLAGS "${PGO_COMPILER_FLAGS} -fprofile-correction -fprofile-partial-training")
+        set(PGO_LINKER_FLAGS "${PGO_LINKER_FLAGS} -fprofile-correction -fprofile-partial-training")
+        # -fprofile-use is applied via CMAKE_C_FLAGS/CMAKE_CXX_FLAGS below, i.e. to every target in
+        # the project, but RunPGO only ever trains SvtJpegxsEncApp/SvtJpegxsDecApp - anything else
+        # that gets built afterwards under this same configure (SampleEncoder/SampleDecoder, unit
+        # tests) has no matching .gcda. GCC's -Wmissing-profile then turns that into a hard
+        # -Werror failure instead of the intended fallback to non-profile-guided compilation for
+        # that one translation unit - downgrade it back to a (harmless) warning.
+        set(PGO_COMPILER_FLAGS "${PGO_COMPILER_FLAGS} -Wno-error=missing-profile")
+    endif()
+elseif(JPEGXS_INTERNAL_PGO_GENERATE)
+    set(PGO_COMPILER_FLAGS "-fprofile-generate=${JPEGXS_PGO_DIR}")
+    set(PGO_LINKER_FLAGS "-fprofile-generate=${JPEGXS_PGO_DIR}")
+endif()
 
 if(ARCH_X86_64)
     if(WIN32)
@@ -212,6 +264,28 @@ macro(check_both_flags_add)
     check_flags_add(CXX "${ARGV}")
 endmacro()
 
+if((CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "9.0") OR
+   (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "12.0") OR
+   MSVC)
+    option(JPEGXS_LTO "Attempt to enable Link Time Optimization if available" ON)
+else()
+    option(JPEGXS_LTO "Attempt to enable Link Time Optimization if available" OFF)
+endif()
+if(JPEGXS_LTO)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT jpegxs_ipo_supported OUTPUT jpegxs_ipo_error)
+    if(jpegxs_ipo_supported AND NOT DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+        message(STATUS "LTO/IPO: enabled (${CMAKE_C_COMPILER_ID})")
+    elseif(jpegxs_ipo_supported)
+        message(STATUS "LTO/IPO: supported, but CMAKE_INTERPROCEDURAL_OPTIMIZATION was already set to ${CMAKE_INTERPROCEDURAL_OPTIMIZATION} - leaving it alone")
+    else()
+        message(STATUS "LTO/IPO: not supported by this compiler/generator - ${jpegxs_ipo_error}")
+    endif()
+else()
+    message(STATUS "LTO/IPO: disabled (JPEGXS_LTO=OFF)")
+endif()
+
 check_both_flags_add(PREPEND -Wextra -Wformat -Wformat-security)
 
 if(MSVC)
@@ -220,7 +294,6 @@ if(MSVC)
     check_both_flags_add(TYPE DEBUG /Od)
 else()
     check_both_flags_add(PREPEND -Wall)
-    check_both_flags_add(-flto)
     option(NATIVE "Build for native performance (march=native)")
     if(NATIVE)
         check_both_flags_add(-march=native)
@@ -358,14 +431,46 @@ if(NOT IS_ABSOLUTE "${SVT_JPEGXS_LIBDIR}")
 endif()
 
 # Add Subdirectories
+
+# PGO only ever instruments/trains SvtJpegxsLib + SvtJpegxsEncApp/SvtJpegxsDecApp (that's the
+# scope RunPGO's PGOCompileGen/PGOCompileUse rebuild), so the -fprofile-generate/-fprofile-use
+# flags are applied bracketing just those add_subdirectory() calls, not globally - otherwise every
+# target added afterwards (SampleEncoder/SampleDecoder, unit tests, third_party) would compile
+# under -fprofile-use with no matching profile at all, tripping a -Wmissing-profile warning on
+# every single file for a profile they were never meant to have in the first place.
+if(JPEGXS_PGO)
+    set(JPEGXS_PRE_PGO_C_FLAGS "${CMAKE_C_FLAGS}")
+    set(JPEGXS_PRE_PGO_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    set(JPEGXS_PRE_PGO_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+    set(JPEGXS_PRE_PGO_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+    set(JPEGXS_PRE_PGO_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PGO_COMPILER_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PGO_COMPILER_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PGO_LINKER_FLAGS}")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${PGO_LINKER_FLAGS}")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${PGO_LINKER_FLAGS}")
+endif()
+
 add_subdirectory(Source/Lib)
 
 if(BUILD_APPS)
     add_subdirectory(Source/App/DecApp)
     add_subdirectory(Source/App/EncApp)
+
+    if(JPEGXS_PGO)
+        set(CMAKE_C_FLAGS "${JPEGXS_PRE_PGO_C_FLAGS}")
+        set(CMAKE_CXX_FLAGS "${JPEGXS_PRE_PGO_CXX_FLAGS}")
+        set(CMAKE_EXE_LINKER_FLAGS "${JPEGXS_PRE_PGO_EXE_LINKER_FLAGS}")
+        set(CMAKE_SHARED_LINKER_FLAGS "${JPEGXS_PRE_PGO_SHARED_LINKER_FLAGS}")
+        set(CMAKE_MODULE_LINKER_FLAGS "${JPEGXS_PRE_PGO_MODULE_LINKER_FLAGS}")
+    endif()
+
     add_subdirectory(Source/App/SampleEncoder)
     add_subdirectory(Source/App/SampleDecoder)
 endif()
+# JPEGXS_PGO AND NOT BUILD_APPS is already disabled earlier (PGO needs the apps to train on), so
+# there's no case where the flags applied above for Source/Lib need restoring outside the
+# BUILD_APPS branch.
 
 if(BUILD_TESTING)
     include(CTest)
@@ -380,5 +485,62 @@ if(BUILD_TESTING)
 endif()
 
 add_subdirectory(third_party/cpuinfo)
+
+if(JPEGXS_PGO)
+    set(JPEGXS_PGO_SAMPLES_DIR_RESOLVED "${JPEGXS_PGO_SAMPLES_DIR}")
+    if(NOT JPEGXS_PGO_SAMPLES_DIR_RESOLVED)
+        set(JPEGXS_PGO_SAMPLES_DIR_RESOLVED "/opt/samples")
+    endif()
+
+    add_custom_target(PGOCompileGen
+        ${CMAKE_COMMAND} ${CMAKE_BINARY_DIR} -DJPEGXS_INTERNAL_PGO_GENERATE=ON -DJPEGXS_INTERNAL_PGO_USE=OFF
+        COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}
+        --clean-first
+        --target SvtJpegxsEncApp --target SvtJpegxsDecApp
+        COMMENT "Compiling with PGO generate"
+        VERBATIM
+        USES_TERMINAL
+    )
+
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+        # We want unprofiled code optimised for speed, not size, so we mark the profiling data as "sparse".
+        set(PROFILE_MERGE_CMD sh -c "${LLVM_PROFDATA} merge --sparse=true *.profraw -o default.profdata")
+    else()
+        # Do nothing. GCC has no profile merging step.
+        set(PROFILE_MERGE_CMD)
+    endif()
+
+    add_custom_target(PGOCompileUse
+        ${CMAKE_COMMAND} ${CMAKE_BINARY_DIR} -DJPEGXS_INTERNAL_PGO_GENERATE=OFF -DJPEGXS_INTERNAL_PGO_USE=ON
+        COMMAND ${PROFILE_MERGE_CMD}
+        COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}
+        --clean-first
+        --target SvtJpegxsEncApp --target SvtJpegxsDecApp
+        COMMENT "Compiling PGO use"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+        USES_TERMINAL
+    )
+
+    add_custom_target(PGOGenerateProfile ${CMAKE_COMMAND} -P
+        ${PROJECT_SOURCE_DIR}/Build/linux/PGO/pgohelper.cmake
+        ${CMAKE_BINARY_DIR}
+        ${JPEGXS_PGO_SAMPLES_DIR_RESOLVED}
+        $<TARGET_FILE:SvtJpegxsEncApp>
+        $<TARGET_FILE:SvtJpegxsDecApp>
+        COMMENT "Generating PGO profile"
+        VERBATIM
+        USES_TERMINAL
+    )
+
+    add_custom_target(RunPGO
+        ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --config $<CONFIG> --target PGOCompileGen
+        COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --config $<CONFIG> --target PGOGenerateProfile
+        COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --config $<CONFIG> --target PGOCompileUse
+        COMMENT "Compiling PGO Binary"
+        VERBATIM
+        USES_TERMINAL
+    )
+endif()
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/Source/API/ DESTINATION "${CMAKE_INSTALL_FULL_INCLUDEDIR}/svt-jpegxs" FILES_MATCHING PATTERN "*.h")

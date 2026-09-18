@@ -81,7 +81,7 @@ prune_dead_governor_holders() {
         [ "$line" = "$self_id" ] && continue
         governor_holder_alive "$line" && GOV_LIVE_HOLDERS="$GOV_LIVE_HOLDERS$line
 "
-    done < "$GOV_HOLDERS_FILE"
+    done < "$GOV_HOLDERS_FILE" || true
 }
 
 # Every pathname read back out of GOV_SAVE_FILE goes through this before it's ever handed to
@@ -109,21 +109,24 @@ unwind_governor_pin() {
             is_governor_sysfs_path "$rf" || continue
             printf '%s\n' "$rg" | sudo tee "$rf" > /dev/null 2>&1 ||
                 echo "WARN: failed to unwind $rf back to '$rg'" >&2
-        done < "$GOV_SAVE_FILE"
+        done < "$GOV_SAVE_FILE" || true
         rm -f "$GOV_SAVE_FILE"
     fi
 }
 
 acquire_performance_governor() {
+    echo "gov: entered acquire_performance_governor"
     local gov_files=(/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_governor)
     if [ ! -e "${gov_files[0]}" ]; then
         echo "INFO: no cpufreq scaling_governor sysfs interface found - skipping governor pinning"
         return 0
     fi
+    echo "gov: sysfs interface found"
     if ! grep -qw performance /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors 2>/dev/null; then
         echo "INFO: 'performance' governor not available on this host - leaving governor as-is"
         return 0
     fi
+    echo "gov: performance governor available"
     # No sudo here on purpose: this directory only ever needs to be read/written by the user
     # running these scripts (always the same CI account), never by root, so it can be private
     # instead of world-writable. A pre-existing directory at this path is only trusted once its
@@ -136,12 +139,14 @@ acquire_performance_governor() {
     # silent too, with nothing printed to explain why the script just died.
     mkdir -p "$GOV_LOCK_DIR" 2>/dev/null || true
     chmod 0700 "$GOV_LOCK_DIR" 2>/dev/null || true
+    echo "gov: lock dir mkdir/chmod attempted ($GOV_LOCK_DIR)"
     if [ ! -d "$GOV_LOCK_DIR" ] || [ -L "$GOV_LOCK_DIR" ] ||
         [ "$(stat -c '%u' "$GOV_LOCK_DIR" 2>/dev/null)" != "$(id -u)" ] ||
         [ "$(stat -c '%a' "$GOV_LOCK_DIR" 2>/dev/null)" != "700" ]; then
         echo "WARN: $GOV_LOCK_DIR is not a private directory this user owns - skipping governor pinning" >&2
         return 0
     fi
+    echo "gov: lock dir ownership/perms verified"
     local self_id
     # No sentinel fallback here: a made-up value like "$$:0" could never be recognized as alive
     # by governor_holder_alive re-deriving the real starttime later, so a value this call goes on
@@ -152,10 +157,14 @@ acquire_performance_governor() {
         echo "WARN: could not determine this process's own identity - skipping governor pinning" >&2
         return 0
     }
+    echo "gov: self_id=$self_id, about to enter flock subshell"
     local was_first_holder=0
     (
+        echo "gov: entered subshell, about to flock"
         flock -x 200
+        echo "gov: flock acquired"
         prune_dead_governor_holders "$self_id"
+        echo "gov: pruned dead holders, live=[$GOV_LIVE_HOLDERS]"
         if [ -z "$GOV_LIVE_HOLDERS" ]; then
             # No live holder left standing under the lock - either the true first caller, or the
             # only trace of a killed one. Either way this call now owns pinning it, but only
@@ -227,6 +236,7 @@ acquire_performance_governor() {
                 { holders_write_ok=1; break; }
             sleep 0.2
         done
+        echo "gov: holders file write attempted, ok=$holders_write_ok"
         if [ "$holders_write_ok" -ne 1 ]; then
             echo "WARN: failed to record this run as a governor holder after retries - not pinning for this run" >&2
             # Only ours to unwind if this call is the one that actually pinned: if it only joined
@@ -237,7 +247,9 @@ acquire_performance_governor() {
         fi
         exit 0
     ) 200>"$GOV_LOCK_FILE"
-    [ $? -eq 0 ] && GOV_ACQUIRED=1
+    local subshell_rc=$?
+    echo "gov: subshell exited with rc=$subshell_rc"
+    [ "$subshell_rc" -eq 0 ] && GOV_ACQUIRED=1
     return 0
 }
 
@@ -265,7 +277,7 @@ release_performance_governor() {
                     is_governor_sysfs_path "$f" || continue
                     printf '%s\n' "$orig_gov" | sudo tee "$f" > /dev/null 2>&1 ||
                         echo "WARN: failed to restore $f back to '$orig_gov'" >&2
-                done < "$GOV_SAVE_FILE"
+                done < "$GOV_SAVE_FILE" || true
                 rm -f "$GOV_SAVE_FILE"
                 echo "INFO: CPU governor restored to its original state (last live holder)"
             fi
