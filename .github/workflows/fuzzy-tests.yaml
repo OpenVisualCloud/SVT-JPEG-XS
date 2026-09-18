@@ -1,9 +1,7 @@
 name: Fuzzy Tests
 
 on:
-  workflow_run:
-    workflows: ["Base Build"]
-    types: [completed]
+  workflow_call:
   workflow_dispatch:
     inputs:
       branch:
@@ -23,14 +21,12 @@ defaults:
 
 permissions:
   contents: read
-  actions: read
 
 env:
   JOBS_NUM: 100
   TIMEOUT_SECONDS: ${{ inputs.timeout || 60 }}
 jobs:
   build-lib:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
     steps:
     - name: 'Harden Runner'
@@ -41,8 +37,7 @@ jobs:
     - name: 'Checkout repository'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
-        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
-        allow-unsafe-pr-checkout: true
+        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.sha }}
 
     - name: 'Setup:  Install dependencies'
       run: |
@@ -61,8 +56,6 @@ jobs:
       with:
         name: linux-svtjpegxs-install
         path: install-dir
-        run-id: ${{ github.event.workflow_run.id }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: 'Build: SVT-JPEG-XS once, reused by decoder+encoder fuzzer jobs (skipped if reused from Base Build)'
       working-directory: Build/linux
@@ -93,8 +86,7 @@ jobs:
     - name: 'Checkout repository'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
-        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
-        allow-unsafe-pr-checkout: true
+        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.sha }}
 
     - name: 'Setup:  Install dependencies'
       run: |
@@ -141,8 +133,7 @@ jobs:
     - name: 'Checkout repository'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
-        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.workflow_run.head_sha || github.sha }}
-        allow-unsafe-pr-checkout: true
+        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.sha }}
 
     - name: 'Setup:  Install dependencies'
       run: |

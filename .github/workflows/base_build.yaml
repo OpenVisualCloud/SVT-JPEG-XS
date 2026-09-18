@@ -79,7 +79,7 @@ jobs:
           tests/scripts/parrallelUT.sh
           tests/scripts/
 
-    - name: "Archive: upload installed svt-jpegxs tree (fixed name, consumed cross-workflow via workflow_run)"
+    - name: "Archive: upload installed svt-jpegxs tree (fixed name, consumed by the ffmpeg/gstreamer/fuzzy/oomify reusable workflows below)"
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: linux-svtjpegxs-install
@@ -365,6 +365,48 @@ jobs:
         path: |
           Bin/
           tests/scripts/parrallelUT.sh
+
+  # ---------------------------------------------------------------------------------------------
+  # Called as reusable workflows (not workflow_run) so they show up as normal checks on the PR
+  # instead of only in the Actions tab. ffmpeg-plugin-build/gstreamer-plugin-build/oomify-tests each
+  # still have their own path filter (changes job inside the called workflow) and may run even if
+  # linux-build was skipped, since they watch different paths; fuzzy-tests has no path filter of
+  # its own and always runs. All 4 are blocked here only if linux-build or one of the Linux
+  # correctness jobs that validate its output actually failed (skipped doesn't count as failed, so
+  # the path-filter decoupling above still works) - windows-build/windows-unit-tests/
+  # performance-tests are intentionally not part of this gate: they don't validate the Linux
+  # artifact these 4 workflows consume.
+  # ---------------------------------------------------------------------------------------------
+  ffmpeg-plugin-build:
+    needs: [linux-build, linux-unit-tests-release, linux-unit-tests-debug, linux-unit-tests-valgrind, linux-conformance-tests]
+    if: ${{ always() && needs.linux-build.result != 'failure' && needs.linux-unit-tests-release.result != 'failure' && needs.linux-unit-tests-debug.result != 'failure' && needs.linux-unit-tests-valgrind.result != 'failure' && needs.linux-conformance-tests.result != 'failure' }}
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/ffmpeg_plugin_build.yaml
+
+  gstreamer-plugin-build:
+    needs: [linux-build, linux-unit-tests-release, linux-unit-tests-debug, linux-unit-tests-valgrind, linux-conformance-tests]
+    if: ${{ always() && needs.linux-build.result != 'failure' && needs.linux-unit-tests-release.result != 'failure' && needs.linux-unit-tests-debug.result != 'failure' && needs.linux-unit-tests-valgrind.result != 'failure' && needs.linux-conformance-tests.result != 'failure' }}
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/gstreamer_plugin_build.yaml
+
+  oomify-tests:
+    needs: [linux-build, linux-unit-tests-release, linux-unit-tests-debug, linux-unit-tests-valgrind, linux-conformance-tests]
+    if: ${{ always() && needs.linux-build.result != 'failure' && needs.linux-unit-tests-release.result != 'failure' && needs.linux-unit-tests-debug.result != 'failure' && needs.linux-unit-tests-valgrind.result != 'failure' && needs.linux-conformance-tests.result != 'failure' }}
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/oomify_tests.yaml
+
+  fuzzy-tests:
+    needs: [linux-build, linux-unit-tests-release, linux-unit-tests-debug, linux-unit-tests-valgrind, linux-conformance-tests]
+    if: ${{ always() && needs.linux-build.result != 'failure' && needs.linux-unit-tests-release.result != 'failure' && needs.linux-unit-tests-debug.result != 'failure' && needs.linux-unit-tests-valgrind.result != 'failure' && needs.linux-conformance-tests.result != 'failure' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/fuzzy-tests.yaml
 
   windows-unit-tests:
     needs: windows-build

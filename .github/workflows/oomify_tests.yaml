@@ -1,9 +1,11 @@
 name: OOMify Tests
 
 on:
-  workflow_run:
-    workflows: ["Base Build"]
-    types: [completed]
+  workflow_call:
+    inputs:
+      force:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       force:
@@ -17,32 +19,26 @@ defaults:
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha || github.sha }}
+  group: oomify-tests-${{ github.event_name }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
   changes:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
     outputs:
       # 'force' is a workflow_dispatch checkbox that skips the path filter. dispatch
       # inputs arrive as strings, so compare against 'true' rather than the boolean.
-      changed: ${{ steps.filter.outputs.oomify_tests == 'true' || github.event.inputs.force == 'true' }}
+      changed: ${{ steps.filter.outputs.oomify_tests == 'true' || inputs.force == 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          allow-unsafe-pr-checkout: true
 
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           filters: .github/config/path_filters.yaml
 
   oomify-tests:
@@ -59,9 +55,6 @@ jobs:
 
     - name: 'Checkout repository'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-        allow-unsafe-pr-checkout: true
 
     - name: 'Fix workspace permissions'
       run: |
@@ -79,8 +72,6 @@ jobs:
       with:
         name: linux-svtjpegxs-install
         path: install-dir
-        run-id: ${{ github.event.workflow_run.id }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: 'Build: SVT-JPEG-XS release (skipped when Base Build artifact is reused)'
       working-directory: Build/linux
