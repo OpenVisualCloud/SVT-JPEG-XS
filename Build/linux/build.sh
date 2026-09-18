@@ -68,8 +68,14 @@ Usage: $0 [OPTION] ... -- [OPTIONS FOR CMAKE]
 -g, --gen, gen=*        Set CMake generator
 -i, --install, install  Install build [Default release]
 -j, --jobs, jobs=*      Set number of jobs for make/CMake [$jobs]
+    --lto, lto=*        Enable/disable link-time optimization [on] (on|off)
     --no-app, no-app    Don't build the encoder and decoder applications
+                        (also disables pgo - it needs the apps to train on)
 -p, --prefix, prefix=*  Set installation prefix
+    --pgo, pgo=*        Enable/disable profile-guided optimization [off] (on|off).
+                        Builds the RunPGO target instead of a normal build:
+                        instrument, train on the committed Build/linux/PGO corpus,
+                        rebuild optimized. Release builds only.
     --release, release  Build release
     --sanitizer,        Build and enable using sanitizer
     sanitizer=*
@@ -103,10 +109,23 @@ build() (
     mkdir -p $build_type > /dev/null 2>&1
     cd_safe $build_type
 
-    cmake ../../.. -DCMAKE_BUILD_TYPE=$build_type $CMAKE_EXTRA_FLAGS "$@"
+    # PGO's instrument/train/rebuild dance only makes sense for an optimized (Release) binary -
+    # skip it for Debug rather than have CMakeLists.txt's own "PGO needs the apps" style warning
+    # fire for a combination nobody asked for.
+    if [ "$build_type" = "Release" ] && $build_pgo; then
+        run_pgo=true
+    else
+        run_pgo=false
+    fi
+
+    cmake ../../.. -DCMAKE_BUILD_TYPE=$build_type -DJPEGXS_PGO=$($run_pgo && echo ON || echo OFF) $CMAKE_EXTRA_FLAGS "$@"
 
     if [ -f Makefile ]; then
-        make -j "$jobs"
+        if $run_pgo; then
+            make -j "$jobs" RunPGO
+        else
+            make -j "$jobs"
+        fi
         return
     fi
 
@@ -116,7 +135,11 @@ build() (
     fi
 
     # Compile the Library
-    cmake --build . --config $build_type "$@"
+    if $run_pgo; then
+        cmake --build . --config $build_type --target RunPGO "$@"
+    else
+        cmake --build . --config $build_type "$@"
+    fi
 )
 
 check_executable() (
@@ -184,6 +207,7 @@ fi
 build_release=false
 build_debug=false
 build_install=false
+build_pgo=false
 
 parse_options() {
     while true; do
@@ -219,7 +243,9 @@ parse_options() {
             ;;
         clean)
             for d in *; do
-                [ -d "$d" ] && rm -rf "$d"
+                # PGO/ holds committed PGO training seed frames + pgohelper.cmake, not build
+                # output - everything else here is a disposable build directory (Release/Debug/etc).
+                [ -d "$d" ] && [ "$d" != "PGO" ] && rm -rf "$d"
             done
             for d in ../../Bin/*; do
                 [ -d "$d" ] && rm -rf "$d"
@@ -232,7 +258,22 @@ parse_options() {
         gen=*) CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -G${1#*=}" && shift ;;
         install) build_install=true && shift ;;
         jobs=*) jobs="${1#*=}" && shift ;;
-        no-app) CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DBUILD_APPS=OFF" && shift ;;
+        lto=*) CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DJPEGXS_LTO=${1#*=}" && shift ;;
+        no-app)
+            # PGO needs the apps to train on; without them CMakeLists.txt would just disable
+            # JPEGXS_PGO itself and warn, but dropping it here means no-app doesn't have to
+            # also mean "and quietly stop getting the PGO you didn't ask to turn off".
+            CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DBUILD_APPS=OFF"
+            build_pgo=false
+            shift
+            ;;
+        pgo=*)
+            case $(printf %s "${1#*=}" | tr '[:upper:]' '[:lower:]') in
+            on) build_pgo=true ;;
+            *) build_pgo=false ;;
+            esac
+            shift
+            ;;
         prefix=*) CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DCMAKE_INSTALL_PREFIX=${1#*=}" && shift ;;
         release) build_release=true && shift ;;
         sanitizer=*) CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DSANITIZER=${1#*=}" && shift ;;
@@ -298,7 +339,7 @@ else
             toolchain) parse_options toolchain="$2" && shift ;;
             test) parse_options tests && shift ;;
             verbose) parse_options verbose && shift ;;
-            asm | bindir | cc | cxx | gen | jobs | prefix | sanitizer | target_system)
+            asm | bindir | cc | cxx | gen | jobs | lto | pgo | prefix | sanitizer | target_system)
                 parse_equal_option "$1" "$2"
                 case $1 in
                 *=*) shift ;;
@@ -401,8 +442,10 @@ else
             help) parse_options help && shift ;;
             install) parse_options install && shift ;;
             jobs=*) parse_options jobs="${1#*=}" && shift ;;
+            lto=*) parse_options lto="${1#*=}" && shift ;;
             prefix=*) parse_options prefix="${1#*=}" && shift ;;
             no-app) parse_options no-app && shift ;;
+            pgo=*) parse_options pgo="${1#*=}" && shift ;;
             target_system=*) parse_options target_system="${1#*=}" && shift ;;
             shared) parse_options shared && shift ;;
             static) parse_options static && shift ;;
