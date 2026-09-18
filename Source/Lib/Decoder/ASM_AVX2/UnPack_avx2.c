@@ -8,15 +8,6 @@
 #include "SvtUtility.h"
 #include "EncDec.h" /* TRUNCATION_MAX: the single load holds fifteen planes at most */
 
-uint8_t read_4_bits_align4_fast(reader_short_t* r) {
-    if (r->bits_used) {
-        r->bits_used = 0;
-        return (*r->mem++) & 0xF;
-    }
-    r->bits_used = 4;
-    return (*r->mem >> 4);
-}
-
 /* Shared walk for unpack_n_groups/unpack_n_groups_nosign: the two differ only in
  * whether a sign nibble is read alongside the planes. has_sign is a parameter
  * rather than two separate bodies, but both call sites below pass a compile-time

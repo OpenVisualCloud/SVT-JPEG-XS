@@ -5,19 +5,28 @@
 
 #define DECODER_RTCD_C
 #include "decoder_dsp_rtcd.h"
-#include "Dwt53Decoder_AVX2.h"
 #include "Dequant.h"
-#include "Dequant_SSE4.h"
 #include "Idwt.h"
 #include "NltDec.h"
-#include "NltDec_AVX2.h"
 #include "Precinct.h"
+#include "Packing.h"
+
+#ifdef ARCH_X86_64
+#include "Dwt53Decoder_AVX2.h"
+#include "Dequant_SSE4.h"
+#include "NltDec_AVX2.h"
 #include "UnPack_avx2.h"
 #include "UnPack_avx512.h"
-#include "Packing.h"
 #include "idwt-avx512.h"
 #include "NltDec_avx512.h"
 #include "Dequant_avx512.h"
+#endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+#include "Dequant_neon.h"
+#include "UnPack_neon.h"
+#include "Idwt_neon.h"
+#endif /* ARCH_AARCH64 */
 
 /**************************************
  * Instruction Set Support
@@ -77,16 +86,29 @@
 #define SET_AVX2(ptr, c, avx2)                              SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, 0, 0, 0, avx2, 0)
 #define SET_AVX2_AVX512(ptr, c, avx2, avx512)               SET_FUNCTIONS(ptr, c, 0, 0, 0, 0, 0, 0, 0, 0, avx2, avx512)
 
+/* Narrows a pointer already set by one of the macros above to its AArch64
+ * implementation. Written as a separate line rather than as another column of
+ * SET_FUNCTIONS because the two architectures are mutually exclusive: on x86
+ * this expands to nothing, and on AArch64 the SET_* line above it has left the
+ * pointer on the C implementation. */
+#ifdef ARCH_AARCH64
+#define SET_NEON(ptr, neon)                                               \
+    if (((uintptr_t)NULL != (uintptr_t)neon) && (flags & CPU_FLAGS_NEON)) \
+        ptr = neon;
+#else /* ARCH_AARCH64 */
+#define SET_NEON(ptr, neon)
+#endif /* ARCH_AARCH64 */
+
 void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
     /* Avoid check that pointer is set double, after first  setup. */
     static uint8_t first_call_setup = 1;
     uint8_t check_pointer_was_set = first_call_setup;
     first_call_setup = 0;
-#ifdef ARCH_X86_64
     /** Should be done during library initialization,
       but for safe limiting cpu flags again. */
     const CPU_FLAGS host_flags = get_cpu_flags();
     flags &= host_flags;
+#ifdef ARCH_X86_64
     /* The AVX-512 kernels are built with -mbmi2 for the whole directory, so
      * the compiler is free to emit those instructions anywhere in them, not
      * only where an intrinsic asks for them. Without a processor to back
@@ -98,12 +120,14 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
     if (!(host_flags & CPU_FLAGS_BMI2)) {
         flags &= ~(CPU_FLAGS)CPU_FLAGS_AVX512F;
     }
-    // to use C: flags=0
-#else
-    (void)flags;
 #endif
+    // to use C: flags=0
+    /* A build for a processor with no SIMD tree of its own has no setter left
+     * to read the mask. */
+    (void)flags;
 
     SET_SSE41_AVX2_AVX512(dequant, dequant_c, dequant_sse4_1, NULL, dequant_avx512);
+    SET_NEON(dequant, dequant_neon);
     SET_AVX2(linear_output_scaling_8bit, linear_output_scaling_8bit_c, linear_output_scaling_8bit_avx2);
     SET_AVX2_AVX512(linear_output_scaling_8bit_line,
                     linear_output_scaling_8bit_line_c,
@@ -131,15 +155,20 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
         unpack_data = unpack_data_avx2_bmi2;
     }
 #endif /* ARCH_X86_64 */
+    SET_NEON(unpack_data, unpack_data_neon);
     SET_AVX2_AVX512(idwt_horizontal_line_lf16_hf16,
                     idwt_horizontal_line_lf16_hf16_c,
                     idwt_horizontal_line_lf16_hf16_avx2,
                     idwt_horizontal_line_lf16_hf16_avx512);
+    SET_NEON(idwt_horizontal_line_lf16_hf16, idwt_horizontal_line_lf16_hf16_neon);
     SET_AVX2_AVX512(idwt_horizontal_line_lf32_hf16,
                     idwt_horizontal_line_lf32_hf16_c,
                     idwt_horizontal_line_lf32_hf16_avx2,
                     idwt_horizontal_line_lf32_hf16_avx512);
+    SET_NEON(idwt_horizontal_line_lf32_hf16, idwt_horizontal_line_lf32_hf16_neon);
     SET_AVX2_AVX512(idwt_vertical_line, idwt_vertical_line_c, idwt_vertical_line_avx2, idwt_vertical_line_avx512);
+    SET_NEON(idwt_vertical_line, idwt_vertical_line_neon);
     SET_AVX2_AVX512(
         idwt_vertical_line_recalc, idwt_vertical_line_recalc_c, idwt_vertical_line_recalc_avx2, idwt_vertical_line_recalc_avx512);
+    SET_NEON(idwt_vertical_line_recalc, idwt_vertical_line_recalc_neon);
 }

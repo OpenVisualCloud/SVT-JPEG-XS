@@ -323,6 +323,7 @@ static void set_asm_type(const char *value, EncoderConfig_t *cfg) {
         {"9", (CPU_FLAGS_AVX2 << 1) - 1},
         {"avx512", CPU_FLAGS_ALL},
         {"10", CPU_FLAGS_ALL},
+        {"neon", CPU_FLAGS_NEON},
         {"max", CPU_FLAGS_ALL},
         {"11", CPU_FLAGS_ALL},
     };
@@ -426,7 +427,7 @@ ConfigEntry config_entry[] = {
     {CODING_OPTIONS, STREAM_LEVEL_TOKEN,   "Stream level (Plev) to declare in the picture header (auto, unrestricted, 1k-1, 2k-1, 4k-1, 4k-2, 4k-3, 5k-1, 8k-1, 8k-2, 8k-3, 10k-1, or raw hex/decimal Plev value, default:auto)", 0, 1, set_stream_level},
     {THREAD_PERF_OPTIONS, ASM_TYPE_TOKEN,   "Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2, sse3, "
                                             "ssse3, sse4_1, sse4_2,"
-                                            " avx, avx2, avx512, max], by default highest level supported by CPU", 0, 1,
+                                            " avx, avx2, avx512, neon, max], by default highest level supported by CPU", 0, 1,
                                             set_asm_type},
     {THREAD_PERF_OPTIONS, PROFILE_TYPE_TOKEN,"Profile of CPU use. 0:latency Low Latency mode, 1:cpu Low CPU use mode [latency:0, cpu:1, default: 0]", 0, 1, set_profile_type},
     {THREAD_PERF_OPTIONS, THREAD_MGMNT,     "Thread Scaling parameter, the higher the value the more threads are created and thus lower latency and/or higher FPS can be achieved (default: 0, which means lowest possible number of threads is created)", 0, 1, set_num_thread},

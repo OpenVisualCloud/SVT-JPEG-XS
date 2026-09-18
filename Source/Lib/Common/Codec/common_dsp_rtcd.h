@@ -28,9 +28,7 @@ extern "C" {
 #endif
 
 // Helper Functions
-#ifdef ARCH_X86_64
 CPU_FLAGS get_cpu_flags();
-#endif
 void setup_common_rtcd_internal(CPU_FLAGS flags);
 uint32_t log2_32_c(uint32_t x);
 RTCD_EXTERN uint32_t (*svt_log2_32)(uint32_t x);
