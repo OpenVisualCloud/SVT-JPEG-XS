@@ -1,9 +1,11 @@
 name: GStreamer Plugin Build
 
 on:
-  workflow_run:
-    workflows: ["Base Build"]
-    types: [completed]
+  workflow_call:
+    inputs:
+      force:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       force:
@@ -17,10 +19,9 @@ defaults:
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.workflow_run.head_sha || github.sha }}
+  group: gstreamer-plugin-build-${{ github.event_name }}-${{ github.sha }}
   cancel-in-progress: true
 
 env:
@@ -30,24 +31,19 @@ env:
 
 jobs:
   changes:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
     outputs:
       # 'force' is a workflow_dispatch checkbox that skips the path filter. dispatch
       # inputs arrive as strings, so compare against 'true' rather than the boolean.
-      changed: ${{ steps.filter.outputs.gstreamer_plugin_build == 'true' || github.event.inputs.force == 'true' }}
+      changed: ${{ steps.filter.outputs.gstreamer_plugin_build == 'true' || inputs.force == 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          allow-unsafe-pr-checkout: true
 
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           filters: .github/config/path_filters.yaml
 
   gstreamer-linux-build-test:
@@ -65,9 +61,6 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          allow-unsafe-pr-checkout: true
 
       - name: 'Setup: Install dependencies'
         run: |
@@ -80,8 +73,6 @@ jobs:
         with:
           name: linux-svtjpegxs-install
           path: install-dir
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Setup: Make downloaded svt-jpegxs artifact executable'
         run: sudo chmod -R 755 install-dir/ 2> /dev/null || true
@@ -176,9 +167,6 @@ jobs:
 
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          allow-unsafe-pr-checkout: true
 
       - name: 'Setup: Download build artifacts'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
