@@ -29,6 +29,8 @@ typedef struct SvtJpegXsEncodeContext {
     int coding_vpred;
     int coding_raw;
     int cap_compat;
+    int color_transform;
+    int cpu_profile;
     int msb_aligned;
 
     svt_jpeg_xs_encoder_api_t encoder;
@@ -324,6 +326,12 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
     if (svt_enc->cap_compat != -1) {
         svt_enc->encoder.cap_compat = svt_enc->cap_compat ? 1 : 0;
     }
+    if (svt_enc->color_transform != -1) {
+        svt_enc->encoder.enable_color_transform = svt_enc->color_transform ? 1 : 0;
+    }
+    if (svt_enc->cpu_profile != -1) {
+        svt_enc->encoder.cpu_profile = svt_enc->cpu_profile;
+    }
     if (avctx->profile != AV_PROFILE_UNKNOWN) {
         if (avctx->profile < 0 || avctx->profile > 0xFFFF) {
             av_log(avctx, AV_LOG_ERROR, "Invalid -profile value %d for libsvtjpegxs (must be 0-65535).\n", avctx->profile);
@@ -432,6 +440,26 @@ static const AVOption svtjpegxs_enc_options[] = {
      -1,
      1,
      VE},
+    {"color_transform",
+     "Encoder-side reversible colour transform (RCT, Cpih=1) for 3-component unsubsampled planar input "
+     "(gbrp/gbrp10le/yuv444p/etc. pixel formats). Rejected unless the input pixel format is planar RGB or planar YUV444.",
+     OFFSET(color_transform),
+     AV_OPT_TYPE_BOOL,
+     {.i64 = -1},
+     -1,
+     1,
+     VE},
+    {"cpu_profile",
+     "Encoder internal threading model",
+     OFFSET(cpu_profile),
+     AV_OPT_TYPE_INT,
+     {.i64 = -1},
+     -1,
+     1,
+     VE,
+     .unit = "cpu_profile"},
+    {"latency", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "cpu_profile"},
+    {"cpu", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "cpu_profile"},
     {"msb_aligned",
      "Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. "
      "Must match the decoder's msb_aligned setting.",

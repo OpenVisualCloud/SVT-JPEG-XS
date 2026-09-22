@@ -341,6 +341,25 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         return SvtJxsErrorBadParameter;
     }
 
+    if (config_struct->enable_color_transform) {
+        /* Check the caller's originally-requested cpu_profile, not enc_common->cpu_profile: for
+         * ndecomp_v == 0 that field was already force-downgraded to CPU_PROFILE_LOW_LATENCY above,
+         * which would otherwise let an explicit CPU_PROFILE_CPU request silently bypass this check. */
+        if (config_struct->cpu_profile != CPU_PROFILE_LOW_LATENCY) {
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Error: enable_color_transform requires cpu_profile Low latency!\n");
+            }
+            return SvtJxsErrorBadParameter;
+        }
+        if (enc_common->colour_format != COLOUR_FORMAT_PLANAR_YUV444_OR_RGB || num_comp != 3) {
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Error: enable_color_transform requires 3-component planar 4:4:4 (RGB-like) input!\n");
+            }
+            return SvtJxsErrorBadParameter;
+        }
+    }
+    enc_common->hdr_Cpih = config_struct->enable_color_transform ? 1 : 0;
+
     if (config_struct->ndecomp_v > 2) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
             SVT_ERROR("Error: Vertical Decomposition is too big (range 0-2)!\n");

@@ -14,6 +14,7 @@
 #include "EncDec.h"
 #include "Dwt.h"
 #include "NltEnc.h"
+#include "MctEnc.h"
 #include "PreRcStageProcess.h"
 #include "Threads/SvtThreads.h"
 
@@ -97,7 +98,8 @@ void gc_precinct_sigflags_max_c(uint8_t* significance_data_max_ptr, uint8_t* gcl
 }
 
 void precinct_component_calculate_dwt_V0(struct PictureControlSet* pcs_ptr, precinct_enc_t* precinct, uint32_t comp_id,
-                                         struct precinct_calc_dwt_buff_tmp* buffers_tmp_dwt, const void* plane_buffer_in) {
+                                         struct precinct_calc_dwt_buff_tmp* buffers_tmp_dwt, const void* plane_buffer_in,
+                                         const int32_t* rct_line) {
     svt_jpeg_xs_encoder_common_t* enc_common = pcs_ptr->enc_common;
     pi_t* pi = &enc_common->pi;
     pi_enc_t* pi_enc = &enc_common->pi_enc;
@@ -114,10 +116,11 @@ void precinct_component_calculate_dwt_V0(struct PictureControlSet* pcs_ptr, prec
     transform_V0_ptr_t transform_V0_Hn = transform_V0_get_function_ptr(pi->components[comp_id].decom_h);
     assert(transform_V0_Hn != NULL);
     //transform_V0_H1, transform_V0_H2, transform_V0_H3, transform_V0_H4, transform_V0_H5
+    //rct_line is already NLT-scaled and RCT'd int32 data: input_bit_depth=0 tells transform_V0_Hn to skip nlt_input_scaling_line.
     transform_V0_Hn(component,
                     component_enc,
-                    (const int32_t*)plane_buffer_in,
-                    input_bit_depth,
+                    rct_line ? rct_line : (const int32_t*)plane_buffer_in,
+                    rct_line ? 0 : input_bit_depth,
                     &enc_common->picture_header_dynamic,
                     buffer_out_16bit,
                     param_out_Fq,
@@ -125,10 +128,23 @@ void precinct_component_calculate_dwt_V0(struct PictureControlSet* pcs_ptr, prec
                     buffers_tmp_dwt->buffer_tmp);
 }
 
+/*rct_line is already NLT-scaled and RCT'd int32 data for this line: use it verbatim.
+ *Otherwise fall back to scaling plane_line (raw sample pointer) the normal way.*/
+static INLINE void copy_or_scale_line(const int32_t* rct_line, const void* plane_line, int32_t* dst, uint32_t width,
+                                      picture_header_dynamic_t* hdr, uint8_t input_bit_depth) {
+    if (rct_line) {
+        memcpy(dst, rct_line, width * sizeof(int32_t));
+    }
+    else {
+        nlt_input_scaling_line(plane_line, dst, width, hdr, input_bit_depth);
+    }
+}
+
 /*Load first line and precalculate HF from previous precinct if not first precinct.*/
 void precinct_component_calculate_dwt_V1_precalculate_slice(
     struct PictureControlSet* pcs_ptr, uint32_t comp_id, uint32_t prec_idx, struct precinct_calc_dwt_buff_tmp* buffers_dwt_tmp,
-    struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component, const void** plane_buffer_in) {
+    struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component, const void** plane_buffer_in,
+    const int32_t** rct_lines_in) {
     svt_jpeg_xs_encoder_common_t* enc_common = pcs_ptr->enc_common;
     pi_t* pi = &enc_common->pi;
     assert(pi->components[comp_id].decom_v == 1 && enc_common->cpu_profile == CPU_PROFILE_LOW_LATENCY);
@@ -140,19 +156,28 @@ void precinct_component_calculate_dwt_V1_precalculate_slice(
     uint32_t line_idx = prec_idx * pi->components[comp_id].precinct_height;
 
     //Read first line on last position:
-    nlt_input_scaling_line(plane_buffer_in[2],
-                           buffers_dwt_per_component->V1[comp_id].line_first,
-                           plane_width,
-                           &enc_common->picture_header_dynamic,
-                           input_bit_depth);
+    copy_or_scale_line(rct_lines_in[2],
+                       plane_buffer_in[2],
+                       buffers_dwt_per_component->V1[comp_id].line_first,
+                       plane_width,
+                       &enc_common->picture_header_dynamic,
+                       input_bit_depth);
 
     //Precalculate previous
     if (line_idx > 0) {
         assert(line_idx >= 2);
-        nlt_input_scaling_line(
-            plane_buffer_in[0], buffers_dwt_tmp->V1.line_1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
-        nlt_input_scaling_line(
-            plane_buffer_in[1], buffers_dwt_tmp->V1.line_2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(rct_lines_in[0],
+                           plane_buffer_in[0],
+                           buffers_dwt_tmp->V1.line_1,
+                           plane_width,
+                           &enc_common->picture_header_dynamic,
+                           input_bit_depth);
+        copy_or_scale_line(rct_lines_in[1],
+                           plane_buffer_in[1],
+                           buffers_dwt_tmp->V1.line_2,
+                           plane_width,
+                           &enc_common->picture_header_dynamic,
+                           input_bit_depth);
 
         //Precalculate previous line
         transform_V1_Hx_precinct_recalc_HF_prev(plane_width,
@@ -166,7 +191,7 @@ void precinct_component_calculate_dwt_V1_precalculate_slice(
 void precinct_component_calculate_dwt_V1(struct PictureControlSet* pcs_ptr, uint32_t comp_id, uint32_t prec_idx,
                                          uint16_t* buffer_out_16bit, struct precinct_calc_dwt_buff_tmp* buffers_dwt_tmp,
                                          struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component,
-                                         const void** plane_buffer_in) {
+                                         const void** plane_buffer_in, const int32_t** rct_lines_in) {
     svt_jpeg_xs_encoder_common_t* enc_common = pcs_ptr->enc_common;
     pi_t* pi = &enc_common->pi;
     pi_enc_t* pi_enc = &enc_common->pi_enc;
@@ -184,12 +209,20 @@ void precinct_component_calculate_dwt_V1(struct PictureControlSet* pcs_ptr, uint
 
     //Read next 2 lines and reuse last one as first
     if ((line_idx + 1) < plane_height) {
-        nlt_input_scaling_line(
-            plane_buffer_in[3], buffers_dwt_tmp->V1.line_1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(rct_lines_in[3],
+                           plane_buffer_in[3],
+                           buffers_dwt_tmp->V1.line_1,
+                           plane_width,
+                           &enc_common->picture_header_dynamic,
+                           input_bit_depth);
     }
     if ((line_idx + 2) < plane_height) {
-        nlt_input_scaling_line(
-            plane_buffer_in[4], buffers_dwt_tmp->V1.line_2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(rct_lines_in[4],
+                           plane_buffer_in[4],
+                           buffers_dwt_tmp->V1.line_2,
+                           plane_width,
+                           &enc_common->picture_header_dynamic,
+                           input_bit_depth);
     }
 
     transform_V1_Hx_precinct(component,
@@ -223,7 +256,8 @@ void precinct_component_calculate_dwt_V1(struct PictureControlSet* pcs_ptr, uint
 /*Load first line and precalculate HF from previous precinct if not first precinct.*/
 void precinct_component_calculate_dwt_V2_precalculate_slice(
     struct PictureControlSet* pcs_ptr, uint32_t comp_id, uint32_t prec_idx, struct precinct_calc_dwt_buff_tmp* buffers_dwt_tmp,
-    struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component, const void** plane_buffer_in) {
+    struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component, const void** plane_buffer_in,
+    const int32_t** rct_lines_in) {
     svt_jpeg_xs_encoder_common_t* enc_common = pcs_ptr->enc_common;
     pi_t* pi = &enc_common->pi;
     // assert(pi->components[comp_id].decom_v == 2 && enc_common->cpu_profile == CPU_PROFILE_LOW_LATENCY); //TODO: Uncomment
@@ -247,22 +281,30 @@ void precinct_component_calculate_dwt_V2_precalculate_slice(
     int32_t* line_2 = buffers_dwt_per_component->V2[comp_id].line_2; //Line previous precinct
 
     if (line_idx >= 6)
-        nlt_input_scaling_line(plane_buffer_in[0], line_p6, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(
+            rct_lines_in[0], plane_buffer_in[0], line_p6, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
     if (line_idx >= 5)
-        nlt_input_scaling_line(plane_buffer_in[1], line_p5, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(
+            rct_lines_in[1], plane_buffer_in[1], line_p5, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
     if (line_idx >= 4)
-        nlt_input_scaling_line(plane_buffer_in[2], line_p4, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(
+            rct_lines_in[2], plane_buffer_in[2], line_p4, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
     if (line_idx >= 3)
-        nlt_input_scaling_line(plane_buffer_in[3], line_p3, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(
+            rct_lines_in[3], plane_buffer_in[3], line_p3, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
     if (line_idx >= 2)
-        nlt_input_scaling_line(plane_buffer_in[4], line_p2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(
+            rct_lines_in[4], plane_buffer_in[4], line_p2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
     if (line_idx >= 1)
-        nlt_input_scaling_line(plane_buffer_in[5], line_p1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
-    nlt_input_scaling_line(plane_buffer_in[6], line_0, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(
+            rct_lines_in[5], plane_buffer_in[5], line_p1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+    copy_or_scale_line(rct_lines_in[6], plane_buffer_in[6], line_0, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
     if (line_idx + 1 < plane_height)
-        nlt_input_scaling_line(plane_buffer_in[7], line_1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(
+            rct_lines_in[7], plane_buffer_in[7], line_1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
     if (line_idx + 2 < plane_height)
-        nlt_input_scaling_line(plane_buffer_in[8], line_2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(
+            rct_lines_in[8], plane_buffer_in[8], line_2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
 
     transform_V2_Hx_precinct_recalc(component,
                                     pi->components[comp_id].decom_h,
@@ -286,7 +328,7 @@ void precinct_component_calculate_dwt_V2_precalculate_slice(
 void precinct_component_calculate_dwt_V2(struct PictureControlSet* pcs_ptr, uint32_t comp_id, uint32_t prec_idx,
                                          uint16_t* buffer_out_16bit, struct precinct_calc_dwt_buff_tmp* buffers_dwt_tmp,
                                          struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component,
-                                         const void** plane_buffer_in) {
+                                         const void** plane_buffer_in, const int32_t** rct_lines_in) {
     svt_jpeg_xs_encoder_common_t* enc_common = pcs_ptr->enc_common;
     pi_t* pi = &enc_common->pi;
     pi_enc_t* pi_enc = &enc_common->pi_enc;
@@ -301,20 +343,36 @@ void precinct_component_calculate_dwt_V2(struct PictureControlSet* pcs_ptr, uint
 
     //Read next 2 lines and reuse last one as first
     if ((line_idx + 3) < plane_height) {
-        nlt_input_scaling_line(
-            plane_buffer_in[9], buffers_dwt_tmp->V2.line_3, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(rct_lines_in[9],
+                           plane_buffer_in[9],
+                           buffers_dwt_tmp->V2.line_3,
+                           plane_width,
+                           &enc_common->picture_header_dynamic,
+                           input_bit_depth);
     }
     if ((line_idx + 4) < plane_height) {
-        nlt_input_scaling_line(
-            plane_buffer_in[10], buffers_dwt_tmp->V2.line_4, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(rct_lines_in[10],
+                           plane_buffer_in[10],
+                           buffers_dwt_tmp->V2.line_4,
+                           plane_width,
+                           &enc_common->picture_header_dynamic,
+                           input_bit_depth);
     }
     if ((line_idx + 5) < plane_height) {
-        nlt_input_scaling_line(
-            plane_buffer_in[11], buffers_dwt_tmp->V2.line_5, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(rct_lines_in[11],
+                           plane_buffer_in[11],
+                           buffers_dwt_tmp->V2.line_5,
+                           plane_width,
+                           &enc_common->picture_header_dynamic,
+                           input_bit_depth);
     }
     if ((line_idx + 6) < plane_height) {
-        nlt_input_scaling_line(
-            plane_buffer_in[12], buffers_dwt_tmp->V2.line_6, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        copy_or_scale_line(rct_lines_in[12],
+                           plane_buffer_in[12],
+                           buffers_dwt_tmp->V2.line_6,
+                           plane_width,
+                           &enc_common->picture_header_dynamic,
+                           input_bit_depth);
     }
 
     transform_V2_Hx_precinct(component,
@@ -389,6 +447,80 @@ void set_planar_input_pointers(uint32_t line_idx, const void* plane_buffer_in[13
         plane_buffer_in[10] = buffer_in_base_addr + pixel_size * (line_idx + 4) * plane_stride;
         plane_buffer_in[11] = buffer_in_base_addr + pixel_size * (line_idx + 5) * plane_stride;
         plane_buffer_in[12] = buffer_in_base_addr + pixel_size * (line_idx + 6) * plane_stride;
+    }
+}
+
+/* Encoder-side forward RCT (Cpih=1) prepass: for components 0,1,2, jointly NLT-scale and
+ * RCT-transform every populated slot of the 13-line window set_planar_input_pointers()
+ * already produces per component, matching the exact windowing V0/V1/V2 already use.
+ * rct_scaled_lines must hold room for 3 * 13 * width int32 (see GcStageProcess.h).
+ * rct_lines_out[c][slot] is left NULL wherever the source pointer for that slot is NULL
+ * (i.e. out of range), so callers fall back to nlt_input_scaling_line() unconditionally in
+ * that case - identical to the RCT-disabled path. */
+void mct_forward_rct_prepass_planar(struct PictureControlSet* pcs_ptr, uint32_t line_idx, int32_t* rct_scaled_lines,
+                                    int32_t rct_scaled_lines_tag[13], uint64_t* rct_scaled_lines_frame,
+                                    const int32_t* rct_lines_out[MAX_COMPONENTS_NUM][13]) {
+    svt_jpeg_xs_encoder_common_t* enc_common = pcs_ptr->enc_common;
+    const uint32_t plane_width = enc_common->pi.components[0].width; //Uniform across comps 0,1,2 when Cpih=1 is allowed.
+    const uint32_t plane_height = enc_common->pi.components[0].height;
+    const uint8_t input_bit_depth = (uint8_t)enc_common->bit_depth;
+    //Window-relative slot k's absolute line index is line_idx + (k - center); matches
+    //set_planar_input_pointers()'s own per-decom_v offset table.
+    const int32_t decom_v = (int32_t)enc_common->pi.components[0].decom_v;
+    const int32_t center = decom_v == 2 ? 6 : (decom_v == 1 ? 2 : 0);
+
+    //Absolute line indices repeat every frame - invalidate the whole cache on frame change,
+    //otherwise a later frame could reuse an earlier frame's RCT'd data for the same line index.
+    if (*rct_scaled_lines_frame != pcs_ptr->frame_number) {
+        for (uint32_t k = 0; k < 13; k++) {
+            rct_scaled_lines_tag[k] = -1;
+        }
+        *rct_scaled_lines_frame = pcs_ptr->frame_number;
+    }
+
+    const void* raw_ptrs[3][13] = {{0}};
+    for (uint32_t c = 0; c < 3; c++) {
+        set_planar_input_pointers(line_idx, raw_ptrs[c], pcs_ptr, c);
+    }
+
+    for (uint32_t k = 0; k < 13; k++) {
+        //Guaranteed >= 0 when raw_ptrs[c][k] is non-NULL: set_planar_input_pointers's own
+        //underflow guard already confirmed line_idx >= (center - k) in that case. But
+        //set_planar_input_pointers has NO upper-bound guard - the "forward-looking" slots
+        //(k > center) are set unconditionally even past the end of the image; callers apply
+        //their own `line_idx + N < plane_height` check before using those slots, which this
+        //prepass must replicate too, or it reads past the end of the input image buffer for
+        //the last precinct(s) of a frame.
+        const int32_t abs_line_idx = (int32_t)line_idx + ((int32_t)k - center);
+        const uint8_t in_bounds = raw_ptrs[0][k] && raw_ptrs[1][k] && raw_ptrs[2][k] && abs_line_idx >= 0 &&
+            (uint32_t)abs_line_idx < plane_height;
+        if (in_bounds) {
+            const uint32_t ring = (uint32_t)abs_line_idx % 13;
+
+            int32_t* dst0 = rct_scaled_lines + ((size_t)0 * 13 + ring) * plane_width;
+            int32_t* dst1 = rct_scaled_lines + ((size_t)1 * 13 + ring) * plane_width;
+            int32_t* dst2 = rct_scaled_lines + ((size_t)2 * 13 + ring) * plane_width;
+
+            if (rct_scaled_lines_tag[ring] != abs_line_idx) {
+                nlt_input_scaling_line(raw_ptrs[0][k], dst0, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+                nlt_input_scaling_line(raw_ptrs[1][k], dst1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+                nlt_input_scaling_line(raw_ptrs[2][k], dst2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+                forward_rct_line(dst0, dst1, dst2, plane_width);
+                rct_scaled_lines_tag[ring] = abs_line_idx;
+            }
+
+            rct_lines_out[0][k] = dst0;
+            rct_lines_out[1][k] = dst1;
+            rct_lines_out[2][k] = dst2;
+        }
+        else {
+            rct_lines_out[0][k] = NULL;
+            rct_lines_out[1][k] = NULL;
+            rct_lines_out[2][k] = NULL;
+        }
+    }
+    for (uint32_t k = 0; k < 13; k++) {
+        rct_lines_out[3][k] = NULL; //4th component (if any) is never RCT-eligible.
     }
 }
 
@@ -673,6 +805,7 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
 
         const uint32_t line_idx = precinct->prec_idx * pi->components[0].precinct_height;
         void* plane_buffer_in[3][13] = {0};
+        const int32_t* no_rct_lines[13] = {0}; //Encoder-side RCT (Cpih=1) is planar-only; packed input never has precomputed lines.
         if (prec_idx_in_slice == 0 && pi->decom_v != 0) {
             set_packed_input_pointers_precalc(
                 line_idx, plane_buffer_in, pcs_ptr, buffers_dwt_tmp->buffer_unpacked_color_formats, packed_to_planar_fn);
@@ -684,7 +817,8 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
                                                                            precinct->prec_idx,
                                                                            buffers_dwt_tmp,
                                                                            buffers_dwt_per_component,
-                                                                           (const void**)plane_buffer_in[c]);
+                                                                           (const void**)plane_buffer_in[c],
+                                                                           no_rct_lines);
                 }
                 else if (pi->components[c].decom_v == 2) {
                     precinct_component_calculate_dwt_V2_precalculate_slice(pcs_ptr,
@@ -692,7 +826,8 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
                                                                            precinct->prec_idx,
                                                                            buffers_dwt_tmp,
                                                                            buffers_dwt_per_component,
-                                                                           (const void**)plane_buffer_in[c]);
+                                                                           (const void**)plane_buffer_in[c],
+                                                                           no_rct_lines);
                 }
             }
         }
@@ -701,7 +836,8 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
             line_idx, plane_buffer_in, pcs_ptr, buffers_dwt_tmp->buffer_unpacked_color_formats, packed_to_planar_fn);
         for (uint32_t c = 0; c < pi->comps_num; ++c) {
             if (pi->components[c].decom_v == 0) {
-                precinct_component_calculate_dwt_V0(pcs_ptr, precinct, c, buffers_dwt_tmp, (const void*)plane_buffer_in[c][0]);
+                precinct_component_calculate_dwt_V0(
+                    pcs_ptr, precinct, c, buffers_dwt_tmp, (const void*)plane_buffer_in[c][0], NULL);
             }
             else if (pi->components[c].decom_v == 1) {
                 precinct_component_calculate_dwt_V1(pcs_ptr,
@@ -710,7 +846,8 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
                                                     (uint16_t*)precinct->coeff_buff_ptr_16bit[c],
                                                     buffers_dwt_tmp,
                                                     buffers_dwt_per_component,
-                                                    (const void**)plane_buffer_in[c]);
+                                                    (const void**)plane_buffer_in[c],
+                                                    no_rct_lines);
             }
             else if (pi->components[c].decom_v == 2) {
                 precinct_component_calculate_dwt_V2(pcs_ptr,
@@ -719,7 +856,8 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
                                                     (uint16_t*)precinct->coeff_buff_ptr_16bit[c],
                                                     buffers_dwt_tmp,
                                                     buffers_dwt_per_component,
-                                                    (const void**)plane_buffer_in[c]);
+                                                    (const void**)plane_buffer_in[c],
+                                                    no_rct_lines);
             }
 
             for (uint32_t b = 0; b < pi->components[c].bands_num; ++b) {
@@ -744,6 +882,17 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
         }
     } //planar input image support
     else {
+        const int32_t* rct_lines[MAX_COMPONENTS_NUM][13] = {{0}};
+        if (enc_common->hdr_Cpih == 1) {
+            const uint32_t rct_line_idx = precinct->prec_idx * pi->components[0].precinct_height;
+            mct_forward_rct_prepass_planar(pcs_ptr,
+                                           rct_line_idx,
+                                           buffers_dwt_tmp->rct_scaled_lines,
+                                           buffers_dwt_tmp->rct_scaled_lines_tag,
+                                           &buffers_dwt_tmp->rct_scaled_lines_frame,
+                                           rct_lines);
+        }
+
         for (uint32_t c = 0; c < pi->comps_num; ++c) {
             const void* plane_buffer_in[13] = {0};
             const uint32_t line_idx = precinct->prec_idx * pi->components[c].precinct_height;
@@ -753,16 +902,16 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
                 //Precalculate only for first precinct in slice, then reuse common data for DWT
                 if (pi->components[c].decom_v == 1) {
                     precinct_component_calculate_dwt_V1_precalculate_slice(
-                        pcs_ptr, c, precinct->prec_idx, buffers_dwt_tmp, buffers_dwt_per_component, plane_buffer_in);
+                        pcs_ptr, c, precinct->prec_idx, buffers_dwt_tmp, buffers_dwt_per_component, plane_buffer_in, rct_lines[c]);
                 }
                 else if (pi->components[c].decom_v == 2) {
                     precinct_component_calculate_dwt_V2_precalculate_slice(
-                        pcs_ptr, c, precinct->prec_idx, buffers_dwt_tmp, buffers_dwt_per_component, plane_buffer_in);
+                        pcs_ptr, c, precinct->prec_idx, buffers_dwt_tmp, buffers_dwt_per_component, plane_buffer_in, rct_lines[c]);
                 }
             }
 
             if (pi->components[c].decom_v == 0) {
-                precinct_component_calculate_dwt_V0(pcs_ptr, precinct, c, buffers_dwt_tmp, plane_buffer_in[0]);
+                precinct_component_calculate_dwt_V0(pcs_ptr, precinct, c, buffers_dwt_tmp, plane_buffer_in[0], rct_lines[c][0]);
             }
             else if (enc_common->cpu_profile == CPU_PROFILE_LOW_LATENCY) {
                 if (pi->components[c].decom_v == 1) {
@@ -772,7 +921,8 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
                                                         (uint16_t*)precinct->coeff_buff_ptr_16bit[c],
                                                         buffers_dwt_tmp,
                                                         buffers_dwt_per_component,
-                                                        plane_buffer_in);
+                                                        plane_buffer_in,
+                                                        rct_lines[c]);
                 }
                 else if (pi->components[c].decom_v == 2) {
                     precinct_component_calculate_dwt_V2(pcs_ptr,
@@ -781,7 +931,8 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
                                                         (uint16_t*)precinct->coeff_buff_ptr_16bit[c],
                                                         buffers_dwt_tmp,
                                                         buffers_dwt_per_component,
-                                                        plane_buffer_in);
+                                                        plane_buffer_in,
+                                                        rct_lines[c]);
                 }
             }
             else if (enc_common->cpu_profile == CPU_PROFILE_CPU) {

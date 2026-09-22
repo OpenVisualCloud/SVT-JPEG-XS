@@ -33,8 +33,9 @@ function end {
 # (1:expected error code, or "NONZERO" to accept any non-zero code)
 # (2:expected md5 of raw bitstream, or "IGNORE" to skip the check)
 # (3:name of input yuv, without .yuv extension, from encoder_tests/, or one of the
-#    SYNTH:yuva422p8/SYNTH:yuva444p8/SYNTH:gbrap8 sentinels for the synthesized 4-component
-#    fixtures generated below (no real 4-component sample exists in encoder_tests/))
+#    SYNTH:yuva422p8/SYNTH:yuva444p8/SYNTH:gbrap8/SYNTH:planar444p8 sentinels for the synthesized
+#    4-component or 3-component 4:4:4 fixtures generated below (no real 4:4:4 or 4-component
+#    sample exists in encoder_tests/))
 # (4:width) (5:height) (6:ffmpeg pix_fmt) (7:number of frames to encode)
 # (8: all other jpegxs encoder AVOptions, e.g. "-bpp 3 -decomp_v 2 -decomp_h 5")
 function test_enc {
@@ -50,6 +51,7 @@ function test_enc {
         SYNTH:yuva422p8) path_yuv="$SYNTH_YUVA422P8" ;;
         SYNTH:yuva444p8) path_yuv="$SYNTH_YUVA444P8" ;;
         SYNTH:gbrap8) path_yuv="$SYNTH_GBRAP8" ;;
+        SYNTH:planar444p8) path_yuv="$SYNTH_PLANAR444P8" ;;
         *) path_yuv=$path_correct"/"$name_yuv".yuv" ;;
     esac
 
@@ -137,6 +139,7 @@ SYNTH_SRC="$path_correct/touchdown_1080p_yuv422p_8_bit_60_frames.yuv"
 SYNTH_YUVA422P8="$tmp_dir/synth_yuva422p8.yuv"
 SYNTH_YUVA444P8="$tmp_dir/synth_yuva444p8.yuv"
 SYNTH_GBRAP8="$tmp_dir/synth_gbrap8.yuv"
+SYNTH_PLANAR444P8="$tmp_dir/synth_planar444p8.yuv"
 if [ -f "$SYNTH_SRC" ]; then
     SYNTH_Y_SIZE=$((1920 * 1080))
     SYNTH_C_SIZE=$((1920 * 1080 / 2))
@@ -148,6 +151,14 @@ if [ -f "$SYNTH_SRC" ]; then
     cat "$tmp_dir/synth_y.raw" "$tmp_dir/synth_y.raw" "$tmp_dir/synth_y.raw" "$tmp_dir/synth_y.raw" > "$SYNTH_YUVA444P8"
     cp "$SYNTH_YUVA444P8" "$SYNTH_GBRAP8"
     rm -f "$tmp_dir/synth_y.raw" "$tmp_dir/synth_cb.raw" "$tmp_dir/synth_cr.raw"
+
+#   No real 3-component 4:4:4 (gbrp/yuv444p) sample exists in encoder_tests/ either. Reuse the
+#   same real Y plane for all 3 components (content doesn't need to be visually meaningful, only
+#   deterministic - matches EncoderTest.sh's rgb_synth fixture, which is likewise the same real Y
+#   plane repeated 3x and is shared between its "rgb" and "yuv444" colour-format test rows).
+    head -c $SYNTH_Y_SIZE "$SYNTH_SRC" > "$tmp_dir/synth_y0.raw"
+    cat "$tmp_dir/synth_y0.raw" "$tmp_dir/synth_y0.raw" "$tmp_dir/synth_y0.raw" > "$SYNTH_PLANAR444P8"
+    rm -f "$tmp_dir/synth_y0.raw"
 fi
 
 function test_all {
@@ -269,6 +280,38 @@ function test_all {
 #   doesn't distinguish RGB/YUV colour family for 4-component input (matches the existing
 #   YUV444P/GBRP behavior for 3-component input).
     test_enc 0 fb905b390b6bbe62ffda9a93215e5922 SYNTH:gbrap8 1920 1080 gbrap 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
+
+#   color_transform=0 (explicit): must be byte-identical to leaving the option unset (the -1
+#   sentinel default), confirming it's a true no-op rather than forcing Cpih=0 behavior that
+#   happens to differ. NEW md5, pinned from this ffmpeg build.
+    test_enc 0 c48cf10045dc7c924a9daaa1084d6af6 SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 0"
+
+#   color_transform unset (default): same md5 as the explicit color_transform=0 row above.
+    test_enc 0 c48cf10045dc7c924a9daaa1084d6af6 SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5"
+
+#   color_transform=1 on gbrp: encoder-side forward RCT (Cpih=1) must produce a valid, decodable,
+#   deterministic bitstream, distinct from the color_transform=0/unset md5 above.
+#   NEW md5, pinned from this ffmpeg build.
+    test_enc 0 eb9d4759fd43aa34c70c7358ea8e0e30 SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 1"
+
+#   color_transform=1 on yuv444p: gbrp and yuv444p both map to the same library colour_format
+#   (COLOUR_FORMAT_PLANAR_YUV444_OR_RGB), so this must be byte-identical to the gbrp
+#   color_transform=1 row above given the same raw input bytes - not rejected.
+    test_enc 0 eb9d4759fd43aa34c70c7358ea8e0e30 SYNTH:planar444p8 1920 1080 yuv444p 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 1"
+
+#   Error path: color_transform=1 requires a 3-component unsubsampled planar input; yuv422p must
+#   be rejected by the underlying library at encoder init (non-zero ffmpeg exit code).
+    test_enc NONZERO IGNORE touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 1 "-bpp 3 -color_transform 1"
+
+#   Error path: color_transform=1 requires cpu_profile Low latency (the default); combined with
+#   cpu_profile=cpu it must be rejected by the underlying library at encoder init (non-zero ffmpeg
+#   exit code) - same constraint enforced by the SvtJpegxsEncApp CLI's --profile.
+    test_enc NONZERO IGNORE SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 1 -cpu_profile cpu"
+
+#   cpu_profile=cpu alone (no color_transform): must be byte-identical to the default/latency
+#   md5 above - cpu_profile only changes the internal threading model, never the encoded
+#   bitstream (verified this also holds for SvtJpegxsEncApp's equivalent --profile option).
+    test_enc 0 c48cf10045dc7c924a9daaa1084d6af6 SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -cpu_profile cpu"
 }
 
 test_all

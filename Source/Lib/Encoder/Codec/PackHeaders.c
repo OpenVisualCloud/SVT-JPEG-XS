@@ -65,7 +65,7 @@ void write_picture_header(bitstream_writer_t* bitstream, pi_t* pi, svt_jpeg_xs_e
     write_8_bits(bitstream, pi->significance_group_size);                    //Ss
     write_8_bits(bitstream, enc_common->picture_header_dynamic.hdr_Bw);      //Bw
     write_2x4_bits(bitstream, enc_common->picture_header_dynamic.hdr_Fq, 4); //Fq   | Br
-    write_134_bits(bitstream, 0, 0, 0);                                      //Fslc | PPoc | Cpih
+    write_134_bits(bitstream, 0, 0, enc_common->hdr_Cpih);                   //Fslc | PPoc | Cpih
     write_2x4_bits(bitstream, pi->decom_h, pi->decom_v);                     //Nlx  | Nly
 
     write_1_bit(bitstream, !pi->use_short_header);                        //Lh

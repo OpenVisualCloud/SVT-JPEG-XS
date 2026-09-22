@@ -133,12 +133,25 @@ typedef struct svt_jpeg_xs_encoder_api {
      * Optional, default 0 */
     uint8_t input_bit_depth_msb_aligned;
 
+    /* Enable the ISO/IEC 21122-1 Table F.2 reversible colour transformation (RCT) between
+     * RGB (or equivalent 4:4:4 planar) source samples and YCbCr-like decorrelated
+     * components, signalled in the picture header as Cpih=1.
+     * Requires colour_format == COLOUR_FORMAT_PLANAR_YUV444_OR_RGB (exactly 3, unsubsampled
+     * planar components) and cpu_profile == CPU_PROFILE_LOW_LATENCY; rejected otherwise at
+     * svt_jpeg_xs_encoder_init() time.
+     * 0 = disabled (default, current behavior): Cpih=0, no colour transform, input samples
+     *     are coded as-is.
+     * 1 = enabled: forward RCT is applied before the wavelet transform; the decoder inverts
+     *     it whenever Cpih=1 is signalled (already implemented, no decoder changes needed).
+     * Optional, default 0 */
+    uint8_t enable_color_transform;
+
     /* This padding is used to avoid changing the size of the public configuration struct
      * when new parameters are added in the future please follow these steps:
      * 1. Insert the new parameter as a member of this structure before the padding array.
      * 2. Decrease the size of the padding array by the size of the new parameter to keep the struct size unchanged.
      */
-    uint8_t padding[57];
+    uint8_t padding[56];
 } svt_jpeg_xs_encoder_api_t;
 
 /* STEP 0 (Optional): Set default encoder parameters.

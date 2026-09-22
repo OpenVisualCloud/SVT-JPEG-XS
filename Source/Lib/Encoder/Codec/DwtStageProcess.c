@@ -133,6 +133,12 @@ void* dwt_stage_kernel(void* input_ptr) {
         // Release the Input Results
         svt_jxs_release_object(input_wrapper);
         assert(enc_common->cpu_profile == CPU_PROFILE_CPU);
+        /* This thread reads raw planar input directly and never applies the forward RCT
+         * (that only happens in the CPU_PROFILE_LOW_LATENCY path, GcStageProcess.c). Encoder
+         * init (EncHandle.c) rejects enable_color_transform unless cpu_profile is Low Latency,
+         * so hdr_Cpih must never be 1 here - if it ever is, the bitstream would signal Cpih=1
+         * over un-RCT'd samples, which is a silent conformance bug, not just a perf issue. */
+        assert(enc_common->hdr_Cpih == 0);
 
         if (decom_v == 0) {
             /* For V0 directly calculate DWT in slice thread.

@@ -245,6 +245,8 @@ coding-sigf|optional|(default:on), 0(off), 1(on)|Coding feature: Significance co
 coding-vpred|optional|(default:off), 0(off), 1(on)|Coding feature: Vertical-prediction
 coding-raw|optional|(default:auto/enabled), true(enabled), false(disable for legacy-decoder compatibility)|Coding feature: packet-based raw-mode coding
 cap-compat|optional|(default:auto/disabled), true(enabled), false(disabled)|Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required
+color_transform|optional|(default:auto/disabled), true(enabled), false(disabled)|Encoder-side reversible colour transform (RCT, Cpih=1). Only valid for 3-component unsubsampled planar input (gbrp/gbrp10le/yuv444p/etc.) - rejected otherwise. Recommended for RGB-like formats only (measured +5.9dB PSNR at matched bpp on real footage) - yuv444p is accepted (same format check) but not recommended (measured -2.9dB PSNR: the transform decorrelates RGB-like input into YCbCr-like, which does not help input that is already YCbCr-like)
+cpu_profile|optional|(default:auto/latency), latency, cpu|Encoder internal threading model
 msb_aligned|optional|(default:false), true, false|Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. Must match the decoder's msb_aligned setting
 
 ### Stream profile (Ppih) and level (Plev)

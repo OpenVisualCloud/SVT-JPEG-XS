@@ -92,16 +92,23 @@ Supported OS versions:
 | YUV 420 10/12/14-bit | yuv420 + 10/12/14 | yuv420p{10/12/14}le | Tested, working properly |
 | YUV 422 8-bit | yuv422 + 8 | yuv422p | Tested, working properly |
 | YUV 422 10/12/14-bit | yuv422 + 10/12/14 | yuv422p{10/12/14}le | Tested, working properly |
-| YUV 444 8-bit | yuv444 + 8 | yuv444p | Tested, working properly |
-| YUV 444 10/12/14-bit | yuv444 + 10/12/14 | yuv444p{10/12/14}le | Tested, working properly |
-| RGB 8-bit | rgb  + 8 | gbrp | Tested, working properly |
-| RGB 10/12/14-bit | rgb + 10/12/14 | gbrp{10/12/14}le | Tested, working properly |
+| YUV 444 8-bit | yuv444 + 8 | yuv444p | Tested, working properly. Accepts `--color-transform 1` (requires `--profile latency`) but it is __not recommended__ here - measured -2.9dB PSNR at matched bpp on real footage, see note below |
+| YUV 444 10/12/14-bit | yuv444 + 10/12/14 | yuv444p{10/12/14}le | Tested, working properly. Accepts `--color-transform 1` (requires `--profile latency`) but it is __not recommended__ here - measured -2.9dB PSNR at matched bpp on real footage, see note below |
+| RGB 8-bit | rgb  + 8 | gbrp | Tested, working properly. Supports `--color-transform 1` (forward RCT, requires `--profile latency`) - measured +5.9dB PSNR at matched bpp on real footage, see note below |
+| RGB 10/12/14-bit | rgb + 10/12/14 | gbrp{10/12/14}le | Tested, working properly. Supports `--color-transform 1` (forward RCT, requires `--profile latency`) - measured +5.9dB PSNR at matched bpp on real footage, see note below |
 | YUV 422 + Alpha (4:2:2:4) 8-bit | yuva422 + 8 | - | Tested, working properly |
 | YUV 422 + Alpha (4:2:2:4) 10/12/14-bit | yuva422 + 10/12/14 | - | Tested, working properly |
 | RGBA/YUVA444 (4:4:4:4) 8-bit | rgba/yuva444 + 8 | - | Tested, working properly |
 | RGBA/YUVA444 (4:4:4:4) 10/12/14-bit | rgba/yuva444 + 10/12/14 | - | Tested, working properly |
 | YUV 400 8-bit | yuv400 + 8 | - | Unsupported |
 | YUV 400 10-bit | yuv400 + 10/12/14 | - | Unsupported |
+
+__`--color-transform` note:__ the underlying format check only requires an unsubsampled 3-component
+planar layout (`COLOUR_FORMAT_PLANAR_YUV444_OR_RGB`), which rgb and yuv444 both satisfy, so both are
+_accepted_. Only rgb is _recommended_: the transform decorrelates RGB-like input into a YCbCr-like
+representation, which helps quantization efficiency; yuv444 input is already in a YCbCr-like
+representation, so applying the same transform again does not help and measured worse quality at
+matched bpp on real footage (RGB: +5.9dB PSNR, YUV444: -2.9dB PSNR).
 
 #### PACKED
 
@@ -170,6 +177,8 @@ Input Options:
 --colour-format            Set encoder colour format (yuv420, yuv422,  yuv444, rgb(planar), rgbp(packed),
                             rgba/yuva444 (4:4:4:4 planar, 4 components), yuva422 (4:2:2:4 planar, YUV422 + alpha))
                             (Experimental: yuv400)
+                            Only rgb(planar) and yuv444 are compatible with --color-transform (rgb
+                            recommended, yuv444 is accepted but not recommended, see --color-transform)
 --input-depth              Input depth
 [--input-msb-aligned]      Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit
                             word instead of LSB-aligned (enabled:1, disabled:0, default:0)
@@ -203,6 +212,14 @@ Coding features used during Rate Calculation (quality/speed tradeoff):
 [--coding-vpred]           Enable Vertical Prediction coding (disable:0, zero prediction residuals:1, zero coefficients:2, default: 0)
 [--coding-raw]             Enable packet-based raw-mode coding (enabled:1, disable for legacy-decoder compatibility:0, default:1)
 [--cap-compat]             Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required (enabled:1, disable:0, default:0)
+[--color-transform]        Encoder-side reversible colour transform (RCT, Cpih=1) for 3-component
+                            unsubsampled planar input (enabled:1, disabled:0, default:0). Requires
+                            --colour-format rgb or yuv444, and --profile latency.
+                            Recommended for rgb only - measured +5.9dB PSNR at matched bpp on real
+                            footage. yuv444 is accepted (same format check as rgb) but not
+                            recommended - measured -2.9dB PSNR at matched bpp, since the transform
+                            decorrelates RGB-like input into YCbCr-like, which does not help input
+                            that is already YCbCr-like
 [--stream-profile]         Stream profile (Ppih) to declare in the picture header (auto, light422,
                             light444, lightsubline422, main420, main422, main444, main4444, high420,
                             high444, high4444, or raw hex/decimal Ppih value, default:auto)
@@ -225,7 +242,8 @@ Threading, performance:
                             highest level supported by CPU
 [--profile]                Threading model type, can be passed as digit (0, 1) or string
                             (latency, cpu) 0:latency (Low Latency mode), 1:cpu (Low CPU use
-                            mode), default is 0
+                            mode), default is 0. --color-transform requires latency (0);
+                            rejected under cpu (1)
 [--lp]                     Thread Scaling parameter, the higher the value the more threads
                             are created and thus lower latency and/or higher FPS can be
                             achieved (default: 0, which means lowest possible number of threads is created)

@@ -82,6 +82,10 @@ static void pack_stage_context_dctor(void_ptr p) {
             SVT_FREE(obj->buffers_dwt_tmp.buffer_unpacked_color_formats);
         }
 
+        if (obj->buffers_dwt_tmp.rct_scaled_lines) {
+            SVT_FREE(obj->buffers_dwt_tmp.rct_scaled_lines);
+        }
+
         uint8_t decom_V1_exist = 0;
         uint8_t decom_V2_exist = 0;
         for (uint32_t i = 0; i < pi->comps_num; ++i) {
@@ -153,6 +157,7 @@ SvtJxsErrorType_t pack_stage_context_ctor(ThreadContext_t* thread_contxt_ptr, sv
 
     context_ptr->buffers_dwt_tmp.buffer_tmp = NULL;
     context_ptr->buffers_dwt_tmp.buffer_unpacked_color_formats = NULL;
+    context_ptr->buffers_dwt_tmp.rct_scaled_lines = NULL;
 
     uint8_t decom_V0_exist = 0;
     uint8_t decom_V1_exist = 0;
@@ -236,6 +241,15 @@ SvtJxsErrorType_t pack_stage_context_ctor(ThreadContext_t* thread_contxt_ptr, sv
         else {
             assert(0);
         }
+    }
+
+    if (enc_common->hdr_Cpih == 1) {
+        //Encoder-side forward RCT prepass scratch: components 0,1,2 x 13 ring slots x width, see GcStageProcess.h.
+        SVT_CALLOC(context_ptr->buffers_dwt_tmp.rct_scaled_lines, 1, 3 * 13 * (size_t)pi->width * sizeof(int32_t));
+        for (uint32_t k = 0; k < 13; k++) {
+            context_ptr->buffers_dwt_tmp.rct_scaled_lines_tag[k] = -1; //No absolute line index cached yet.
+        }
+        context_ptr->buffers_dwt_tmp.rct_scaled_lines_frame = (uint64_t)-1; //Sentinel: never matches a real frame_number.
     }
 
     SVT_CALLOC(context_ptr->temp_precincts_in_slice, context_ptr->num_alloc_precincts_per_thread, sizeof(precinct_enc_t));

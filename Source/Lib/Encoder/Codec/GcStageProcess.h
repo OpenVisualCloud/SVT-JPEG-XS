@@ -44,6 +44,25 @@ struct precinct_calc_dwt_buff_tmp {
      */
     void* buffer_unpacked_color_formats;
 
+    /*Allocated only when the encoder-side forward RCT (Cpih=1) is enabled.
+     * Holds already-NLT-scaled-and-RCT'd int32 lines for components 0,1,2, addressed by a
+     * ring position (absolute image line index modulo 13), NOT by plane_buffer_in[13]'s
+     * window-relative slot - see rct_scaled_lines_tag. Persists across precinct_calculate_data
+     * calls so each absolute line is NLT-scaled+RCT'd at most once, instead of being
+     * recomputed every time it re-appears in the sliding 13-line window.
+     * Size: 3 * 13 * width int32.
+     */
+    int32_t* rct_scaled_lines;
+    /*Parallel to rct_scaled_lines: rct_scaled_lines_tag[ring] holds the absolute image line
+     * index currently cached at that ring position, or -1 if never computed. A window slot
+     * is reused verbatim (no recompute) when its absolute line index already matches the tag
+     * at that line's ring position; only genuinely new lines get NLT-scaled+RCT'd.
+     * Absolute line indices repeat every frame (0..height-1), so rct_scaled_lines_frame below
+     * tracks which frame the cache is valid for; all tags are invalidated on frame change.
+     */
+    int32_t rct_scaled_lines_tag[13];
+    uint64_t rct_scaled_lines_frame;
+
     struct {
         /*Size temp total 7.5 width for one component,
          *for few component 2 width need be allocated additional.
@@ -75,19 +94,21 @@ void buffers_components_free(struct precinct_calc_dwt_buff_per_component* buffer
 
 void precinct_component_calculate_dwt_V1_precalculate_slice(
     struct PictureControlSet* pcs_ptr, uint32_t comp_id, uint32_t prec_idx, struct precinct_calc_dwt_buff_tmp* buffers_dwt_tmp,
-    struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component, const void** plane_buffer_in);
+    struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component, const void** plane_buffer_in,
+    const int32_t** rct_lines_in);
 void precinct_component_calculate_dwt_V1(struct PictureControlSet* pcs_ptr, uint32_t comp_id, uint32_t prec_idx,
                                          uint16_t* buffer_out_16bit, struct precinct_calc_dwt_buff_tmp* buffers_dwt_tmp,
                                          struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component,
-                                         const void** plane_buffer_in);
+                                         const void** plane_buffer_in, const int32_t** rct_lines_in);
 
 void precinct_component_calculate_dwt_V2_precalculate_slice(
     struct PictureControlSet* pcs_ptr, uint32_t comp_id, uint32_t prec_idx, struct precinct_calc_dwt_buff_tmp* buffers_dwt_tmp,
-    struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component, const void** plane_buffer_in);
+    struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component, const void** plane_buffer_in,
+    const int32_t** rct_lines_in);
 void precinct_component_calculate_dwt_V2(struct PictureControlSet* pcs_ptr, uint32_t comp_id, uint32_t prec_idx,
                                          uint16_t* buffer_out_16bit, struct precinct_calc_dwt_buff_tmp* buffers_dwt_tmp,
                                          struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component,
-                                         const void** plane_buffer_in);
+                                         const void** plane_buffer_in, const int32_t** rct_lines_in);
 
 void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* precinct, PackInput_t* pack_input,
                              struct precinct_calc_dwt_buff_tmp* buffers_dwt_tmp,
