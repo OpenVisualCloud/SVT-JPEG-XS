@@ -41,6 +41,7 @@ RTCD_EXTERN void (*linear_output_scaling_8bit)(const pi_t* const pi, int32_t* co
 RTCD_EXTERN void (*linear_output_scaling_16bit)(const pi_t* const pi, int32_t* comps[MAX_COMPONENTS_NUM], uint32_t bw,
                                                 uint32_t depth, svt_jpeg_xs_image_buffer_t* out);
 RTCD_EXTERN void (*inv_sign)(uint16_t* in_out, uint32_t width);
+RTCD_EXTERN void (*inverse_rct)(int32_t* comps[MAX_COMPONENTS_NUM], int32_t w, int32_t h);
 RTCD_EXTERN SvtJxsErrorType_t (*unpack_data)(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                              uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                              int32_t* precinct_bits_left);

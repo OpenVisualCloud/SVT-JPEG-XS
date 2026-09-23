@@ -7,6 +7,7 @@
 #include "Definitions.h"
 #include "Pi.h"
 #include "SvtLog.h"
+#include "decoder_dsp_rtcd.h"
 
 #define MAX_COMPONENTS 4
 #define MAX_CFA_TYPE   2
@@ -18,14 +19,14 @@ typedef struct comp_displacement_vector {
     uint8_t delta_y;
 } comp_displacement_vector_t;
 
-//Table F.10 — Component displacement vector by component index
+//Table F.10 ï¿½ Component displacement vector by component index
 comp_displacement_vector_t table_f_10[MAX_CFA_TYPE][MAX_COMPONENTS] = {{{0, 1}, {1, 1}, {0, 0}, {1, 0}},
                                                                        {{1, 1}, {0, 1}, {1, 0}, {0, 0}}};
 
-//Table F.11 — Component index by displacement vector
+//Table F.11 ï¿½ Component index by displacement vector
 uint8_t table_f_11[MAX_CFA_TYPE][MAX_SIGMA_X][MAX_SIGMA_Y] = {{{2, 0}, {3, 1}}, {{3, 1}, {2, 0}}};
 
-// Table F.12 — Coordinate access function
+// Table F.12 ï¿½ Coordinate access function
 static INLINE int32_t access(int32_t* comps[MAX_COMPONENTS_NUM], int32_t c, int32_t x, int32_t y, int32_t w, int32_t h,
                              int32_t rx, int32_t ry, int32_t cf, int32_t ct) {
     assert(ct < MAX_CFA_TYPE);
@@ -49,7 +50,7 @@ static INLINE int32_t access(int32_t* comps[MAX_COMPONENTS_NUM], int32_t c, int3
     return comps[comp_idx][y * w + x];
 }
 
-// Table F.8 — Inverse CbCr step
+// Table F.8 ï¿½ Inverse CbCr step
 void inv_cbcr_step(int32_t* comps[MAX_COMPONENTS_NUM], int32_t cf, int32_t ct, int32_t w, int32_t h) {
     for (int32_t y = 0; y < h; y++) {
         for (int32_t x = 0; x < w; x++) {
@@ -70,7 +71,7 @@ void inv_cbcr_step(int32_t* comps[MAX_COMPONENTS_NUM], int32_t cf, int32_t ct, i
     }
 }
 
-// Table F.7 — Inverse Y step
+// Table F.7 ï¿½ Inverse Y step
 void inv_y_step(int32_t* comps[MAX_COMPONENTS_NUM], int32_t cf, int32_t ct, int32_t w, int32_t h, int32_t e1, int32_t e2) {
     for (int32_t y = 0; y < h; y++) {
         for (int32_t x = 0; x < w; x++) {
@@ -91,7 +92,7 @@ void inv_y_step(int32_t* comps[MAX_COMPONENTS_NUM], int32_t cf, int32_t ct, int3
     }
 }
 
-// Table F.6 — Inverse delta step
+// Table F.6 ï¿½ Inverse delta step
 void inv_delta_step(int32_t* comps[MAX_COMPONENTS_NUM], int32_t cf, int32_t ct, int32_t w, int32_t h) {
     for (int32_t y = 0; y < h; y++) {
         for (int32_t x = 0; x < w; x++) {
@@ -105,7 +106,7 @@ void inv_delta_step(int32_t* comps[MAX_COMPONENTS_NUM], int32_t cf, int32_t ct, 
     }
 }
 
-// Table F.5 — Inverse average step
+// Table F.5 ï¿½ Inverse average step
 void inv_avg_step(int32_t* comps[MAX_COMPONENTS_NUM], int32_t cf, int32_t ct, int32_t w, int32_t h) {
     for (int32_t y = 0; y < h; y++) {
         for (int32_t x = 0; x < w; x++) {
@@ -119,7 +120,7 @@ void inv_avg_step(int32_t* comps[MAX_COMPONENTS_NUM], int32_t cf, int32_t ct, in
     }
 }
 
-// Table F.4 — Inverse Star - Tetrix transform
+// Table F.4 ï¿½ Inverse Star - Tetrix transform
 void inverse_star_tetrix(int32_t* comps[MAX_COMPONENTS_NUM], int32_t cf, int32_t ct, int32_t e1, int32_t e2, int32_t w,
                          int32_t h) {
     inv_avg_step(comps, cf, ct, w, h);
@@ -135,8 +136,8 @@ void inverse_star_tetrix(int32_t* comps[MAX_COMPONENTS_NUM], int32_t cf, int32_t
     comps[3] = tmp;
 }
 
-// Table F.2 — Inverse reversible multiple component transformation
-void inverse_rct(int32_t* comps[MAX_COMPONENTS_NUM], int32_t w, int32_t h) {
+// Table F.2 ï¿½ Inverse reversible multiple component transformation
+void inverse_rct_c(int32_t* comps[MAX_COMPONENTS_NUM], int32_t w, int32_t h) {
     for (int32_t y = 0; y < h; y++) {
         for (int32_t x = 0; x < w; x++) {
             int32_t i0 = comps[0][y * w + x];

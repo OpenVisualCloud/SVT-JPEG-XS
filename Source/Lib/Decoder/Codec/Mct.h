@@ -12,6 +12,7 @@
 extern "C" {
 #endif
 int32_t get_cfa_pattern(const picture_header_dynamic_t* picture_header_dynamic);
+void inverse_rct_c(int32_t* comps[MAX_COMPONENTS_NUM], int32_t w, int32_t h);
 void mct_inverse_transform(int32_t* out_comps[MAX_COMPONENTS_NUM], const pi_t* pi,
                            const picture_header_dynamic_t* picture_header_dynamic, uint8_t hdr_Cpih);
 

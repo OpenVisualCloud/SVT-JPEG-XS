@@ -9,6 +9,9 @@
 #include "Dequant.h"
 #include "Dequant_SSE4.h"
 #include "Idwt.h"
+#include "Mct.h"
+#include "Mct_avx2.h"
+#include "Mct_avx512.h"
 #include "NltDec.h"
 #include "NltDec_AVX2.h"
 #include "Precinct.h"
@@ -120,6 +123,7 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
                     linear_output_scaling_16bit_line_msb_avx512);
 
     SET_AVX2(inv_sign, inv_sign_c, inv_sign_avx2);
+    SET_AVX2_AVX512(inverse_rct, inverse_rct_c, inverse_rct_avx2, inverse_rct_avx512);
     SET_AVX2_AVX512(unpack_data, unpack_data_c, unpack_data_avx2, unpack_data_avx512);
 #ifdef ARCH_X86_64
     /* unpack_data_avx2 spreads a group's planes with a nibble-split-and-movemask sequence;
