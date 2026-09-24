@@ -68,6 +68,7 @@ RAMDISK_YUV=$(mktemp --suffix=.yuv "$RUN_DIR/test_stream_ffmpeg_XXXXXX")
 RAMDISK_JXS=$(mktemp --suffix=.jxs "$RUN_DIR/test_stream_ffmpeg_XXXXXX")
 SYNTH_YUVA422=$(mktemp --suffix=.yuv "$RUN_DIR/synth_yuva422_ffmpeg_XXXXXX")
 SYNTH_YUVA444=$(mktemp --suffix=.yuv "$RUN_DIR/synth_yuva444_ffmpeg_XXXXXX")
+SYNTH_YUV444=$(mktemp --suffix=.yuv "$RUN_DIR/synth_yuv444_ffmpeg_XXXXXX")
 echo "mktemp scratch files created on ramdisk"
 
 # No real 4-component (alpha) sample YUV exists in $SAMPLES_DIR. Synthesize a single-frame fixture
@@ -87,8 +88,11 @@ if [ -f "$SYNTH_SRC" ]; then
     dd if="$SYNTH_SRC" iflag=skip_bytes,count_bytes skip="$((SYNTH_Y_SIZE + SYNTH_C_SIZE))" count="$SYNTH_C_SIZE" status=none > "${SYNTH_YUVA422}.cr"
     cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr" "${SYNTH_YUVA422}.y" > "$SYNTH_YUVA422"
     cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" > "$SYNTH_YUVA444"
+    # yuv444p (3-component, unsubsampled, no alpha) - the shape -color_transform (encoder-side
+    # reversible colour transform, RCT, Cpih=1) requires.
+    cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" > "$SYNTH_YUV444"
     rm -f "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr"
-    if [ ! -s "$SYNTH_YUVA422" ] || [ ! -s "$SYNTH_YUVA444" ]; then
+    if [ ! -s "$SYNTH_YUVA422" ] || [ ! -s "$SYNTH_YUVA444" ] || [ ! -s "$SYNTH_YUV444" ]; then
         echo "ERROR: synthesis of YUVA input files failed — check ramdisk space: $(df -h "$RUN_DIR" | awk 'NR==2')"
         exit 1
     fi
@@ -138,6 +142,16 @@ MATRIX=(
     # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output: same baseline as the equivalent
     # LSB row above (msb-aligned kernels have same perf as LSB, verified separately).
     "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|313|480|-msb_aligned 1|-msb_aligned 1"
+
+    # 1080p yuv444p (3-component, unsubsampled) 8-bit - 4.0 BPP Thread Scaling, encoder-side
+    # reversible colour transform enabled (-color_transform 1, RCT, Cpih=1). Plugin rejects it
+    # unless the input pixel format is planar RGB or planar YUV444. Encode baseline reuses the
+    # 1080p60_yuva444p8 row above (measured throughput clears it by 2x+, safe margin). Decode
+    # baseline (threads=8) is a real measurement, not a reuse: the decoder's inverse RCT
+    # (Mct.c) is a serial per-frame stage outside the --threads precinct/slice worker pool, so
+    # unlike encode it does not scale with threads - measured ~116 FPS at threads=8 on CI.
+    "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|1|SYNTH|32|38|-color_transform 1 -cpu_profile latency"
+    "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|8|SYNTH|152|110|-color_transform 1 -cpu_profile latency"
 )
 
 # get_ffmpeg_pix_fmt colour_format bit_depth: maps to the ffmpeg pix_fmt name.
@@ -222,6 +236,7 @@ for test_case in "${MATRIX[@]}"; do
             case "$fmt" in
                 yuva422) source_path="$SYNTH_YUVA422" ;;
                 rgba) source_path="$SYNTH_YUVA444" ;;
+                yuv444) source_path="$SYNTH_YUV444" ;;
             esac
             ;;
         *) source_path="$SAMPLES_DIR/$file" ;;

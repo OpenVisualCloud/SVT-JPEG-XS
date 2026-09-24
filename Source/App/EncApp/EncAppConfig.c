@@ -70,6 +70,7 @@ static void strncpy_local(char *dest, const char *src, size_t count) {
 #define CAP_COMPAT_TOKEN     "--cap-compat"
 #define STREAM_PROFILE_TOKEN "--stream-profile"
 #define STREAM_LEVEL_TOKEN   "--stream-level"
+#define COLOR_TRANSFORM_TOKEN "--color-transform"
 #define SHOW_BANDS           "--show-bands"
 
 #define LIMIT_FPS_TOKEN "--limit-fps"
@@ -145,6 +146,10 @@ static void set_coding_raw(const char *value, EncoderConfig_t *cfg) {
 
 static void set_cap_compat(const char *value, EncoderConfig_t *cfg) {
     cfg->encoder.cap_compat = (uint8_t)strtoul(value, NULL, 0);
+}
+
+static void set_color_transform(const char *value, EncoderConfig_t *cfg) {
+    cfg->encoder.enable_color_transform = (uint8_t)strtoul(value, NULL, 0);
 }
 
 /* Stream profile (Ppih) name -> value map, mirrors ISO/IEC 21122-2 Annex A. Kept local to the App
@@ -422,6 +427,7 @@ ConfigEntry config_entry[] = {
     {CODING_OPTIONS, CODING_RATE_CONTROL,   "Rate Control mode (CBR: budget per precinct: 0, CBR: budget per precinct with padding movement: 1, CBR: budget per slice: 2, CBR: budget per slice with max size RATE: 3, default 0)", 0, 1, set_rate_control_mode},
     {CODING_OPTIONS, CODING_RAW_TOKEN,      "Packet-based raw-mode coding (enabled:1, disabled:0, default:1). Disabling clears the raw-mode capability bit and never selects raw packet packing.", 0, 1, set_coding_raw},
     {CODING_OPTIONS, CAP_COMPAT_TOKEN,      "Legacy decoder CAP-marker compatibility (full CAP:0, empty CAP when no capability bit set:1, default:0)", 0, 1, set_cap_compat},
+    {CODING_OPTIONS, COLOR_TRANSFORM_TOKEN, "Encoder-side reversible colour transform (RCT, Cpih=1) for 3-component unsubsampled planar input (enabled:1, disabled:0, default:0). Requires --colour-format rgb or yuv444, and --profile latency.", 0, 1, set_color_transform},
     {CODING_OPTIONS, STREAM_PROFILE_TOKEN, "Stream profile (Ppih) to declare in the picture header (auto, light422, light444, lightsubline422, main420, main422, main444, main4444, high420, high444, high4444, or raw hex/decimal Ppih value, default:auto)", 0, 1, set_stream_profile},
     {CODING_OPTIONS, STREAM_LEVEL_TOKEN,   "Stream level (Plev) to declare in the picture header (auto, unrestricted, 1k-1, 2k-1, 4k-1, 4k-2, 4k-3, 5k-1, 8k-1, 8k-2, 8k-3, 10k-1, or raw hex/decimal Plev value, default:auto)", 0, 1, set_stream_level},
     {THREAD_PERF_OPTIONS, ASM_TYPE_TOKEN,   "Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2, sse3, "

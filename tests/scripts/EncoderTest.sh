@@ -623,6 +623,41 @@ function test_yuv444_rgb_and_rgbp {
     test_enc_rgb_synth 0 a9f416e4f368dbb37d8ab3169a7e5d7b "-w $((rgb_w + 1)) -h $rgb_h --input-depth 8 --colour-format rgb --bpp 3 --rc 0 -n 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
 }
 
+#RUN encoder-side forward RCT (--color-transform, Cpih=1) smoke test Parameters (1:asm) (2:lp) (3:profile) (4:packetization-mode)
+function test_color_transform {
+    asm=$1
+    lp=$2
+    cpu_profile=$3
+    packetization_mode=$4
+
+#   --color-transform 0 (explicit) must be byte-identical to the default (untouched) rgb path
+    test_enc_rgb_synth 0 2aa52be0dca46b52cf35aa90c22f09a2 "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgb --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --color-transform 0 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+
+    if [ "$cpu_profile" = "cpu" ]; then
+#       enable_color_transform requires cpu_profile Low latency - rejected under cpu
+        test_enc_rgb_synth 5 IGNORE "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgb --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+
+#       Regression: decomp_v 0 internally force-downgrades cpu_profile to Low latency (never makes
+#       sense to run CPU threading with no vertical decomposition) - the enable_color_transform
+#       validation must still reject this using the caller's originally-requested cpu profile, not
+#       the already-downgraded one, or an explicit --profile cpu request would silently bypass it.
+        test_enc_rgb_synth 5 IGNORE "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgb --bpp 3 --decomp_v 0 --decomp_h 2 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    else
+#       --color-transform 1 must produce a valid, decodable, deterministic (cross-asm bit-exact) bitstream
+        test_enc_rgb_synth 0 8f8d9fe0d9efac4c3575344c5e1bbd7a "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgb --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+        test_enc_rgb_synth 0 4e291e86a736c76ffccd0799a07c7ea5 "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgb --bpp 4 --decomp_v 1 --decomp_h 4 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+
+#       yuv444 shares COLOUR_FORMAT_PLANAR_YUV444_OR_RGB with rgb, so it is accepted too, and (same raw
+#       bytes, same enum) produces the exact same bitstream as the rgb case above - not rejected
+        test_enc_rgb_synth 0 8f8d9fe0d9efac4c3575344c5e1bbd7a "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format yuv444 --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    fi
+
+#   --color-transform requires 3-component, unsubsampled planar input (COLOUR_FORMAT_PLANAR_YUV444_OR_RGB,
+#   shared by rgb and yuv444) - rejected for subsampled planar (yuv422) and for packed (rgbp)
+    test_enc_rgb_synth 5 IGNORE "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+    test_enc_rgb_synth 5 IGNORE "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgbp   --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+}
+
 function test_uncommon_resolution {
     asm=${SANITIZER_ASM:-$1}
     lp=$2
@@ -1057,6 +1092,12 @@ echo "Test yuv444/rgb (planar) and rgbp (packed)"
 [[ $run_fast -eq 0 ]] && test_yuv444_rgb_and_rgbp avx2 5 cpu 0
                          test_yuv444_rgb_and_rgbp max 7 latency 0
                          test_yuv444_rgb_and_rgbp max 7 latency 1
+
+echo "Test --color-transform (encoder-side forward RCT, Cpih=1)"
+[[ $run_fast -eq 0 ]] && test_color_transform c 10 latency 0
+[[ $run_fast -eq 0 ]] && test_color_transform avx2 5 cpu 0
+                         test_color_transform max 7 latency 0
+                         test_color_transform max 7 latency 1
 
 #echo RUN DEBUG TEST C
 #exec_enc=$exec_enc_dbg

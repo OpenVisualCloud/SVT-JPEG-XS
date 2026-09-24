@@ -1,0 +1,51 @@
+From 8368a643423d70a7bc8c2d150d4bb7f280f16fe7 Mon Sep 17 00:00:00 2001
+From: SVT-JPEG-XS <noreply@example.com>
+Date: Tue, 22 Sep 2026 10:27:10 +0200
+Subject: [PATCH] avcodec/libsvtjpegxsenc: add cpu_profile option for threading
+ model
+
+Exposes the encoder's cpu_profile field (0=Low latency, 1=Low CPU usage)
+as a private -cpu_profile option (named values latency/cpu), following
+the same tri-state (-1=unset/auto, resolves to the library default of
+Low latency) pattern as cap-compat/color_transform. Not the same as
+ffmpeg's generic -profile:v, which maps to this encoder's stream profile
+(Ppih) - kept separate to avoid clashing with that existing mapping.
+---
+ libavcodec/libsvtjpegxsenc.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/libavcodec/libsvtjpegxsenc.c b/libavcodec/libsvtjpegxsenc.c
+index 7e287f287a..9aa5c37a4e 100644
+--- a/libavcodec/libsvtjpegxsenc.c
++++ b/libavcodec/libsvtjpegxsenc.c
+@@ -50,6 +50,7 @@ typedef struct SvtJpegXsEncodeContext {
+     int coding_raw;
+     int cap_compat;
+     int color_transform;
++    int cpu_profile;
+     int msb_aligned;
+ 
+     svt_jpeg_xs_encoder_api_t encoder;
+@@ -342,6 +343,9 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
+     if (svt_enc->color_transform != -1) {
+         svt_enc->encoder.enable_color_transform = svt_enc->color_transform ? 1 : 0;
+     }
++    if (svt_enc->cpu_profile != -1) {
++        svt_enc->encoder.cpu_profile = svt_enc->cpu_profile;
++    }
+     if (avctx->profile != AV_PROFILE_UNKNOWN) {
+         if (avctx->profile < 0 || avctx->profile > 0xFFFF) {
+             av_log(avctx, AV_LOG_ERROR, "Invalid -profile value %d for libsvtjpegxs (must be 0-65535).\n", avctx->profile);
+@@ -409,6 +413,9 @@ static const AVOption svtjpegxs_enc_options[] = {
+     { "color_transform", "Encoder-side reversible colour transform (RCT, Cpih=1) for 3-component unsubsampled planar input "
+                       "(gbrp/gbrp10le/yuv444p/etc. pixel formats). Rejected unless the input pixel format is planar RGB or planar YUV444.",
+                                                                             OFFSET(color_transform), AV_OPT_TYPE_BOOL, {.i64 = -1 }, -1, 1, VE },
++    { "cpu_profile",  "Encoder internal threading model", OFFSET(cpu_profile), AV_OPT_TYPE_INT, {.i64 = -1 }, -1, 1, VE, .unit = "cpu_profile" },
++      { "latency",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "cpu_profile" },
++      { "cpu",          NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "cpu_profile" },
+     { "msb_aligned",  "Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. "
+                       "Must match the decoder's msb_aligned setting.", OFFSET(msb_aligned), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, VE },
+       { "light422",        NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x1500}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile" },
+-- 
+2.53.0
+

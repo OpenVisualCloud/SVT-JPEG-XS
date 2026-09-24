@@ -67,6 +67,7 @@ typedef struct svt_jpeg_xs_encoder_common {
 
     uint16_t hdr_Ppih; /* Profile this codestream complies to, written verbatim into the picture header. */
     uint16_t hdr_Plev; /* Level and sub-level this codestream complies to, written verbatim into the picture header. */
+    uint8_t hdr_Cpih;  /* Colour transformation used, written verbatim into the picture header. 0=none, 1=RCT. */
 
     pi_t pi; /* Picture Information */
     picture_header_dynamic_t picture_header_dynamic;

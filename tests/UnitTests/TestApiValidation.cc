@@ -167,6 +167,63 @@ TEST(EncoderInit, InvalidSlicePacketizationModeReturnsError) {
     ASSERT_EQ(encoder.private_ptr, nullptr);
 }
 
+TEST(EncoderInit, ColorTransformRequiresLowLatencyProfileReturnsError) {
+    svt_jpeg_xs_encoder_api_t encoder;
+    svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    encoder.verbose = VERBOSE_NONE;
+    encoder.source_width = 16;
+    encoder.source_height = 16;
+    encoder.input_bit_depth = 8;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    encoder.bpp_numerator = 3;
+    encoder.cpu_profile = 1; //CPU_PROFILE_CPU
+    encoder.enable_color_transform = 1;
+
+    SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    ASSERT_EQ(ret, SvtJxsErrorBadParameter);
+    ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
+TEST(EncoderInit, ColorTransformWithCpuProfileRejectedEvenWhenNdecompVZeroForcesLowLatency) {
+    // ndecomp_v == 0 forces enc_common->cpu_profile to CPU_PROFILE_LOW_LATENCY internally (it never
+    // makes sense to run CPU_PROFILE_CPU threading with no vertical decomposition). Regression guard:
+    // that internal downgrade must not let an explicit CPU_PROFILE_CPU request bypass the
+    // enable_color_transform + cpu_profile validation - the caller's original request must still be
+    // rejected, matching the documented "requires Low latency" contract.
+    svt_jpeg_xs_encoder_api_t encoder;
+    svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    encoder.verbose = VERBOSE_NONE;
+    encoder.source_width = 16;
+    encoder.source_height = 16;
+    encoder.input_bit_depth = 8;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    encoder.bpp_numerator = 3;
+    encoder.ndecomp_v = 0;
+    encoder.cpu_profile = 1; //CPU_PROFILE_CPU
+    encoder.enable_color_transform = 1;
+
+    SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    ASSERT_EQ(ret, SvtJxsErrorBadParameter);
+    ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
+TEST(EncoderInit, ColorTransformRequiresPlanar444FormatReturnsError) {
+    svt_jpeg_xs_encoder_api_t encoder;
+    svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    encoder.verbose = VERBOSE_NONE;
+    encoder.source_width = 16;
+    encoder.source_height = 16;
+    encoder.input_bit_depth = 8;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV420;
+    encoder.bpp_numerator = 3;
+    encoder.cpu_profile = 0; //CPU_PROFILE_LOW_LATENCY
+    encoder.enable_color_transform = 1;
+
+    SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    ASSERT_EQ(ret, SvtJxsErrorBadParameter);
+    ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
 TEST(EncoderInit, InvalidApiVersionReturnsError) {
     svt_jpeg_xs_encoder_api_t encoder;
     svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);

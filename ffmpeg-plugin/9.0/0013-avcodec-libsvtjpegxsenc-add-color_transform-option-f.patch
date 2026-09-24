@@ -1,0 +1,50 @@
+From 1aadf712bdf8ace76016300a8d32b33bce26f7d0 Mon Sep 17 00:00:00 2001
+From: SVT-JPEG-XS <noreply@example.com>
+Date: Tue, 22 Sep 2026 09:59:27 +0200
+Subject: [PATCH] avcodec/libsvtjpegxsenc: add color_transform option for
+ encoder-side RCT
+
+Exposes the encoder's enable_color_transform field (ISO/IEC 21122-1
+Table F.2 reversible colour transform, Cpih=1) as a private -color_transform
+boolean option, following the same tri-state (-1=unset/auto) pattern as
+cap-compat/coding-raw. Requires the input pixel format to be planar RGB
+(gbrp/gbrp10le/etc.) - rejected by the underlying library otherwise.
+---
+ libavcodec/libsvtjpegxsenc.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/libavcodec/libsvtjpegxsenc.c b/libavcodec/libsvtjpegxsenc.c
+index e3e4a9b8fb..7e287f287a 100644
+--- a/libavcodec/libsvtjpegxsenc.c
++++ b/libavcodec/libsvtjpegxsenc.c
+@@ -49,6 +49,7 @@ typedef struct SvtJpegXsEncodeContext {
+     int coding_vpred;
+     int coding_raw;
+     int cap_compat;
++    int color_transform;
+     int msb_aligned;
+ 
+     svt_jpeg_xs_encoder_api_t encoder;
+@@ -338,6 +339,9 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
+     if (svt_enc->cap_compat != -1) {
+         svt_enc->encoder.cap_compat = svt_enc->cap_compat ? 1 : 0;
+     }
++    if (svt_enc->color_transform != -1) {
++        svt_enc->encoder.enable_color_transform = svt_enc->color_transform ? 1 : 0;
++    }
+     if (avctx->profile != AV_PROFILE_UNKNOWN) {
+         if (avctx->profile < 0 || avctx->profile > 0xFFFF) {
+             av_log(avctx, AV_LOG_ERROR, "Invalid -profile value %d for libsvtjpegxs (must be 0-65535).\n", avctx->profile);
+@@ -402,6 +406,9 @@ static const AVOption svtjpegxs_enc_options[] = {
+       { "no_coeffs",    NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
+     { "coding-raw",   "Enable packet-based raw-mode coding (disable for legacy-decoder compatibility)", OFFSET(coding_raw),   AV_OPT_TYPE_BOOL, {.i64 = -1 }, -1, 1, VE },
+     { "cap-compat",   "Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required", OFFSET(cap_compat), AV_OPT_TYPE_BOOL, {.i64 = -1 }, -1, 1, VE },
++    { "color_transform", "Encoder-side reversible colour transform (RCT, Cpih=1) for 3-component unsubsampled planar input "
++                      "(gbrp/gbrp10le/yuv444p/etc. pixel formats). Rejected unless the input pixel format is planar RGB or planar YUV444.",
++                                                                            OFFSET(color_transform), AV_OPT_TYPE_BOOL, {.i64 = -1 }, -1, 1, VE },
+     { "msb_aligned",  "Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. "
+                       "Must match the decoder's msb_aligned setting.", OFFSET(msb_aligned), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, VE },
+       { "light422",        NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x1500}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile" },
+-- 
+2.53.0
+
