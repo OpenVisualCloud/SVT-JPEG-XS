@@ -193,7 +193,12 @@ typedef uint64_t CPU_FLAGS;
  * about those separately from AVX-512 itself. */
 #define CPU_FLAGS_POPCNT   (1 << 16)
 #define CPU_FLAGS_BMI2     (1 << 17)
-#define CPU_FLAGS_ALL      ((CPU_FLAGS_BMI2 << 1) - 1)
+/* AArch64. Advanced SIMD is mandatory in AArch64, so this flag is set on every
+ * processor the library runs on and never gates anything by itself. It exists so
+ * that the dispatcher is driven the same way on both architectures, and so that
+ * a caller can still ask for the C implementations by passing CPU_FLAGS_C. */
+#define CPU_FLAGS_NEON     (1 << 18)
+#define CPU_FLAGS_ALL      ((CPU_FLAGS_NEON << 1) - 1)
 #define CPU_FLAGS_INVALID  (1ULL << (sizeof(CPU_FLAGS) * 8ULL - 1ULL))
 
 /**
