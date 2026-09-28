@@ -127,6 +127,88 @@ function test_enc {
 }
 
 
+# (1:expected error code, or "NONZERO" to accept any non-zero code)
+# (2:name of input yuv, without .yuv extension, from encoder_tests/)
+# (3:frame size in bytes) (4:width) (5:height) (6:ffmpeg pix_fmt) (7:number of frames to encode)
+# (8: all other jpegxs encoder AVOptions, e.g. "-lossless 1 -decomp_v 2 -decomp_h 5")
+# Lossless must reproduce the source exactly - unlike test_enc's bitstream-MD5 pinning (which only
+# catches "output changed vs a snapshot"), this compares MD5 of the source bytes that were encoded
+# against MD5 of the decoded output, directly verifying the actual bit-exact-lossless claim.
+function test_enc_lossless {
+    exit_code=$1
+    name_yuv=$2
+    frame_size_bytes=$3
+    width=$4
+    height=$5
+    pix_fmt=$6
+    frames=$7
+    encoder_parameters=$8
+    path_yuv=$path_correct"/"$name_yuv".yuv"
+
+    common_lib_update_test_id_run_return_1_to_ignore
+    ignore=$?
+    if [ $ignore -ne 0 ]; then
+        return
+    fi
+
+    bin_name=$test_id_print"_"$name_yuv"_lossless"
+    bin_name="${bin_name:0:100}"
+    bin_path="$tmp_dir/"$bin_name".jxs"
+    out_yuv_path="$tmp_dir/"$bin_name".yuv"
+
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error -f rawvideo -pix_fmt $pix_fmt -s:v ${width}x${height} -r 25 -i $path_yuv -frames:v $frames -c:v libsvtjpegxs $encoder_parameters -f image2pipe $bin_path"
+    echo "run command: $cmd"
+    ${cmd}
+    ret=$?
+    if [ $ret -ne $exit_code ]; then
+        echo "FAIL Invalid error code: $ret expected: $exit_code"
+        error=1
+        end
+    fi
+
+#   Decode-verification needs the jpegxs_pipe demuxer (ffmpeg >= 8.1, gated the same way as
+#   test_enc's own decode-verification step above via decode_flag - see ParallelAllFFmpegTests.sh's
+#   supports_jpegxs_pipe/script_params_no_dec handling for older builds).
+    if [ $ret -eq 0 ] && [ $decode_flag -ne 0 ]; then
+        cmd="$exec_ffmpeg -y -hide_banner -loglevel error -f jpegxs_pipe -c:v libsvtjpegxs -i $bin_path -f rawvideo $out_yuv_path"
+        echo "run command: $cmd"
+        ${cmd}
+        ret=$?
+        if [ $ret -ne 0 ]; then
+            echo "FAIL Can not decode bitstream, error code: $ret"
+            error=1
+            end
+        else
+            bytes_to_compare=$((frame_size_bytes * frames))
+            md5_src=`head -c $bytes_to_compare "$path_yuv" | md5sum | awk '{ print $1 }'`
+            md5_dec=`md5sum "$out_yuv_path" | awk '{ print $1 }'`
+            echo -n "Test lossless round-trip MD5 src=$md5_src dec=$md5_dec "
+            if [ "$md5_src" = "$md5_dec" ]; then
+                echo "OK"
+            else
+                echo "FAIL decoded output MD5 != source YUV MD5 (not bit-exact)"
+                error=1
+                end
+            fi
+        fi
+    fi
+}
+
+#RUN --lossless (true lossless coding, Fq=0) smoke test via ffmpeg's -lossless AVOption.
+function test_lossless {
+    test_enc_lossless 0 signal_1080p_yuv422p_10bit_le_1_frame       8294400 1920 1080 yuv422p10le 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -lossless 1"
+    test_enc_lossless 0 touchdown_1080p_yuv422p_8_bit_60_frames     4147200 1920 1080 yuv422p     5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -lossless 1"
+    test_enc_lossless 0 touchdown_720p_yuv420p_8_bit_60_frames      1382400 1280 720  yuv420p      3 "-bpp 4 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -lossless 1"
+#   Compressible/flat content: exercises the compaction pass actually shrinking output below the CBR-equivalent size.
+    test_enc_lossless 0 small_422_8bit_32x32-small-blank-small      2048    32   32   yuv422p      3 "-bpp 3 -decomp_v 2 -decomp_h 2 -coding-sigf 1 -coding-vpred disable -lossless 1"
+
+#   Error path: lossless is rejected together with msb_aligned (library's
+#   input_bit_depth_msb_aligned + lossless_enable combination check - matches EncoderTest.sh's
+#   --input-msb-aligned rejection).
+    test_enc NONZERO IGNORE signal_1080p_yuv422p_10bit_le_1_frame 1920 1080 yuv422p10le 1 "-bpp 3 -lossless 1 -msb_aligned 1"
+}
+
+
 rm -fr $tmp_dir
 mkdir $tmp_dir
 
@@ -315,6 +397,7 @@ function test_all {
 }
 
 test_all
+test_lossless
 
 
 common_lib_end_summary

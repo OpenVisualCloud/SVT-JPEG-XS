@@ -90,6 +90,54 @@ function test_dec {
 rm -fr $tmp_dir
 mkdir $tmp_dir
 
+#Prep a true-lossless (Fq=0) bitstream from a real 10bit sample via ffmpeg, to round-trip-verify the
+#decoder reproduces it bit-exact (not just within tolerance) - mirrors DecoderConformanceTest.sh's
+#native-binary equivalent, using this same ffmpeg build/plugin for both the prep-encode and decode.
+#Single frame only: unlike FFmpegDecoderMultiFramesTest.sh (which only ever runs when jpegxs_pipe is
+#available), this script also runs against ffmpeg < 8.1 via the "-f image2" $demuxer fallback above,
+#which isn't multi-frame-aware.
+lossless_prep_frames=1
+lossless_prep_frame_size=8294400
+lossless_prep_src="$path_bitstreams/encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+lossless_prep_ref="$tmp_dir/lossless_prep_ref.yuv"
+bitstream_lossless_prep="$tmp_dir/lossless_prep.jxs"
+if [ -f "$lossless_prep_src" ]; then
+    head -c $((lossless_prep_frame_size * lossless_prep_frames)) "$lossless_prep_src" > "$lossless_prep_ref"
+    cmd_prep_lossless="$exec_ffmpeg -y -hide_banner -loglevel error -f rawvideo -pix_fmt yuv422p10le -s:v 1920x1080 -i $lossless_prep_src -frames:v $lossless_prep_frames -c:v libsvtjpegxs -bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -lossless 1 -f image2pipe $bitstream_lossless_prep"
+    echo "run command: $cmd_prep_lossless"
+    ${cmd_prep_lossless}
+fi
+
+#RUN true-lossless (Fq=0) decode round-trip via ffmpeg: decode the self-generated lossless
+#bitstream and compare against the original source frames exactly (bit-exact, not tolerance-based).
+function test_lossless_decode {
+    common_lib_update_test_id_run_return_1_to_ignore
+    ignore=$?
+    if [ $ignore -ne 0 ]; then
+        return
+    fi
+
+    out_yuv="$tmp_dir/lossless_prep_out.yuv"
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -i $bitstream_lossless_prep -f rawvideo $out_yuv"
+    echo "run command: $cmd"
+    ${cmd}
+    ret=$?
+    if [ $ret -ne 0 ]; then
+        echo "FAIL Can not decode bitstream, error code: $ret"
+        error=1
+        end
+    fi
+
+    cmd_cmp="diff $lossless_prep_ref $out_yuv"
+    ${cmd_cmp} > /dev/null
+    ret=$?
+    if [ $ret -ne 0 ]; then
+        echo "FAIL comapare: $cmd_cmp"
+        error=1
+        end
+    fi
+}
+
 function test_all {
     test_dec 001
     test_dec 002
@@ -244,6 +292,9 @@ function test_msb_aligned {
     #msb_aligned=0/default output above.
     test_msb_dec 0 "$3" 1
 }
+
+echo "Test true-lossless (Fq=0) decode round-trip"
+test_lossless_decode
 
 #(name, without .jxs) (msb_aligned=0 expected md5) (msb_aligned=1 expected md5)
 test_all

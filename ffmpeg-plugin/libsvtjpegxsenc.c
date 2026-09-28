@@ -32,6 +32,7 @@ typedef struct SvtJpegXsEncodeContext {
     int color_transform;
     int cpu_profile;
     int msb_aligned;
+    int lossless;
 
     svt_jpeg_xs_encoder_api_t encoder;
     svt_jpeg_xs_image_config_t image_config;
@@ -282,10 +283,14 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
         svt_enc->encoder.verbose = VERBOSE_WARNINGS;
     }
 
+    svt_enc->encoder.lossless_enable = svt_enc->lossless ? 1 : 0;
+
     if (svt_enc->bpp_str) {
         set_bpp(svt_enc->bpp_str, &(svt_enc->encoder));
     }
-    else {
+    else if (!svt_enc->lossless) {
+        // bpp_numerator/bpp_denominator are ignored by the library when lossless_enable is set
+        // (output size is data-dependent instead), so skip requiring/deriving -bpp for lossless.
         uint32_t default_bpp = default_bpp_numerator(&(svt_enc->encoder));
         if (!default_bpp) {
             // TODO: Consider using avctx->bit_rate to specify bpp_num/bpp_denom in this case
@@ -366,10 +371,11 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
             av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_get_image_config failed\n");
             return AVERROR_UNKNOWN;
         }
+        // Use the library's own sizing instead of re-deriving it from bpp_numerator/bpp_denominator:
+        // those are ignored entirely when lossless_enable is set, and get_image_config() already
+        // accounts for that (a data-dependent worst-case bound instead of the fixed CBR formula).
+        svt_enc->bitstream_frame_size = bytes_per_frame;
     }
-
-    svt_enc->bitstream_frame_size =
-        ((avctx->width * avctx->height * svt_enc->encoder.bpp_numerator / svt_enc->encoder.bpp_denominator + 7) / 8);
 
     return 0;
 }
@@ -464,6 +470,14 @@ static const AVOption svtjpegxs_enc_options[] = {
      "Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. "
      "Must match the decoder's msb_aligned setting.",
      OFFSET(msb_aligned),
+     AV_OPT_TYPE_BOOL,
+     {.i64 = 0},
+     0,
+     1,
+     VE},
+    {"lossless",
+     "True lossless coding (Fq=0). Output size is data-dependent instead of fixed CBR size; ignores -bpp.",
+     OFFSET(lossless),
      AV_OPT_TYPE_BOOL,
      {.i64 = 0},
      0,

@@ -143,6 +143,56 @@ if [ -f "$SYNTH_YUVA422P10MF_SRC" ]; then
         -frames:v $SYNTH_FRAMES -c:v libsvtjpegxs -bpp 6 -f image2pipe "$SYNTH_YUVA422P10MF_JXS"
 fi
 
+# No external true-lossless (Fq=0) multi-frame .jxs fixture exists in bitstream_multi_frames/
+# (external sample corpus, not part of this repo). Self-generate one via this same ffmpeg
+# build/plugin, same technique as the SYNTH_YUVA422P10MF alpha fixture above.
+LOSSLESS_MF_SRC="$path_global/encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+LOSSLESS_MF_FRAMES=5
+LOSSLESS_MF_FRAME_SIZE=8294400
+LOSSLESS_MF_REF="$tmp_dir/lossless_mf_ref.yuv"
+LOSSLESS_MF_JXS="$tmp_dir/lossless_mf.jxs"
+if [ -f "$LOSSLESS_MF_SRC" ]; then
+    head -c $((LOSSLESS_MF_FRAME_SIZE * LOSSLESS_MF_FRAMES)) "$LOSSLESS_MF_SRC" > "$LOSSLESS_MF_REF"
+    $exec_ffmpeg -y -hide_banner -loglevel error -f rawvideo -pix_fmt yuv422p10le -s:v 1920x1080 -i "$LOSSLESS_MF_SRC" \
+        -frames:v $LOSSLESS_MF_FRAMES -c:v libsvtjpegxs -bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -lossless 1 -f image2pipe "$LOSSLESS_MF_JXS"
+fi
+
+#RUN true-lossless (Fq=0) multi-frame decode round-trip via ffmpeg: decode the self-generated
+#lossless bitstream and compare against the original source frames exactly (bit-exact, not a
+#pinned md5 - unlike test_dec above, the point here is proving the actual bit-exact-lossless claim).
+#(1:PARAM_THREADS)
+function test_lossless_decode {
+    PARAM_THREADS=$1
+
+    common_lib_update_test_id_run_return_1_to_ignore
+    ignore=$?
+    if [ $ignore -ne 0 ]; then
+        return
+    fi
+
+    out_yuv="$tmp_dir/lossless_mf_out.yuv"
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -threads $PARAM_THREADS -i $LOSSLESS_MF_JXS -f rawvideo $out_yuv"
+    echo "run command: $cmd"
+    ${cmd}
+    ret=$?
+    if [ $ret -ne 0 ]; then
+        echo "FAIL Can not decode bitstream, error code: $ret"
+        error=1
+        end
+    fi
+
+    md5_src=$(md5sum "$LOSSLESS_MF_REF" | awk '{ print $1 }')
+    md5_dec=$(md5sum "$out_yuv" | awk '{ print $1 }')
+    echo -n "Test lossless round-trip MD5 src=$md5_src dec=$md5_dec "
+    if [ "$md5_src" = "$md5_dec" ]; then
+        echo "OK"
+    else
+        echo "FAIL decoded output MD5 != source YUV MD5 (not bit-exact)"
+        error=1
+        end
+    fi
+}
+
 function test_all_correct {
     PARAM_THREADS=$1
     path_use=$path_correct
@@ -244,6 +294,7 @@ function test_all_invalid {
 for PARAM_THREADS in 0 1 10 20; do
     test_all_correct $PARAM_THREADS
     test_all_broken $PARAM_THREADS
+    test_lossless_decode $PARAM_THREADS
 done
 test_all_invalid
 

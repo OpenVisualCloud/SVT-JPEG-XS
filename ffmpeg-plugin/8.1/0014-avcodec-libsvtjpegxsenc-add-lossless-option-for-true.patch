@@ -1,0 +1,74 @@
+From 6fd970ef0f952f30db54a715d3cfdd051fdb2712 Mon Sep 17 00:00:00 2001
+From: SVT-JPEG-XS <noreply@example.com>
+Date: Fri, 25 Sep 2026 08:49:51 +0200
+Subject: [PATCH] avcodec/libsvtjpegxsenc: add lossless option for true
+ lossless coding
+
+Exposes the encoder's lossless_enable field (Fq=0, ISO/IEC 21122-1 Table
+A.8) as a private -lossless option. bpp_numerator/bpp_denominator are
+ignored by the library in this mode (output size is data-dependent
+instead of a fixed CBR target), so -bpp is no longer required when
+-lossless is set. Also switches bitstream_frame_size to the value
+already returned by svt_jpeg_xs_encoder_get_image_config() instead of
+re-deriving it from bpp_numerator/bpp_denominator, since that formula
+does not apply in lossless mode and the library already computes the
+right (worst-case) bound for both modes.
+---
+ libavcodec/libsvtjpegxsenc.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/libavcodec/libsvtjpegxsenc.c b/libavcodec/libsvtjpegxsenc.c
+index ea5e1c78dc..7526a65e1b 100644
+--- a/libavcodec/libsvtjpegxsenc.c
++++ b/libavcodec/libsvtjpegxsenc.c
+@@ -52,6 +52,7 @@ typedef struct SvtJpegXsEncodeContext {
+     int color_transform;
+     int cpu_profile;
+     int msb_aligned;
++    int lossless;
+ 
+     svt_jpeg_xs_encoder_api_t encoder;
+     svt_jpeg_xs_image_config_t image_config;
+@@ -296,10 +297,14 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
+         svt_enc->encoder.verbose = VERBOSE_WARNINGS;
+     }
+ 
++    svt_enc->encoder.lossless_enable = svt_enc->lossless ? 1 : 0;
++
+     if (svt_enc->bpp_str) {
+         set_bpp(svt_enc->bpp_str, &(svt_enc->encoder));
+     }
+-    else {
++    else if (!svt_enc->lossless) {
++        // bpp_numerator/bpp_denominator are ignored by the library when lossless_enable is set
++        // (output size is data-dependent instead), so skip requiring/deriving -bpp for lossless.
+         uint32_t default_bpp = default_bpp_numerator(&(svt_enc->encoder));
+         if (!default_bpp) {
+             //TODO: Consider using avctx->bit_rate to specify bpp_num/bpp_denom in this case
+@@ -380,10 +385,12 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
+             av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_get_image_config failed\n");
+             return AVERROR_UNKNOWN;
+         }
++        // Use the library's own sizing instead of re-deriving it from bpp_numerator/bpp_denominator:
++        // those are ignored entirely when lossless_enable is set, and get_image_config() already
++        // accounts for that (a data-dependent worst-case bound instead of the fixed CBR formula).
++        svt_enc->bitstream_frame_size = bytes_per_frame;
+     }
+ 
+-    svt_enc->bitstream_frame_size = ((avctx->width * avctx->height * svt_enc->encoder.bpp_numerator / svt_enc->encoder.bpp_denominator + 7) / 8);
+-
+     return 0;
+ }
+ 
+@@ -418,6 +425,8 @@ static const AVOption svtjpegxs_enc_options[] = {
+       { "cpu",          NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, .unit = "cpu_profile" },
+     { "msb_aligned",  "Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. "
+                       "Must match the decoder's msb_aligned setting.", OFFSET(msb_aligned), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, VE },
++    { "lossless",     "True lossless coding (Fq=0). Output size is data-dependent instead of fixed CBR size; ignores -bpp.",
++                                                                            OFFSET(lossless), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, VE },
+       { "light422",        NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x1500}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile" },
+       { "light444",        NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x1A00}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile" },
+       { "lightsubline422", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0x2500}, INT_MIN, INT_MAX, VE, .unit = "avctx.profile" },
+-- 
+2.53.0
+
