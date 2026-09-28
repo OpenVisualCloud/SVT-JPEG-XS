@@ -150,14 +150,26 @@ cmd_prep_444="$exec_enc -i $yuva444_synth -w $yuva444_w -h $yuva444_h --input-de
 echo "run command: $cmd_prep_444"
 run_cmd "$cmd_prep_444"
 
-#Compares two same-size files sample-by-sample and fails if any absolute difference exceeds $3.
+#Compares two same-size files sample-by-sample and fails if the sizes differ or any absolute difference exceeds $3.
 #(1:file A) (2:file B) (3:max allowed absolute per-byte difference)
 function compare_yuv_tolerance {
     file_a=$1
     file_b=$2
     max_allowed=$3
 
-    max_diff=`cmp -l "$file_a" "$file_b" | awk '{v1=strtonum("0"$2); v2=strtonum("0"$3); d=(v1>v2)?v1-v2:v2-v1; if(d>max)max=d} END{print max+0}'`
+    #cmp -l only compares the common prefix, so a truncated output would otherwise pass
+    size_a=`wc -c < "$file_a"`
+    size_b=`wc -c < "$file_b"`
+    if [ -z "$size_a" ] || [ -z "$size_b" ] || [ "$size_a" -ne "$size_b" ]; then
+        echo "Size mismatch vs original input: '$size_a' vs '$size_b' bytes FAIL"
+        error=1
+        end
+        return
+    fi
+
+    #cmp -l prints byte values in octal; convert by hand since strtonum() is gawk-only
+    max_diff=`cmp -l "$file_a" "$file_b" | awk 'function oct(s,  i, v) { v = 0; for (i = 1; i <= length(s); i++) v = v * 8 + substr(s, i, 1); return v }
+        { v1 = oct($2); v2 = oct($3); d = (v1 > v2) ? v1 - v2 : v2 - v1; if (d > max) max = d } END { print max + 0 }'`
     echo -n "Max abs diff vs original input: $max_diff (allowed <= $max_allowed) "
     if [ "$max_diff" -gt "$max_allowed" ]; then
         echo "FAIL"
