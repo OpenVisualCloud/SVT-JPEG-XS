@@ -105,7 +105,10 @@ if [ ! -f "$CSV_FILE" ]; then
 fi
 echo "CSV ready, entering test matrix loop"
 
-# Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS|ExtraEncArgs(optional)|ExtraDecArgs(optional)
+# Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS|ExtraEncArgs(optional)|ExtraDecArgs(optional)|FramesOverride(optional)
+# FramesOverride, when set, replaces the global $FRAMES for that row's -frames:v arg - needed by
+# rows whose per-frame output size can be much larger than the lossy CBR rows (e.g. lossless),
+# where running the full $FRAMES would blow the ramdisk tmpfs budget below.
 MATRIX=(
     # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling.
     "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH|40|37"
@@ -152,6 +155,20 @@ MATRIX=(
     # unlike encode it does not scale with threads - measured ~116 FPS at threads=8 on CI.
     "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|1|SYNTH|32|38|-color_transform 1 -cpu_profile latency"
     "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|8|SYNTH|152|110|-color_transform 1 -cpu_profile latency"
+
+    # 1080p 422p 10-bit true lossless (-lossless 1, Fq=0) Thread Scaling. -bpp is passed but
+    # ignored by the encoder in this mode (kept only for CSV-column consistency with the other
+    # 422p10 rows above). Decode needs no extra flag - it auto-detects Fq=0 from the bitstream
+    # header. FramesOverride=200: see PerformanceTestSampleApp.sh's equivalent row for the ramdisk
+    # sizing rationale (lossless's ~2 bytes/sample worst case would blow the tmpfs budget at full
+    # $FRAMES). The threads=8 baselines used to be reused as-is from that same native-binary row,
+    # on the assumption that since this ffmpeg plugin wraps the same encoder/decoder core its
+    # throughput would track the native binary's - CI showed that's wrong: the plugin's rawvideo
+    # demuxer / image2pipe muxer pipe I/O adds real overhead the native binary doesn't have (measured
+    # ~357 FPS encode, ~400 FPS decode on CI vs. the native binary's 450/585). Baselines below are
+    # calibrated from that measurement with the same ~5% margin as the RCT decode row above.
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|78|125|-lossless 1||200"
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|340|380|-lossless 1||200"
 )
 
 # get_ffmpeg_pix_fmt colour_format bit_depth: maps to the ffmpeg pix_fmt name.
@@ -179,7 +196,7 @@ function run_measured() {
     rtime=$(echo "$output" | grep -oE 'rtime=[0-9.]+' | cut -d= -f2 | tail -1) || true
 
     if [ -n "$rtime" ]; then
-        fps=$(awk -v f="$FRAMES" -v r="$rtime" 'BEGIN { if (r > 0) printf "%.2f", f / r }')
+        fps=$(awk -v f="$frames" -v r="$rtime" 'BEGIN { if (r > 0) printf "%.2f", f / r }')
     fi
 
     if [ "$exit_code" -ne 0 ]; then
@@ -228,7 +245,8 @@ MATRIX_TOTAL=${#MATRIX[@]}
 MATRIX_INDEX=0
 for test_case in "${MATRIX[@]}"; do
     MATRIX_INDEX=$((MATRIX_INDEX + 1))
-    IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
+    IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args frames_override <<< "$test_case"
+    frames="${frames_override:-$FRAMES}"
     echo "$MATRIX_INDEX/$MATRIX_TOTAL:"
 
     case "$file" in
@@ -258,7 +276,7 @@ for test_case in "${MATRIX[@]}"; do
         "$FFMPEG_BIN" -y -hide_banner -loglevel info -nostats -benchmark \
         -stream_loop -1 -f rawvideo -pix_fmt "$pix_fmt" -s:v "${w}x${h}" -framerate "$framerate" \
         -i "$RAMDISK_YUV" \
-        -threads "$threads" -frames:v "$FRAMES" -c:v libsvtjpegxs -bpp "$bpp" $extra_enc_args \
+        -threads "$threads" -frames:v "$frames" -c:v libsvtjpegxs -bpp "$bpp" $extra_enc_args \
         -f image2pipe "$RAMDISK_JXS")
     enc_cmd=$(printf '%q ' "${enc_cmd_arr[@]}")
     enc_fps=$(run_measured "${enc_cmd_arr[@]}")

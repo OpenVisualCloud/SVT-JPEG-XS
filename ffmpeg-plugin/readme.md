@@ -248,6 +248,7 @@ cap-compat|optional|(default:auto/disabled), true(enabled), false(disabled)|Emit
 color_transform|optional|(default:auto/disabled), true(enabled), false(disabled)|Encoder-side reversible colour transform (RCT, Cpih=1). Only valid for 3-component unsubsampled planar input (gbrp/gbrp10le/yuv444p/etc.) - rejected otherwise. Recommended for RGB-like formats only (measured +5.9dB PSNR at matched bpp on real footage) - yuv444p is accepted (same format check) but not recommended (measured -2.9dB PSNR: the transform decorrelates RGB-like input into YCbCr-like, which does not help input that is already YCbCr-like)
 cpu_profile|optional|(default:auto/latency), latency, cpu|Encoder internal threading model
 msb_aligned|optional|(default:false), true, false|Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. Must match the decoder's msb_aligned setting
+lossless|optional|(default:false), true, false|True lossless coding (Fq=0): decoded output is bit-exact with the input. Output size is data-dependent instead of the usual fixed CBR size; `-bpp` is not required and is ignored, as is `quantization`. Unless `-profile:v`/`-level:v` are set, the stream is declared as MLS.12 (Ppih=0x6EC0) with an unrestricted sublevel; add `-coding-raw false` for a strictly MLS.12-conformant stream (MLS.12 requires Rl=0). Rejected together with `-msb_aligned true`, or with `-color_transform true` at 13/14-bit input
 
 ### Stream profile (Ppih) and level (Plev)
 
@@ -297,6 +298,12 @@ after - placed after `-i` they are silently ignored (ffmpeg only logs a warning,
 
 ```text
 ./ffmpeg.exe -y -s:v 1920x1080 -c:v rawvideo -pix_fmt yuv420p -i <raw_stream.yuv> -codec jpegxs -bpp 1.25 <more encoder params -threads 5> encoded_file.mov
+```
+
+### Encoding raw video losslessly
+
+```text
+./ffmpeg.exe -y -s:v 1920x1080 -c:v rawvideo -pix_fmt yuv422p10le -i <raw_stream.yuv> -codec jpegxs -lossless true -coding-raw false encoded_file.mov
 ```
 
 ### Playback encoded stream via ffplay
