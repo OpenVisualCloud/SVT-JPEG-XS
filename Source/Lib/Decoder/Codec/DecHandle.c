@@ -514,9 +514,15 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
     svt_jpeg_xs_decoder_api_prv_t* dec_api_prv = (svt_jpeg_xs_decoder_api_prv_t*)dec_api->private_ptr;
 
     if (dec_api_prv->packetization_mode) {
-        ObjectWrapper_t* wrapper_ptr_decoder_ctx = NULL;
+        //A frame still waiting for the rest of its bitstream would never complete, and the EOC queued
+        //behind it in the output ring buffer would never be delivered: fail it first.
+        SvtJxsErrorType_t ret = internal_svt_jpeg_xs_decoder_fail_partial_frame(dec_api_prv);
+        if (ret != SvtJxsErrorNone) {
+            return ret;
+        }
 
-        SvtJxsErrorType_t ret = svt_jxs_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr,
+        ObjectWrapper_t* wrapper_ptr_decoder_ctx = NULL;
+        ret = svt_jxs_get_empty_object(dec_api_prv->internal_pool_decoder_instance_fifo_ptr,
                                                          &wrapper_ptr_decoder_ctx);
 
         if (ret != SvtJxsErrorNone || wrapper_ptr_decoder_ctx == NULL) {
@@ -551,6 +557,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
         SVT_ATOMIC_STORE32(&dec_ctx->sync_num_slices_to_receive, 1);
 
         svt_jxs_post_full_object(universal_wrapper_ptr);
+        return SvtJxsErrorNone;
     }
     else {
         ObjectWrapper_t* input_wrapper_ptr = NULL;

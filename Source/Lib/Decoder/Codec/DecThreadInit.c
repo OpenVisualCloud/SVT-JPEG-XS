@@ -343,6 +343,39 @@ void* thread_init_stage_kernel(void* input_ptr) {
     return NULL;
 }
 
+/*Packet-based mode: fail the frame whose bitstream was only partially sent, the same way a slice error
+ * does, so it is delivered with an error instead of blocking the output ring buffer forever.*/
+SvtJxsErrorType_t internal_svt_jpeg_xs_decoder_fail_partial_frame(svt_jpeg_xs_decoder_api_prv_t* dec_api_prv) {
+    svt_jpeg_xs_slice_scheduler_ctx_t* slice_scheduler_ctx = &dec_api_prv->slice_scheduler_ctx;
+    ObjectWrapper_t* wrapper_ptr_decoder_ctx = slice_scheduler_ctx->wrapper_ptr_decoder_ctx;
+    if (wrapper_ptr_decoder_ctx == NULL) {
+        return SvtJxsErrorNone;
+    }
+    svt_jpeg_xs_decoder_instance_t* dec_ctx = wrapper_ptr_decoder_ctx->object_ptr;
+
+    ObjectWrapper_t* universal_wrapper_ptr = NULL;
+    SvtJxsErrorType_t err = svt_jxs_get_empty_object(dec_api_prv->universal_producer_fifo_ptr, &universal_wrapper_ptr);
+    if (err != SvtJxsErrorNone || universal_wrapper_ptr == NULL) {
+        return err;
+    }
+    TaskCalculateFrame* buffer_output = (TaskCalculateFrame*)universal_wrapper_ptr->object_ptr;
+    buffer_output->wrapper_ptr_decoder_ctx = wrapper_ptr_decoder_ctx;
+    buffer_output->image_buffer = dec_ctx->dec_input.image;
+    buffer_output->bitstream_buf = dec_ctx->frame_bitstream_ptr + slice_scheduler_ctx->bytes_processed;
+    buffer_output->bitstream_buf_size = 0;
+    buffer_output->slice_id = slice_scheduler_ctx->slices_sent;
+    buffer_output->frame_error = SvtJxsErrorDecoderBitstreamTooShort;
+
+    // Atomic: final thread reads this concurrently while processing earlier slices
+    SVT_ATOMIC_STORE32(&dec_ctx->sync_num_slices_to_receive, slice_scheduler_ctx->slices_sent + 1);
+
+    svt_jxs_post_full_object(universal_wrapper_ptr);
+
+    slice_scheduler_ctx->slices_sent++;
+    slice_scheduler_ctx->wrapper_ptr_decoder_ctx = NULL;
+    return SvtJxsErrorNone;
+}
+
 SvtJxsErrorType_t internal_svt_jpeg_xs_decoder_send_packet(svt_jpeg_xs_decoder_api_prv_t* dec_api_prv,
                                                            svt_jpeg_xs_frame_t* dec_input, uint32_t* bytes_used) {
     svt_jpeg_xs_slice_scheduler_ctx_t* slice_scheduler_ctx = &dec_api_prv->slice_scheduler_ctx;
