@@ -1295,11 +1295,46 @@ void rate_control_init_precinct(struct PictureControlSet *pcs_ptr, precinct_enc_
                           precinct);
 }
 
+/* Shared by rate_control_precinct() and rate_control_slice_quantization_fast_no_vpred_no_sign_full():
+ * forces gtli=0 for every band in this precinct (no truncation, no adaptive fitting - lossless has
+ * no budget to adapt to) and sets its real (unpadded) header+data size as pack_total_bytes, instead
+ * of running the binary search these two callers otherwise use to fit a CBR budget. Returns
+ * SvtJxsErrorEncodeFrameError if the real size exceeds what the bitstream format can represent
+ * (PRECINCT_MAX_BYTES_SIZE); this is a format-legality check, not a window-size check - the caller's
+ * pre-reserved window is sized generously enough that this real size should always fit it too (see
+ * EncHandle.c's lossless_worst_case_bytes_per_frame()), and PackStageProcess.c independently verifies that. */
+static SvtJxsErrorType_t rate_control_precinct_lossless(svt_jpeg_xs_encoder_common_t *enc_common, precinct_enc_t *precinct,
+                                                        VerticalPredictionMode coding_vertical_prediction_mode,
+                                                        SignHandlingStrategy coding_signs_handling) {
+    /*compute_truncation(gain, priority, 0, 0) always returns 0 (EncDec.c), so this forces gtli=0
+      for every band unconditionally: no truncation, "empty" (all-bands-zeroed) can never happen.*/
+    int empty = precinct_encoder_compute_truncation(&enc_common->pi, precinct, 0, 0);
+    assert(!empty);
+    (void)empty;
+    precinct->pack_quantization = 0;
+    precinct->pack_refinement = 0;
+    uint32_t headers_bytes = rate_control_get_headers_bytes(enc_common, precinct);
+    uint32_t data_bytes = precinct_get_budget_bytes(enc_common, precinct, coding_vertical_prediction_mode, coding_signs_handling);
+    precinct->pack_padding_bytes = 0;
+    precinct->pack_total_bytes = headers_bytes + data_bytes;
+    if (precinct->pack_total_bytes > PRECINCT_MAX_BYTES_SIZE) {
+#ifndef NDEBUG
+        SVT_ERROR("[%s[%d]] RC precinct error Precinct size is Too BIG for lossless coding!\n", __FUNCTION__, __LINE__);
+#endif
+        return SvtJxsErrorEncodeFrameError;
+    }
+    return SvtJxsErrorNone;
+}
+
 /*Find best Quantization and Refinement for Precinct. Need before call rate_control_init_precinct().*/
 SvtJxsErrorType_t rate_control_precinct(struct PictureControlSet *pcs_ptr, precinct_enc_t *precinct, uint32_t budget_bytes,
                                         VerticalPredictionMode coding_vertical_prediction_mode,
                                         SignHandlingStrategy coding_signs_handling) {
     svt_jpeg_xs_encoder_common_t *enc_common = pcs_ptr->enc_common;
+
+    if (enc_common->lossless_enable) {
+        return rate_control_precinct_lossless(enc_common, precinct, coding_vertical_prediction_mode, coding_signs_handling);
+    }
 
     if (budget_bytes > PRECINCT_MAX_BYTES_SIZE) {
 #ifndef NDEBUG
@@ -1378,6 +1413,11 @@ SvtJxsErrorType_t rate_control_slice_quantization_fast_no_vpred_no_sign_full(str
                                                                              uint32_t budget_slice_bytes,
                                                                              SignHandlingStrategy coding_signs_handling) {
     svt_jpeg_xs_encoder_common_t *enc_common = pcs_ptr->enc_common;
+    /* lossless_enable never reaches this function: EncHandle.c forces rate_control_mode to
+     * RC_CBR_PER_PRECINCT whenever it's set, and PackStageProcess.c's pack_stage_kernel() only
+     * calls this (via process_slice()) for RC_CBR_PER_SLICE_COMMON_QUANT[_MAX_RATE] - see
+     * rate_control_precinct()'s lossless branch instead. */
+    assert(!enc_common->lossless_enable);
     if (coding_signs_handling == SIGN_HANDLING_STRATEGY_FULL) {
         coding_signs_handling = SIGN_HANDLING_STRATEGY_FAST;
     }

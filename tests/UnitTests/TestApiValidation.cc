@@ -4,6 +4,7 @@
 */
 
 #include <string.h>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "SvtJpegxs.h"
@@ -104,6 +105,92 @@ TEST(DecoderInit, InvalidPacketizationModeReturnsError) {
     ASSERT_NE(ret, SvtJxsErrorNone);
     // After failed init, private_ptr should be cleaned up
     ASSERT_EQ(decoder.private_ptr, nullptr);
+}
+
+TEST(DecoderInit, LosslessRejectsPacketizationMode) {
+    // Regression test for a real hang this guards against: packetization mode's slice-boundary
+    // framing assumes CBR's uniform, formula-computable slice sizes, and previously spun forever
+    // (never converging on a matching size) against a lossless stream's real, data-dependent
+    // slice sizes instead of erroring - confirmed not to reproduce on an ordinary CBR bitstream.
+    // The encoder itself never produces this combination (see
+    // EncoderInit.LosslessRejectsSlicePacketizationMode), but a caller decoding an externally
+    // supplied lossless bitstream could still request packetization_mode=1, so the decoder must
+    // reject it here too.
+    svt_jpeg_xs_encoder_api_t enc;
+    ASSERT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
+             SvtJxsErrorNone);
+    enc.verbose = VERBOSE_NONE;
+    enc.source_width = 64;
+    enc.source_height = 64;
+    enc.input_bit_depth = 8;
+    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV420;
+    enc.lossless_enable = 1;
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc), SvtJxsErrorNone);
+
+    svt_jpeg_xs_image_config_t image_config;
+    uint32_t bytes_per_frame = 0;
+    ASSERT_EQ(svt_jpeg_xs_encoder_get_image_config(
+                  SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc, &image_config, &bytes_per_frame),
+             SvtJxsErrorNone);
+
+    svt_jpeg_xs_image_buffer_t* in_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
+    ASSERT_NE(in_buf, nullptr);
+    for (int32_t c = 0; c < image_config.components_num; ++c) {
+        memset(in_buf->data_yuv[c], 0, (size_t)in_buf->stride[c] * image_config.components[c].height);
+    }
+
+    svt_jpeg_xs_bitstream_buffer_t out_buf;
+    out_buf.allocation_size = bytes_per_frame * 2 + 4096;
+    out_buf.used_size = 0;
+    out_buf.buffer = (uint8_t*)malloc(out_buf.allocation_size);
+    ASSERT_NE(out_buf.buffer, nullptr);
+
+    svt_jpeg_xs_frame_t enc_input;
+    enc_input.bitstream = out_buf;
+    enc_input.image = *in_buf;
+    enc_input.user_prv_ctx_ptr = NULL;
+    ASSERT_EQ(svt_jpeg_xs_encoder_send_picture(&enc, &enc_input, 1 /*blocking*/), SvtJxsErrorNone);
+
+    svt_jpeg_xs_frame_t enc_output;
+    memset(&enc_output, 0, sizeof(enc_output));
+    ASSERT_EQ(svt_jpeg_xs_encoder_get_packet(&enc, &enc_output, 1 /*blocking*/), SvtJxsErrorNone);
+
+    std::vector<uint8_t> bitstream(enc_output.bitstream.buffer, enc_output.bitstream.buffer + enc_output.bitstream.used_size);
+    ASSERT_GT(bitstream.size(), 0u);
+
+    svt_jpeg_xs_encoder_close(&enc);
+    svt_jpeg_xs_image_buffer_free(in_buf);
+    free(out_buf.buffer);
+
+    // packetization_mode=1 must be rejected cleanly (not hang) against this lossless bitstream.
+    svt_jpeg_xs_decoder_api_t decoder;
+    memset(&decoder, 0, sizeof(decoder));
+    decoder.verbose = VERBOSE_NONE;
+    decoder.packetization_mode = 1;
+    svt_jpeg_xs_image_config_t dec_image_config;
+    SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_init(SVT_JPEGXS_API_VER_MAJOR,
+                                                     SVT_JPEGXS_API_VER_MINOR,
+                                                     &decoder,
+                                                     bitstream.data(),
+                                                     bitstream.size(),
+                                                     &dec_image_config);
+    ASSERT_EQ(ret, SvtJxsErrorBadParameter);
+    ASSERT_EQ(decoder.private_ptr, nullptr);
+
+    // Sanity: packetization_mode=0 against the SAME bitstream must still succeed - otherwise the
+    // rejection above could trivially "pass" for the wrong reason (e.g. a malformed bitstream).
+    svt_jpeg_xs_decoder_api_t decoder_ok;
+    memset(&decoder_ok, 0, sizeof(decoder_ok));
+    decoder_ok.verbose = VERBOSE_NONE;
+    decoder_ok.packetization_mode = 0;
+    SvtJxsErrorType_t ret_ok = svt_jpeg_xs_decoder_init(SVT_JPEGXS_API_VER_MAJOR,
+                                                        SVT_JPEGXS_API_VER_MINOR,
+                                                        &decoder_ok,
+                                                        bitstream.data(),
+                                                        bitstream.size(),
+                                                        &dec_image_config);
+    ASSERT_EQ(ret_ok, SvtJxsErrorNone);
+    svt_jpeg_xs_decoder_close(&decoder_ok);
 }
 
 TEST(DecoderInit, InvalidProxyModeReturnsError) {
@@ -222,6 +309,145 @@ TEST(EncoderInit, ColorTransformRequiresPlanar444FormatReturnsError) {
     SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
     ASSERT_EQ(ret, SvtJxsErrorBadParameter);
     ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
+TEST(EncoderInit, LosslessRejectsMsbAlignedInput) {
+    // NltEnc.c's MSB-aligned input path computes shift = hdr_Bw - 16, which is only valid (a
+    // non-negative left shift) for the non-lossless Bw in {18,20}; lossless sets Bw=bit_depth
+    // (8-14), so this combination is rejected rather than risking an undefined shift.
+    svt_jpeg_xs_encoder_api_t encoder;
+    svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    encoder.verbose = VERBOSE_NONE;
+    encoder.source_width = 64;
+    encoder.source_height = 64;
+    encoder.input_bit_depth = 10;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+    encoder.bpp_numerator = 3;
+    encoder.lossless_enable = 1;
+
+    // Control: the same configuration without input_bit_depth_msb_aligned must initialize, so the rejection below
+    // is caused by input_bit_depth_msb_aligned and not by some other parameter.
+    svt_jpeg_xs_encoder_api_t control = encoder;
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &control), SvtJxsErrorNone);
+    svt_jpeg_xs_encoder_close(&control);
+
+    encoder.input_bit_depth_msb_aligned = 1;
+    SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    ASSERT_EQ(ret, SvtJxsErrorBadParameter);
+    ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
+TEST(EncoderInit, LosslessRejectsSlicePacketizationMode) {
+    // Slice packetization mode needs hdr_Lcod known before the header packet is released, but
+    // lossless's true final size is only known after every slice has finished packing.
+    svt_jpeg_xs_encoder_api_t encoder;
+    svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    encoder.verbose = VERBOSE_NONE;
+    encoder.source_width = 64;
+    encoder.source_height = 64;
+    encoder.input_bit_depth = 8;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+    encoder.bpp_numerator = 3;
+    encoder.lossless_enable = 1;
+
+    // Control: the same configuration without slice_packetization_mode must initialize, so the rejection below
+    // is caused by slice_packetization_mode and not by some other parameter.
+    svt_jpeg_xs_encoder_api_t control = encoder;
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &control), SvtJxsErrorNone);
+    svt_jpeg_xs_encoder_close(&control);
+
+    encoder.slice_packetization_mode = 1;
+    SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    ASSERT_EQ(ret, SvtJxsErrorBadParameter);
+    ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
+TEST(EncoderInit, LosslessRejectsRctAboveBitDepth12) {
+    // RCT (Cpih=1) grows coefficient magnitude by roughly a bit on top of the wavelet transform's
+    // own growth; combined with 13/14-bit lossless input (Bw=bit_depth, Fq=0, no margin from
+    // quantization) that can overflow TRUNCATION_MAX=15 bits and wrap into the sign bit undetected
+    // in a release build (NltEnc.c only asserts the bound). Reject the combination instead.
+    svt_jpeg_xs_encoder_api_t encoder;
+    svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    encoder.verbose = VERBOSE_NONE;
+    encoder.source_width = 64;
+    encoder.source_height = 64;
+    encoder.input_bit_depth = 13;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    encoder.bpp_numerator = 3;
+    encoder.lossless_enable = 1;
+    encoder.enable_color_transform = 1;
+
+    SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    ASSERT_EQ(ret, SvtJxsErrorBadParameter);
+    ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
+TEST(EncoderInit, LosslessAcceptsRctAtBitDepth12) {
+    // Sanity check paired with the rejection above: RCT+lossless at exactly bit_depth=12 (the MLS.12
+    // profile's own ceiling, Table A.4) must still succeed.
+    svt_jpeg_xs_encoder_api_t encoder;
+    svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    encoder.verbose = VERBOSE_NONE;
+    encoder.source_width = 64;
+    encoder.source_height = 64;
+    encoder.input_bit_depth = 12;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    encoder.bpp_numerator = 3;
+    encoder.lossless_enable = 1;
+    encoder.enable_color_transform = 1;
+
+    SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    ASSERT_EQ(ret, SvtJxsErrorNone);
+    ASSERT_NE(encoder.private_ptr, nullptr);
+    svt_jpeg_xs_encoder_close(&encoder);
+}
+
+TEST(EncoderInit, LosslessAcceptsPlainConfiguration) {
+    // Sanity check paired with the two rejections above: lossless_enable alone (no MSB-aligned,
+    // no packetization) must succeed - otherwise those two tests could trivially "pass" for the
+    // wrong reason if lossless_enable were unconditionally rejected.
+    svt_jpeg_xs_encoder_api_t encoder;
+    svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    encoder.verbose = VERBOSE_NONE;
+    // 16x16 is too small for the default ndecomp_h=5 (fails independently of lossless_enable -
+    // see EncoderTest.sh's "Unsuported Decomposition"/"Too big decomposition" cases), so use a
+    // size that comfortably fits the default decomposition depth.
+    encoder.source_width = 64;
+    encoder.source_height = 64;
+    encoder.input_bit_depth = 8;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+    encoder.bpp_numerator = 3;
+    encoder.lossless_enable = 1;
+
+    SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    ASSERT_EQ(ret, SvtJxsErrorNone);
+    ASSERT_NE(encoder.private_ptr, nullptr);
+    svt_jpeg_xs_encoder_close(&encoder);
+}
+
+TEST(EncoderInit, LosslessRejectsZeroResolution) {
+    // Found by the encoder fuzzer: slice_height is clamped to source_height, so source_height=0 made
+    // the lossless worst-case output sizing divide by zero (SIGFPE) instead of failing validation.
+    for (int zero_height = 0; zero_height < 2; ++zero_height) {
+        svt_jpeg_xs_encoder_api_t encoder;
+        svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+        encoder.verbose = VERBOSE_NONE;
+        encoder.source_width = zero_height ? 64 : 0;
+        encoder.source_height = zero_height ? 0 : 64;
+        encoder.input_bit_depth = 8;
+        encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+        encoder.lossless_enable = 1;
+
+        svt_jpeg_xs_image_config_t image_config;
+        uint32_t bytes_per_frame = 0;
+        EXPECT_EQ(svt_jpeg_xs_encoder_get_image_config(
+                      SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder, &image_config, &bytes_per_frame),
+                  SvtJxsErrorBadParameter);
+        EXPECT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder),
+                  SvtJxsErrorBadParameter);
+        svt_jpeg_xs_encoder_close(&encoder);
+    }
 }
 
 TEST(EncoderInit, InvalidApiVersionReturnsError) {

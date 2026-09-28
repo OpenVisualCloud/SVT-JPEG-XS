@@ -20,6 +20,8 @@ typedef struct PackOutput {
     ObjectWrapper_t *pcs_wrapper_ptr;
     uint32_t slice_idx;
     SvtJxsErrorType_t slice_error;
+    uint32_t slice_real_bytes; /* Real packed byte count for this slice (lossless_enable only); includes the
+                                  EOC tail for the last slice of the frame. */
 } PackOutput;
 
 typedef struct PackOutputInitData {

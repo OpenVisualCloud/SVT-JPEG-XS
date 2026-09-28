@@ -20,6 +20,7 @@
 #include "SvtLog.h"
 #include "EncDec.h"
 #include "SvtJpegxsImageBufferTools.h"
+#include "ProfileLevelNames.h"
 
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_single_frame_size(const uint8_t* bitstream_buf, size_t bitstream_buf_size,
                                                                        svt_jpeg_xs_image_config_t* out_image_config,
@@ -203,9 +204,17 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         svt_jpeg_xs_decoder_close(dec_api);
         return ret;
     }
-    if (dec_api_prv->packetization_mode == 1 && header_dynamic.hdr_Lcod == 0) {
+    if (dec_api_prv->packetization_mode == 1 && (header_dynamic.hdr_Lcod == 0 || header_dynamic.hdr_Fq == 0)) {
+        /* hdr_Fq==0 (true lossless, ISO/IEC 21122-1 Table A.8) means data-dependent, non-uniform
+         * slice sizes, same as the hdr_Lcod==0 variable-bitrate sentinel this check already
+         * covers: packetization mode's slice-boundary framing assumes CBR's fixed, formula-
+         * computable slice sizes and hangs (never converges) rather than erroring against either.
+         * Reject cleanly here instead - DecAppMain.c already retries with packetization_mode=0
+         * and warns the caller when decoder_init returns SvtJxsErrorBadParameter for this reason. */
         if (dec_api->verbose >= VERBOSE_ERRORS) {
-            SVT_ERROR("Packetization mode(multiple packets per frame) not supported with variable bitrate coding\n");
+            SVT_ERROR(
+                "Packetization mode(multiple packets per frame) not supported with variable bitrate or lossless "
+                "coding\n");
         }
         svt_jpeg_xs_decoder_close(dec_api);
         return SvtJxsErrorBadParameter;
@@ -239,6 +248,18 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         SVT_LOG("SVT [config]: DecoderBitDepth / DecoderColorFormat\t: %d / %s\n",
                 dec_api_prv->dec_common.picture_header_const.hdr_bit_depth[0],
                 color_format_name);
+        SVT_LOG("SVT [config]: Packetization Mode                  \t: %s\n",
+                dec_api_prv->packetization_mode ? "1:Multiple packets per frame" : "0:Single packet per frame");
+        SVT_LOG("SVT [config]: Colour Transform (Cpih)             \t: %s\n",
+                dec_api_prv->dec_common.picture_header_const.hdr_Cpih ? "Enabled (RCT)" : "Disabled");
+        SVT_LOG("SVT [config]: Lossless coding (Fq=0)              \t: %s\n",
+                header_dynamic.hdr_Fq == 0 ? "Enabled" : "Disabled");
+        char profile_level_str[JXS_PROFILE_LEVEL_STR_SIZE];
+        SVT_LOG("SVT [config]: Stream Profile (Ppih) / Level (Plev) \t: %s\n",
+                jxs_profile_level_str((uint16_t)dec_api_prv->dec_common.picture_header_const.hdr_Ppih,
+                                      (uint16_t)dec_api_prv->dec_common.picture_header_const.hdr_Plev,
+                                      profile_level_str,
+                                      sizeof(profile_level_str)));
     }
 
     if (dec_api->threads_num <= 2) {

@@ -14,9 +14,9 @@ extern "C" {
 #endif
 
 /* ISO/IEC 21122-2 Annex A profile identifiers (Ppih).
- * Only the "Main" family is auto-derivable by derive_codestream_profile_ppih() below: this encoder
- * never signals Star-Tetrix/RAW-CFA, non-linear transforms, component-dependent decomposition or
- * lossless coding (see write_capabilities_marker()), so Bayer/TDC/MLS profiles are out of scope, and
+ * Only the "Main" family and, when lossless_enable is set, MLS.12 are auto-derivable by
+ * derive_stream_profile_ppih() below: this encoder never signals Star-Tetrix/RAW-CFA, non-linear
+ * transforms or component-dependent decomposition, so Bayer/TDC profiles are out of scope, and
  * Light/High family membership additionally implies encoder-complexity guarantees that cannot be
  * safely inferred from configuration alone. Light/High/other values are only reachable via the
  * profile_override_enable/profile_ppih_override API fields. */
@@ -31,6 +31,7 @@ typedef enum StreamProfilePpih {
     JXS_PPIH_HIGH_420_12 = 0x4240,
     JXS_PPIH_HIGH_444_12 = 0x4A40,
     JXS_PPIH_HIGH_4444_12 = 0x4E40,
+    JXS_PPIH_MLS_12 = 0x6EC0, /* Table A.4: the only lossless profile (B in {8,10,12}, Rl=0). */
 } StreamProfilePpih;
 
 /* ISO/IEC 21122-2 Annex A level identifiers, pre-shifted into their Plev bit position (bits [15:10]). */
@@ -62,11 +63,15 @@ typedef enum StreamSublevelPlev {
 } StreamSublevelPlev;
 
 /* Derive the Ppih (profile) codeword from the encoder configuration.
- * Always returns a validly-defined "Main" family Ppih codeword for the supported bit-depth range
- * (8-12 bit); for the encoder's extended 13-14 bit range (outside every defined ISO/IEC 21122-2 lossy
- * profile) the closest Main profile for the given colour format is returned and a warning is printed
- * when verbose >= VERBOSE_WARNINGS. */
-uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_depth, uint32_t verbose);
+ * When lossless_enable is set, always returns JXS_PPIH_MLS_12, the only defined lossless profile;
+ * for the encoder's extended 13-14 bit lossless range (outside Table A.4, only reachable without RCT
+ * - encoder_init_configuration() rejects lossless+RCT above 12 bit) a warning is printed when
+ * verbose >= VERBOSE_WARNINGS. Otherwise returns a validly-defined "Main" family Ppih codeword for
+ * the supported bit-depth range (8-12 bit); for the encoder's extended 13-14 bit range (outside
+ * every defined ISO/IEC 21122-2 lossy profile) the closest Main profile for the given colour format
+ * is returned and a warning is printed when verbose >= VERBOSE_WARNINGS. */
+uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_depth, uint32_t lossless_enable,
+                                    uint32_t verbose);
 
 /* Derive the Plev (level + sublevel) codeword from picture resolution and target bits-per-pixel.
  * Always returns a validly-defined Plev codeword: falls back to the "Unrestricted" level and/or
@@ -74,8 +79,11 @@ uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_de
  * levels bound the same resolution, the variant with the highest declared pixel-rate (Rs,max) is
  * selected, since the encoder has no explicit frame-rate input to disambiguate and over-declaring
  * throughput capability is always a conformant (if less specific) choice; under-declaring would not
- * be. */
-uint16_t derive_stream_level_plev(uint32_t width, uint32_t height, uint32_t bpp_numerator, uint32_t bpp_denominator);
+ * be. bpp_numerator/bpp_denominator are ignored (sublevel forced Unrestricted) when lossless_enable
+ * is set, since lossless output size is data-dependent and not bounded by a nominal bpp target
+ * (Table A.9 NOTE 3). */
+uint16_t derive_stream_level_plev(uint32_t width, uint32_t height, uint32_t bpp_numerator, uint32_t bpp_denominator,
+                                  uint32_t lossless_enable);
 
 #ifdef __cplusplus
 }

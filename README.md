@@ -139,6 +139,31 @@ To encode stream with compression rate of 12:1 (assuming 8bit yuv420p), one pixe
 ./SvtJpegxsEncApp -i <input_file.yuv> -b <output_bitstream.bin> -w 1920 -h 1080 --input-depth 8 --colour-format yuv420 --bpp 1 --decomp_v 2 --decomp_h 5 --lp 4
 ```
 
+#### Lossless coding
+
+To encode a mathematically lossless stream (decoded output is bit-exact with the input), use
+`--lossless 1`. `--bpp` is not required and is ignored:
+
+```shell
+./SvtJpegxsEncApp -i <input_file.yuv> -b <output_bitstream.bin> -w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --lossless 1 --coding-raw 0
+```
+
+- The picture header signals Fq=0 and Bw equal to the input bit depth (ISO/IEC 21122-1 Table A.8,
+  "lossless coding"), and the capability marker signals that lossless decoding support is required.
+- Frame size is data-dependent: each frame is encoded into a worst-case sized buffer and then
+  compacted, so compressible content produces smaller frames. `--bpp`, `--rc` and `--quantization`
+  have no effect.
+- Unless overridden with `--stream-profile`/`--stream-level`, the stream is declared as the MLS.12
+  profile (Ppih=0x6EC0, ISO/IEC 21122-2 Table A.4) with an unrestricted sublevel. MLS.12 requires
+  raw-mode to be disabled (Rl=0), so pass `--coding-raw 0` for a strictly conformant stream. MLS.12
+  only covers 8/10/12-bit input; 13/14-bit lossless input is supported, but the encoder warns that
+  no defined profile matches it.
+- `--color-transform 1` (requires `--profile latency`) can be combined with `--lossless 1`, since
+  RCT is reversible, for 8-12-bit input only; at 13/14 bits the colour-transformed coefficients
+  would exceed the coded magnitude range, so this combination is rejected.
+- Not supported together with `--input-msb-aligned 1` or `--packetization-mode 1`; encoder
+  initialization fails for these combinations.
+
 #### Latency measurement
 
 To measure average frame encoding time (latency) `--limit-fps`  and high enough `--lp` parameters have to be used, cmd example:
@@ -183,7 +208,7 @@ Input Options:
 [--input-msb-aligned]      Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit
                             word instead of LSB-aligned (enabled:1, disabled:0, default:0)
 --bpp                      Bits Per Pixel, can be passed as integer or float
-                            (example: 0.5, 3, 3.75, 5 etc.)
+                            (example: 0.5, 3, 3.75, 5 etc.). Required unless --lossless 1 is set
 [-n]                       Number of frames to encode
 [--limit-fps]              Limit number of frames per second
                             (disabled: 0, enabled [1-240])
@@ -220,6 +245,12 @@ Coding features used during Rate Calculation (quality/speed tradeoff):
                             recommended - measured -2.9dB PSNR at matched bpp, since the transform
                             decorrelates RGB-like input into YCbCr-like, which does not help input
                             that is already YCbCr-like
+[--lossless]               True lossless coding, Fq=0 (enabled:1, disabled:0, default:0). Output
+                            size is data-dependent instead of the fixed CBR size. Ignores --bpp,
+                            --rc and --quantization. Not supported together with
+                            --input-msb-aligned 1, --packetization-mode 1, or --color-transform 1
+                            at --input-depth 13/14. Use --coding-raw 0 for a strictly
+                            MLS.12-conformant stream. See "Lossless coding" above
 [--stream-profile]         Stream profile (Ppih) to declare in the picture header (auto, light422,
                             light444, lightsubline422, main420, main422, main444, main4444, high420,
                             high444, high4444, or raw hex/decimal Ppih value, default:auto)

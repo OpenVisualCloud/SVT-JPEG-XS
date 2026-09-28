@@ -60,7 +60,6 @@ static void strncpy_local(char *dest, const char *src, size_t count) {
 #define THREAD_MGMNT       "--lp"
 #define FRAMES_COUNT_TOKEN "-n"
 // double dash
-#define PRESET_TOKEN "--preset"
 
 #define CODING_SIGNS_TOKEN   "--coding-signs"
 #define CODING_SIGF_TOKEN    "--coding-sigf"
@@ -71,6 +70,7 @@ static void strncpy_local(char *dest, const char *src, size_t count) {
 #define STREAM_PROFILE_TOKEN "--stream-profile"
 #define STREAM_LEVEL_TOKEN   "--stream-level"
 #define COLOR_TRANSFORM_TOKEN "--color-transform"
+#define LOSSLESS_TOKEN        "--lossless"
 #define SHOW_BANDS           "--show-bands"
 
 #define LIMIT_FPS_TOKEN "--limit-fps"
@@ -150,6 +150,10 @@ static void set_cap_compat(const char *value, EncoderConfig_t *cfg) {
 
 static void set_color_transform(const char *value, EncoderConfig_t *cfg) {
     cfg->encoder.enable_color_transform = (uint8_t)strtoul(value, NULL, 0);
+}
+
+static void set_lossless(const char *value, EncoderConfig_t *cfg) {
+    cfg->encoder.lossless_enable = (uint8_t)strtoul(value, NULL, 0);
 }
 
 /* Stream profile (Ppih) name -> value map, mirrors ISO/IEC 21122-2 Annex A. Kept local to the App
@@ -411,7 +415,8 @@ ConfigEntry config_entry[] = {
     {INPUT_OPTIONS, ENCODER_COLOUR_FORMAT,  "Set encoder colour format (yuv420, yuv422) (Experimental: yuv400, yuv444, rgb(planar), rgbp(packed), rgba/yuva444 (4:4:4:4 planar, 4 components), yuva422 (4:2:2:4 planar, YUV422 + alpha))", 1, 1, set_encoder_colour_format},
     {INPUT_OPTIONS, INPUT_DEPTH_TOKEN,      "Input depth", 1, 1, set_input_bit_depth},
     {INPUT_OPTIONS, INPUT_MSB_ALIGNED_TOKEN,"Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit word instead of LSB-aligned (enabled:1, disabled:0, default:0)", 0, 1, set_input_msb_aligned},
-    {INPUT_OPTIONS, COMPRESS_BPP_LONG_TOKEN,"Bits Per Pixel, can be passed as integer or float (example: 0.5, 3, 3.75, 5 etc.)", 1, 1, set_encoder_bpp},
+    /* param_required=0: --bpp is required unless --lossless 1 is set, checked in read_command_line(). */
+    {INPUT_OPTIONS, COMPRESS_BPP_LONG_TOKEN,"Bits Per Pixel, can be passed as integer or float (example: 0.5, 3, 3.75, 5 etc.). Required unless --lossless 1 is set", 0, 1, set_encoder_bpp},
     {INPUT_OPTIONS, FRAMES_COUNT_TOKEN,     "Number of frames to encode", 0, 1, set_cfg_frames_count},
     {INPUT_OPTIONS, LIMIT_FPS_TOKEN,        "Limit number of frames per second (disabled: 0, enabled [1-240])", 0, 1, set_limit_fps},
     {OUTPUT_OPTIONS, OUTPUT_BITSTREAM_TOKEN,"Output filename", 0, 1, set_cfg_stream_file},
@@ -428,6 +433,7 @@ ConfigEntry config_entry[] = {
     {CODING_OPTIONS, CODING_RAW_TOKEN,      "Packet-based raw-mode coding (enabled:1, disabled:0, default:1). Disabling clears the raw-mode capability bit and never selects raw packet packing.", 0, 1, set_coding_raw},
     {CODING_OPTIONS, CAP_COMPAT_TOKEN,      "Legacy decoder CAP-marker compatibility (full CAP:0, empty CAP when no capability bit set:1, default:0)", 0, 1, set_cap_compat},
     {CODING_OPTIONS, COLOR_TRANSFORM_TOKEN, "Encoder-side reversible colour transform (RCT, Cpih=1) for 3-component unsubsampled planar input (enabled:1, disabled:0, default:0). Requires --colour-format rgb or yuv444, and --profile latency.", 0, 1, set_color_transform},
+    {CODING_OPTIONS, LOSSLESS_TOKEN,        "True lossless coding, Fq=0 (enabled:1, disabled:0, default:0). Output size is data-dependent instead of fixed CBR size. Ignores --bpp/--rc/--quantization. Not supported with --input-msb-aligned 1, --packetization-mode 1, or --color-transform 1 at --input-depth 13/14. Use --coding-raw 0 for a strictly MLS.12-conformant stream.", 0, 1, set_lossless},
     {CODING_OPTIONS, STREAM_PROFILE_TOKEN, "Stream profile (Ppih) to declare in the picture header (auto, light422, light444, lightsubline422, main420, main422, main444, main4444, high420, high444, high4444, or raw hex/decimal Ppih value, default:auto)", 0, 1, set_stream_profile},
     {CODING_OPTIONS, STREAM_LEVEL_TOKEN,   "Stream level (Plev) to declare in the picture header (auto, unrestricted, 1k-1, 2k-1, 4k-1, 4k-2, 4k-3, 5k-1, 8k-1, 8k-2, 8k-3, 10k-1, or raw hex/decimal Plev value, default:auto)", 0, 1, set_stream_level},
     {THREAD_PERF_OPTIONS, ASM_TYPE_TOKEN,   "Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2, sse3, "
@@ -604,6 +610,7 @@ SvtJxsErrorType_t read_command_line(int32_t argc, char *const argv[], EncoderCon
         }
     }
 
+    uint8_t bpp_found = 0;
     token_index = 0;
     while (config_entry[token_index].name != NULL) {
         uint8_t param_found = 0;
@@ -623,8 +630,16 @@ SvtJxsErrorType_t read_command_line(int32_t argc, char *const argv[], EncoderCon
             fprintf(stderr, "Required CLI option not found: %s \n", config_entry[token_index].token);
             return SvtJxsErrorBadParameter;
         }
+        if (strcmp(config_entry[token_index].token, COMPRESS_BPP_LONG_TOKEN) == 0) {
+            bpp_found = param_found;
+        }
 
         token_index++;
+    }
+    /* bpp_numerator/bpp_denominator are ignored by the library when lossless_enable is set. */
+    if (!bpp_found && !configs->encoder.lossless_enable) {
+        fprintf(stderr, "Required CLI option not found: %s \n", COMPRESS_BPP_LONG_TOKEN);
+        return SvtJxsErrorBadParameter;
     }
     for (int32_t param_idx = 0; param_idx < cmd_token_cnt; param_idx++) {
         if (cmd_detected[param_idx] == 0) {

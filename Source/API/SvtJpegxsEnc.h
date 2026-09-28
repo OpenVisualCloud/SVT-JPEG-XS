@@ -146,12 +146,34 @@ typedef struct svt_jpeg_xs_encoder_api {
      * Optional, default 0 */
     uint8_t enable_color_transform;
 
+    /* Enable true lossless coding: picture header Fq=0, Bw=input_bit_depth (ISO/IEC 21122-1
+     * Table A.8 "lossless coding" row). Output size is data-dependent (shrinks with compressible
+     * content) instead of the usual fixed CBR size.
+     * Mutually orthogonal to rate_control_mode/quantization/bpp_numerator/bpp_denominator: all are
+     * ignored when this is set (quantization selects a truncation method that becomes a no-op once
+     * truncation is forced to zero; bpp_* no longer drives a hard byte target; rate_control_mode is
+     * forced internally).
+     * Requires all components to share the same bit depth; rejected otherwise at
+     * svt_jpeg_xs_encoder_init() time (mirrors the decoder's own lossless-mode bit-depth check).
+     * Also rejected at svt_jpeg_xs_encoder_init() time together with input_bit_depth_msb_aligned=1,
+     * slice_packetization_mode=1, or enable_color_transform=1 at input_bit_depth 13/14.
+     * svt_jpeg_xs_encoder_get_image_config() reports a worst-case bytes_per_frame for output buffer
+     * allocation; each encoded frame is compacted to its real size.
+     * When profile_ppih_override/level_plev_override are left at auto, the stream is declared as
+     * MLS.12 (Ppih=0x6EC0, ISO/IEC 21122-2 Table A.4) with an unrestricted sublevel. MLS.12 requires
+     * Rl=0, so also set coding_raw_disable=1 for a strictly conformant stream. MLS.12 covers 8/10/12-bit
+     * input only; 13/14-bit input is still coded losslessly but a warning is printed.
+     * 0 = disabled (default, current behavior): lossy CBR coding as today.
+     * 1 = enabled: true lossless coding.
+     * Optional, default 0 */
+    uint8_t lossless_enable;
+
     /* This padding is used to avoid changing the size of the public configuration struct
      * when new parameters are added in the future please follow these steps:
      * 1. Insert the new parameter as a member of this structure before the padding array.
      * 2. Decrease the size of the padding array by the size of the new parameter to keep the struct size unchanged.
      */
-    uint8_t padding[56];
+    uint8_t padding[55];
 } svt_jpeg_xs_encoder_api_t;
 
 /* STEP 0 (Optional): Set default encoder parameters.

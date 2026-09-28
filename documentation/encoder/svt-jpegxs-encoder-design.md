@@ -153,6 +153,13 @@ Then best refinement is searched based on the best quantization value selected.
 
 GTLI is calculated from precinct quantization, precinct refinement and band priority defined by the weight table.
 
+When lossless coding is enabled (lossless_enable, signalled as Fq=0 with Bw equal to the input bit depth), the budget search
+is bypassed: GTLI is forced to 0 for every band, so no coefficient bits are truncated, quantization becomes a no-op and no
+padding is added. Each precinct is coded at its real size, so the frame size is data-dependent; each slice is packed into
+a pre-reserved worst-case sized output window (the pack stage fails the frame if a slice ever exceeds it), and the final
+stage compacts the slices back to back and patches the real total size into the picture header (Lcod) before the frame
+is released.
+
 ### Precinct Quantization
 
 To further reduce the bitstream size, quantization is applied. It uses GTLI to quantize precincts coefficients.

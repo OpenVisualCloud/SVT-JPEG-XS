@@ -33,6 +33,10 @@ typedef struct PictureControlSet {
     uint8_t *slice_ready_to_release_arr;
     uint32_t slice_released_idx;
     uint32_t bitstream_release_offset;
+
+    /* Real (unpadded) byte count per slice, indexed by slice_idx. lossless_enable only:
+       populated as each slice's PackOutput arrives, consumed by the compaction pass. */
+    uint32_t *slice_real_bytes_arr;
 } PictureControlSet;
 
 /**************************************

@@ -15,6 +15,7 @@
 #include "Threads/SvtObject.h"
 #include "SvtUtility.h"
 #include "common_dsp_rtcd.h"
+#include "BitstreamWriter.h"
 
 typedef struct FinalStageContext {
     Fifo_t *input_buffer_fifo_ptr;
@@ -118,6 +119,9 @@ void *final_stage_kernel(void *input_ptr) {
         pcs_ptr = (PictureControlSet *)pack_result->pcs_wrapper_ptr->object_ptr;
         pcs_ptr->slice_cnt++;
         pcs_ptr->frame_error |= pack_result->slice_error;
+        if (pcs_ptr->enc_common->lossless_enable) {
+            pcs_ptr->slice_real_bytes_arr[pack_result->slice_idx] = pack_result->slice_real_bytes;
+        }
 
 #ifdef FLAG_DEADLOCK_DETECT
         printf("Receive Frame=%llu slice_idx=%d\n", pcs_ptr->frame_number, pack_result->slice_idx);
@@ -223,6 +227,44 @@ void *final_stage_kernel(void *input_ptr) {
                     if (ret != SvtJxsErrorNone || output_item_wrapper_ptr == NULL) {
                         break;
                     }
+                    if (pcs_ring->enc_common->lossless_enable && !pcs_ring->frame_error) {
+                        /* Every slice was packed into a generous, non-overlapping window (never
+                         * more than its window, per the assert in PackStageProcess.c); real bytes
+                         * written are almost always less. Walk slices in order and left-shift each
+                         * one's already-fully-written, immutable bytes to close the gap left by the
+                         * previous slices' unused window tail. Single serialized pass over completed
+                         * data (this only runs once slice_cnt == slice_num, i.e. every slice for this
+                         * frame has already finished packing), so there is no concurrency hazard.
+                         * Skipped when frame_error is set: slice_real_bytes_arr[] is only trustworthy
+                         * for slices that finished packing inside their allotted window, and a release
+                         * build cannot rely on the packer's own assert to guarantee that (see
+                         * PackStageProcess.c). Reading a corrupt/oversized slice_real here would walk
+                         * memmove() past the buffer instead of just leaving the frame marked as failed. */
+                        svt_jpeg_xs_encoder_common_t *enc_common = pcs_ring->enc_common;
+                        uint8_t *buffer = pcs_ring->enc_input.bitstream.buffer;
+                        uint32_t real_offset = enc_common->frame_header_length_bytes;
+                        uint32_t window_offset = enc_common->frame_header_length_bytes;
+                        for (uint32_t idx = 0; idx < enc_common->pi.slice_num; ++idx) {
+                            uint32_t slice_real = pcs_ring->slice_real_bytes_arr[idx];
+                            if (window_offset != real_offset) {
+                                memmove(buffer + real_offset, buffer + window_offset, slice_real);
+                            }
+                            real_offset += slice_real;
+                            window_offset += enc_common->slice_sizes[idx];
+                        }
+                        /*Patch the true final size into the compacted hdr_Lcod field bytes.*/
+                        /* size must be set: the writer drops out-of-bounds writes, so a zero size
+                         * would silently discard this patch. Not bitstream_writer_init(), which
+                         * 0xFF-fills the whole buffer in debug builds. */
+                        bitstream_writer_t lcod_patch;
+                        memset(&lcod_patch, 0, sizeof(lcod_patch));
+                        lcod_patch.mem = buffer;
+                        lcod_patch.size = real_offset;
+                        lcod_patch.offset = enc_common->hdr_Lcod_byte_offset;
+                        write_32_bits(&lcod_patch, real_offset);
+                        pcs_ring->enc_input.bitstream.used_size = real_offset;
+                    }
+
                     EncoderOutputItem *output_item = (EncoderOutputItem *)output_item_wrapper_ptr->object_ptr;
 
                     output_item->enc_input = pcs_ring->enc_input; //Copy structure

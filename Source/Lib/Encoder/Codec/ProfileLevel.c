@@ -8,8 +8,26 @@
 #include <stdio.h>
 #include "SvtLog.h"
 
-uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_depth, uint32_t verbose) {
+uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_depth, uint32_t lossless_enable,
+                                    uint32_t verbose) {
     uint16_t ppih;
+
+    if (lossless_enable) {
+        /* Table A.4: MLS.12 is the only defined lossless profile, valid for B in {8,10,12}. The
+         * encoder's extended 13/14-bit lossless range (without RCT; encoder_init_configuration()
+         * rejects lossless+RCT above 12 bit) has no defined lossless profile either, so declare the
+         * closest codeword (still a validly-defined MLS codepoint, unlike Ppih=0) and warn, mirroring
+         * the lossy 13/14-bit fallback below. */
+        if (bit_depth > 12 && verbose >= VERBOSE_WARNINGS) {
+            SVT_WARN(
+                "Warning: bit depth %u exceeds the maximum (12) defined by the ISO/IEC 21122-2 lossless (MLS) "
+                "profile; declaring the closest MLS profile (Ppih=0x%04X). Use profile_override_enable if a "
+                "different declaration is required.\n",
+                bit_depth,
+                JXS_PPIH_MLS_12);
+        }
+        return JXS_PPIH_MLS_12;
+    }
 
     switch (colour_format) {
     case COLOUR_FORMAT_PLANAR_YUV420:
@@ -108,9 +126,15 @@ static uint16_t derive_sublevel_bits(uint32_t bpp_numerator, uint32_t bpp_denomi
     return JXS_PLEV_SUBLEVEL_UNRESTRICTED;
 }
 
-uint16_t derive_stream_level_plev(uint32_t width, uint32_t height, uint32_t bpp_numerator, uint32_t bpp_denominator) {
+uint16_t derive_stream_level_plev(uint32_t width, uint32_t height, uint32_t bpp_numerator, uint32_t bpp_denominator,
+                                  uint32_t lossless_enable) {
     uint16_t level_bits = derive_level_bits(width, height);
-    uint16_t sublevel_bits = (bpp_denominator == 0) ? JXS_PLEV_SUBLEVEL_UNRESTRICTED
-                                                    : derive_sublevel_bits(bpp_numerator, bpp_denominator);
+    uint16_t sublevel_bits;
+    if (lossless_enable || bpp_denominator == 0) {
+        sublevel_bits = JXS_PLEV_SUBLEVEL_UNRESTRICTED;
+    }
+    else {
+        sublevel_bits = derive_sublevel_bits(bpp_numerator, bpp_denominator);
+    }
     return (uint16_t)(level_bits | sublevel_bits);
 }
