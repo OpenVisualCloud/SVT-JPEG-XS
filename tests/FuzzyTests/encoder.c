@@ -4,6 +4,7 @@
 */
 
 #include <SvtJpegxsEnc.h>
+#include <SvtJpegxsDec.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +30,13 @@ typedef struct config_short {
     uint8_t coding_vertical_prediction_mode;
     uint8_t slice_packetization_mode;
     uint8_t verbose;
+    uint8_t coding_raw_disable;
+    uint8_t cap_compat;
+    uint16_t profile_ppih_override;
+    uint16_t level_plev_override;
+    uint8_t input_bit_depth_msb_aligned;
+    uint8_t enable_color_transform;
+    uint8_t lossless_enable;
 } config_short_t;
 
 void copy_fuzzer_params(config_short_t *fuzzer, svt_jpeg_xs_encoder_api_t *encoder) {
@@ -52,9 +60,16 @@ void copy_fuzzer_params(config_short_t *fuzzer, svt_jpeg_xs_encoder_api_t *encod
     encoder->coding_vertical_prediction_mode = fuzzer->coding_vertical_prediction_mode;
     encoder->slice_packetization_mode = fuzzer->slice_packetization_mode;
     encoder->verbose = fuzzer->verbose;
+    encoder->coding_raw_disable = fuzzer->coding_raw_disable;
+    encoder->cap_compat = fuzzer->cap_compat;
+    encoder->profile_ppih_override = fuzzer->profile_ppih_override;
+    encoder->level_plev_override = fuzzer->level_plev_override;
+    encoder->input_bit_depth_msb_aligned = fuzzer->input_bit_depth_msb_aligned;
+    encoder->enable_color_transform = fuzzer->enable_color_transform;
+    encoder->lossless_enable = fuzzer->lossless_enable;
 }
 
-//We can set 2nd parameter to fixed size of 56 (which mean sizeof(config_short_t))
+//We can set 2nd parameter to fixed size of 64 (which mean sizeof(config_short_t))
 int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     svt_jpeg_xs_encoder_api_t encoder;
     memset(&encoder, 0, sizeof(svt_jpeg_xs_encoder_api_t));
@@ -72,8 +87,10 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     encoder.source_width = encoder.source_width > 8000 ? 8000 : encoder.source_width;
     encoder.source_height = encoder.source_height > 8000 ? 8000 : encoder.source_height;
 
-    if (((double)encoder.bpp_numerator / encoder.bpp_denominator) < 0.1 ||
-        ((double)encoder.bpp_numerator / encoder.bpp_denominator) > 16 * 3) {
+    //bpp is ignored in lossless mode, so do not reject configurations based on it
+    if (!encoder.lossless_enable &&
+        (((double)encoder.bpp_numerator / encoder.bpp_denominator) < 0.1 ||
+        ((double)encoder.bpp_numerator / encoder.bpp_denominator) > 16 * 3)) {
         return 0;
     }
 
@@ -169,11 +186,16 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     }
 
     //allocate output buffers
+    //Size reported by encoder: bpp based in lossy mode, worst case in lossless mode
     svt_jpeg_xs_bitstream_buffer_t out_buf;
-    uint32_t bitstream_size = (uint32_t)(((uint64_t)encoder.source_width * encoder.source_height * encoder.bpp_numerator /
-                                              encoder.bpp_denominator +
-                                          7) /
-                                         8);
+    out_buf.buffer = NULL;
+    svt_jpeg_xs_image_config_t image_config;
+    uint32_t bitstream_size = 0;
+    err = svt_jpeg_xs_encoder_get_image_config(
+        SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder, &image_config, &bitstream_size);
+    if (err != SvtJxsErrorNone || bitstream_size == 0) {
+        goto fail;
+    }
     out_buf.allocation_size = bitstream_size;
     out_buf.used_size = 0;
     out_buf.buffer = malloc(out_buf.allocation_size);
@@ -195,6 +217,33 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     do {
         err |= svt_jpeg_xs_encoder_get_packet(&encoder, &enc_output, 1 /*blocking*/);
     } while (enc_output.bitstream.last_packet_in_frame == 0);
+
+    //Lossless frames are compacted to their real size and the picture header Lcod is patched
+    //after encoding. Both must stay consistent: used_size within the buffer, and Lcod == used_size.
+    if (encoder.lossless_enable && err == SvtJxsErrorNone) {
+        if (enc_output.bitstream.used_size > enc_output.bitstream.allocation_size) {
+            fprintf(stderr,
+                    "Lossless used_size %u exceeds allocation_size %u\n",
+                    enc_output.bitstream.used_size,
+                    enc_output.bitstream.allocation_size);
+            abort();
+        }
+        uint32_t frame_size = 0;
+        SvtJxsErrorType_t size_err = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(enc_output.bitstream.buffer,
+                                                                                         enc_output.bitstream.used_size,
+                                                                                         NULL,
+                                                                                         &frame_size,
+                                                                                         1 /*fast_search: trust Lcod*/,
+                                                                                         proxy_mode_full);
+        if (size_err != SvtJxsErrorNone || frame_size != enc_output.bitstream.used_size) {
+            fprintf(stderr,
+                    "Lossless Lcod mismatch: err %d, frame_size %u, used_size %u\n",
+                    size_err,
+                    frame_size,
+                    enc_output.bitstream.used_size);
+            abort();
+        }
+    }
 
 fail:
     for (uint8_t i = 0; i < num_components; ++i) {
