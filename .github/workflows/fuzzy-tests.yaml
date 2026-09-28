@@ -119,7 +119,7 @@ jobs:
         .github/scripts/fuzzy_tests.sh -td
       env:
         SVT_INSTALL_DIR: ${{ github.workspace }}/install-dir
-        INPUT_FILES_PATH: /opt/samples/Samples/ConformanceTestDecoder/test_bitsreams
+        INPUT_FILES_PATH: /opt/samples/test_bitsreams
 
   encoder:
     needs: [build-lib, decoder]
