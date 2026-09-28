@@ -11,6 +11,7 @@
 #include "SvtJpegxsDec.h"
 #include "SvtJpegxsImageBufferTools.h"
 #include "ProfileLevel.h"
+#include "ProfileLevelNames.h"
 #include "Decoder.h"
 #include "DecoderSimple.h"
 
@@ -89,52 +90,60 @@ picture_header_const_t probe_header(const std::vector<uint8_t> &bitstream) {
  * derive_stream_profile_ppih(): unit tests across colour format / bit depth combinations.
  */
 TEST(StreamProfileDerivation, Yuv420) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, 8, VERBOSE_NONE), JXS_PPIH_MAIN_420_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, 10, VERBOSE_NONE), JXS_PPIH_MAIN_420_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, 12, VERBOSE_NONE), JXS_PPIH_MAIN_420_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_420_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, 10, 0, VERBOSE_NONE), JXS_PPIH_MAIN_420_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, 12, 0, VERBOSE_NONE), JXS_PPIH_MAIN_420_12);
 }
 
 TEST(StreamProfileDerivation, Yuv422LowBitDepthIsMain422) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 8, VERBOSE_NONE), JXS_PPIH_MAIN_422_10);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 10, VERBOSE_NONE), JXS_PPIH_MAIN_422_10);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_422_10);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 10, 0, VERBOSE_NONE), JXS_PPIH_MAIN_422_10);
 }
 
 TEST(StreamProfileDerivation, Yuv422HighBitDepthFallsBackToMain444) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 12, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 12, 0, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
 }
 
 TEST(StreamProfileDerivation, Gray400) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV400, 8, VERBOSE_NONE), JXS_PPIH_MAIN_422_10);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV400, 12, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV400, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_422_10);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV400, 12, 0, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
 }
 
 TEST(StreamProfileDerivation, Yuv444PlanarAndPacked) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 8, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PACKED_YUV444_OR_RGB, 8, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12, 0, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PACKED_YUV444_OR_RGB, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
 }
 
 TEST(StreamProfileDerivation, FourComponents) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_4_COMPONENTS, 8, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_4_COMPONENTS, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
 }
 
 /* Regression test (SDBQ-3776): derive_stream_profile_ppih() previously had no case for this enum
  * value and silently fell through to the Main 422.10/444.12 default, neither of which is a
  * defined ISO/IEC 21122-2 profile for a 4-component picture. */
 TEST(StreamProfileDerivation, Yuv422Alpha) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 8, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 10, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 12, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 10, 0, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 12, 0, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
+}
+
+TEST(StreamProfileDerivation, LosslessForcesMls12RegardlessOfColourFormat) {
+    // Table A.4: MLS.12 is the only defined lossless profile; every Main/Light/High profile allows
+    // only Bw=20/Fq=8, so declaring one for a lossless (Bw=B, Fq=0) stream is non-conformant.
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, 8, 1, VERBOSE_NONE), JXS_PPIH_MLS_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12, 1, VERBOSE_NONE), JXS_PPIH_MLS_12);
+    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_4_COMPONENTS, 10, 1, VERBOSE_NONE), JXS_PPIH_MLS_12);
 }
 
 TEST(StreamProfileDerivation, NeverReturnsZero) {
     // Ppih=0x0000 is never a valid profile; the auto-derivation must never reintroduce that defect.
     for (int bit_depth = 8; bit_depth <= 14; ++bit_depth) {
-        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, (uint8_t)bit_depth, VERBOSE_NONE), 0);
-        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, (uint8_t)bit_depth, VERBOSE_NONE), 0);
-        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, (uint8_t)bit_depth, VERBOSE_NONE), 0);
-        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_4_COMPONENTS, (uint8_t)bit_depth, VERBOSE_NONE), 0);
-        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, (uint8_t)bit_depth, VERBOSE_NONE), 0);
+        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
+        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
+        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
+        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_4_COMPONENTS, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
+        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
     }
 }
 
@@ -142,45 +151,52 @@ TEST(StreamProfileDerivation, NeverReturnsZero) {
  * derive_stream_level_plev(): unit tests across resolution / bpp combinations.
  */
 TEST(StreamLevelDerivation, SmallResolutionIs1k1) {
-    uint16_t plev = derive_stream_level_plev(640, 480, 8, 1);
+    uint16_t plev = derive_stream_level_plev(640, 480, 8, 1, 0);
     EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_1K_1);
 }
 
 TEST(StreamLevelDerivation, FullHdIs2k1) {
-    uint16_t plev = derive_stream_level_plev(1920, 1080, 8, 1);
+    uint16_t plev = derive_stream_level_plev(1920, 1080, 8, 1, 0);
     EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_2K_1);
 }
 
 TEST(StreamLevelDerivation, Uhd4kIs4k1) {
-    uint16_t plev = derive_stream_level_plev(3840, 2160, 8, 1);
+    uint16_t plev = derive_stream_level_plev(3840, 2160, 8, 1, 0);
     EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_4K_1);
 }
 
 TEST(StreamLevelDerivation, Square4096PicksHigherThroughput4k3) {
     // 4096x4096 exceeds the 4k-1 pixel-count bound; 4k-2/4k-3 share identical bounds, only the
     // higher-throughput (safer, since no fps is known) variant 4k-3 must be picked.
-    uint16_t plev = derive_stream_level_plev(4096, 4096, 8, 1);
+    uint16_t plev = derive_stream_level_plev(4096, 4096, 8, 1, 0);
     EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_4K_3);
 }
 
 TEST(StreamLevelDerivation, Uhd8kIs8k1) {
-    uint16_t plev = derive_stream_level_plev(7680, 4320, 8, 1);
+    uint16_t plev = derive_stream_level_plev(7680, 4320, 8, 1, 0);
     EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_8K_1);
 }
 
 TEST(StreamLevelDerivation, HugeResolutionFallsBackToUnrestrictedLevel) {
-    uint16_t plev = derive_stream_level_plev(20000, 20000, 8, 1);
+    uint16_t plev = derive_stream_level_plev(20000, 20000, 8, 1, 0);
     EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_UNRESTRICTED);
 }
 
 TEST(StreamLevelDerivation, SublevelBucketsPickSmallestBoundThatCovers) {
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 2, 1) & 0x00FF, JXS_PLEV_SUBLEVEL_2BPP);
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 5, 2) & 0x00FF, JXS_PLEV_SUBLEVEL_3BPP); // 2.5bpp -> 3bpp bucket
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 4, 1) & 0x00FF, JXS_PLEV_SUBLEVEL_4BPP);
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 6, 1) & 0x00FF, JXS_PLEV_SUBLEVEL_6BPP);
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 9, 1) & 0x00FF, JXS_PLEV_SUBLEVEL_9BPP);
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 12, 1) & 0x00FF, JXS_PLEV_SUBLEVEL_12BPP);
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 15, 1) & 0x00FF, JXS_PLEV_SUBLEVEL_UNRESTRICTED);
+    EXPECT_EQ(derive_stream_level_plev(640, 480, 2, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_2BPP);
+    EXPECT_EQ(derive_stream_level_plev(640, 480, 5, 2, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_3BPP); // 2.5bpp -> 3bpp bucket
+    EXPECT_EQ(derive_stream_level_plev(640, 480, 4, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_4BPP);
+    EXPECT_EQ(derive_stream_level_plev(640, 480, 6, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_6BPP);
+    EXPECT_EQ(derive_stream_level_plev(640, 480, 9, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_9BPP);
+    EXPECT_EQ(derive_stream_level_plev(640, 480, 12, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_12BPP);
+    EXPECT_EQ(derive_stream_level_plev(640, 480, 15, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_UNRESTRICTED);
+}
+
+TEST(StreamLevelDerivation, LosslessForcesUnrestrictedSublevelRegardlessOfBpp) {
+    // bpp_numerator/bpp_denominator are meaningless for lossless (Table A.9 NOTE 3); a low bpp
+    // fraction here must not narrow the declared sublevel, since real lossless output far exceeds it.
+    EXPECT_EQ(derive_stream_level_plev(640, 480, 0, 1, 1) & 0x00FF, JXS_PLEV_SUBLEVEL_UNRESTRICTED);
+    EXPECT_EQ(derive_stream_level_plev(640, 480, 2, 1, 1) & 0x00FF, JXS_PLEV_SUBLEVEL_UNRESTRICTED);
 }
 
 /*
@@ -191,10 +207,10 @@ TEST(StreamProfileLevelEncodeIntegration, AutoDerivedYuv422MatchesDerivationFunc
     std::vector<uint8_t> bitstream = encode_single_frame(256, 256, 8, COLOUR_FORMAT_PLANAR_YUV422, 8, 1);
     ASSERT_GT(bitstream.size(), 0u);
     picture_header_const_t phc = probe_header(bitstream);
-    EXPECT_EQ(phc.hdr_Ppih, derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 8, VERBOSE_NONE));
+    EXPECT_EQ(phc.hdr_Ppih, derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 8, 0, VERBOSE_NONE));
     EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_MAIN_422_10);
     EXPECT_NE(phc.hdr_Ppih, 0u); // The original defect: Ppih was hardcoded to 0.
-    EXPECT_EQ(phc.hdr_Plev, derive_stream_level_plev(256, 256, 8, 1));
+    EXPECT_EQ(phc.hdr_Plev, derive_stream_level_plev(256, 256, 8, 1, 0));
 }
 
 TEST(StreamProfileLevelEncodeIntegration, AutoDerivedYuv420MatchesDerivationFunction) {
@@ -202,7 +218,7 @@ TEST(StreamProfileLevelEncodeIntegration, AutoDerivedYuv420MatchesDerivationFunc
     ASSERT_GT(bitstream.size(), 0u);
     picture_header_const_t phc = probe_header(bitstream);
     EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_MAIN_420_12);
-    EXPECT_EQ(phc.hdr_Plev, derive_stream_level_plev(256, 256, 6, 1));
+    EXPECT_EQ(phc.hdr_Plev, derive_stream_level_plev(256, 256, 6, 1, 0));
 }
 
 TEST(StreamProfileLevelEncodeIntegration, AutoDerivedYuv444_12bitMatchesDerivationFunction) {
@@ -283,3 +299,56 @@ INSTANTIATE_TEST_SUITE_P(VariousProfilesAndLevels, StreamProfileLevelDecodeStill
                              // Profile and level overridden together.
                              ProfileLevelParam{JXS_PPIH_HIGH_444_12, (uint16_t)JXS_PLEV_LEVEL_8K_1},
                              ProfileLevelParam{JXS_PPIH_LIGHT_422_10, (uint16_t)(JXS_PLEV_LEVEL_1K_1 | JXS_PLEV_SUBLEVEL_3BPP)}));
+
+/* Every codeword the encoder can auto-derive must have a printable name, and the formatted string
+ * must keep the raw hex value, only adding the name in parentheses when the codeword is known. */
+TEST(ProfileLevelNames, KnownCodewordsAreNamed) {
+    const uint16_t profiles[] = {JXS_PPIH_LIGHT_422_10,
+                                 JXS_PPIH_LIGHT_444_12,
+                                 JXS_PPIH_LIGHT_SUBLINE_422_10,
+                                 JXS_PPIH_MAIN_420_12,
+                                 JXS_PPIH_MAIN_422_10,
+                                 JXS_PPIH_MAIN_444_12,
+                                 JXS_PPIH_MAIN_4444_12,
+                                 JXS_PPIH_HIGH_420_12,
+                                 JXS_PPIH_HIGH_444_12,
+                                 JXS_PPIH_HIGH_4444_12,
+                                 JXS_PPIH_MLS_12};
+    for (uint16_t ppih : profiles) {
+        EXPECT_NE(jxs_profile_name(ppih), nullptr) << std::hex << ppih;
+    }
+    const uint16_t levels[] = {JXS_PLEV_LEVEL_UNRESTRICTED,
+                               JXS_PLEV_LEVEL_1K_1,
+                               JXS_PLEV_LEVEL_2K_1,
+                               JXS_PLEV_LEVEL_4K_1,
+                               JXS_PLEV_LEVEL_4K_2,
+                               JXS_PLEV_LEVEL_4K_3,
+                               JXS_PLEV_LEVEL_5K_1,
+                               JXS_PLEV_LEVEL_8K_1,
+                               JXS_PLEV_LEVEL_8K_2,
+                               JXS_PLEV_LEVEL_8K_3,
+                               JXS_PLEV_LEVEL_10K_1};
+    const uint16_t sublevels[] = {JXS_PLEV_SUBLEVEL_UNRESTRICTED,
+                                  JXS_PLEV_SUBLEVEL_12BPP,
+                                  JXS_PLEV_SUBLEVEL_9BPP,
+                                  JXS_PLEV_SUBLEVEL_6BPP,
+                                  JXS_PLEV_SUBLEVEL_4BPP,
+                                  JXS_PLEV_SUBLEVEL_3BPP,
+                                  JXS_PLEV_SUBLEVEL_2BPP};
+    char buf[64];
+    for (uint16_t level : levels) {
+        for (uint16_t sublevel : sublevels) {
+            EXPECT_NE(jxs_level_name((uint16_t)(level | sublevel), buf, sizeof(buf)), nullptr)
+                << std::hex << (level | sublevel);
+        }
+    }
+}
+
+TEST(ProfileLevelNames, FormattedStringKeepsHexAndAddsNamesOnlyWhenKnown) {
+    char buf[JXS_PROFILE_LEVEL_STR_SIZE];
+    EXPECT_STREQ(jxs_profile_level_str(JXS_PPIH_MLS_12, JXS_PLEV_LEVEL_2K_1, buf, sizeof(buf)),
+                 "0x6EC0 (MLS.12) / 0x1000 (2k-1, Sublevel Unrestricted)");
+    EXPECT_STREQ(jxs_profile_level_str(JXS_PPIH_MAIN_422_10, (uint16_t)(JXS_PLEV_LEVEL_2K_1 | JXS_PLEV_SUBLEVEL_3BPP), buf, sizeof(buf)),
+                 "0x3540 (Main 422.10) / 0x1004 (2k-1, Sublev3bpp)");
+    EXPECT_STREQ(jxs_profile_level_str(0x1234, 0x0301, buf, sizeof(buf)), "0x1234 / 0x0301");
+}

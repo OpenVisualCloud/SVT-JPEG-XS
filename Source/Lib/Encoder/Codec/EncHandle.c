@@ -19,6 +19,7 @@
 #include "SvtLog.h"
 #include "Codestream.h"
 #include "ProfileLevel.h"
+#include "ProfileLevelNames.h"
 #include "EncDec.h"
 
 /**********************************
@@ -101,13 +102,20 @@ static void print_lib_params(svt_jpeg_xs_encoder_api_t* enc_api) {
             quantization_names[enc_common->picture_header_dynamic.hdr_Qpih]);
 
     SVT_LOG("\nSVT [config]: BPP / Compression Ratio             \t: ");
-    if (enc_api->bpp_denominator == 1) {
-        SVT_LOG("%d", enc_api->bpp_numerator);
+    if (enc_common->lossless_enable) {
+        /* bpp_* is ignored and compression_rate is computed against the worst-case buffer size,
+         * so neither says anything about the real (data-dependent) lossless output size. */
+        SVT_LOG("N/A (lossless: output size is data-dependent)");
     }
     else {
-        SVT_LOG("%.2f", (float)enc_api->bpp_numerator / enc_api->bpp_denominator);
+        if (enc_api->bpp_denominator == 1) {
+            SVT_LOG("%d", enc_api->bpp_numerator);
+        }
+        else {
+            SVT_LOG("%.2f", (float)enc_api->bpp_numerator / enc_api->bpp_denominator);
+        }
+        SVT_LOG(" / %.2f", enc_common->compression_rate);
     }
-    SVT_LOG(" / %.2f", enc_common->compression_rate);
 
     if (enc_common->cpu_profile == CPU_PROFILE_LOW_LATENCY) {
         SVT_LOG("\nSVT [config]: Profile Latency, Slice Threads      \t: %d", enc_api_prv->pack_stage_threads_num);
@@ -118,6 +126,16 @@ static void print_lib_params(svt_jpeg_xs_encoder_api_t* enc_api) {
                 enc_api_prv->pack_stage_threads_num,
                 enc_api_prv->dwt_stage_threads_num);
     }
+    SVT_LOG("\nSVT [config]: Packetization Mode                  \t: %s",
+            enc_common->slice_packetization_mode ? "1:Multiple packets per frame" : "0:Single packet per frame");
+    SVT_LOG("\nSVT [config]: Colour Transform (Cpih)             \t: %s", enc_common->hdr_Cpih ? "Enabled (RCT)" : "Disabled");
+    SVT_LOG("\nSVT [config]: Lossless coding (Fq=0)              \t: %s", enc_common->lossless_enable ? "Enabled" : "Disabled");
+    char profile_level_str[JXS_PROFILE_LEVEL_STR_SIZE];
+    SVT_LOG("\nSVT [config]: Stream Profile (Ppih) / Level (Plev) \t: %s",
+            jxs_profile_level_str((uint16_t)enc_common->hdr_Ppih,
+                                  (uint16_t)enc_common->hdr_Plev,
+                                  profile_level_str,
+                                  sizeof(profile_level_str)));
     SVT_LOG("\n");
 
     fflush(stdout);
@@ -126,6 +144,54 @@ static void print_lib_params(svt_jpeg_xs_encoder_api_t* enc_api) {
 #define WAVELET_IN_DEPTH_BW_DEFAULT      20 //TODO: Move this somewhere else
 #define WAVELET_FRACTION_BITS_FQ_DEFAULT 8
 
+/* Conservative, data-independent upper bound on the losslessly-coded frame size, used both to size
+ * hdr_Lcod/out_bytes_per_frame allocations and, through the slice_sizes[] split by precinct count,
+ * each slice's pre-reserved output window. It follows the band geometry (pi_t) and the cost model of
+ * RateControl.c precinct by precinct, so it holds for every precinct, not only on average:
+ * - Coefficients are coded in groups of coeff_group_size, including the padding coefficients of a
+ *   band whose width is not a multiple of the group size (gcli_width is rounded up).
+ * - With gtli=0 a group costs at most TRUNCATION_MAX + 1 bits per coefficient for bitplanes plus
+ *   sign (the 16-bit coefficient storage caps the magnitude at 15 bits), and at most
+ *   TRUNCATION_MAX + 1 bits of unary GCLI. Significance coding and vertical prediction are only
+ *   selected when cheaper than that unary code, so they never exceed it. When raw mode is allowed
+ *   (hdr_Rl=1), a packet falls back to raw GCLI coding (4 bits per group) whenever that is cheaper.
+ * - Each packet has up to 4 byte-aligned sections (data, signs, significance, GCLI), so up to 4
+ *   bytes of alignment, on top of the precinct header and a long packet header per packet.
+ * Every precinct is charged as the most expensive precinct type, matching the split by precinct
+ * count. The compaction pass (FinalStageProcess.c) removes all unused slack after encoding. */
+static uint64_t lossless_worst_case_bytes_per_frame(const pi_t* pi, uint8_t raw_enabled) {
+    const uint64_t gcli_bits = raw_enabled ? 4 : TRUNCATION_MAX + 1;
+    const uint64_t group_bits = (uint64_t)(TRUNCATION_MAX + 1) * pi->coeff_group_size + gcli_bits;
+    const uint64_t packet_header_bits = PACKET_HEADER_LONG_SIZE_BYTES * 8;
+    uint64_t precinct_max_bytes = 0;
+    for (uint32_t type = 0; type < PRECINCT_MAX; ++type) {
+        const precinct_info_t* p_info = &pi->p_info[type];
+        if (p_info->packets_exist_num < 0) {
+            continue; /*Precinct type not used by the encoder*/
+        }
+        uint64_t precinct_bytes = BITS_TO_BYTE_WITH_ALIGN(PRECINCT_HEADER_SIZE_BYTES * 8 + pi->bands_num_exists * 2) +
+            BITS_TO_BYTE_WITH_ALIGN(packet_header_bits * p_info->packets_exist_num);
+        for (uint32_t packet_idx = 0; packet_idx < pi->packets_num; packet_idx++) {
+            uint64_t packet_bits = 0;
+            for (uint32_t band_idx = pi->packets[packet_idx].band_start; band_idx < pi->packets[packet_idx].band_stop; band_idx++) {
+                const uint32_t b = pi->global_band_info[band_idx].band_id;
+                const uint32_t c = pi->global_band_info[band_idx].comp_id;
+                if (pi->packets[packet_idx].line_idx < p_info->b_info[c][b].height) {
+                    packet_bits += p_info->b_info[c][b].gcli_width * group_bits;
+                }
+            }
+            precinct_bytes += BITS_TO_BYTE_WITH_ALIGN(packet_bits) + 4;
+        }
+        if (precinct_bytes > precinct_max_bytes) {
+            precinct_max_bytes = precinct_bytes;
+        }
+    }
+    const uint64_t precincts_num = (uint64_t)pi->precincts_line_num * pi->precincts_col_num;
+    /*Picture headers (at most the 256 bytes of frame_header_buffer), slice headers and EOC*/
+    const uint64_t headers_bytes = 256 + (uint64_t)pi->slice_num * SLICE_HEADER_SIZE_BYTES + CODESTREAM_SIZE_BYTES;
+    return precincts_num * precinct_max_bytes + headers_bytes;
+}
+
 static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t* enc_common,
                                                     svt_jpeg_xs_encoder_api_t* config_struct) {
     uint32_t sx[MAX_COMPONENTS_NUM];
@@ -133,10 +199,35 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     uint32_t num_comp = 0;
 
     /*Validation of encoder parameters:*/
+    if (config_struct->source_width == 0 || config_struct->source_height == 0) {
+        /* Checked up front: slice_height is clamped to source_height below, and the lossless
+         * worst-case sizing divides by it. */
+        if (config_struct->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Incorrect source resolution, width and height cannot be 0, provided: %ux%u\n",
+                      config_struct->source_width,
+                      config_struct->source_height);
+        }
+        return SvtJxsErrorBadParameter;
+    }
     enc_common->bit_depth = config_struct->input_bit_depth;
     if (enc_common->bit_depth < 8 || enc_common->bit_depth > 14) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
             SVT_ERROR("Incorrect bit_depth, expected: 8 to 14,  provided: %d\n", enc_common->bit_depth);
+        }
+        return SvtJxsErrorBadParameter;
+    }
+    if (config_struct->lossless_enable && config_struct->enable_color_transform && enc_common->bit_depth > 12) {
+        /* NltEnc.c packs coefficient magnitude into TRUNCATION_MAX=15 bits (EncDec.h) with the sign
+         * folded into bit 15 (BITSTREAM_MASK_SIGN); the bound is only asserted, so a release build
+         * silently wraps into the sign bit instead of failing. RCT (Cpih=1) grows coefficient
+         * magnitude by roughly a bit past the input bit depth on top of the wavelet transform's own
+         * growth, so 13/14-bit lossless input combined with RCT has no margin left and is not
+         * guaranteed to stay lossless (bare 13/14-bit lossless without RCT is covered by
+         * LosslessDepthFormat/EncodeDecodeBitExact and AdversarialCheckerboardAtMaxDecomposition). */
+        if (config_struct->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Error: lossless_enable with colour transform (RCT) is not supported for bit_depth > 12, "
+                      "provided: %d\n",
+                      enc_common->bit_depth);
         }
         return SvtJxsErrorBadParameter;
     }
@@ -189,53 +280,99 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         return SvtJxsErrorBadParameter;
     }
 
-    if (config_struct->bpp_denominator == 0) {
-        if (config_struct->verbose >= VERBOSE_ERRORS) {
-            SVT_ERROR("bpp_denominator cannot be 0!\n");
+    /* bpp_numerator/bpp_denominator are ignored for lossless: hdr_Lcod is set to the worst-case bound
+     * instead, computed from the band geometry once pi is known (end of this function). */
+    uint64_t bytes_per_frame = 0;
+    if (!config_struct->lossless_enable) {
+        if (config_struct->bpp_denominator == 0) {
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("bpp_denominator cannot be 0!\n");
+            }
+            return SvtJxsErrorBadParameter;
         }
-        return SvtJxsErrorBadParameter;
-    }
 
-    if (config_struct->bpp_numerator == 0) {
-        if (config_struct->verbose >= VERBOSE_ERRORS) {
-            SVT_ERROR("bpp_numerator cannot be 0!\n");
+        if (config_struct->bpp_numerator == 0) {
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("bpp_numerator cannot be 0!\n");
+            }
+            return SvtJxsErrorBadParameter;
         }
-        return SvtJxsErrorBadParameter;
-    }
 
-    uint64_t bytes_per_frame = ((uint64_t)config_struct->source_width * config_struct->source_height *
-                                    config_struct->bpp_numerator / config_struct->bpp_denominator +
-                                7) /
-        8;
+        bytes_per_frame = ((uint64_t)config_struct->source_width * config_struct->source_height *
+                               config_struct->bpp_numerator / config_struct->bpp_denominator +
+                           7) /
+            8;
 
-    if (bytes_per_frame >= (((uint64_t)1) << 32)) {
-        if (config_struct->verbose >= VERBOSE_ERRORS) {
-            SVT_ERROR("Impossible compression. Please use smaller bpp param!\n");
+        if (bytes_per_frame >= (((uint64_t)1) << 32)) {
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Impossible compression. Please use smaller bpp param!\n");
+            }
+            return SvtJxsErrorBadParameter;
         }
-        return SvtJxsErrorBadParameter;
-    }
 
-    if (bytes_per_frame == 0) {
-        if (config_struct->verbose >= VERBOSE_ERRORS) {
-            SVT_ERROR("Impossible compression. Please use bigger bpp param!\n");
+        if (bytes_per_frame == 0) {
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Impossible compression. Please use bigger bpp param!\n");
+            }
+            return SvtJxsErrorBadParameter;
         }
-        return SvtJxsErrorBadParameter;
     }
 
     enc_common->hdr_Ppih = config_struct->profile_ppih_override != 0
         ? config_struct->profile_ppih_override
-        : derive_stream_profile_ppih(enc_common->colour_format, enc_common->bit_depth, config_struct->verbose);
+        : derive_stream_profile_ppih(enc_common->colour_format,
+                                     enc_common->bit_depth,
+                                     config_struct->lossless_enable,
+                                     config_struct->verbose);
     enc_common->hdr_Plev = config_struct->level_plev_override != 0xFFFF
         ? config_struct->level_plev_override
         : derive_stream_level_plev(config_struct->source_width,
                                    config_struct->source_height,
                                    config_struct->bpp_numerator,
-                                   config_struct->bpp_denominator);
+                                   config_struct->bpp_denominator,
+                                   config_struct->lossless_enable);
 
     // Rate Control
-    enc_common->rate_control_mode = config_struct->rate_control_mode;
-    enc_common->picture_header_dynamic.hdr_Bw = WAVELET_IN_DEPTH_BW_DEFAULT;
-    enc_common->picture_header_dynamic.hdr_Fq = WAVELET_FRACTION_BITS_FQ_DEFAULT;
+    enc_common->lossless_enable = config_struct->lossless_enable ? 1 : 0;
+    /* lossless_enable is documented as orthogonal to rate_control_mode: force the mode that
+     * RateControl.c's lossless bypass is written against (no CBR budget to redistribute/pad
+     * against), instead of trusting whatever the caller happened to leave in the config struct. */
+    enc_common->rate_control_mode = enc_common->lossless_enable ? RC_CBR_PER_PRECINCT : config_struct->rate_control_mode;
+    if (enc_common->lossless_enable) {
+        /* ISO/IEC 21122-1 Table A.8: Fq=0 is legal only with Bw=B[0] (component bit depth).
+         * All components already share enc_common->bit_depth in this encoder (write_component_table()
+         * writes the same scalar bit_depth for every component), so the spec's "B[i]=B[0] for all i"
+         * condition always holds here and needs no separate runtime check. */
+        enc_common->picture_header_dynamic.hdr_Bw = enc_common->bit_depth;
+        enc_common->picture_header_dynamic.hdr_Fq = 0;
+        if (enc_common->picture_header_dynamic.hdr_input_msb_aligned) {
+            /* NltEnc.c's MSB-aligned input path computes shift = hdr_Bw - 16, which is only valid
+             * (a non-negative left shift) for the non-lossless Bw in {18,20}. With Bw==bit_depth
+             * (8-14) here that would go negative, wrap in the uint8_t shift amount, and undefined-shift.
+             * Not worth special-casing the right-shift math for this narrow, optional combination. */
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Error: lossless_enable is not supported together with input_bit_depth_msb_aligned!\n");
+            }
+            return SvtJxsErrorBadParameter;
+        }
+        if (config_struct->slice_packetization_mode) {
+            /* Slice packetization mode needs a known total size (hdr_Lcod) up front: the decoder
+             * rejects hdr_Lcod==0 in this mode (DecHandle.c), and it uses hdr_Lcod as the frame's
+             * max buffer size before any slice packet arrives. The header packet is released before
+             * any slice has finished packing, so the true (data-dependent) final size can't be
+             * patched into it in time - unlike the default single-packet-per-frame mode, where the
+             * whole buffer is only released once every slice is done and hdr_Lcod can be patched
+             * to the real compacted total right before release. */
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Error: lossless_enable is not supported together with slice_packetization_mode!\n");
+            }
+            return SvtJxsErrorBadParameter;
+        }
+    }
+    else {
+        enc_common->picture_header_dynamic.hdr_Bw = WAVELET_IN_DEPTH_BW_DEFAULT;
+        enc_common->picture_header_dynamic.hdr_Fq = WAVELET_FRACTION_BITS_FQ_DEFAULT;
+    }
     enc_common->coding_significance = config_struct->coding_significance;
     enc_common->cpu_profile = config_struct->cpu_profile;
     if (enc_common->cpu_profile != CPU_PROFILE_LOW_LATENCY && enc_common->cpu_profile != CPU_PROFILE_CPU) {
@@ -460,6 +597,17 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         return return_error;
     }
 
+    if (config_struct->lossless_enable) {
+        bytes_per_frame = lossless_worst_case_bytes_per_frame(pi, !config_struct->coding_raw_disable);
+        if (bytes_per_frame >= (((uint64_t)1) << 32)) {
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Image too large for lossless coding: worst-case frame size exceeds 4 GB!\n");
+            }
+            return SvtJxsErrorBadParameter;
+        }
+        enc_common->picture_header_dynamic.hdr_Lcod = (uint32_t)bytes_per_frame;
+    }
+
     uint64_t values_sum = 0;
     for (uint8_t c = 0; c < pi->comps_num; ++c) {
         values_sum += (uint64_t)pi->components[c].width * pi->components[c].height;
@@ -593,6 +741,15 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
         return SvtJxsErrorBadParameter;
     }
 
+    if (enc_api->source_width == 0 || enc_api->source_height == 0) {
+        if (enc_api->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Incorrect source resolution, width and height cannot be 0, provided: %ux%u\n",
+                      enc_api->source_width,
+                      enc_api->source_height);
+        }
+        return SvtJxsErrorBadParameter;
+    }
+
     out_image_config->width = enc_api->source_width;
     out_image_config->height = enc_api->source_height;
     out_image_config->bit_depth = enc_api->input_bit_depth;
@@ -646,16 +803,60 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
     }
 
     if (out_bytes_per_frame) {
-        if (enc_api->bpp_denominator == 0) {
+        uint64_t bytes_per_frame;
+        if (enc_api->lossless_enable) {
+            /* Same geometry as encoder_init_configuration(), including its slice_height clamp */
+            uint32_t slice_height = enc_api->slice_height;
+            if (slice_height == 0 || slice_height > enc_api->source_height) {
+                slice_height = enc_api->source_height;
+            }
+            pi_t pi;
+            return_error = pi_compute(&pi,
+                                      1 /*Init encoder*/,
+                                      components_num,
+                                      GROUP_SIZE,
+                                      SIGNIFICANCE_GROUP_SIZE,
+                                      enc_api->source_width,
+                                      enc_api->source_height,
+                                      enc_api->ndecomp_h,
+                                      enc_api->ndecomp_v,
+                                      0,
+                                      sx,
+                                      sy,
+                                      0 /*Cw*/,
+                                      slice_height);
+            if (return_error) {
+                if (enc_api->verbose >= VERBOSE_ERRORS) {
+                    SVT_ERROR("Lossless: invalid decomposition levels for this picture size, or slice_height not a multiple of 2^decomp_v!\n");
+                }
+                return return_error;
+            }
+            bytes_per_frame = lossless_worst_case_bytes_per_frame(&pi, !enc_api->coding_raw_disable);
+        }
+        else {
+            if (enc_api->bpp_denominator == 0) {
+                if (enc_api->verbose >= VERBOSE_ERRORS) {
+                    SVT_ERROR("bpp_denominator cannot be 0!\n");
+                }
+                return SvtJxsErrorBadParameter;
+            }
+
+            bytes_per_frame = ((uint64_t)enc_api->source_width * enc_api->source_height * enc_api->bpp_numerator /
+                                   enc_api->bpp_denominator +
+                               7) /
+                8;
+        }
+
+        /* Matches encoder_init_configuration()'s equivalent check: without this, a bytes_per_frame
+         * that doesn't fit uint32_t would silently wrap into a much-too-small value below instead
+         * of surfacing an error - a caller sizing its output buffer from that value would
+         * under-allocate before ever reaching svt_jpeg_xs_encoder_init() (which does check this). */
+        if (bytes_per_frame >= (((uint64_t)1) << 32)) {
             if (enc_api->verbose >= VERBOSE_ERRORS) {
-                SVT_ERROR("bpp_denominator cannot be 0!\n");
+                SVT_ERROR("Impossible compression. Please use smaller bpp param or a smaller image!\n");
             }
             return SvtJxsErrorBadParameter;
         }
-
-        uint64_t bytes_per_frame =
-            ((uint64_t)enc_api->source_width * enc_api->source_height * enc_api->bpp_numerator / enc_api->bpp_denominator + 7) /
-            8;
 
         *out_bytes_per_frame = (uint32_t)bytes_per_frame;
     }

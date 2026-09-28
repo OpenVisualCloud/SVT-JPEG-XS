@@ -57,15 +57,21 @@ void update_N_bits(bitstream_writer_t* bitstream, uint32_t offset_bits, uint32_t
  * before any other write to the same stream. */
 typedef struct bit_writer {
     uint8_t* mem;
+    uint8_t* mem_end; /* one-past-last valid byte; see bitw_init() */
     uint64_t acc;
     uint32_t nbits;
 } bit_writer_t;
 
 static INLINE void bitw_init(bit_writer_t* w, bitstream_writer_t* bitstream) {
     w->mem = bitstream->mem + bitstream->offset;
+    w->mem_end = bitstream->mem + bitstream->size;
     const uint32_t used = bitstream->bits_used;
     if (used) {
-        w->acc = (uint64_t)(w->mem[0] >> (8 - used));
+        /* bitstream->offset can already be at/past size here (a prior write into an undersized
+         * caller-provided buffer - see BitstreamWriter.c) even though bits_used was still updated;
+         * guard the read the same way every store below guards its write. */
+        const uint8_t byte = (w->mem < w->mem_end) ? w->mem[0] : 0;
+        w->acc = (uint64_t)(byte >> (8 - used));
         w->nbits = used;
     }
     else {
@@ -83,10 +89,18 @@ static INLINE void bitw_put(bit_writer_t* w, uint64_t value, uint32_t len) {
     if (w->nbits >= 32) {
         w->nbits -= 32;
         const uint32_t be = (uint32_t)(w->acc >> w->nbits);
-        w->mem[0] = (uint8_t)(be >> 24);
-        w->mem[1] = (uint8_t)(be >> 16);
-        w->mem[2] = (uint8_t)(be >> 8);
-        w->mem[3] = (uint8_t)be;
+        /* Guard, don't assert: a mis-sized (or adversarially undersized, e.g. coding_raw_disable=1's
+         * unary-GCLI worst case) caller-provided buffer must fail safely here, not corrupt whatever
+         * follows it. bitstream->offset (patched from w->mem in bitw_finish) still ends up reflecting
+         * the true requested size either way, so the existing real-bytes-vs-window check downstream
+         * (PackStageProcess.c) still detects and fails the frame - this only stops the write itself
+         * from landing outside the buffer. */
+        if (w->mem + 4 <= w->mem_end) {
+            w->mem[0] = (uint8_t)(be >> 24);
+            w->mem[1] = (uint8_t)(be >> 16);
+            w->mem[2] = (uint8_t)(be >> 8);
+            w->mem[3] = (uint8_t)be;
+        }
         w->mem += 4;
         w->acc &= ((uint64_t)1 << w->nbits) - 1;
     }
@@ -97,13 +111,17 @@ static INLINE void bitw_finish(bit_writer_t* w, bitstream_writer_t* bitstream) {
     const uint64_t a = w->acc;
     while (n >= 8) {
         n -= 8;
-        w->mem[0] = (uint8_t)(a >> n);
+        if (w->mem < w->mem_end) {
+            w->mem[0] = (uint8_t)(a >> n);
+        }
         w->mem++;
     }
     if (n) {
         /* the tail is shorter than a byte: it is the high part of its byte, the
          * low positions are written later */
-        w->mem[0] = (uint8_t)((a & (((uint64_t)1 << n) - 1)) << (8 - n));
+        if (w->mem < w->mem_end) {
+            w->mem[0] = (uint8_t)((a & (((uint64_t)1 << n) - 1)) << (8 - n));
+        }
     }
     bitstream->offset = (uint32_t)(w->mem - bitstream->mem);
     bitstream->bits_used = n;
@@ -129,14 +147,18 @@ static INLINE void bitw_finish(bit_writer_t* w, bitstream_writer_t* bitstream) {
  * stream. */
 typedef struct nib_writer {
     uint8_t* mem;
+    uint8_t* mem_end; /* one-past-last valid byte; see nibw_init() */
     uint64_t acc;
     uint32_t nnib;
 } nib_writer_t;
 
 static INLINE void nibw_init(nib_writer_t* w, bitstream_writer_t* bitstream) {
     w->mem = bitstream->mem + bitstream->offset;
+    w->mem_end = bitstream->mem + bitstream->size;
     if (bitstream->bits_used) {
-        w->acc = (uint64_t)(w->mem[0] >> 4);
+        /* See bitw_init(): offset can already be at/past size from a prior guarded-but-skipped write. */
+        const uint8_t byte = (w->mem < w->mem_end) ? w->mem[0] : 0;
+        w->acc = (uint64_t)(byte >> 4);
         w->nnib = 1;
     }
     else {
@@ -149,10 +171,14 @@ static INLINE void nibw_put(nib_writer_t* w, uint32_t nibble) {
     w->acc = (w->acc << 4) | nibble;
     if (++w->nnib == 8) {
         const uint32_t be = (uint32_t)w->acc;
-        w->mem[0] = (uint8_t)(be >> 24);
-        w->mem[1] = (uint8_t)(be >> 16);
-        w->mem[2] = (uint8_t)(be >> 8);
-        w->mem[3] = (uint8_t)be;
+        /* See bitw_put(): guard, don't assert - a mis-sized buffer must fail safely, not corrupt
+         * memory past it. */
+        if (w->mem + 4 <= w->mem_end) {
+            w->mem[0] = (uint8_t)(be >> 24);
+            w->mem[1] = (uint8_t)(be >> 16);
+            w->mem[2] = (uint8_t)(be >> 8);
+            w->mem[3] = (uint8_t)be;
+        }
         w->mem += 4;
         w->acc = 0;
         w->nnib = 0;
@@ -169,10 +195,12 @@ static INLINE void nibw_put_chunk(nib_writer_t* w, uint64_t value, uint32_t coun
     if (w->nnib >= 8) {
         const uint32_t rest = w->nnib - 8;
         const uint32_t be = (uint32_t)(w->acc >> (4 * rest));
-        w->mem[0] = (uint8_t)(be >> 24);
-        w->mem[1] = (uint8_t)(be >> 16);
-        w->mem[2] = (uint8_t)(be >> 8);
-        w->mem[3] = (uint8_t)be;
+        if (w->mem + 4 <= w->mem_end) {
+            w->mem[0] = (uint8_t)(be >> 24);
+            w->mem[1] = (uint8_t)(be >> 16);
+            w->mem[2] = (uint8_t)(be >> 8);
+            w->mem[3] = (uint8_t)be;
+        }
         w->mem += 4;
         w->acc &= ((uint64_t)1 << (4 * rest)) - 1;
         w->nnib = rest;
@@ -200,14 +228,18 @@ static INLINE void nibw_finish(nib_writer_t* w, bitstream_writer_t* bitstream) {
     uint32_t n = w->nnib;
     const uint64_t a = w->acc;
     while (n >= 2) {
-        w->mem[0] = (uint8_t)((a >> ((n - 2) * 4)) & 0xFF);
+        if (w->mem < w->mem_end) {
+            w->mem[0] = (uint8_t)((a >> ((n - 2) * 4)) & 0xFF);
+        }
         w->mem++;
         n -= 2;
     }
     if (n == 1) {
         /* one nibble is left: it is the high half of its byte, the low half is
          * written later */
-        w->mem[0] = (uint8_t)((a & 0xF) << 4);
+        if (w->mem < w->mem_end) {
+            w->mem[0] = (uint8_t)((a & 0xF) << 4);
+        }
     }
     bitstream->offset = (uint32_t)(w->mem - bitstream->mem);
     bitstream->bits_used = n * 4;
@@ -220,14 +252,21 @@ static INLINE void write_4_bits_align4(bitstream_writer_t* bitstream, uint8_t in
     assert((bitstream->bits_used != 0) || (bitstream->bits_used != 4));
     assert(input <= 0xf);
     uint8_t* mem = bitstream->mem + bitstream->offset;
+    /* Guard, don't assert: see BitstreamWriter.c's write_8_bits() for why this can't rely on
+     * align_bitstream_writer_to_next_byte()'s NDEBUG-only assert as its only protection. */
+    const uint8_t in_bounds = bitstream->offset < bitstream->size;
 
     if (bitstream->bits_used == 4) {
-        mem[0] |= input;
+        if (in_bounds) {
+            mem[0] |= input;
+        }
         bitstream->bits_used = 0;
         bitstream->offset++;
     }
     else { // bitstream->bits_used == 0;
-        mem[0] = (input << 4);
+        if (in_bounds) {
+            mem[0] = (input << 4);
+        }
         bitstream->bits_used = 4;
     }
 }

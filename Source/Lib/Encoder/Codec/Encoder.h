@@ -79,6 +79,7 @@ typedef struct svt_jpeg_xs_encoder_common {
     SignHandlingStrategy coding_signs_handling;
 
     uint32_t frame_header_length_bytes;
+    uint32_t hdr_Lcod_byte_offset; /* Byte offset of hdr_Lcod within frame_header_buffer, for lossless post-hoc patching */
 
     /*
     short name | long name                           | order in stream | mandatory/optional | max byte size (assuming 4 components)
@@ -103,6 +104,7 @@ typedef struct svt_jpeg_xs_encoder_common {
     uint32_t *slice_sizes;
     uint8_t slice_packetization_mode;
     uint8_t cap_compat; /* Emit empty CAP marker (Lcap=2) when no capability bit is set (legacy decoder compatibility) */
+    uint8_t lossless_enable; /* True lossless coding (Fq=0, Bw=bit_depth): gtli forced to 0 everywhere, variable-size output */
 } svt_jpeg_xs_encoder_common_t;
 
 #ifdef __cplusplus

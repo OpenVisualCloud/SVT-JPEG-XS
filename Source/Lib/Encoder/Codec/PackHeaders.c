@@ -22,7 +22,7 @@ void write_capabilities_marker(bitstream_writer_t* bitstream, svt_jpeg_xs_encode
     capability[3] = 0;           //Support for extended non-linear transform required
     capability[4] = support_420; //0: sy[i] = 1 for all components i 1: component i with sy[i]>1 present
     capability[5] = 0;           //Support for component-dependent wavelet decomposition required
-    capability[6] = 0;           //Support for lossless decoding required
+    capability[6] = enc_common->lossless_enable; //Support for lossless decoding required
     capability[7] = 0;           //Unused
     capability[8] = enc_common->picture_header_dynamic.hdr_Rl; //Support for packet-based raw-mode switch required
 
@@ -50,8 +50,9 @@ void write_capabilities_marker(bitstream_writer_t* bitstream, svt_jpeg_xs_encode
 }
 
 void write_picture_header(bitstream_writer_t* bitstream, pi_t* pi, svt_jpeg_xs_encoder_common_t* enc_common) {
-    write_16_bits(bitstream, CODESTREAM_PIH);                              //PIH
-    write_16_bits(bitstream, PICTURE_HEADER_SIZE_BYTES);                   //Lpih
+    write_16_bits(bitstream, CODESTREAM_PIH);            //PIH
+    write_16_bits(bitstream, PICTURE_HEADER_SIZE_BYTES); //Lpih
+    enc_common->hdr_Lcod_byte_offset = bitstream_writer_get_used_bytes(bitstream);
     write_32_bits(bitstream, enc_common->picture_header_dynamic.hdr_Lcod); //Lcod
     write_16_bits(bitstream, enc_common->hdr_Ppih);                        //Ppih
     write_16_bits(bitstream, enc_common->hdr_Plev);                        //Plev
@@ -112,7 +113,13 @@ void write_slice_header(bitstream_writer_t* bitstream, int slice_idx) {
 /*Return bits offset on sign_size_bytes*/
 uint32_t write_packet_header(bitstream_writer_t* bitstream, uint32_t long_hdr, uint8_t raw_coding, uint64_t data_size_bytes,
                              uint64_t bitplane_count_size_bytes, uint64_t sign_size_bytes) {
-    uint8_t* mem = bitstream->mem + bitstream->offset;
+    /* Same fail-safe as BitstreamWriter.c: a header that would not fit in the buffer is written to a
+     * scratch area instead, while offset still advances, so the real-bytes-vs-window check
+     * (PackStageProcess.c) fails the frame without corrupting memory past the buffer. */
+    uint8_t scratch[PACKET_HEADER_LONG_SIZE_BYTES];
+    const uint32_t header_bytes = long_hdr ? PACKET_HEADER_LONG_SIZE_BYTES : PACKET_HEADER_SHORT_SIZE_BYTES;
+    uint8_t* mem = ((uint64_t)bitstream->offset + header_bytes <= bitstream->size) ? bitstream->mem + bitstream->offset
+                                                                                    : scratch;
 
     //Write 1 bit
     mem[0] = raw_coding << 7;

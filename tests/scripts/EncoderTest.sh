@@ -404,6 +404,87 @@ function test_msb_aligned {
     test_enc 5 IGNORE                           signal_1080p_yuv422p_10bit_le_1_frame       "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --input-msb-aligned 255   --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
 }
 
+# (1:expected error code) (2:name input yuv) (3:frame size in bytes) (4:number of frames actually
+# encoded, matches any "-n" in param 5) (5:"all other parameters to encoder")
+# Lossless must reproduce the source exactly - unlike test_enc's bitstream-MD5 pinning (which only
+# catches "output changed vs a snapshot"), this compares MD5 of the source bytes that were encoded
+# against MD5 of the decoded output, directly verifying the actual bit-exact-lossless claim.
+function test_enc_lossless {
+    exit_code=$1
+    name_yuv=$2
+    frame_size_bytes=$3
+    num_frames=$4
+    encoder_parameters=$5
+    path_yuv=$path_correct"/"$name_yuv".yuv"
+
+    common_lib_update_test_id_run_return_1_to_ignore
+    ignore=$?
+    if [ $ignore -ne 0 ]; then
+        return
+    fi
+
+    bin_name=$test_id_print"_"$name_yuv"_lossless"
+    bin_name="${bin_name:0:100}"
+    bin_path="$tmp_dir/"$bin_name".jxs"
+    out_yuv_path="$tmp_dir/"$bin_name".yuv"
+
+    cmd="$exec_enc -i $path_yuv -b $bin_path $encoder_parameters"
+    echo "run command: $cmd"
+    run_cmd "$cmd"
+    ret=$?
+    if [ $ret -ne $exit_code ]; then
+        echo "FAIL Invalid error code: $ret expected: $exit_code"
+        error=1
+        end
+    fi
+
+    if [ $ret -eq 0 ]; then
+        cmd="$exec_dec -i $bin_path -o $out_yuv_path"
+        echo "run command: $cmd"
+        run_cmd "$cmd"
+        ret=$?
+        if [ $ret -ne 0 ]; then
+            echo "FAIL Can not decode bitstream, error code: $ret"
+            error=1
+            end
+        else
+            bytes_to_compare=$((frame_size_bytes * num_frames))
+            md5_src=`head -c $bytes_to_compare "$path_yuv" | md5sum | awk '{ print $1 }'`
+            md5_dec=`md5sum "$out_yuv_path" | awk '{ print $1 }'`
+            echo -n "Test lossless round-trip MD5 src=$md5_src dec=$md5_dec "
+            if [ "$md5_src" = "$md5_dec" ]; then
+                echo "OK"
+            else
+                echo "FAIL decoded output MD5 != source YUV MD5 (not bit-exact)"
+                error=1
+                end
+            fi
+        fi
+    fi
+}
+
+#RUN --lossless (true lossless coding, Fq=0) smoke test Parameters (1:asm) (2:lp) (3:profile) (4:packetization-mode)
+function test_lossless {
+    asm=${SANITIZER_ASM:-$1}
+    lp=$2
+    cpu_profile=$3
+    packetization_mode=$4
+
+#   lossless is incompatible with slice_packetization_mode (hdr_Lcod must be known before the header
+#   packet is released, but lossless's true final size is only known after every slice is packed) -
+#   always encode with --packetization-mode 0 here regardless of what the driver passed in; the
+#   rejection itself is covered explicitly below.
+    test_enc_lossless 0 signal_1080p_yuv422p_10bit_le_1_frame       8294400 1 "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --coding-sigf 1 --coding-vpred 0 --rc 0 --lossless 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode 0"
+    test_enc_lossless 0 touchdown_1080p_yuv422p_8_bit_60_frames     4147200 5 "-w 1920 -h 1080 --input-depth 8  --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --coding-sigf 1 --coding-vpred 0 --rc 0 --lossless 1 -n 5 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode 0"
+    test_enc_lossless 0 touchdown_720p_yuv420p_8_bit_60_frames      1382400 3 "-w 1280 -h 720  --input-depth 8  --colour-format yuv420 --bpp 4 --decomp_v 2 --decomp_h 5 --coding-sigf 1 --coding-vpred 0 --rc 0 --lossless 1 -n 3 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode 0"
+#   Compressible/flat content: exercises the compaction pass actually shrinking output below the CBR-equivalent size.
+    test_enc_lossless 0 small_422_8bit_32x32-small-blank-small      2048    3 "-w 32 -h 32 --input-depth 8  --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 2 --coding-sigf 1 --coding-vpred 0 --rc 0 --lossless 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode 0"
+
+#   Rejected combinations
+    test_enc 5 IGNORE                           signal_1080p_yuv422p_10bit_le_1_frame       "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --lossless 1 --input-msb-aligned 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode 0"
+    test_enc 5 IGNORE                           signal_1080p_yuv422p_10bit_le_1_frame       "-w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --lossless 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode 1"
+}
+
 #(1:expected error code) (2:expected md5 or IGNORE) (3:"all other parameters to encoder")
 #Independent of test_enc/$path_correct - always encodes the self-generated $yuva422_synth file.
 function test_enc_yuva422_synth {
@@ -1074,6 +1155,12 @@ echo Test MSB-aligned input
 [[ $run_fast -eq 0 ]] && test_msb_aligned avx2 5 cpu 0
                          test_msb_aligned max 7 latency 0
                          test_msb_aligned max 7 latency 1
+
+echo "Test --lossless (true lossless coding, Fq=0)"
+[[ $run_fast -eq 0 ]] && test_lossless c 10 latency 0
+[[ $run_fast -eq 0 ]] && test_lossless avx2 5 cpu 0
+                         test_lossless max 7 latency 0
+                         test_lossless max 7 latency 1
 
 echo "Test yuva422 (4:2:2:4, YUV422+alpha)"
 [[ $run_fast -eq 0 ]] && test_four_component_alpha c 10 latency 0

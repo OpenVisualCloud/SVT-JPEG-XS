@@ -74,7 +74,7 @@ void transform_V0_H1(const pi_component_t* const component, const pi_enc_compone
     uint16_t* out_ptr_hf = buffer_out_16bit + component_enc->bands[/*band_id*/ 1].coeff_buff_tmp_pos_offset_16bit;
 
     int32_t shift_out = param_out_Fq;
-    int32_t offset_out = 1 << (param_out_Fq - 1);
+    int32_t offset_out = param_out_Fq ? (1 << (param_out_Fq - 1)) : 0;
 
     if (input_bit_depth == 0) {
         /*Not convert input.*/
@@ -110,7 +110,7 @@ void transform_V0_H2(const pi_component_t* const component, const pi_enc_compone
     uint16_t* out_ptr_0 = buffer_out_16bit; //For last band dwt to out buffer
 
     int32_t shift_out = param_out_Fq;
-    int32_t offset_out = 1 << (param_out_Fq - 1);
+    int32_t offset_out = param_out_Fq ? (1 << (param_out_Fq - 1)) : 0;
 
     if (input_bit_depth == 0) {
         /*Not convert input.*/
@@ -153,7 +153,7 @@ void transform_V0_H3(const pi_component_t* const component, const pi_enc_compone
     uint16_t* out_ptr_0 = buffer_out_16bit; //For last band dwt to out buffer
 
     int32_t shift_out = param_out_Fq;
-    int32_t offset_out = 1 << (param_out_Fq - 1);
+    int32_t offset_out = param_out_Fq ? (1 << (param_out_Fq - 1)) : 0;
 
     if (input_bit_depth == 0) {
         /*Not convert input.*/
@@ -203,7 +203,7 @@ void transform_V0_H4(const pi_component_t* const component, const pi_enc_compone
     uint16_t* out_ptr_0 = buffer_out_16bit; //For last band dwt to out buffer
 
     int32_t shift_out = param_out_Fq;
-    int32_t offset_out = 1 << (param_out_Fq - 1);
+    int32_t offset_out = param_out_Fq ? (1 << (param_out_Fq - 1)) : 0;
 
     if (input_bit_depth == 0) {
         /*Not convert input.*/
@@ -260,7 +260,7 @@ void transform_V0_H5(const pi_component_t* const component, const pi_enc_compone
     uint16_t* out_ptr_0 = buffer_out_16bit; //For last band dwt to out buffer
 
     int32_t shift_out = param_out_Fq;
-    int32_t offset_out = 1 << (param_out_Fq - 1);
+    int32_t offset_out = param_out_Fq ? (1 << (param_out_Fq - 1)) : 0;
 
     if (input_bit_depth == 0) {
         /*Not convert input.*/
@@ -325,7 +325,7 @@ static void transform_V1_H1_down_convert_output(const pi_component_t* const comp
     uint16_t* out_ptr_3 = buffer_out_16bit + component_enc->bands[band_start + 1].coeff_buff_tmp_pos_offset_16bit;
 
     int32_t shift_out = param_out_Fq;
-    int32_t offset_out = 1 << (param_out_Fq - 1);
+    int32_t offset_out = param_out_Fq ? (1 << (param_out_Fq - 1)) : 0;
 
     /*Not convert input.*/
     dwt_horizontal_line(buffer_tmp, out32_bit, buff_in, width);
@@ -743,7 +743,7 @@ static void transform_V2_H1_down_line_convert_output(const pi_component_t* const
     uint16_t* out_ptr_6 = buffer_out_16bit + component_enc->bands[band_start + 1].coeff_buff_tmp_pos_offset_16bit;
 
     int32_t shift_out = param_out_Fq;
-    int32_t offset_out = 1 << (param_out_Fq - 1);
+    int32_t offset_out = param_out_Fq ? (1 << (param_out_Fq - 1)) : 0;
 
     dwt_horizontal_line(buffer_tmp, out32_bit, buff_in, width);
     image_shift(out_ptr_6 + line_in_precinct * width_6, out32_bit, width_6, shift_out, offset_out);
@@ -931,7 +931,7 @@ void transform_V2_Hx_precinct(const pi_component_t* const component, const pi_en
     assert((width == (width_0123_5 + /*width_4_6*/ component->bands[bands_num - 1].width)));
 
     int32_t shift_out = param_out_Fq;
-    int32_t offset_out = 1 << (param_out_Fq - 1);
+    int32_t offset_out = param_out_Fq ? (1 << (param_out_Fq - 1)) : 0;
 
     /*Buffer on place size: 1.5*width == (3*width/2)*/
     int32_t* in_tmp_line_56_HF_prev_on_place = buffer_on_place;  //Size width

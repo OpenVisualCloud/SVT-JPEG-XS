@@ -120,6 +120,18 @@ cmd_prep_alpha="$exec_enc -i $yuva422_synth -w $yuva422_w -h $yuva422_h --input-
 echo "run command: $cmd_prep_alpha"
 run_cmd "$cmd_prep_alpha"
 
+#Prep a multi-frame true-lossless (Fq=0) bitstream from a real 10bit sample, to round-trip-verify the
+#decoder reproduces it bit-exact (not just within tolerance, unlike the alpha/444 synth tests below).
+lossless_prep_frames=5
+lossless_prep_frame_size=8294400
+lossless_prep_src="$path_encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv"
+lossless_prep_ref="$tmp_dir/lossless_prep_ref.yuv"
+head -c $((lossless_prep_frame_size * lossless_prep_frames)) "$lossless_prep_src" > "$lossless_prep_ref"
+bitstream_lossless_prep="$tmp_dir/lossless_prep.jxs"
+cmd_prep_lossless="$exec_enc -i $lossless_prep_src -w 1920 -h 1080 --input-depth 10 --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --coding-sigf 1 --coding-vpred 0 --rc 0 --lossless 1 -n $lossless_prep_frames --asm max --lp 7 --profile latency --packetization-mode 0 -b $bitstream_lossless_prep"
+echo "run command: $cmd_prep_lossless"
+run_cmd "$cmd_prep_lossless"
+
 yuva444_w=1920
 yuva444_h=1080
 yuva444_frames=5
@@ -206,6 +218,33 @@ function test_four_component_444_decode {
     compare_yuv_tolerance "$yuva444_synth" "$out_yuv" 4
 }
 
+
+#RUN true-lossless (Fq=0) multi-frame decode round-trip: decode the self-generated lossless bitstream
+#and compare against the original source frames exactly (tolerance 0 - not "close", bit-exact).
+#Parameters (1:asm) (2:lp) (3:packetization-mode)
+function test_lossless_decode {
+    PARAM_ASM=$1
+    PARAM_LP_NUM=$2
+    PARAM_PACKETIZATION=$3
+
+    common_lib_update_test_id_run_return_1_to_ignore
+    ignore=$?
+    if [ $ignore -ne 0 ]; then
+        return
+    fi
+
+    out_yuv="$tmp_dir/lossless_prep_out.yuv"
+    cmd="$valgrind$exec_dec -i $bitstream_lossless_prep -o $out_yuv --lp $PARAM_LP_NUM --asm $PARAM_ASM --packetization-mode $PARAM_PACKETIZATION"
+    echo "run command: $cmd"
+    run_cmd "$cmd"
+    ret=$?
+    if [ $ret -ne 0 ]; then
+        echo "FAIL Can not decode bitstream, error code: $ret"
+        error=1
+        end
+    fi
+    compare_yuv_tolerance "$lossless_prep_ref" "$out_yuv" 0
+}
 
 function test_all_correct {
     PARAM_ASM=$1
@@ -336,6 +375,17 @@ echo Test output_bit_depth_msb_aligned
 [[ $run_fast -eq 0 ]] && test_msb_aligned_output c 10 0
                          test_msb_aligned_output avx2 20 0
                          test_msb_aligned_output max 1 1
+
+echo "Test true-lossless (Fq=0) multi-frame decode round-trip"
+#packetization-mode 1 against a lossless bitstream used to hang (the decoder's packetization-mode
+#framing assumed CBR's uniform, formula-computable slice sizes and spun retrying a mismatched
+#expected size forever instead of erroring, confirmed specific to lossless's data-dependent slice
+#sizes - an ordinary CBR bitstream doesn't reproduce it). DecHandle.c now rejects packetization_mode=1
+#up front when hdr_Fq==0, and DecAppMain.c already retries with packetization_mode=0 (with a
+#warning) on that rejection - exercise that fallback here for real, end to end via the CLI.
+[[ $run_fast -eq 0 ]] && test_lossless_decode c 10 0
+                         test_lossless_decode avx2 20 0
+                         test_lossless_decode max 1 1
 
 echo "Test yuva422 (4:2:2:4) multi-frame decode round-trip"
 [[ $run_fast -eq 0 ]] && test_four_component_alpha_decode c 10 0

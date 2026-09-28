@@ -21,6 +21,9 @@ void picture_control_set_dctor(void_ptr p) {
     if (enc_common->slice_packetization_mode) {
         SVT_FREE(obj->slice_ready_to_release_arr);
     }
+    if (enc_common->lossless_enable) {
+        SVT_FREE(obj->slice_real_bytes_arr);
+    }
 }
 
 SvtJxsErrorType_t picture_control_set_ctor(PictureControlSet* obj, void_ptr object_init_data_ptr) {
@@ -44,6 +47,9 @@ SvtJxsErrorType_t picture_control_set_ctor(PictureControlSet* obj, void_ptr obje
 
     if (enc_common->slice_packetization_mode) {
         SVT_MALLOC(obj->slice_ready_to_release_arr, pi->slice_num);
+    }
+    if (enc_common->lossless_enable) {
+        SVT_MALLOC(obj->slice_real_bytes_arr, pi->slice_num * sizeof(uint32_t));
     }
 
     return return_error;

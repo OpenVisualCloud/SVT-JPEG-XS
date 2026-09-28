@@ -131,7 +131,11 @@ ubsan_opts="suppressions=$root/.github/config/ubsan_suppressions.txt:print_stack
 
 case "$sanitizer" in
     address)
-        opt_name="ASAN_OPTIONS"; opt_value="halt_on_error=0:exitcode=0:print_stacktrace=1" ;;
+        # detect_stack_use_after_return=0: ASan's fake stack only guarantees 32-byte frame
+        # alignment, but the compiler keeps 64-byte-aligned locals in AVX-512 kernels and zeroes
+        # them with aligned zmm stores (vmovdqa64), which #GP-fault on a fake-stack frame and
+        # show up as a spurious SEGV (e.g. in gc_histogram_16_avx512).
+        opt_name="ASAN_OPTIONS"; opt_value="halt_on_error=0:exitcode=0:print_stacktrace=1:detect_stack_use_after_return=0" ;;
     thread)
         opt_name="TSAN_OPTIONS"; opt_value="halt_on_error=0:exitcode=0:history_size=4" ;;
     undefined)

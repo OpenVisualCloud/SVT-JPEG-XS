@@ -715,29 +715,53 @@ void* pack_stage_kernel(void* input_ptr) {
 #endif
         }
 
-#ifndef NDEBUG
-        if (error == SvtJxsErrorNone) {
-            uint32_t used_bytes = bitstream_writer_get_used_bytes(&bitstream);
-            uint32_t used_bytes_expected = pack_input->out_bytes_end - pack_input->out_bytes_begin;
-            if (used_bytes_expected != used_bytes) {
-                SVT_ERROR("Error pack slice: %i, Expected write to bitstream: %u Get: %u\n",
+        uint32_t slice_real_bytes = bitstream_writer_get_used_bytes(&bitstream);
+        if (enc_common->lossless_enable) {
+            /* The window is sized from the worst-case bound (EncHandle.c's
+             * lossless_worst_case_bytes_per_frame()), so real bytes written should never exceed it.
+             * This is a real (not NDEBUG-only) check: the writers drop stores past the window but
+             * still advance their offset, so an undersized window shows up here and fails the
+             * frame instead of silently producing a truncated slice. */
+            if (error == SvtJxsErrorNone && slice_real_bytes > pack_input->out_bytes_end - pack_input->out_bytes_begin) {
+                SVT_ERROR("[%s] lossless slice %i overflowed its window: wrote %u bytes, window is %u bytes\n",
+                          __FUNCTION__,
                           pack_input->slice_idx,
-                          used_bytes_expected,
-                          used_bytes);
-                assert(0);
+                          slice_real_bytes,
+                          pack_input->out_bytes_end - pack_input->out_bytes_begin);
+                error = SvtJxsErrorEncodeFrameError;
             }
         }
+        else {
+#ifndef NDEBUG
+            if (error == SvtJxsErrorNone) {
+                uint32_t used_bytes_expected = pack_input->out_bytes_end - pack_input->out_bytes_begin;
+                if (used_bytes_expected != slice_real_bytes) {
+                    SVT_ERROR("Error pack slice: %i, Expected write to bitstream: %u Get: %u\n",
+                              pack_input->slice_idx,
+                              used_bytes_expected,
+                              slice_real_bytes);
+                    assert(0);
+                }
+            }
 #endif
-        assert((error != SvtJxsErrorNone) ||
-               (bitstream_writer_get_used_bytes(&bitstream) == pack_input->out_bytes_end - pack_input->out_bytes_begin));
+            assert((error != SvtJxsErrorNone) ||
+                   (slice_real_bytes == pack_input->out_bytes_end - pack_input->out_bytes_begin));
+        }
 
         //Write End of Bitstream
         if (error == SvtJxsErrorNone && pack_input->write_tail) {
-            assert(pack_input->tail_bytes_begin == pack_input->out_bytes_end);
-            void* buf = pcs_ptr->enc_input.bitstream.buffer + pack_input->tail_bytes_begin;
+            /*Non-lossless: tail sits right at the (exactly-filled) window end. Lossless: window is
+              generous, so the tail must instead follow the real data, not the padded window end.*/
+            uint32_t tail_begin = enc_common->lossless_enable ? pack_input->out_bytes_begin + slice_real_bytes
+                                                                : pack_input->tail_bytes_begin;
+            assert(enc_common->lossless_enable || pack_input->tail_bytes_begin == pack_input->out_bytes_end);
+            void* buf = pcs_ptr->enc_input.bitstream.buffer + tail_begin;
             bitstream_writer_t bitstream;
             bitstream_writer_init(&bitstream, buf, CODESTREAM_SIZE_BYTES);
             write_tail(&bitstream);
+            if (enc_common->lossless_enable) {
+                slice_real_bytes += CODESTREAM_SIZE_BYTES;
+            }
         }
 
         SvtJxsErrorType_t err = svt_jxs_get_empty_object(context_ptr->output_buffer_fifo_ptr, &output_wrapper_ptr);
@@ -751,6 +775,7 @@ void* pack_stage_kernel(void* input_ptr) {
         pack_out->pcs_wrapper_ptr = pcs_wrapper_ptr;
         pack_out->slice_idx = pack_input->slice_idx;
         pack_out->slice_error = error;
+        pack_out->slice_real_bytes = slice_real_bytes;
 #ifdef FLAG_DEADLOCK_DETECT
         printf("07[%s:%i] frame: %03li slice: %03d\n", __func__, __LINE__, (size_t)pcs_ptr->frame_number, pack_out->slice_idx);
 #endif

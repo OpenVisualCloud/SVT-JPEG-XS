@@ -135,9 +135,12 @@ if [ ! -f "$CSV_FILE" ] || [ "$(head -n 1 "$CSV_FILE")" != "$CSV_HEADER" ]; then
 fi
 echo "CSV ready, entering test matrix loop"
 
-# Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS|ExtraEncArgs(optional)|ExtraDecArgs(optional)
+# Matrix: Name|Width|Height|BitDepth|Format|Framerate|BPP|Threads|SourceFile|Baseline_Enc_FPS|Baseline_Dec_FPS|ExtraEncArgs(optional)|ExtraDecArgs(optional)|FramesOverride(optional)
 # SourceFile "SYNTH:yuva422"/"SYNTH:yuva444" is a sentinel meaning "use the on-the-fly synthesized file above",
 # since no real 4-component sample fixture exists in $SAMPLES_DIR.
+# FramesOverride, when set, replaces the global $FRAMES for that row's -n arg - needed by rows
+# whose per-frame output size can be much larger than the lossy CBR rows (e.g. lossless), where
+# running the full $FRAMES would blow the ramdisk tmpfs budget below.
 MATRIX=(
     # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling. Baselines calibrated from the
     # CI runner's own measurements (dev-sandbox numbers were faster/slower than this host).
@@ -186,6 +189,23 @@ MATRIX=(
     # perf test's own measurement for the same shape, so its baseline is reused here too.
     "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|1|SYNTH:yuv444|30|33|--color-transform 1 --profile latency"
     "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|8|SYNTH:yuv444|180|110|--color-transform 1 --profile latency"
+
+    # 1080p 422p 10-bit true lossless (--lossless 1, Fq=0) Thread Scaling. --bpp is passed but
+    # ignored by the encoder in this mode (kept only for CSV-column consistency with the other
+    # 422p10 rows above); --rc 0 --lossless 1 is the idiom used elsewhere in this repo
+    # (EncoderTest.sh/DecoderConformanceTest.sh/DecoderMultiFramesTest.sh) to enable it. Decode
+    # needs no extra flag - it auto-detects Fq=0 from the bitstream header.
+    # FramesOverride=200: lossless's worst-case output is ~2 bytes/sample (Fq=0 removes the usual
+    # compression right-shift), ~8.9 MiB/frame for this shape - at the global FRAMES=2000 that is
+    # ~17.8 GiB, far past the 3G ramdisk. At 200 frames the worst case is ~1.74 GiB, under the
+    # 2.4 GiB peak already tolerated for the yuva444p8 (bpp=5.0) row above, so the ramdisk does
+    # not need to grow.
+    # Baselines calibrated on the CI runner (mtl-runner-2): 10x back-to-back runs, min observed
+    # was 82.14/129.37 fps (enc/dec, threads=1) and 462.96/602.41 fps (enc/dec, threads=8);
+    # baselines set a few % below those mins to absorb run-to-run noise while still catching a
+    # real regression under the 5% threshold.
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|78|125|--rc 0 --lossless 1||200"
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|450|585|--rc 0 --lossless 1||200"
 )
 
 # run_measured cmd...: single run, prints parsed FPS (empty if unparseable or if the command
@@ -268,7 +288,8 @@ MATRIX_TOTAL=${#MATRIX[@]}
 MATRIX_INDEX=0
 for test_case in "${MATRIX[@]}"; do
     MATRIX_INDEX=$((MATRIX_INDEX + 1))
-    IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args <<< "$test_case"
+    IFS='|' read -r name w h depth fmt framerate bpp threads file baseline_enc_fps baseline_dec_fps extra_enc_args extra_dec_args frames_override <<< "$test_case"
+    frames="${frames_override:-$FRAMES}"
     echo "$MATRIX_INDEX/$MATRIX_TOTAL:"
 
     case "$file" in
@@ -291,7 +312,7 @@ for test_case in "${MATRIX[@]}"; do
     echo "Encoding: $name (bpp=$bpp, threads=$threads, asm=$ASM_LEVEL)"
     enc_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
         "$ENC_APP" -i "$RAMDISK_YUV" -b "$RAMDISK_JXS" -w "$w" -h "$h" \
-        --input-depth "$depth" --colour-format "$fmt" --bpp "$bpp" -n "$FRAMES" --lp "$threads" --asm "$ASM_LEVEL" $extra_enc_args)
+        --input-depth "$depth" --colour-format "$fmt" --bpp "$bpp" -n "$frames" --lp "$threads" --asm "$ASM_LEVEL" $extra_enc_args)
     enc_cmd=$(printf '%q ' "${enc_cmd_arr[@]}")
     enc_fps=$(run_measured "${enc_cmd_arr[@]}")
 
@@ -309,7 +330,7 @@ for test_case in "${MATRIX[@]}"; do
 
     echo "Decoding: $name (bpp=$bpp, threads=$threads, asm=$ASM_LEVEL)"
     dec_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
-        "$DEC_APP" -i "$RAMDISK_JXS" -o /dev/null -n "$FRAMES" --lp "$threads" --asm "$ASM_LEVEL" $extra_dec_args)
+        "$DEC_APP" -i "$RAMDISK_JXS" -o /dev/null -n "$frames" --lp "$threads" --asm "$ASM_LEVEL" $extra_dec_args)
     dec_cmd=$(printf '%q ' "${dec_cmd_arr[@]}")
     dec_fps=$(run_measured "${dec_cmd_arr[@]}")
 
