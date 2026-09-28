@@ -949,7 +949,7 @@ jobs:
         working-directory: "${{ github.workspace }}"
         shell: msys2 {0}
         run: |
-          pacman -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils mingw-w64-x86_64-winpthreads
+          pacman -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm diffutils mingw-w64-x86_64-winpthreads
           ./Build/linux/build.sh install --prefix "$(pwd)/install-dir" --no-app --static
 
       - name: "Archive: upload artifacts"

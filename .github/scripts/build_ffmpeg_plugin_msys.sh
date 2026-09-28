@@ -23,7 +23,7 @@ if [[ ("$FFMPEG_VERSION" == "8.1" || "$FFMPEG_VERSION" == "9.0") && "$COPY_FILES
     COPY_FILES="n"
 fi
 
-pacman -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils mingw-w64-x86_64-winpthreads mingw-w64-x86_64-toolchain
+pacman -S --noconfirm make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm diffutils mingw-w64-x86_64-winpthreads mingw-w64-x86_64-toolchain
 INSTALL_DIR="$PWD/install-dir"
 mkdir -p "$INSTALL_DIR"
 
