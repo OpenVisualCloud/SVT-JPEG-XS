@@ -233,6 +233,103 @@ TEST(DecoderInit, InvalidApiVersionReturnsError) {
     ASSERT_EQ(ret, SvtJxsErrorInvalidApiVersion);
 }
 
+/* Encodes one 256x64 8-bit 4:2:2 CBR frame (4 slices of 16 lines, 4 precincts each), used as a
+ * well-formed base for the packet-mode robustness tests below. */
+static void encode_cbr_packet_mode_base(std::vector<uint8_t>& bitstream) {
+    svt_jpeg_xs_encoder_api_t enc;
+    ASSERT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
+              SvtJxsErrorNone);
+    enc.verbose = VERBOSE_NONE;
+    enc.source_width = 256;
+    enc.source_height = 64;
+    enc.input_bit_depth = 8;
+    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+    enc.bpp_numerator = 3;
+    enc.slice_height = 16;
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc), SvtJxsErrorNone);
+
+    svt_jpeg_xs_image_config_t image_config;
+    uint32_t bytes_per_frame = 0;
+    ASSERT_EQ(svt_jpeg_xs_encoder_get_image_config(
+                  SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc, &image_config, &bytes_per_frame),
+              SvtJxsErrorNone);
+    svt_jpeg_xs_image_buffer_t* in_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
+    ASSERT_NE(in_buf, nullptr);
+    for (int32_t c = 0; c < image_config.components_num; ++c) {
+        uint8_t* plane = (uint8_t*)in_buf->data_yuv[c];
+        for (uint32_t i = 0; i < in_buf->alloc_size[c]; ++i) {
+            plane[i] = (uint8_t)(i * 7 + c * 31);
+        }
+    }
+
+    std::vector<uint8_t> out(bytes_per_frame);
+    svt_jpeg_xs_frame_t enc_input;
+    enc_input.bitstream.buffer = out.data();
+    enc_input.bitstream.allocation_size = bytes_per_frame;
+    enc_input.bitstream.used_size = 0;
+    enc_input.image = *in_buf;
+    enc_input.user_prv_ctx_ptr = NULL;
+    ASSERT_EQ(svt_jpeg_xs_encoder_send_picture(&enc, &enc_input, 1 /*blocking*/), SvtJxsErrorNone);
+    svt_jpeg_xs_frame_t enc_output;
+    memset(&enc_output, 0, sizeof(enc_output));
+    ASSERT_EQ(svt_jpeg_xs_encoder_get_packet(&enc, &enc_output, 1 /*blocking*/), SvtJxsErrorNone);
+    bitstream.assign(enc_output.bitstream.buffer, enc_output.bitstream.buffer + enc_output.bitstream.used_size);
+
+    svt_jpeg_xs_encoder_close(&enc);
+    svt_jpeg_xs_image_buffer_free(in_buf);
+}
+
+TEST(DecoderPacketMode, LcodSmallerThanHeaderDoesNotStall) {
+    // Found by the decoder fuzzer: Lcod sizes the internal frame buffer, so a corrupted Lcod smaller
+    // than the headers fills that buffer before the header can be parsed. send_packet() used to keep
+    // returning SvtJxsErrorDecoderBitstreamTooShort with bytes_used=0 forever, so a caller feeding
+    // the stream (e.g. SvtJpegxsDecApp --packetization-mode 1) looped without progress.
+    std::vector<uint8_t> bitstream;
+    encode_cbr_packet_mode_base(bitstream);
+    ASSERT_FALSE(HasFatalFailure());
+
+    // SOC(2) + CAP(6) + PIH marker(2) + Lpih(2), then the 32-bit Lcod
+    const size_t lcod_offset = 12;
+    ASSERT_GT(bitstream.size(), lcod_offset + 4);
+    ASSERT_EQ(bitstream[8], 0xFF);
+    ASSERT_EQ(bitstream[9], 0x12);
+    const uint32_t lcod = 20;
+    bitstream[lcod_offset + 0] = (uint8_t)(lcod >> 24);
+    bitstream[lcod_offset + 1] = (uint8_t)(lcod >> 16);
+    bitstream[lcod_offset + 2] = (uint8_t)(lcod >> 8);
+    bitstream[lcod_offset + 3] = (uint8_t)lcod;
+
+    svt_jpeg_xs_decoder_api_t decoder;
+    memset(&decoder, 0, sizeof(decoder));
+    decoder.verbose = VERBOSE_NONE;
+    decoder.packetization_mode = 1;
+    svt_jpeg_xs_image_config_t image_config;
+    ASSERT_EQ(svt_jpeg_xs_decoder_init(
+                  SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &decoder, bitstream.data(), bitstream.size(), &image_config),
+              SvtJxsErrorNone);
+    svt_jpeg_xs_image_buffer_t* out_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
+    ASSERT_NE(out_buf, nullptr);
+
+    svt_jpeg_xs_frame_t dec_input;
+    memset(&dec_input, 0, sizeof(dec_input));
+    dec_input.image = *out_buf;
+    dec_input.bitstream.buffer = bitstream.data();
+    dec_input.bitstream.used_size = (uint32_t)bitstream.size();
+    dec_input.bitstream.allocation_size = (uint32_t)bitstream.size();
+    uint32_t bytes_used = 0;
+    SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used);
+    EXPECT_EQ(bytes_used, lcod);
+    ASSERT_NE(ret, SvtJxsErrorDecoderBitstreamTooShort);
+
+    // The frame was scheduled with an error, so it is delivered (with that error) instead of hanging.
+    if (ret == SvtJxsErrorNone) {
+        svt_jpeg_xs_frame_t dec_output;
+        EXPECT_NE(svt_jpeg_xs_decoder_get_frame(&decoder, &dec_output, 1 /*blocking*/), SvtJxsErrorNone);
+    }
+    svt_jpeg_xs_decoder_close(&decoder);
+    svt_jpeg_xs_image_buffer_free(out_buf);
+}
+
 /*
  * Tests for encoder init validation and cleanup
  */

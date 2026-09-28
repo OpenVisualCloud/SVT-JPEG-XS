@@ -425,8 +425,14 @@ SvtJxsErrorType_t internal_svt_jpeg_xs_decoder_send_packet(svt_jpeg_xs_decoder_a
                                  &slice_size);
         }
         if (ret == SvtJxsErrorDecoderBitstreamTooShort) {
-            //Not enough data to process slice,
-            return SvtJxsErrorDecoderBitstreamTooShort;
+            if (slice_scheduler_ctx->bytes_filled < dec_ctx->dec_common->max_frame_bitstream_size) {
+                //Not enough data to process slice,
+                return SvtJxsErrorDecoderBitstreamTooShort;
+            }
+            //Frame buffer is already full (sized from Lcod), so more data can never complete the
+            //header/slice: the bitstream is corrupted. Report it as a frame error instead of asking
+            //for more data forever, which would make packet-based callers loop without progress.
+            ret = SvtJxsErrorDecoderInvalidBitstream;
         }
 
         ObjectWrapper_t* universal_wrapper_ptr = NULL;
