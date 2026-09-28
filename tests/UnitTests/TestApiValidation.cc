@@ -4,6 +4,8 @@
 */
 
 #include <string.h>
+#include <chrono>
+#include <thread>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -328,6 +330,86 @@ TEST(DecoderPacketMode, LcodSmallerThanHeaderDoesNotStall) {
     }
     svt_jpeg_xs_decoder_close(&decoder);
     svt_jpeg_xs_image_buffer_free(out_buf);
+}
+
+TEST(DecoderPacketMode, CloseWithPartiallySentFrameDoesNotHang) {
+    // Found by the decoder fuzzer: with IDWT synchronized between slices, a slice thread waits for
+    // the next slice to be decoded. When a frame is only partially sent in packet mode, that next
+    // slice never arrives, and svt_jpeg_xs_decoder_close() used to deadlock joining the thread.
+    std::vector<uint8_t> bitstream;
+    encode_cbr_packet_mode_base(bitstream);
+    ASSERT_FALSE(HasFatalFailure());
+
+    svt_jpeg_xs_decoder_api_t decoder;
+    memset(&decoder, 0, sizeof(decoder));
+    decoder.verbose = VERBOSE_NONE;
+    decoder.threads_num = 4;
+    decoder.packetization_mode = 1;
+    svt_jpeg_xs_image_config_t image_config;
+    ASSERT_EQ(svt_jpeg_xs_decoder_init(
+                  SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &decoder, bitstream.data(), bitstream.size(), &image_config),
+              SvtJxsErrorNone);
+    svt_jpeg_xs_image_buffer_t* out_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
+    ASSERT_NE(out_buf, nullptr);
+
+    // Send about half of the frame: the first slices get scheduled, the remaining ones never do.
+    svt_jpeg_xs_frame_t dec_input;
+    memset(&dec_input, 0, sizeof(dec_input));
+    dec_input.image = *out_buf;
+    dec_input.bitstream.buffer = bitstream.data();
+    dec_input.bitstream.used_size = (uint32_t)(bitstream.size() / 2);
+    dec_input.bitstream.allocation_size = dec_input.bitstream.used_size;
+    uint32_t bytes_used = 0;
+    EXPECT_EQ(svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used), SvtJxsErrorDecoderBitstreamTooShort);
+    EXPECT_EQ(bytes_used, dec_input.bitstream.used_size);
+
+    // Give the slice threads time to decode the sent slices and block waiting for the missing next slice.
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    // Must return; output buffers are released only after close since slice threads may still write them.
+    svt_jpeg_xs_decoder_close(&decoder);
+    svt_jpeg_xs_image_buffer_free(out_buf);
+}
+
+TEST(DecoderPacketMode, CloseWithQueuedSlicesDoesNotHang) {
+    // Found by the decoder fuzzer: closing right after the slices were sent, before get_frame(), shuts
+    // down the slice queue while slices are still queued. Those are dropped, so a slice thread waiting
+    // for one of them (IDWT between slices) was never woken up and svt_jpeg_xs_decoder_close()
+    // deadlocked joining it. The race depends on thread timing, so it is repeated.
+    std::vector<uint8_t> bitstream;
+    encode_cbr_packet_mode_base(bitstream);
+    ASSERT_FALSE(HasFatalFailure());
+
+    for (int iter = 0; iter < 200; iter++) {
+        svt_jpeg_xs_decoder_api_t decoder;
+        memset(&decoder, 0, sizeof(decoder));
+        decoder.verbose = VERBOSE_NONE;
+        decoder.threads_num = 4;
+        decoder.packetization_mode = 1;
+        svt_jpeg_xs_image_config_t image_config;
+        ASSERT_EQ(svt_jpeg_xs_decoder_init(SVT_JPEGXS_API_VER_MAJOR,
+                                           SVT_JPEGXS_API_VER_MINOR,
+                                           &decoder,
+                                           bitstream.data(),
+                                           bitstream.size(),
+                                           &image_config),
+                  SvtJxsErrorNone);
+        svt_jpeg_xs_image_buffer_t* out_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
+        ASSERT_NE(out_buf, nullptr);
+
+        svt_jpeg_xs_frame_t dec_input;
+        memset(&dec_input, 0, sizeof(dec_input));
+        dec_input.image = *out_buf;
+        dec_input.bitstream.buffer = bitstream.data();
+        dec_input.bitstream.used_size = (uint32_t)bitstream.size();
+        dec_input.bitstream.allocation_size = dec_input.bitstream.used_size;
+        uint32_t bytes_used = 0;
+        EXPECT_EQ(svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used), SvtJxsErrorNone);
+
+        // Must return even though the frame was never collected with get_frame().
+        svt_jpeg_xs_decoder_close(&decoder);
+        svt_jpeg_xs_image_buffer_free(out_buf);
+    }
 }
 
 /*
