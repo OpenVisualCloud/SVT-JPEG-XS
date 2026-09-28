@@ -138,7 +138,7 @@ class DWT_IDWT : public ::testing::TestWithParam<fixture_param_t> {
 
         SetRandData();
 
-        idwt_deprecated_horizontal_avx2(lf_buf_c, hf_buf_c, data_out_c, width, height, stride, stride, stride);
+        idwt_deprecated_horizontal_avx2(lf_buf_c, hf_buf_c, data_out_avx, width, height, stride, stride, stride);
         idwt_deprecated_horizontal_c(lf_buf_c, hf_buf_c, data_out_c, width, height, stride, stride, stride);
 
         ASSERT_EQ(0, memcmp(data_out_c, data_out_avx, buffer_len));
@@ -216,7 +216,7 @@ TEST_P(DWT_IDWT, VERTICAL_IDWT_AVX2) {
     run_test_idwt_vertical_avx2();
 }
 
-TEST_P(DWT_IDWT, DISABLED_HORIZONTAL_IDWT_AVX2) {
+TEST_P(DWT_IDWT, HORIZONTAL_IDWT_AVX2) {
     run_test_idwt_horizontal_avx2();
 }
 
