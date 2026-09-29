@@ -84,13 +84,18 @@ void expect_lcod_matches_used_size(const std::vector<uint8_t>& bitstream) {
 
 } // namespace
 
-/* Parameterized over (bit_depth, colour_format): sweeps the full supported bit-depth range
+/* Parameterized over (bit_depth, colour_format, rct): sweeps the full supported bit-depth range
  * (8-14) including the 14-bit case, which has the least headroom against TRUNCATION_MAX before
  * the wavelet transform's coefficient growth could in principle overflow the 16-bit coefficient
- * storage now that Fq=0 removes the compression right-shift that normally provides that margin. */
+ * storage now that Fq=0 removes the compression right-shift that normally provides that margin.
+ *
+ * The rct flag covers lossless combined with the reversible colour transform (Cpih=1), which has
+ * its own prepass and inverse transform: reversibility there is a separate claim from the wavelet
+ * path's, and TestColorTransform.cc only checks RCT to a PSNR threshold because it runs lossy. */
 struct LosslessCase {
     uint8_t bit_depth;
     ColourFormat_t format;
+    uint8_t rct;
 };
 
 class LosslessDepthFormat : public ::testing::TestWithParam<LosslessCase> {};
@@ -111,6 +116,7 @@ TEST_P(LosslessDepthFormat, EncodeDecodeBitExact) {
     enc.input_bit_depth = bit_depth;
     enc.colour_format = format;
     enc.lossless_enable = 1;
+    enc.enable_color_transform = param.rct;
     //Leave ndecomp_v/ndecomp_h at their (deepest) defaults - the margin concern above is worst at
     //maximum decomposition depth, not at some reduced depth.
 
@@ -161,6 +167,7 @@ TEST_P(LosslessDepthFormat, EncodeDecodeBitExact) {
              SvtJxsErrorNone);
     EXPECT_EQ(picture_header_dynamic.hdr_Fq, 0);
     EXPECT_EQ(picture_header_dynamic.hdr_Bw, bit_depth);
+    EXPECT_EQ(picture_header_const.hdr_Cpih, param.rct);
 
     //Full decode, bit-exact round trip.
     svt_jpeg_xs_decoder_api_t dec;
@@ -190,7 +197,8 @@ TEST_P(LosslessDepthFormat, EncodeDecodeBitExact) {
     svt_jpeg_xs_frame_t dec_output;
     ASSERT_EQ(svt_jpeg_xs_decoder_get_frame(&dec, &dec_output, 1 /*blocking*/), SvtJxsErrorNone);
 
-    EXPECT_TRUE(planes_bit_exact(in_buf, &dec_output.image, image_config, bit_depth)) << "bit_depth=" << (int)bit_depth;
+    EXPECT_TRUE(planes_bit_exact(in_buf, &dec_output.image, image_config, bit_depth))
+        << "bit_depth=" << (int)bit_depth << " rct=" << (int)param.rct;
 
     svt_jpeg_xs_decoder_close(&dec);
     svt_jpeg_xs_image_buffer_free(out_img);
@@ -198,11 +206,17 @@ TEST_P(LosslessDepthFormat, EncodeDecodeBitExact) {
     free(out_buf.buffer);
 }
 
+/* The RCT cases are 4:4:4 because that is the only format the colour transform accepts, and stop at
+ * 12-bit because encoder_init() rejects RCT with lossless above that (see
+ * EncoderInit.LosslessRejectsRctAboveBitDepth12). 8-bit is included as well as 12-bit: the 12-bit
+ * case has the least headroom, the 8-bit one keeps the transform covered if that ceiling ever moves. */
 INSTANTIATE_TEST_SUITE_P(BitDepthSweep, LosslessDepthFormat,
-                        ::testing::Values(LosslessCase{8, COLOUR_FORMAT_PLANAR_YUV420},
-                                          LosslessCase{10, COLOUR_FORMAT_PLANAR_YUV422},
-                                          LosslessCase{12, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB},
-                                          LosslessCase{14, COLOUR_FORMAT_PLANAR_YUV420}));
+                        ::testing::Values(LosslessCase{8, COLOUR_FORMAT_PLANAR_YUV420, 0},
+                                          LosslessCase{10, COLOUR_FORMAT_PLANAR_YUV422, 0},
+                                          LosslessCase{12, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 0},
+                                          LosslessCase{14, COLOUR_FORMAT_PLANAR_YUV420, 0},
+                                          LosslessCase{8, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 1},
+                                          LosslessCase{12, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 1}));
 
 /* Multi-frame: proves the PictureControlSet pool (slice_real_bytes_arr etc.) doesn't leak state
  * between frames sharing the same encoder instance, and that flat frames really do end up smaller
