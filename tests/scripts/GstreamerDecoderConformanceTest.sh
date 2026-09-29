@@ -104,7 +104,7 @@ function test_dec {
     ${cmd_cmp} > /dev/null
     ret=$?
     if [ $ret -ne 0 ]; then
-        echo "FAIL comapare: $cmd_cmp"
+        echo "FAIL compare: $cmd_cmp"
         error=1
         end
     fi
