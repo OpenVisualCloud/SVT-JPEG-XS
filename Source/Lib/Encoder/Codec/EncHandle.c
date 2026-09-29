@@ -805,9 +805,18 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
     if (out_bytes_per_frame) {
         uint64_t bytes_per_frame;
         if (enc_api->lossless_enable) {
-            /* Same geometry as encoder_init_configuration(), including its slice_height clamp */
+            /* Same validation/defaulting policy as encoder_init_configuration(): slice_height == 0 is
+             * rejected there, not defaulted, so this must reject it too - otherwise an application
+             * that calls get_image_config() first would get a valid allocation size for a
+             * configuration that encoder_init() then fails. */
+            if (enc_api->slice_height == 0) {
+                if (enc_api->verbose >= VERBOSE_ERRORS) {
+                    SVT_ERROR("Error: slice_height cannot be 0\n");
+                }
+                return SvtJxsErrorBadParameter;
+            }
             uint32_t slice_height = enc_api->slice_height;
-            if (slice_height == 0 || slice_height > enc_api->source_height) {
+            if (slice_height > enc_api->source_height) {
                 slice_height = enc_api->source_height;
             }
             pi_t pi;
