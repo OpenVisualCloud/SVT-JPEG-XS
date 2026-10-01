@@ -312,6 +312,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
                 input_bitstream_creator,
                 NULL,
                 input_bitstream_destroyer);
+        svt_jxs_system_resource_enable_timed_wait(dec_api_prv->input_buffer_resource_ptr);
         dec_api_prv->input_producer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(dec_api_prv->input_buffer_resource_ptr,
                                                                                          0);
         dec_api_prv->input_consumer_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(dec_api_prv->input_buffer_resource_ptr,
@@ -326,6 +327,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
             universal_frame_task_creator,
             NULL,
             universal_frame_task_creator_destroy);
+    svt_jxs_system_resource_enable_timed_wait(dec_api_prv->universal_buffer_resource_ptr);
     dec_api_prv->universal_producer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(
         dec_api_prv->universal_buffer_resource_ptr, 0);
 
@@ -337,6 +339,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
             final_sync_creator,
             NULL,
             final_sync_destroyer);
+    svt_jxs_system_resource_enable_timed_wait(dec_api_prv->final_buffer_resource_ptr);
     dec_api_prv->final_consumer_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(dec_api_prv->final_buffer_resource_ptr, 0);
 
     //Call after alloc Universal output queue
@@ -354,6 +357,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         svt_jpeg_xs_decoder_close(dec_api);
         return ret;
     }
+    dec_api_prv->sync_output_ringbuffer_left.timed_wait = 1;
     svt_jxs_set_cond_var(&dec_api_prv->sync_output_ringbuffer_left, dec_api_prv->sync_output_ringbuffer_size);
 
     SVT_NEW(dec_api_prv->output_buffer_resource_ptr,
@@ -364,6 +368,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
             output_frame_creator,
             NULL,
             output_frame_destroyer);
+    svt_jxs_system_resource_enable_timed_wait(dec_api_prv->output_buffer_resource_ptr);
     dec_api_prv->output_producer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(dec_api_prv->output_buffer_resource_ptr, 0);
     dec_api_prv->output_consumer_fifo_ptr = svt_jxs_system_resource_get_consumer_fifo(dec_api_prv->output_buffer_resource_ptr, 0);
 
@@ -375,6 +380,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
             pool_decoder_instance_create_ctor,
             dec_api_prv,
             pool_decoder_instance_destroy_ctor);
+    svt_jxs_system_resource_enable_timed_wait(dec_api_prv->internal_pool_decoder_instance_resource_ptr);
     dec_api_prv->internal_pool_decoder_instance_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(
         dec_api_prv->internal_pool_decoder_instance_resource_ptr, 0);
 

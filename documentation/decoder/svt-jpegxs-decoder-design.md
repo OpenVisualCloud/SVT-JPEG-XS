@@ -102,6 +102,89 @@ performed in the final stage.
 
 Moreover, if default slice height is smaller or equal to two precinct and vertical decomposition is > 0 , IDWT is performed in the final stage.
 
+## Thread wake-up (timed wait)
+
+The decoder stages hand work to each other through queues and condition variables, and a typical frame needs well over a
+hundred thread wake-ups. When a waiting thread blocks with no timer pending, the CPU core it ran on may enter a deep idle
+state (for example C6 on Intel Xeon). Waking up from a deep idle state takes about 200 us. The decoder pays that latency on
+almost every hand-off, which lowers throughput and makes it vary a lot between runs.
+
+On Linux the decoder therefore uses a *timed wait*. Before blocking, a waiting thread waits in short timed slices
+(`sem_timedwait()` / `pthread_cond_timedwait()`), up to a total time budget. While a timer is pending, the kernel idle
+governor keeps the core in a shallow idle state, so the thread wakes up quickly when work arrives. If no work arrives within
+the budget, the thread falls back to a normal blocking wait and the core can go into a deep idle state. If a timed slice
+fails with an unexpected error, the thread also falls back to the normal blocking wait. When a queue already has work, the
+thread takes it without reading any clock.
+
+Clocks:
+
+- The time budget is always measured on `CLOCK_MONOTONIC`.
+- Condition variables are created with `pthread_condattr_setclock(CLOCK_MONOTONIC)`, so their slices are on
+  `CLOCK_MONOTONIC` as well.
+- `sem_timedwait()` only accepts a `CLOCK_REALTIME` timeout. If the wall clock is changed while a thread waits on a queue
+  (for example by NTP or `date`), only the slice that is running at that moment is affected. A forward jump ends it early.
+  A backward jump can make it last as long as the jump, even longer than the budget. During that slice the thread
+  behaves like the normal blocking wait: it still wakes up as soon as work arrives, but without the shallow idle state.
+  The decoded output is never affected.
+
+Scope:
+
+- Only the decoder uses the timed wait. Each decoder session marks its own queues and condition variables in
+  `svt_jpeg_xs_decoder_init()`. Encoder sessions, including encoder sessions in the same process as a decoder session (for
+  example an ffmpeg transcode or a GStreamer pipeline), are not affected.
+- The timed wait applies to every wait on the decoder's objects, including the blocking `svt_jpeg_xs_decoder_send_frame()`
+  and `svt_jpeg_xs_decoder_get_frame()` calls made by the application. The frame pool API
+  (`svt_jpeg_xs_frame_pool_get()`) is not affected.
+- The library lowers the timer slack (`PR_SET_TIMERSLACK`) only on the threads it creates itself. Application threads keep
+  their own timer slack.
+- It is available on Linux only. It uses POSIX calls only, so it works with any Linux C library (for example glibc, musl
+  or Android Bionic). On other platforms the decoder uses the normal blocking wait.
+
+It is enabled by default. The following environment variables change it. They are read once per process, the first time
+a decoder thread waits, so they must be set before the first decoder session starts.
+
+| Variable              | Default | Description                                                                                          |
+|-----------------------|---------|------------------------------------------------------------------------------------------------------|
+| `SVT_JXS_TW_US`       | `1000`  | Time budget in microseconds. `0`, a negative value or an invalid value disables the timed wait.      |
+| `SVT_JXS_TW_SLICE_US` | `50`    | Length of one timed slice in microseconds. `0`, a negative value or an invalid value keeps `50`.     |
+| `SVT_JXS_TW_SLACK_NS` | `1000`  | Timer slack in nanoseconds for the library threads. `0` means `1`. Negative or invalid keeps `1000`. |
+
+A value is valid only if the whole string is a decimal integer, for example `2000`. Values such as `2000us`, `2e3`,
+`+2000`, `2000` with a leading space or an empty string are invalid. Values above one second (`1000000` us, or
+`1000000000` ns for the slack) are clamped to one second.
+
+How to choose the values:
+
+- Keep the defaults unless measurements show a reason to change them. They were tuned on a Xeon at 1080p and 4K.
+- A longer budget keeps cores in a shallow idle state for longer after the work runs out. That costs a little power when
+  the decoder is idle between frames. A shorter budget saves that power but loses the benefit when frames arrive with gaps
+  longer than the budget.
+- A shorter slice wakes threads more often and costs more CPU time. A longer slice makes some hand-offs slower.
+- The timer slack lets the kernel delay a timer expiry to merge it with other timers. With the Linux default (50 us) a
+  50 us slice could be stretched to about 100 us.
+- To compare against the plain blocking wait, run with `SVT_JXS_TW_US=0`.
+
+Examples:
+
+```shell
+# Disable the timed wait
+SVT_JXS_TW_US=0 ./SvtJpegxsDecApp -i <input_bitstream.bin> -o <output_file.yuv> --lp 5
+
+# 2 ms budget with 20 us slices
+SVT_JXS_TW_US=2000 SVT_JXS_TW_SLICE_US=20 ./SvtJpegxsDecApp -i <input_bitstream.bin> -o <output_file.yuv> --lp 5
+
+# The same variables apply to the ffmpeg and GStreamer plugins
+SVT_JXS_TW_US=0 ffmpeg -c:v libsvtjpegxs -i <input.mov> -f null -
+```
+
+On CPUs with a slow exit from deep C-states this raises decoder throughput and reduces run-to-run variation.
+CPU usage increases because threads stay awake for a short time after each frame.
+
+Hosts that already keep the cores out of deep idle states get no throughput gain, only the extra CPU usage. This is the
+case, for example, when `/dev/cpu_dma_latency` is held below the exit latency of the deep idle state, as low-latency
+tuning often does (tuned profiles, Media Transport Library / SMPTE ST 2110 setups). The extra CPU usage is largest with
+few decoder threads. On such hosts set `SVT_JXS_TW_US=0` if CPU time is scarce.
+
 ## Decoder Algorithms
 
 The following section describes the algorithms used in the

@@ -40,6 +40,38 @@ extern Handle_t svt_jxs_create_semaphore(uint32_t initial_count, uint32_t max_co
 extern SvtJxsErrorType_t svt_jxs_post_semaphore(Handle_t semaphore_handle);
 
 extern SvtJxsErrorType_t svt_jxs_block_on_semaphore(Handle_t semaphore_handle);
+extern SvtJxsErrorType_t svt_jxs_block_on_semaphore_timed_wait(Handle_t semaphore_handle);
+
+#if defined(__linux__)
+#define SVT_JXS_TW_DEFAULT_BUDGET_US 1000
+#define SVT_JXS_TW_DEFAULT_SLICE_US  50
+#define SVT_JXS_TW_DEFAULT_SLACK_NS  1000
+#define SVT_JXS_TW_MAX_US            1000000 /* budget, slice and slack are clamped to 1 s */
+
+typedef struct SvtJxsTimedWaitConfig {
+    int64_t budget_ns; /* 0 when the timed wait is disabled */
+    int64_t slice_ns;
+    unsigned long slack_ns;
+} SvtJxsTimedWaitConfig;
+
+/* Fills *config from the SVT_JXS_TW_US, SVT_JXS_TW_SLICE_US and SVT_JXS_TW_SLACK_NS strings (NULL
+ * when unset). Exposed for the unit tests; the library reads the environment once per process. */
+extern void svt_jxs_tw_parse_config(const char *budget_us, const char *slice_us, const char *slack_ns,
+                                    SvtJxsTimedWaitConfig *config);
+
+#ifdef BUILD_TESTING
+/* What the timed waits of the calling thread did, so tests can check which path ran. */
+typedef struct SvtJxsTimedWaitStats {
+    uint32_t slice_timeouts; /* timed slices that ended without a wake-up */
+    uint32_t fallbacks;      /* waits that went on to the blocking wait after the timed slices */
+} SvtJxsTimedWaitStats;
+
+/* Replaces the process-wide config read from the environment. Only call it while no thread waits. */
+void svt_jxs_tw_set_config_for_testing(const SvtJxsTimedWaitConfig *config);
+void svt_jxs_tw_get_stats_for_testing(SvtJxsTimedWaitStats *stats);
+void svt_jxs_tw_reset_stats_for_testing(void);
+#endif // BUILD_TESTING
+#endif
 
 extern SvtJxsErrorType_t svt_jxs_destroy_semaphore(Handle_t semaphore_handle);
 
@@ -111,6 +143,9 @@ extern SvtJxsErrorType_t svt_jxs_destroy_mutex(Handle_t mutex_handle);
 */
 typedef struct CondVar {
     int32_t val;
+    // timed_wait - waiters do the timed wait before blocking (see SvtThreads.c). Set by the
+    //   owner after svt_jxs_create_cond_var(); only the decoder sets it.
+    uint8_t timed_wait;
 #ifdef _WIN32
     CRITICAL_SECTION cs;
     CONDITION_VARIABLE cv;

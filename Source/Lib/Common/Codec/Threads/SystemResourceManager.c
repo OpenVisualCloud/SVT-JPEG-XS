@@ -399,6 +399,17 @@ SvtJxsErrorType_t svt_jxs_system_resource_ctor(SystemResource_t *resource_ptr, u
     return return_error;
 }
 
+void svt_jxs_system_resource_enable_timed_wait(SystemResource_t *resource_ptr) {
+    MuxingQueue_t *queues[2] = {resource_ptr->empty_queue, resource_ptr->full_queue};
+    for (int q = 0; q < 2; q++) {
+        if (queues[q]) {
+            for (uint32_t i = 0; i < queues[q]->process_total_count; i++) {
+                queues[q]->process_fifo_ptr_array[i]->timed_wait = 1;
+            }
+        }
+    }
+}
+
 Fifo_t *svt_jxs_system_resource_get_producer_fifo(const SystemResource_t *resource_ptr, uint32_t index) {
     return svt_muxing_queue_get_fifo(resource_ptr->empty_queue, index);
 }
@@ -533,7 +544,12 @@ SvtJxsErrorType_t svt_jxs_get_empty_object(Fifo_t *empty_fifo_ptr, ObjectWrapper
     svt_release_process(empty_fifo_ptr);
 
     // Block on the counting Semaphore until an empty buffer is available
-    svt_jxs_block_on_semaphore(empty_fifo_ptr->counting_semaphore);
+    if (empty_fifo_ptr->timed_wait) {
+        svt_jxs_block_on_semaphore_timed_wait(empty_fifo_ptr->counting_semaphore);
+    }
+    else {
+        svt_jxs_block_on_semaphore(empty_fifo_ptr->counting_semaphore);
+    }
 
     // Acquire lockout Mutex
     svt_jxs_block_on_mutex(empty_fifo_ptr->lockout_mutex);
@@ -621,7 +637,12 @@ SvtJxsErrorType_t svt_jxs_get_full_object(Fifo_t *full_fifo_ptr, ObjectWrapper_t
     svt_release_process(full_fifo_ptr);
 
     // Block on the counting Semaphore until an empty buffer is available
-    svt_jxs_block_on_semaphore(full_fifo_ptr->counting_semaphore);
+    if (full_fifo_ptr->timed_wait) {
+        svt_jxs_block_on_semaphore_timed_wait(full_fifo_ptr->counting_semaphore);
+    }
+    else {
+        svt_jxs_block_on_semaphore(full_fifo_ptr->counting_semaphore);
+    }
 
     // Acquire lockout Mutex
     svt_jxs_block_on_mutex(full_fifo_ptr->lockout_mutex);
