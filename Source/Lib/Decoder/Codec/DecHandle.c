@@ -576,13 +576,10 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_eoc(svt_jpeg_xs_decoder_ap
             SVT_DEBUG("\n[%s] Send EOC to Lib, Item: %p\n", __FUNCTION__, input_wrapper_ptr);
         }
 
-        if (input_wrapper_ptr != NULL) {
-            TaskInputBitstream* buffer_input = (TaskInputBitstream*)input_wrapper_ptr->object_ptr;
-            memset(&buffer_input->dec_input, 0, sizeof(buffer_input->dec_input));
-            buffer_input->flags = SvtJxsDecoderEndOfCodestream;
-            svt_jxs_post_full_object(input_wrapper_ptr);
-            return SvtJxsErrorNone;
-        }
+        TaskInputBitstream* buffer_input = (TaskInputBitstream*)input_wrapper_ptr->object_ptr;
+        memset(&buffer_input->dec_input, 0, sizeof(buffer_input->dec_input));
+        buffer_input->flags = SvtJxsDecoderEndOfCodestream;
+        svt_jxs_post_full_object(input_wrapper_ptr);
+        return SvtJxsErrorNone;
     }
-    return SvtJxsErrorUndefined;
 }
