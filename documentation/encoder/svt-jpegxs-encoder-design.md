@@ -111,6 +111,18 @@ data processing is shown in Figure 5.
 
 ### Figure 5. Encoding pipeline per slice
 
+### Thread wake-up
+
+The encoder threads use the normal blocking wait on their queues. The timed wait used by the decoder (see
+[Thread wake-up (timed wait)](../decoder/svt-jpegxs-decoder-design.md#thread-wake-up-timed-wait)) is not applied to encoder
+sessions, and the `SVT_JXS_TW_*` environment variables have no effect on the encoder. The encoder is mostly compute bound
+and has few thread hand-offs per frame, so it does not benefit from the timed wait. In measurements it only used more CPU
+time.
+
+On Linux every condition variable in the library, including the encoder's, is created with
+`pthread_condattr_setclock(CLOCK_MONOTONIC)`. The encoder only uses blocking waits without a timeout, so this does not
+change its behaviour.
+
 ## Encoder Algorithms
 
 The following section describes the algorithms used in the

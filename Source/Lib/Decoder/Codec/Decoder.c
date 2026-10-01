@@ -215,6 +215,7 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
                     SVT_FREE(ctx->map_slices_decode_done);
                     break;
                 }
+                ctx->map_slices_decode_done[slice_idx].timed_wait = 1;
             }
         }
     }

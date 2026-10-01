@@ -361,6 +361,32 @@ Decoder Proxy-mode limitation:
 |    YUV420     |    2     |           Y            |           N            |
 |    YUV420     |    1     |           N            |           N            |
 
+### Thread wake-up
+
+On Linux the decoder threads wait in short timed slices before blocking, which keeps the CPU cores out of deep idle states
+and lowers the wake-up latency between pipeline stages. It uses POSIX calls only, so it works with any Linux C library. It
+is enabled by default, applies to decoder sessions only, and can be changed with environment variables:
+
+- `SVT_JXS_TW_US` - time budget in microseconds (default `1000`; `0`, a negative or an invalid value disables the timed
+  wait).
+- `SVT_JXS_TW_SLICE_US` - length of one timed slice in microseconds (default `50`; `0`, a negative or an invalid value
+  keeps the default).
+- `SVT_JXS_TW_SLACK_NS` - timer slack in nanoseconds set on the library threads (default `1000`; `0` means `1`, a negative
+  or an invalid value keeps the default).
+
+Values must be plain decimal integers. Values above one second are clamped to one second.
+
+Hosts that already keep the cores out of deep idle states, for example low-latency setups for Media Transport Library /
+SMPTE ST 2110 that hold `/dev/cpu_dma_latency` low, get no gain from the timed wait and only spend some extra CPU time. Set
+`SVT_JXS_TW_US=0` there if CPU time is scarce.
+
+```shell
+SVT_JXS_TW_US=0 ./SvtJpegxsDecApp -i <input_bitstream.bin>  -o <output_file.yuv> --lp 5
+```
+
+Please see [Thread wake-up (timed wait)](documentation/decoder/svt-jpegxs-decoder-design.md#thread-wake-up-timed-wait) for
+details and guidance on choosing the values.
+
 ## Encoder and Decoder design
 
 Please see [Encoder design](documentation/encoder/svt-jpegxs-encoder-design.md)

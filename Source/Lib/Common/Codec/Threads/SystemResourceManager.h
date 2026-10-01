@@ -82,6 +82,10 @@ typedef struct Fifo {
     // quit_signal - a flag that main thread sets to break out from kernels
     uint8_t quit_signal;
 
+    // timed_wait - blocking gets do the timed wait before blocking (see SvtThreads.c). Set by
+    //   svt_jxs_system_resource_enable_timed_wait().
+    uint8_t timed_wait;
+
     // queue_ptr - pointer to MuxingQueue that the Fifo_t is
     //   associated with.
     struct MuxingQueue *queue_ptr;
@@ -163,6 +167,16 @@ extern SvtJxsErrorType_t svt_jxs_system_resource_ctor(SystemResource_t *resource
                                                       uint32_t producer_process_total_count,
                                                       uint32_t consumer_process_total_count, Creator_t object_ctor,
                                                       void_ptr object_init_data_ptr, DctorCall object_destroyer);
+
+/*********************************************************************
+     * svt_jxs_system_resource_enable_timed_wait
+     *   Makes every blocking get on the SystemResource's fifos do the timed
+     *   wait before blocking (see SvtThreads.c). Only the decoder calls it.
+     *
+     *   resource_ptr
+     *     pointer to a constructed SystemResource
+     */
+void svt_jxs_system_resource_enable_timed_wait(SystemResource_t *resource_ptr);
 
 /*********************************************************************
      * svt_jxs_system_resource_get_producer_fifo
