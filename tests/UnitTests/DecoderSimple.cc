@@ -43,6 +43,8 @@ SvtJxsErrorType_t decoder_simple_alloc(DecoderSimple_t* decoder, const uint8_t* 
     //Create common decoder
     decoder->instance_ctx = NULL;
     decoder->image_out = NULL;
+    /* Set by svt_jpeg_xs_decoder_init() from the API, which this decoder does not go through. */
+    decoder->dec_common.output_bit_depth_msb_aligned = 0;
 
     SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_probe(
         bitstream_buf, bitstream_length, &decoder->dec_common.picture_header_const, NULL, decoder->verbose);

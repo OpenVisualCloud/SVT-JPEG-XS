@@ -103,9 +103,12 @@ static __thread int svt_jxs_tw_slack_set = 0;
 
 #ifdef BUILD_TESTING
 static __thread SvtJxsTimedWaitStats svt_jxs_tw_stats;
+static uint32_t svt_jxs_tw_waits_entered; /* process-wide, read by other threads */
 #define SVT_JXS_TW_COUNT(field) (svt_jxs_tw_stats.field++)
+#define SVT_JXS_TW_ENTERED()    __atomic_fetch_add(&svt_jxs_tw_waits_entered, 1, __ATOMIC_SEQ_CST)
 #else
 #define SVT_JXS_TW_COUNT(field) ((void)0)
+#define SVT_JXS_TW_ENTERED()    ((void)0)
 #endif
 
 static int64_t svt_jxs_tw_clock_ns(clockid_t clock) {
@@ -195,6 +198,11 @@ void svt_jxs_tw_get_stats_for_testing(SvtJxsTimedWaitStats *stats) {
 
 void svt_jxs_tw_reset_stats_for_testing(void) {
     memset(&svt_jxs_tw_stats, 0, sizeof(svt_jxs_tw_stats));
+    __atomic_store_n(&svt_jxs_tw_waits_entered, 0, __ATOMIC_SEQ_CST);
+}
+
+uint32_t svt_jxs_tw_get_waits_entered_for_testing(void) {
+    return __atomic_load_n(&svt_jxs_tw_waits_entered, __ATOMIC_SEQ_CST);
 }
 #endif // BUILD_TESTING
 
@@ -412,6 +420,7 @@ SvtJxsErrorType_t svt_jxs_block_on_semaphore_timed_wait(Handle_t semaphore_handl
     const int64_t tw_budget = svt_jxs_tw_budget();
     if (tw_budget > 0) {
         const int64_t deadline = svt_jxs_tw_now_ns() + tw_budget;
+        SVT_JXS_TW_ENTERED();
         for (;;) {
             const int64_t left = deadline - svt_jxs_tw_now_ns();
             if (left <= 0) {
@@ -421,6 +430,13 @@ SvtJxsErrorType_t svt_jxs_block_on_semaphore_timed_wait(Handle_t semaphore_handl
             const int64_t slice = left < svt_jxs_tw_config.slice_ns ? left : svt_jxs_tw_config.slice_ns;
             const struct timespec ts = svt_jxs_tw_ts(svt_jxs_tw_clock_ns(CLOCK_REALTIME) + slice);
             if (sem_timedwait((sem_t *)semaphore_handle, &ts) == 0) {
+#ifdef BUILD_TESTING
+                /* sem_timedwait() takes a count that is already there even past its timeout, so a
+                 * post can be seen in a slice after the budget ran out. Stats only. */
+                if (svt_jxs_tw_now_ns() >= deadline) {
+                    SVT_JXS_TW_COUNT(fallbacks);
+                }
+#endif
                 return SvtJxsErrorNone;
             }
             if (errno == ETIMEDOUT) {
@@ -647,6 +663,7 @@ SvtJxsErrorType_t svt_jxs_wait_cond_var(CondVar *cond_var, int32_t input) {
         const int64_t tw_budget = cond_var->timed_wait && cond_var->val == input ? svt_jxs_tw_budget() : 0;
         if (tw_budget > 0) {
             const int64_t deadline = svt_jxs_tw_now_ns() + tw_budget;
+            SVT_JXS_TW_ENTERED();
             while (cond_var->val == input) {
                 const int64_t now = svt_jxs_tw_now_ns();
                 if (now >= deadline) {
@@ -664,9 +681,14 @@ SvtJxsErrorType_t svt_jxs_wait_cond_var(CondVar *cond_var, int32_t input) {
                     break;
                 }
             }
-            if (cond_var->val == input) {
+#ifdef BUILD_TESTING
+            /* A fallback means the budget ran out before the change was seen. A slice can see the
+             * change after the deadline (e.g. it was descheduled while taking the mutex back), so
+             * check the clock. Stats only, so release builds skip the clock read. */
+            if (cond_var->val == input || svt_jxs_tw_now_ns() >= deadline) {
                 SVT_JXS_TW_COUNT(fallbacks);
             }
+#endif
         }
 #endif
         while (cond_var->val == input) {

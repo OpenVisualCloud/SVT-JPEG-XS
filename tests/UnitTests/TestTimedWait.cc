@@ -18,6 +18,12 @@
 #include "SampleFramesData.h"
 #if defined(__linux__)
 #include <semaphore.h>
+#if __has_include(<valgrind/valgrind.h>)
+#include <valgrind/valgrind.h>
+#endif
+#ifndef RUNNING_ON_VALGRIND
+#define RUNNING_ON_VALGRIND 0
+#endif
 #endif
 
 namespace {
@@ -29,16 +35,32 @@ constexpr std::chrono::microseconds after_budget_delay(20000);
 /* Inside the default budget, so the waiter is still in the timed slices. */
 constexpr std::chrono::microseconds within_budget_delay(200);
 
-void post_semaphore_after(Handle_t semaphore, std::chrono::microseconds delay) {
+/* With after_deadline, waits until the waiter has set its timed-wait deadline, so the delay is
+ * counted from there and the post or set always comes after the budget ran out. Otherwise a waiter
+ * thread that is descheduled for longer than the delay (e.g. on a loaded machine under valgrind)
+ * finds the semaphore already posted or the value already set. Only for waits that do the timed
+ * wait, or it never returns. */
+void wait_for_deadline(bool after_deadline) {
+#if defined(__linux__)
+    while (after_deadline && svt_jxs_tw_get_waits_entered_for_testing() == 0) {
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+    }
+#else
+    (void)after_deadline;
+#endif
+}
+
+void post_semaphore_after(Handle_t semaphore, std::chrono::microseconds delay, bool after_deadline) {
+    wait_for_deadline(after_deadline);
     std::this_thread::sleep_for(delay);
     EXPECT_EQ(svt_jxs_post_semaphore(semaphore), SvtJxsErrorNone);
 }
 
-void wait_semaphore_posted_after(std::chrono::microseconds delay) {
+void wait_semaphore_posted_after(std::chrono::microseconds delay, bool after_deadline) {
     Handle_t semaphore = svt_jxs_create_semaphore(0, 1);
     ASSERT_NE(semaphore, nullptr);
     const auto start = Clock::now();
-    std::thread poster(post_semaphore_after, semaphore, delay);
+    std::thread poster(post_semaphore_after, semaphore, delay, after_deadline);
     EXPECT_EQ(svt_jxs_block_on_semaphore_timed_wait(semaphore), SvtJxsErrorNone);
     const auto elapsed = Clock::now() - start;
     poster.join();
@@ -52,17 +74,18 @@ void wait_semaphore_posted_after(std::chrono::microseconds delay) {
     EXPECT_EQ(svt_jxs_destroy_semaphore(semaphore), SvtJxsErrorNone);
 }
 
-void set_cond_var_after(CondVar *cond_var, int32_t value, std::chrono::microseconds delay) {
+void set_cond_var_after(CondVar *cond_var, int32_t value, std::chrono::microseconds delay, bool after_deadline) {
+    wait_for_deadline(after_deadline);
     std::this_thread::sleep_for(delay);
     EXPECT_EQ(svt_jxs_set_cond_var(cond_var, value), SvtJxsErrorNone);
 }
 
-void wait_cond_var_set_after(uint8_t timed_wait, std::chrono::microseconds delay) {
+void wait_cond_var_set_after(uint8_t timed_wait, std::chrono::microseconds delay, bool after_deadline) {
     CondVar cond_var;
     ASSERT_EQ(svt_jxs_create_cond_var(&cond_var), SvtJxsErrorNone);
     cond_var.timed_wait = timed_wait;
     const auto start = Clock::now();
-    std::thread setter(set_cond_var_after, &cond_var, 1, delay);
+    std::thread setter(set_cond_var_after, &cond_var, 1, delay, after_deadline);
     EXPECT_EQ(svt_jxs_wait_cond_var(&cond_var, 0), SvtJxsErrorNone);
     const auto elapsed = Clock::now() - start;
     setter.join();
@@ -92,11 +115,15 @@ class TimedWaitConfigScope {
     }
 };
 
-/* Checks what the timed waits of the calling thread did since the TimedWaitConfigScope. */
+/* Checks what the timed waits of the calling thread did since the TimedWaitConfigScope. The
+ * minimum of slice timeouts is not checked under valgrind: it can deschedule the waiter at any point
+ * for longer than the delay, e.g. inside a slice, which then sees the wake-up instead of timing out. */
 void expect_tw_stats(uint32_t min_slice_timeouts, uint32_t max_slice_timeouts, uint32_t fallbacks) {
     SvtJxsTimedWaitStats stats;
     svt_jxs_tw_get_stats_for_testing(&stats);
-    EXPECT_GE(stats.slice_timeouts, min_slice_timeouts);
+    if (!RUNNING_ON_VALGRIND) {
+        EXPECT_GE(stats.slice_timeouts, min_slice_timeouts);
+    }
     EXPECT_LE(stats.slice_timeouts, max_slice_timeouts);
     EXPECT_EQ(stats.fallbacks, fallbacks);
 }
@@ -146,7 +173,7 @@ TEST(TimedWaitSemaphore, PostedWithinBudget) {
     // The largest budget, so only a stall of about 1 s could reach the blocking wait.
     TimedWaitConfigScope scope(SVT_JXS_TW_MAX_US, SVT_JXS_TW_DEFAULT_SLICE_US);
 #endif
-    wait_semaphore_posted_after(within_budget_delay);
+    wait_semaphore_posted_after(within_budget_delay, false);
 #if defined(__linux__)
     // Woken in a timed slice (or by the fast path if the waiter started late), never the fallback.
     expect_tw_stats(0, any_count, 0);
@@ -157,7 +184,7 @@ TEST(TimedWaitSemaphore, PostedAfterBudget) {
 #if defined(__linux__)
     TimedWaitConfigScope scope(SVT_JXS_TW_DEFAULT_BUDGET_US, SVT_JXS_TW_DEFAULT_SLICE_US);
 #endif
-    wait_semaphore_posted_after(after_budget_delay);
+    wait_semaphore_posted_after(after_budget_delay, true);
 #if defined(__linux__)
     // The post comes long after the budget: the slices time out, then the blocking wait takes over.
     expect_tw_stats(1, any_count, 1);
@@ -168,7 +195,7 @@ TEST(TimedWaitSemaphore, PostedAfterBudget) {
 TEST(TimedWaitSemaphore, LastSliceCutToBudget) {
     // A slice far longer than the budget must be cut to the budget, not run to its full length.
     TimedWaitConfigScope scope(SVT_JXS_TW_DEFAULT_BUDGET_US, SVT_JXS_TW_MAX_US);
-    wait_semaphore_posted_after(after_budget_delay);
+    wait_semaphore_posted_after(after_budget_delay, true);
     // The slice timeout is on CLOCK_REALTIME and the budget on CLOCK_MONOTONIC, so a few ns of
     // budget can be left after the first slice, which gives one more very short slice.
     expect_tw_stats(1, 2, 1);
@@ -176,7 +203,7 @@ TEST(TimedWaitSemaphore, LastSliceCutToBudget) {
 
 TEST(TimedWaitSemaphore, DisabledBlocksAtOnce) {
     TimedWaitConfigScope scope(0, SVT_JXS_TW_DEFAULT_SLICE_US);
-    wait_semaphore_posted_after(after_budget_delay);
+    wait_semaphore_posted_after(after_budget_delay, false);
     expect_tw_stats(0, 0, 0);
 }
 #endif
@@ -236,7 +263,7 @@ TEST(TimedWaitCondVar, SetWithinBudget) {
     // The largest budget, so only a stall of about 1 s could reach the blocking wait.
     TimedWaitConfigScope scope(SVT_JXS_TW_MAX_US, SVT_JXS_TW_DEFAULT_SLICE_US);
 #endif
-    wait_cond_var_set_after(1, within_budget_delay);
+    wait_cond_var_set_after(1, within_budget_delay, false);
 #if defined(__linux__)
     expect_tw_stats(0, any_count, 0);
 #endif
@@ -246,7 +273,7 @@ TEST(TimedWaitCondVar, SetAfterBudget) {
 #if defined(__linux__)
     TimedWaitConfigScope scope(SVT_JXS_TW_DEFAULT_BUDGET_US, SVT_JXS_TW_DEFAULT_SLICE_US);
 #endif
-    wait_cond_var_set_after(1, after_budget_delay);
+    wait_cond_var_set_after(1, after_budget_delay, true);
 #if defined(__linux__)
     expect_tw_stats(1, any_count, 1);
 #endif
@@ -256,7 +283,7 @@ TEST(TimedWaitCondVar, NotMarkedSetAfterDelay) {
 #if defined(__linux__)
     TimedWaitConfigScope scope(SVT_JXS_TW_DEFAULT_BUDGET_US, SVT_JXS_TW_DEFAULT_SLICE_US);
 #endif
-    wait_cond_var_set_after(0, after_budget_delay);
+    wait_cond_var_set_after(0, after_budget_delay, false);
 #if defined(__linux__)
     // Not marked: straight to the blocking wait even though the timed wait is enabled.
     expect_tw_stats(0, 0, 0);
@@ -268,13 +295,13 @@ TEST(TimedWaitCondVar, LastSliceCutToBudget) {
     // A slice far longer than the budget must be cut to the budget. The slices and the budget use
     // the same clock here, so exactly one slice runs.
     TimedWaitConfigScope scope(SVT_JXS_TW_DEFAULT_BUDGET_US, SVT_JXS_TW_MAX_US);
-    wait_cond_var_set_after(1, after_budget_delay);
+    wait_cond_var_set_after(1, after_budget_delay, true);
     expect_tw_stats(1, 1, 1);
 }
 
 TEST(TimedWaitCondVar, DisabledBlocksAtOnce) {
     TimedWaitConfigScope scope(0, SVT_JXS_TW_DEFAULT_SLICE_US);
-    wait_cond_var_set_after(1, after_budget_delay);
+    wait_cond_var_set_after(1, after_budget_delay, false);
     expect_tw_stats(0, 0, 0);
 }
 #endif
