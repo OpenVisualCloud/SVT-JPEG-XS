@@ -63,13 +63,16 @@ extern void svt_jxs_tw_parse_config(const char *budget_us, const char *slice_us,
 /* What the timed waits of the calling thread did, so tests can check which path ran. */
 typedef struct SvtJxsTimedWaitStats {
     uint32_t slice_timeouts; /* timed slices that ended without a wake-up */
-    uint32_t fallbacks;      /* waits that went on to the blocking wait after the timed slices */
+    uint32_t fallbacks;      /* waits whose budget ran out before the wake-up was seen */
 } SvtJxsTimedWaitStats;
 
 /* Replaces the process-wide config read from the environment. Only call it while no thread waits. */
 void svt_jxs_tw_set_config_for_testing(const SvtJxsTimedWaitConfig *config);
 void svt_jxs_tw_get_stats_for_testing(SvtJxsTimedWaitStats *stats);
 void svt_jxs_tw_reset_stats_for_testing(void);
+/* Waits of any thread that started the timed slices (deadline set) since the last reset, so a test
+ * can act only once a waiter has its deadline. */
+uint32_t svt_jxs_tw_get_waits_entered_for_testing(void);
 #endif // BUILD_TESTING
 #endif
 

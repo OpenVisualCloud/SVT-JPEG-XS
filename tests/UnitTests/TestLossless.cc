@@ -98,6 +98,12 @@ struct LosslessCase {
     uint8_t rct;
 };
 
+/* Without this gtest prints the raw bytes of the struct, padding included, which valgrind reports
+ * as uninitialised. */
+void PrintTo(const LosslessCase& c, std::ostream* os) {
+    *os << "{bit_depth " << (int)c.bit_depth << ", format " << (int)c.format << ", rct " << (int)c.rct << "}";
+}
+
 class LosslessDepthFormat : public ::testing::TestWithParam<LosslessCase> {};
 
 TEST_P(LosslessDepthFormat, EncodeDecodeBitExact) {
@@ -663,6 +669,12 @@ struct LosslessNarrowCase {
     uint32_t ndecomp_v;
     uint8_t raw_disable; //0: raw GCLI fallback allowed, bound charges 4 bits of GCLI per group
 };
+
+/* Same as for LosslessCase: avoids printing the padding bytes. */
+void PrintTo(const LosslessNarrowCase& c, std::ostream* os) {
+    *os << "{" << c.width << "x" << c.height << ", bit_depth " << (int)c.bit_depth << ", ndecomp_h " << c.ndecomp_h
+        << ", ndecomp_v " << c.ndecomp_v << ", raw_disable " << (int)c.raw_disable << "}";
+}
 
 class LosslessNarrow : public ::testing::TestWithParam<LosslessNarrowCase> {};
 

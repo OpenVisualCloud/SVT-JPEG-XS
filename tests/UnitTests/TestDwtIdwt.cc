@@ -80,6 +80,14 @@ class DWT_IDWT : public ::testing::TestWithParam<fixture_param_t> {
         }
     }
 
+    /* Random input bands for the IDWT tests, which read lf/hf instead of data_in. */
+    void SetRandBands() {
+        for (int32_t i = 0; i < lenght; i++) {
+            lf_buf_c[i] = rnd->random() % 0xFFFF;
+            hf_buf_c[i] = rnd->random() % 0xFFFF;
+        }
+    }
+
     void run_test_dwt_vertical_avx512() {
         memset(lf_buf_c, 0, buffer_len);
         memset(hf_buf_c, 0, buffer_len);
@@ -123,7 +131,7 @@ class DWT_IDWT : public ::testing::TestWithParam<fixture_param_t> {
         memset(data_out_avx, 0, buffer_len);
 
         for (int i = 0; i < 5; ++i) {
-            SetRandData();
+            SetRandBands();
 
             idwt_deprecated_vertical_c(lf_buf_c, hf_buf_c, data_out_c, width, height, stride, stride, stride);
             idwt_deprecated_vertical_avx2(lf_buf_c, hf_buf_c, data_out_avx, width, height, stride, stride, stride);
@@ -136,7 +144,7 @@ class DWT_IDWT : public ::testing::TestWithParam<fixture_param_t> {
         memset(data_out_c, 0, buffer_len);
         memset(data_out_avx, 0, buffer_len);
 
-        SetRandData();
+        SetRandBands();
 
         idwt_deprecated_horizontal_avx2(lf_buf_c, hf_buf_c, data_out_avx, width, height, stride, stride, stride);
         idwt_deprecated_horizontal_c(lf_buf_c, hf_buf_c, data_out_c, width, height, stride, stride, stride);
