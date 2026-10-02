@@ -17,9 +17,11 @@ enum UniversalThreadStatus { SYNC_INIT = 0, SYNC_OK = 1, SYNC_ERROR = 2 };
 typedef struct svt_jpeg_xs_decoder_common {
     pi_t pi; /* Picture Information */
     picture_header_const_t picture_header_const;
-    // Temporary buffer when picture_header_dynamic->hdr_Cpih is enabled
-    // TODO: Can be removed/optimized in future
+    // Temporary frame buffers for the whole-frame colour transform path (hdr_Cpih && !rct_per_precinct)
     int32_t* buffer_tmp_cpih[MAX_COMPONENTS_NUM];
+    // RCT (hdr_Cpih == 1) on components 0-2 with identical geometry is applied line by line
+    // right after the IDWT of each precinct, the same way as the non-transformed path.
+    uint8_t rct_per_precinct;
 
     // max_frame_bitstream_size is used only when packetization_mode is enabled
     uint32_t max_frame_bitstream_size;
@@ -30,6 +32,7 @@ typedef struct svt_jpeg_xs_decoder_thread_context {
     precinct_t* precincts_top[MAX_PRECINCT_IN_LINE];
     int32_t* precinct_components_tmp_buffer[MAX_COMPONENTS_NUM];
     int32_t* precinct_idwt_tmp_buffer[MAX_COMPONENTS_NUM];
+    int32_t* rct_tmp_buffer; /* 3 lines, used only when rct_per_precinct */
 } svt_jpeg_xs_decoder_thread_context;
 
 /*TODO Decoder instance Per frame, rename to decoder per frame.*/
@@ -97,8 +100,10 @@ precinct X |  comp-n, band6        |
     CondVar* map_slices_decode_done; /*When sync_slices_idwt use as array of Condition Variable, else use as array of "val"*/
 
     //TODO: Used only by Final Thread. Can be moved to Final Thread context, or to Slice thread context in future solution.
-    int32_t* precinct_idwt_tmp_buffer;
-    int32_t* precinct_component_tmp_buffer;
+    // Only index 0 is allocated unless rct_per_precinct, which needs one per component.
+    int32_t* precinct_idwt_tmp_buffer[MAX_COMPONENTS_NUM];
+    int32_t* precinct_component_tmp_buffer[MAX_COMPONENTS_NUM];
+    int32_t* rct_tmp_buffer; /* 3 lines, used only when rct_per_precinct */
 
     // Buffer allocated only when packetization_mode is enabled
     uint8_t* frame_bitstream_ptr;
@@ -120,7 +125,7 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
 
 svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decoder_common_t* dec_common);
 void svt_jpeg_xs_dec_instance_free(svt_jpeg_xs_decoder_instance_t* ctx);
-svt_jpeg_xs_decoder_thread_context* svt_jpeg_xs_dec_thread_context_alloc(pi_t* pi);
+svt_jpeg_xs_decoder_thread_context* svt_jpeg_xs_dec_thread_context_alloc(svt_jpeg_xs_decoder_common_t* dec_common);
 void svt_jpeg_xs_dec_thread_context_free(svt_jpeg_xs_decoder_thread_context* ctx, pi_t* pi);
 
 SvtJxsErrorType_t svt_jpeg_xs_decode_header(svt_jpeg_xs_decoder_instance_t* ctx, const uint8_t* bitstream_buf,

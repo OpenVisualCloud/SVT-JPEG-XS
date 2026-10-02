@@ -19,7 +19,8 @@ echo "Run UT Parallel NPROC: $nproc"
 echo "UT: $exec"
 if [ "$param" = "valgrind" ]; then
     echo "Valgrind: ON"
-    valgrind="valgrind "
+    # Fail the job on any memcheck error, not only on test failures
+    valgrind="valgrind --error-exitcode=1 "
 else
     echo "Valgrind: OFF"
 fi

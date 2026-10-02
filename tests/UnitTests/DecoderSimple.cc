@@ -43,6 +43,8 @@ SvtJxsErrorType_t decoder_simple_alloc(DecoderSimple_t* decoder, const uint8_t* 
     //Create common decoder
     decoder->instance_ctx = NULL;
     decoder->image_out = NULL;
+    /* Set by svt_jpeg_xs_decoder_init() from the API, which this decoder does not go through. */
+    decoder->dec_common.output_bit_depth_msb_aligned = 0;
 
     SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_probe(
         bitstream_buf, bitstream_length, &decoder->dec_common.picture_header_const, NULL, decoder->verbose);
@@ -61,7 +63,7 @@ SvtJxsErrorType_t decoder_simple_alloc(DecoderSimple_t* decoder, const uint8_t* 
         return SvtJxsErrorInsufficientResources;
     }
 
-    decoder->dec_thread_context = svt_jpeg_xs_dec_thread_context_alloc(&decoder->dec_common.pi);
+    decoder->dec_thread_context = svt_jpeg_xs_dec_thread_context_alloc(&decoder->dec_common);
     if (decoder->dec_thread_context == NULL) {
         decoder_simple_free(decoder);
         return SvtJxsErrorInsufficientResources;
@@ -109,7 +111,7 @@ SvtJxsErrorType_t svt_jpeg_xs_decode(svt_jpeg_xs_decoder_instance_t* ctx, svt_jp
     if (ret) {
         return ret;
     }
-    if (ctx->dec_common->picture_header_const.hdr_Cpih) {
+    if (ctx->dec_common->picture_header_const.hdr_Cpih && !ctx->dec_common->rct_per_precinct) {
         ret = svt_jpeg_xs_decode_final(ctx, out);
     }
     else {

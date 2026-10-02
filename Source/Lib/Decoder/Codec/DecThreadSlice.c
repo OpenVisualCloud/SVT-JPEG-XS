@@ -49,7 +49,7 @@ SvtJxsErrorType_t universal_thread_context_ctor(ThreadContext_t* thread_context_
     context_ptr->final_producer_fifo_ptr = svt_jxs_system_resource_get_producer_fifo(
         context_ptr->dec_api_prv->final_buffer_resource_ptr, idx);
     context_ptr->process_idx = idx;
-    context_ptr->dec_thread_context = svt_jpeg_xs_dec_thread_context_alloc(&dec_api_prv->dec_common.pi);
+    context_ptr->dec_thread_context = svt_jpeg_xs_dec_thread_context_alloc(&dec_api_prv->dec_common);
     if (context_ptr->dec_thread_context == NULL) {
         return SvtJxsErrorDecoderInternal;
     }
