@@ -116,7 +116,8 @@ void* thread_final_stage_kernel(void* input_ptr) {
             /*Finish frame.*/
             item->ready_to_send = 1;
 
-            if ((item->frame_error == 0) && picture_header_const->hdr_Cpih) {
+            //Whole-frame colour transform; the per-precinct RCT is already done together with the IDWT
+            if ((item->frame_error == 0) && picture_header_const->hdr_Cpih && !dec_api_prv->dec_common.rct_per_precinct) {
                 item->frame_error = svt_jpeg_xs_decode_final(dec_ctx, &item->dec_input.image);
             }
             /*if (item->frame_error < 0) {

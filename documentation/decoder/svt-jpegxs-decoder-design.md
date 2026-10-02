@@ -96,11 +96,23 @@ inverse transform it. Precinct decoding is described in details in the decoder a
 The final process is where all the synchronization is done: Releasing objects and reordering queues. Slices are properly
 aligned with corresponding picture to properly reconstruct the picture from slices.
 
-When different color transformation is enabled (example: RGB->YUV or Star-Tetrix), "unpack precinct" and "precinct
-calculate data) is still performed in the universal stage but inverse transform IDWT and color transformation are
-performed in the final stage.
+The reversible colour transform (RCT, Cpih=1) is applied per precinct, in the same stage as the IDWT. After the IDWT of
+a precinct, each finished line of components 0-2 is copied to a scratch buffer, the inverse RCT is applied there and the
+line is written to the output picture. The copy is needed because the IDWT line buffers are still read by the vertical
+IDWT of the next precinct. This needs components 0-2 to be wavelet transformed and to have the same size, decomposition
+levels and precinct height. RCT streams from the SVT-JPEGXS encoder always meet these conditions.
 
-Moreover, if default slice height is smaller or equal to two precinct and vertical decomposition is > 0 , IDWT is performed in the final stage.
+The other colour transforms (Star-Tetrix, Cpih=3), and RCT on components that do not meet the conditions above, are applied
+to the whole frame. In that case "unpack precinct" and "precinct calculate data" are still performed in the universal
+stage, but the IDWT, the colour transform and the output scaling (NLT) are performed in the final stage, after all slices
+of the frame are decoded. This path does not scale with the number of threads and does not support
+`output_bit_depth_msb_aligned`.
+
+If vertical decomposition is > 0, the first 2 precinct lines of each slice need the last precincts of the previous slice
+for the IDWT. When there is more than one universal thread and a slice has more than 2 precinct lines, the thread that
+decodes slice (s) waits until slice (s+1) has unpacked its first 2 precinct lines (or its only line, if it is the last
+slice and has just one) and calculates them itself. Otherwise, for example when the slice height is 2 precinct lines or
+less, these lines are calculated in the final stage.
 
 ## Thread wake-up (timed wait)
 
@@ -218,6 +230,9 @@ As there is a dependency between slices, a recalculation of two previous precinc
 ### MCT [Multiple component transformations]
 
 Optional stage that transforms the output array of the inverse wavelet transformation to intermediate picture samples values of the picture (RGB or Star-Tetrix)
+
+The inverse RCT is applied line by line right after the IDWT of each precinct. Star-Tetrix is applied to the whole frame
+in the final stage, see [Final Stage](#final-stage).
 
 ### NLT [Linear/Non-linear output scaling]
 

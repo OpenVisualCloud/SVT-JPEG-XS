@@ -334,6 +334,11 @@ Input Options:
                             word instead of LSB-aligned (enabled:1, disabled:0, default:0)
 ```
 
+`--output-msb-aligned` is not applied to streams whose colour transform is done on the whole frame (for example
+Star-Tetrix, Cpih=3); they are always output LSB-aligned. Streams with the reversible colour transform (RCT, Cpih=1) from
+the SVT-JPEGXS encoder support it, and their inverse RCT is done per precinct, so it scales with `--lp`. See
+[Final Stage](documentation/decoder/svt-jpegxs-decoder-design.md#final-stage).
+
 Output Options:
 
 ```text

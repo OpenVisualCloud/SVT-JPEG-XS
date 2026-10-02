@@ -139,8 +139,9 @@ static void send_slices_tasks(svt_jpeg_xs_decoder_api_prv_t* dec_api_prv, TaskIn
     pi_t* pi = &dec_ctx->dec_common->pi;
 
     SVT_ATOMIC_STORE32(&dec_ctx->sync_num_slices_to_receive, pi->slice_num);
+    //Colour transforms done on the whole frame in the final thread do not run the IDWT in slice threads
     dec_ctx->sync_slices_idwt = (pi->decom_v != 0) && (dec_api_prv->universal_threads_num > 1) && (pi->precincts_per_slice > 2) &&
-        (dec_ctx->dec_common->picture_header_const.hdr_Cpih == 0);
+        (!dec_ctx->dec_common->picture_header_const.hdr_Cpih || dec_ctx->dec_common->rct_per_precinct);
 
     for (uint32_t slice_idx = 0; slice_idx < pi->slice_num; slice_idx++) {
         svt_jxs_set_cond_var(&dec_ctx->map_slices_decode_done[slice_idx], SYNC_INIT);
@@ -418,8 +419,10 @@ SvtJxsErrorType_t internal_svt_jpeg_xs_decoder_send_packet(svt_jpeg_xs_decoder_a
         }
 
         SVT_ATOMIC_STORE32(&dec_ctx->sync_num_slices_to_receive, dec_ctx->dec_common->pi.slice_num);
+        //Same condition as in send_slices_tasks()
         dec_ctx->sync_slices_idwt = (dec_ctx->dec_common->pi.decom_v != 0) && (dec_api_prv->universal_threads_num > 1) &&
-            (dec_ctx->dec_common->pi.precincts_per_slice > 2) && (dec_ctx->dec_common->picture_header_const.hdr_Cpih == 0);
+            (dec_ctx->dec_common->pi.precincts_per_slice > 2) &&
+            (!dec_ctx->dec_common->picture_header_const.hdr_Cpih || dec_ctx->dec_common->rct_per_precinct);
     }
 
     svt_jpeg_xs_decoder_instance_t* dec_ctx = wrapper_ptr_decoder_ctx->object_ptr;
