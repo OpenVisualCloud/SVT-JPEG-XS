@@ -592,8 +592,8 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_slice(svt_jpeg_xs_decoder_instance_t* ctx, 
             thread_ctx->precincts_top[column] = precinct;
         }
 
-        //when 2nd line is unpacked set flag to true
-        if (ctx->sync_slices_idwt && line == 1) {
+        //when 2nd line is unpacked set flag to true (a 1-line last slice signals after its only line)
+        if (ctx->sync_slices_idwt && line == MIN(1, lines_per_slice - 1)) {
             svt_jxs_set_cond_var(&ctx->map_slices_decode_done[slice], SYNC_OK);
         }
 
@@ -657,7 +657,9 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_slice(svt_jpeg_xs_decoder_instance_t* ctx, 
             return SvtJxsErrorDecoderInternal;
         }
 
-        for (uint32_t line = 0; line < 2; line++) {
+        //The next slice can be the last one with fewer than 2 precinct lines; it then has only 1 to compute here
+        const uint32_t next_slice_lines = ((slice + 1) == (pi->slice_num - 1)) ? lines_per_slice_last : pi->precincts_per_slice;
+        for (uint32_t line = 0; line < MIN(2, next_slice_lines); line++) {
             uint32_t precinct_line_idx = (slice + 1) * pi->precincts_per_slice + line;
             for (uint32_t c = 0; c < pi->comps_num; c++) {
                 transform_precinct(pi,
@@ -698,10 +700,9 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_final_slice_overlap(svt_jpeg_xs_decoder_ins
                                       ctx->precinct_idwt_tmp_buffer,
                                       ctx->picture_header_dynamic.hdr_Fq);
 
-        uint32_t precincts_to_calculate = 2;
-        if (slice_idx == (pi->slice_num - 1)) {
-            precincts_to_calculate = MIN(precincts_to_calculate, precincts_per_slice_last);
-        }
+        // Never go past the end of the slice: the next slice may still be decoding its coefficients
+        uint32_t precincts_in_slice = (slice_idx == (pi->slice_num - 1)) ? precincts_per_slice_last : pi->precincts_per_slice;
+        uint32_t precincts_to_calculate = MIN(2, precincts_in_slice);
         for (uint32_t precinct = 0; precinct < precincts_to_calculate; precinct++) {
             transform_precinct(pi,
                                ctx,
