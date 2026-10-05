@@ -26,6 +26,15 @@ FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
 
+# Print the svtjpegxs plugin gst-launch-1.0 picks up and the libSvtJpegxs it loads, so the log
+# shows the run measures the tested build and not another copy installed on this host
+# (e.g. /usr/local/lib).
+GST_SVT_PLUGIN=$(gst-inspect-1.0 svtjpegxsenc 2>/dev/null | awk '$1 == "Filename" {print $2; exit}' || true)
+echo "svtjpegxs plugin: ${GST_SVT_PLUGIN:-not found}"
+if [ -n "$GST_SVT_PLUGIN" ]; then
+    echo "svtjpegxs plugin loads: $(ldd "$GST_SVT_PLUGIN" 2>&1 | grep -io 'libSvtJpegxs.*' || echo 'libSvtJpegxs not found')"
+fi
+
 # Pin the CPU frequency governor to 'performance' for this run and restore it on exit; see
 # perf_governor.sh for why this needs a refcount instead of a plain save/restore.
 source "$SCRIPT_DIR/perf_governor.sh"

@@ -280,6 +280,7 @@ jobs:
         working-directory: tests/scripts
         run: |
           chmod +x "${{ github.workspace }}/Bin/Release/"*
+          export LD_LIBRARY_PATH="${{ github.workspace }}/Bin/Release${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           ./PerformanceTestSampleApp.sh "${{ env.INPUT_FILES_PATH }}" 2>&1 | tee sample_app_performance.log
 
       - name: 'Publish: sample app performance summary'
