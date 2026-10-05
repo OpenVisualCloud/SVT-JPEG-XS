@@ -33,6 +33,13 @@ case "$ASM_LEVEL" in
 esac
 echo "asm level validated ($ASM_LEVEL)"
 
+# Print the libSvtJpegxs each app loads, so the log shows the run measures the tested build. When
+# the RUNPATH baked in at build time does not exist on this host, the loader silently picks up any
+# other copy installed there (e.g. /usr/local/lib) instead.
+for app in "$ENC_APP" "$DEC_APP"; do
+    echo "$(basename "$app") loads: $(ldd "$app" 2>&1 | grep -io 'libSvtJpegxs.*' || echo 'libSvtJpegxs not found')"
+done
+
 # Baselines in MATRIX below are calibrated for avx512 only - the default and the only tier this
 # script enforces a regression threshold against. avx2/sse/c have no calibrated baseline, so they
 # are measured and reported (Status=INFO) but never fail the script.

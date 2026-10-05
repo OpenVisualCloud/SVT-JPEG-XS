@@ -23,6 +23,14 @@ FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
 
+# Print the ffmpeg binary and the libSvtJpegxs it loads, so the log shows the run measures the
+# tested build and not another copy installed on this host (e.g. /usr/local/lib).
+FFMPEG_PATH=$(command -v "$FFMPEG_BIN" || true)
+echo "ffmpeg: ${FFMPEG_PATH:-not found}"
+if [ -n "$FFMPEG_PATH" ]; then
+    echo "ffmpeg loads: $(ldd "$FFMPEG_PATH" 2>&1 | grep -io 'libSvtJpegxs.*' || echo 'libSvtJpegxs not found')"
+fi
+
 # Pin the CPU frequency governor to 'performance' for this run and restore it on exit; see
 # perf_governor.sh for why this needs a refcount instead of a plain save/restore.
 source "$SCRIPT_DIR/perf_governor.sh"
