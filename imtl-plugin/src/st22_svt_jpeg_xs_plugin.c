@@ -16,33 +16,58 @@
 #include "../include/log.h"
 #include "../include/plugin_platform.h"
 
+static void wait_pending(pthread_mutex_t* mutex, pthread_cond_t* cond,
+                         volatile bool* pending, volatile bool* stop) {
+  st_pthread_mutex_lock(mutex);
+  while (!*pending && !*stop) st_pthread_cond_wait(cond, mutex);
+  *pending = false;
+  st_pthread_mutex_unlock(mutex);
+}
+
+static void signal_pending(pthread_mutex_t* mutex, pthread_cond_t* cond,
+                           volatile bool* pending) {
+  st_pthread_mutex_lock(mutex);
+  *pending = true;
+  st_pthread_cond_signal(cond);
+  st_pthread_mutex_unlock(mutex);
+}
+
+static void stop_thread(const char* name, int idx, pthread_t* thread, pthread_mutex_t* mutex,
+                        pthread_cond_t* cond, volatile bool* stop, volatile bool* pending) {
+  if (!*thread) return;
+  info("%s(%d), trying stop %s\n", __func__, idx, name);
+  st_pthread_mutex_lock(mutex);
+  *stop = true;
+  *pending = true;
+  st_pthread_cond_signal(cond);
+  st_pthread_mutex_unlock(mutex);
+  pthread_join(*thread, NULL);
+  *thread = 0;
+}
+
+static bool err_log_due(int* cnt) {
+  return (*cnt)++ % ERR_LOG_INTERVAL == 0;
+}
+
+static uint32_t codec_threads_num(uint32_t width, uint32_t codec_thread_cnt) {
+  if (width >= 3840) return 10;
+  if (width >= 1920) return 5;
+  return codec_thread_cnt;
+}
+
 static int encoder_uinit_session(struct st22_encoder_session* session) {
   int idx = session->idx;
+
+  stop_thread("encode_thread_send", idx, &session->encode_thread_send,
+              &session->wake_mutex_send, &session->wake_cond_send, &session->stop_send,
+              &session->pending_send);
+  stop_thread("encode_thread_get", idx, &session->encode_thread_get, &session->wake_mutex_get,
+              &session->wake_cond_get, &session->stop_get, &session->pending_get);
 
   if (session->codec_ctx) {
     svt_jpeg_xs_encoder_close(session->codec_ctx);
     free(session->codec_ctx);
     session->codec_ctx = NULL;
-  }
-
-  if (session->encode_thread_send) {
-    info("%s(%d), trying stop encode_thread_send\n", __func__, idx);
-    session->stop_send = true;
-    st_pthread_mutex_lock(&session->wake_mutex_send);
-    st_pthread_cond_signal(&session->wake_cond_send);
-    st_pthread_mutex_unlock(&session->wake_mutex_send);
-    pthread_join(session->encode_thread_send, NULL);
-    session->encode_thread_send = 0;
-  }
-
-  if (session->encode_thread_get) {
-    info("%s(%d), trying stop encode_thread_get\n", __func__, idx);
-    session->stop_get = true;
-    st_pthread_mutex_lock(&session->wake_mutex_get);
-    st_pthread_cond_signal(&session->wake_cond_get);
-    st_pthread_mutex_unlock(&session->wake_mutex_get);
-    pthread_join(session->encode_thread_get, NULL);
-    session->encode_thread_get = 0;
   }
 
   st_pthread_mutex_destroy(&session->wake_mutex_send);
@@ -65,9 +90,12 @@ static void* encode_thread_send(void* arg) {
   while (!s->stop_send) {
     frame = st22_encoder_get_frame(session_p);
     if (!frame) { /* no frame */
-      st_pthread_mutex_lock(&s->wake_mutex_send);
-      if (!s->stop_send) st_pthread_cond_wait(&s->wake_cond_send, &s->wake_mutex_send);
-      st_pthread_mutex_unlock(&s->wake_mutex_send);
+      wait_pending(&s->wake_mutex_send, &s->wake_cond_send, &s->pending_send, &s->stop_send);
+      continue;
+    }
+
+    if (s->session_failed) {
+      st22_encoder_put_frame(session_p, frame, -EIO);
       continue;
     }
 
@@ -95,8 +123,9 @@ static void* encode_thread_send(void* arg) {
     ret = svt_jpeg_xs_encoder_send_picture(s->codec_ctx, &enc_input, 1 /*blocking*/);
     if (ret != SvtJxsErrorNone) {
       err("%s(%d), svt_jpeg_xs_encoder_send_picture err = %d\n", __func__, s->idx, ret);
-      encoder_uinit_session(s);
-      return NULL;
+      s->session_failed = true;
+      st22_encoder_put_frame(session_p, frame, -EIO);
+      continue;
     }
   }
   info("%s(%d), stop\n", __func__, s->idx);
@@ -110,9 +139,7 @@ void callback_jpeg_xs_encoder_frame_ready(svt_jpeg_xs_encoder_api_t* encoder,
 
   struct st22_encoder_session* s = priv;
 
-  st_pthread_mutex_lock(&s->wake_mutex_get);
-  st_pthread_cond_signal(&s->wake_cond_get);
-  st_pthread_mutex_unlock(&s->wake_mutex_get);
+  signal_pending(&s->wake_mutex_get, &s->wake_cond_get, &s->pending_get);
 }
 
 // Thread for getting data/bitstream from encoder
@@ -125,11 +152,26 @@ static void* encode_thread_get(void* arg) {
   info("%s(%d), start\n", __func__, s->idx);
   while (!s->stop_get) {
     svt_jpeg_xs_frame_t enc_output;
+    /* not written by the codec on parameter errors */
+    enc_output.user_prv_ctx_ptr = NULL;
     ret = svt_jpeg_xs_encoder_get_packet(s->codec_ctx, &enc_output, 0 /*non-blocking*/);
-    if (ret != SvtJxsErrorNone) { /*No new frame, empty queue*/
-      st_pthread_mutex_lock(&s->wake_mutex_get);
-      st_pthread_cond_wait(&s->wake_cond_get, &s->wake_mutex_get);
-      st_pthread_mutex_unlock(&s->wake_mutex_get);
+    if (ret == SvtJxsErrorNoErrorEmptyQueue) {
+      wait_pending(&s->wake_mutex_get, &s->wake_cond_get, &s->pending_get, &s->stop_get);
+      continue;
+    }
+
+    if (ret != SvtJxsErrorNone) {
+      if (err_log_due(&s->get_err_cnt))
+        err("%s(%d), svt_jpeg_xs_encoder_get_packet err = %d, %d errors so far\n", __func__,
+            s->idx, ret, s->get_err_cnt);
+      if (enc_output.user_prv_ctx_ptr != NULL) {
+        struct st22_encode_frame_meta* frame =
+            (struct st22_encode_frame_meta*)enc_output.user_prv_ctx_ptr;
+        st22_encoder_put_frame(session_p, frame, -EIO);
+      } else {
+        /* error not tied to a frame: retrying at once would spin */
+        wait_pending(&s->wake_mutex_get, &s->wake_cond_get, &s->pending_get, &s->stop_get);
+      }
       continue;
     }
 
@@ -162,6 +204,11 @@ static int encoder_init_session(struct st22_encoder_session* session,
   session->req = *req;
 
   session->codec_ctx = malloc(sizeof(svt_jpeg_xs_encoder_api_t));
+  if (!session->codec_ctx) {
+    err("%s(%d), codec_ctx malloc fail\n", __func__, idx);
+    encoder_uinit_session(session);
+    return -ENOMEM;
+  }
 
   SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_load_default_parameters(
       SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, session->codec_ctx);
@@ -175,14 +222,7 @@ static int encoder_init_session(struct st22_encoder_session* session,
   session->codec_ctx->source_width = req->width;
   session->codec_ctx->source_height = req->height;
   session->codec_ctx->use_cpu_flags = CPU_FLAGS_ALL;
-
-  if (req->width >= 3840) {
-    session->codec_ctx->threads_num = 10;
-  } else if (req->width >= 1920) {
-    session->codec_ctx->threads_num = 5;
-  } else {
-    session->codec_ctx->threads_num = req->codec_thread_cnt;
-  }
+  session->codec_ctx->threads_num = codec_threads_num(req->width, req->codec_thread_cnt);
 
   if (req->input_fmt == ST_FRAME_FMT_YUV422PLANAR10LE) {
     session->codec_ctx->input_bit_depth = 10;
@@ -211,17 +251,20 @@ static int encoder_init_session(struct st22_encoder_session* session,
     session->codec_ctx->quantization = 1;
     session->codec_ctx->slice_height = 64;
   }
-  else {//ultra quality
-    session->codec_ctx->quantization = 1;
-    session->codec_ctx->coding_vertical_prediction_mode = 1;
-    // TODO: add more quality options
-    err("%s(%d), unsupported quality mode\n", __func__, idx);
+  else {
+    err("%s(%d), unsupported quality mode %u\n", __func__, idx, req->quality);
     encoder_uinit_session(session);
     return -EIO;
   }
 
-  session->codec_ctx->bpp_numerator =
-      (req->codestream_size * 8 / req->width) / req->height;
+  if (req->codestream_size > UINT32_MAX / 8) {
+    err("%s(%d), codestream_size %zu too large for bpp calculation\n", __func__, idx,
+        req->codestream_size);
+    encoder_uinit_session(session);
+    return -EINVAL;
+  }
+  session->codec_ctx->bpp_numerator = (uint32_t)(req->codestream_size * 8);
+  session->codec_ctx->bpp_denominator = req->width * req->height;
 
   session->codec_ctx->callback_send_data_available = NULL;
   session->codec_ctx->callback_send_data_available_context = NULL;
@@ -236,17 +279,17 @@ static int encoder_init_session(struct st22_encoder_session* session,
   }
 
   int ret2 = pthread_create(&session->encode_thread_send, NULL, encode_thread_send, session);
-  if (ret2 < 0) {
+  if (ret2 != 0) {
     err("%s(%d), encode_thread_send thread create fail %d\n", __func__, idx, ret2);
     encoder_uinit_session(session);
-    return ret;
+    return -ret2;
   }
 
   ret2 = pthread_create(&session->encode_thread_get, NULL, encode_thread_get, session);
-  if (ret2 < 0) {
+  if (ret2 != 0) {
     err("%s(%d), encode_thread_get thread create fail %d\n", __func__, idx, ret2);
     encoder_uinit_session(session);
-    return ret2;
+    return -ret2;
   }
 
   return 0;
@@ -270,6 +313,7 @@ static st22_encode_priv encoder_create_session(void* priv, st22p_encode_session 
     ret = encoder_init_session(session, req);
     if (ret < 0) {
       err("%s(%d), init session fail %d\n", __func__, i, ret);
+      free(session);
       return NULL;
     }
 
@@ -290,10 +334,9 @@ static int encoder_free_session(void* priv, st22_encode_priv session) {
   struct st22_encoder_session* encoder_session = session;
   int idx = encoder_session->idx;
 
-  info("%s(%d), total %d encode frames\n", __func__, idx, encoder_session->frame_cnt);
-
   encoder_uinit_session(encoder_session);
 
+  info("%s(%d), total %d encode frames\n", __func__, idx, encoder_session->frame_cnt);
   free(encoder_session);
   ctx->encoder_sessions[idx] = NULL;
   return 0;
@@ -303,9 +346,7 @@ static int encoder_frame_available(void* priv) {
   struct st22_encoder_session* s = priv;
 
   dbg("%s(%d)\n", __func__, s->idx);
-  st_pthread_mutex_lock(&s->wake_mutex_send);
-  st_pthread_cond_signal(&s->wake_cond_send);
-  st_pthread_mutex_unlock(&s->wake_mutex_send);
+  signal_pending(&s->wake_mutex_send, &s->wake_cond_send, &s->pending_send);
 
   return 0;
 }
@@ -313,32 +354,19 @@ static int encoder_frame_available(void* priv) {
 static int decoder_uinit_session(struct st22_decoder_session* session) {
   int idx = session->idx;
 
+  stop_thread("decode_thread_send", idx, &session->decode_thread_send,
+              &session->wake_mutex_send, &session->wake_cond_send, &session->stop_send,
+              &session->pending_send);
+  stop_thread("decode_thread_get", idx, &session->decode_thread_get, &session->wake_mutex_get,
+              &session->wake_cond_get, &session->stop_get, &session->pending_get);
+
   if (session->codec_ctx) {
     svt_jpeg_xs_decoder_close(session->codec_ctx);
     free(session->codec_ctx);
     session->codec_ctx = NULL;
   }
 
-  if (session->decode_thread_send) {
-    info("%s(%d), trying stop decode_thread_send\n", __func__, idx);
-    session->stop_send = true;
-    st_pthread_mutex_lock(&session->wake_mutex_send);
-    st_pthread_cond_signal(&session->wake_cond_send);
-    st_pthread_mutex_unlock(&session->wake_mutex_send);
-    pthread_join(session->decode_thread_send, NULL);
-    session->decode_thread_send = 0;
-  }
-
-  if (session->decode_thread_get) {
-    info("%s(%d), trying stop decode_thread_get\n", __func__, idx);
-    session->stop_get = true;
-    st_pthread_mutex_lock(&session->wake_mutex_get);
-    st_pthread_cond_signal(&session->wake_cond_get);
-    st_pthread_mutex_unlock(&session->wake_mutex_get);
-    pthread_join(session->decode_thread_get, NULL);
-    session->decode_thread_get = 0;
-  }
-
+  st_pthread_mutex_destroy(&session->codec_mutex);
   st_pthread_mutex_destroy(&session->wake_mutex_send);
   st_pthread_cond_destroy(&session->wake_cond_send);
 
@@ -355,30 +383,81 @@ static void* decode_thread_send(void* arg) {
   SvtJxsErrorType_t ret = SvtJxsErrorNone;
 
   bool decoder_initialized = 0;
+  bool reinit = false;
 
   info("%s(%d), start\n", __func__, s->idx);
   while (!s->stop_send) {
     frame = st22_decoder_get_frame(session_p);
     if (!frame) { /* no frame */
-      st_pthread_mutex_lock(&s->wake_mutex_send);
-      if (!s->stop_send) st_pthread_cond_wait(&s->wake_cond_send, &s->wake_mutex_send);
-      st_pthread_mutex_unlock(&s->wake_mutex_send);
+      wait_pending(&s->wake_mutex_send, &s->wake_cond_send, &s->pending_send, &s->stop_send);
       continue;
     }
 
+    if (s->session_failed) {
+      st22_decoder_put_frame(session_p, frame, -EIO);
+      continue;
+    }
+
+    if (s->needs_reinit) {
+      /* closing the decoder drops queued frames, let the get thread return them first */
+      st_pthread_mutex_lock(&s->wake_mutex_send);
+      while (__atomic_load_n(&s->inflight, __ATOMIC_ACQUIRE) > 0 && !s->stop_send)
+        st_pthread_cond_wait(&s->wake_cond_send, &s->wake_mutex_send);
+      st_pthread_mutex_unlock(&s->wake_mutex_send);
+      if (s->stop_send) {
+        st22_decoder_put_frame(session_p, frame, -EIO);
+        break;
+      }
+      decoder_initialized = 0;
+      reinit = true;
+      s->needs_reinit = false;
+    }
+
     if (!decoder_initialized) {
-      info("%s(%d), svt-jpeg-xs initialize decoder with first frame\n", __func__, s->idx);
+      if (s->init_fail_cnt == 0)
+        info("%s(%d), svt-jpeg-xs %s decoder\n", __func__, s->idx,
+             reinit ? "re-initialize" : "initialize");
+      st_pthread_mutex_lock(&s->codec_mutex);
+      svt_jpeg_xs_decoder_close(s->codec_ctx); /* no-op if not initialized */
       ret = svt_jpeg_xs_decoder_init(SVT_JPEGXS_API_VER_MAJOR,
                                      SVT_JPEGXS_API_VER_MINOR,
                                      s->codec_ctx,
                                      frame->src->addr[0],
-                                     frame->src->buffer_size,
+                                     frame->src->data_size,
                                      &(s->image_config));
+      st_pthread_mutex_unlock(&s->codec_mutex);
+
+      bool stream_ok = false;
       if (ret != SvtJxsErrorNone) {
-        err("%s(%d), svt_jpeg_xs_decoder_init err = %d\n", __func__, s->idx, ret);
-        decoder_uinit_session(s);
-        return NULL;
+        if (s->init_fail_cnt == 0)
+          err("%s(%d), svt_jpeg_xs_decoder_init err = %d\n", __func__, s->idx, ret);
+      } else {
+        bool depth_ok = (s->req.output_fmt == ST_FRAME_FMT_YUV422PLANAR10LE &&
+                         s->image_config.bit_depth == 10) ||
+                        (s->req.output_fmt == ST_FRAME_FMT_YUV422PLANAR8 &&
+                         s->image_config.bit_depth == 8);
+        stream_ok = depth_ok && s->image_config.format == COLOUR_FORMAT_PLANAR_YUV422 &&
+                    s->image_config.width == s->req.width &&
+                    s->image_config.height == s->req.height;
+        if (!stream_ok && s->init_fail_cnt == 0)
+          err("%s(%d), stream mismatch: %ux%u bit_depth %u format %u, expect %ux%u %s\n",
+              __func__, s->idx, s->image_config.width, s->image_config.height,
+              s->image_config.bit_depth, s->image_config.format, s->req.width,
+              s->req.height, st_frame_fmt_name(s->req.output_fmt));
       }
+
+      if (!stream_ok) {
+        /* the decoder is closed and re-initialized again with the next frame */
+        if (++s->init_fail_cnt >= DECODER_INIT_MAX_RETRY) {
+          err("%s(%d), decoder init failed on %d consecutive frames, giving up\n", __func__,
+              s->idx, s->init_fail_cnt);
+          s->session_failed = true;
+        }
+        st22_decoder_put_frame(session_p, frame, -EIO);
+        continue;
+      }
+      s->init_fail_cnt = 0;
+      reinit = false;
       decoder_initialized = 1;
     }
 
@@ -399,11 +478,15 @@ static void* decode_thread_send(void* arg) {
     }
     dec_input.user_prv_ctx_ptr = frame;
 
+    /* counted before sending: the get thread may return the frame before send_frame returns */
+    __atomic_add_fetch(&s->inflight, 1, __ATOMIC_RELEASE);
     ret = svt_jpeg_xs_decoder_send_frame(s->codec_ctx, &dec_input, 1 /*blocking*/);
     if (ret != SvtJxsErrorNone) {
+      __atomic_sub_fetch(&s->inflight, 1, __ATOMIC_RELEASE);
       err("%s(%d), svt_jpeg_xs_decoder_send_frame err = %d\n", __func__, s->idx, ret);
-      decoder_uinit_session(s);
-      return NULL;
+      s->session_failed = true;
+      st22_decoder_put_frame(session_p, frame, -EIO);
+      continue;
     }
   }
   info("%s(%d), stop\n", __func__, s->idx);
@@ -415,9 +498,7 @@ void callback_jpeg_xs_decoder_frame_ready(struct svt_jpeg_xs_decoder_api* decode
   (void)decoder;
   struct st22_decoder_session* s = priv;
 
-  st_pthread_mutex_lock(&s->wake_mutex_get);
-  st_pthread_cond_signal(&s->wake_cond_get);
-  st_pthread_mutex_unlock(&s->wake_mutex_get);
+  signal_pending(&s->wake_mutex_get, &s->wake_cond_get, &s->pending_get);
 }
 
 // Thread for getting data/yuv from decoder
@@ -427,30 +508,42 @@ static void* decode_thread_get(void* arg) {
 
   SvtJxsErrorType_t ret = SvtJxsErrorNone;
 
-  /*Wait for 1st callback with decoded frame*/
-  st_pthread_mutex_lock(&s->wake_mutex_get);
-  st_pthread_cond_wait(&s->wake_cond_get, &s->wake_mutex_get);
-  st_pthread_mutex_unlock(&s->wake_mutex_get);
-
   info("%s(%d), start\n", __func__, s->idx);
   while (!s->stop_get) {
     svt_jpeg_xs_frame_t dec_output;
+    /* not written by the codec when it is not initialized (before first frame, during re-init) */
+    dec_output.user_prv_ctx_ptr = NULL;
+    st_pthread_mutex_lock(&s->codec_mutex);
     ret = svt_jpeg_xs_decoder_get_frame(s->codec_ctx, &dec_output, 0 /*non-blocking*/);
+    st_pthread_mutex_unlock(&s->codec_mutex);
 
-    if (ret != SvtJxsErrorNone) {
-      st_pthread_mutex_lock(&s->wake_mutex_get);
-      st_pthread_cond_wait(&s->wake_cond_get, &s->wake_mutex_get);
-      st_pthread_mutex_unlock(&s->wake_mutex_get);
+    struct st22_decode_frame_meta* frame = dec_output.user_prv_ctx_ptr;
+    if (!frame) {
+      if (ret != SvtJxsErrorNoErrorEmptyQueue && ret != SvtJxsErrorDecoderInvalidPointer &&
+          err_log_due(&s->get_err_cnt))
+        err("%s(%d), svt_jpeg_xs_decoder_get_frame err = %d, %d errors so far\n", __func__,
+            s->idx, ret, s->get_err_cnt);
+      wait_pending(&s->wake_mutex_get, &s->wake_cond_get, &s->pending_get, &s->stop_get);
       continue;
     }
 
-    if (dec_output.user_prv_ctx_ptr != NULL) {
-      struct st22_decode_frame_meta* frame =
-          (struct st22_decode_frame_meta*)dec_output.user_prv_ctx_ptr;
-
+    if (ret == SvtJxsErrorNone) {
       st22_decoder_put_frame(session_p, frame, 0);
       s->frame_cnt++;
+    } else {
+      if (ret == SvtJxsErrorDecoderConfigChange) {
+        if (!s->needs_reinit)
+          warn("%s(%d), decoder config change, re-init on next frame\n", __func__, s->idx);
+        s->needs_reinit = true;
+      } else if (err_log_due(&s->get_err_cnt)) {
+        err("%s(%d), svt_jpeg_xs_decoder_get_frame err = %d, %d errors so far\n", __func__,
+            s->idx, ret, s->get_err_cnt);
+      }
+      st22_decoder_put_frame(session_p, frame, -EIO);
     }
+
+    if (__atomic_sub_fetch(&s->inflight, 1, __ATOMIC_ACQ_REL) == 0 && s->needs_reinit)
+      signal_pending(&s->wake_mutex_send, &s->wake_cond_send, &s->pending_send);
   }
   info("%s(%d), stop\n", __func__, s->idx);
 
@@ -462,6 +555,7 @@ static int decoder_init_session(struct st22_decoder_session* session,
   int idx = session->idx;
   int ret;
 
+  st_pthread_mutex_init(&session->codec_mutex, NULL);
   st_pthread_mutex_init(&session->wake_mutex_send, NULL);
   st_pthread_cond_init(&session->wake_cond_send, NULL);
 
@@ -471,6 +565,11 @@ static int decoder_init_session(struct st22_decoder_session* session,
   session->req = *req;
 
   session->codec_ctx = malloc(sizeof(svt_jpeg_xs_decoder_api_t));
+  if (!session->codec_ctx) {
+    err("%s(%d), codec_ctx malloc fail\n", __func__, idx);
+    decoder_uinit_session(session);
+    return -ENOMEM;
+  }
   memset(session->codec_ctx, 0, sizeof(svt_jpeg_xs_decoder_api_t));
 
   session->codec_ctx->use_cpu_flags = CPU_FLAGS_ALL;
@@ -480,14 +579,7 @@ static int decoder_init_session(struct st22_decoder_session* session,
   session->codec_ctx->callback_send_data_available_context = NULL;
   session->codec_ctx->callback_get_data_available = callback_jpeg_xs_decoder_frame_ready;
   session->codec_ctx->callback_get_data_available_context = (void *)session;
-
-  if (req->width >= 3840) {
-    session->codec_ctx->threads_num = 10;
-  } else if (req->width >= 1920) {
-    session->codec_ctx->threads_num = 5;
-  } else {
-    session->codec_ctx->threads_num = req->codec_thread_cnt;
-  }
+  session->codec_ctx->threads_num = codec_threads_num(req->width, req->codec_thread_cnt);
 
   if (req->input_fmt != ST_FRAME_FMT_JPEGXS_CODESTREAM) {
     err("%s(%d), unexpected input format\n", __func__, idx);
@@ -503,16 +595,16 @@ static int decoder_init_session(struct st22_decoder_session* session,
   }
 
   ret = pthread_create(&session->decode_thread_send, NULL, decode_thread_send, session);
-  if (ret < 0) {
+  if (ret != 0) {
     err("%s(%d), thread create fail %d\n", __func__, idx, ret);
     decoder_uinit_session(session);
-    return ret;
+    return -ret;
   }
   ret = pthread_create(&session->decode_thread_get, NULL, decode_thread_get, session);
-  if (ret < 0) {
+  if (ret != 0) {
     err("%s(%d), thread create fail %d\n", __func__, idx, ret);
     decoder_uinit_session(session);
-    return ret;
+    return -ret;
   }
 
   return 0;
@@ -536,6 +628,7 @@ static st22_decode_priv decoder_create_session(void* priv, st22p_decode_session 
     ret = decoder_init_session(session, req);
     if (ret < 0) {
       err("%s(%d), init session fail %d\n", __func__, i, ret);
+      free(session);
       return NULL;
     }
 
@@ -545,7 +638,7 @@ static st22_decode_priv decoder_create_session(void* priv, st22p_decode_session 
     return session;
   }
 
-  info("%s, all session slot are used\n", __func__);
+  err("%s, all session slot are used\n", __func__);
   return NULL;
 }
 
@@ -553,8 +646,6 @@ static int decoder_free_session(void* priv, st22_decode_priv session) {
   struct st22_svt_jpeg_xs_ctx* ctx = priv;
   struct st22_decoder_session* decoder_session = session;
   int idx = decoder_session->idx;
-
-  info("%s(%d), total %d decode frames\n", __func__, idx, decoder_session->frame_cnt);
 
   decoder_uinit_session(decoder_session);
 
@@ -568,9 +659,7 @@ static int decoder_frame_available(void* priv) {
   struct st22_decoder_session* s = priv;
 
   dbg("%s(%d)\n", __func__, s->idx);
-  st_pthread_mutex_lock(&s->wake_mutex_send);
-  st_pthread_cond_signal(&s->wake_cond_send);
-  st_pthread_mutex_unlock(&s->wake_mutex_send);
+  signal_pending(&s->wake_mutex_send, &s->wake_cond_send, &s->pending_send);
 
   return 0;
 }
@@ -626,11 +715,13 @@ int st_plugin_free(st_plugin_priv handle) {
 
   for (int i = 0; i < MAX_ST22_DECODER_SESSIONS; i++) {
     if (ctx->decoder_sessions[i]) {
+      decoder_uinit_session(ctx->decoder_sessions[i]);
       free(ctx->decoder_sessions[i]);
     }
   }
   for (int i = 0; i < MAX_ST22_ENCODER_SESSIONS; i++) {
     if (ctx->encoder_sessions[i]) {
+      encoder_uinit_session(ctx->encoder_sessions[i]);
       free(ctx->encoder_sessions[i]);
     }
   }
