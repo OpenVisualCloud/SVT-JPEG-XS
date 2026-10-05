@@ -10,14 +10,24 @@
 #include "Definitions.h"
 #include "PictureControlSet.h"
 
+#include "NltDec.h"
+#include "NltEnc.h"
+#include "Precinct.h"
+
+#include "Codestream.h"
+
+#ifdef ARCH_AARCH64
+#include "NltEnc_neon.h"
+#endif /* ARCH_AARCH64 */
+
+#ifdef ARCH_X86_64
 #include "NltEnc_avx2.h"
 #include "NltDec_AVX2.h"
 #include "NltDec_avx512.h"
-#include "NltDec.h"
-#include "NltEnc.h"
 #include "Enc_avx512.h"
-#include "Precinct.h"
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(Nlt_Linear_Output_8bit, 8AVX2) {
     const int32_t w = 1999;
     const int32_t h = 1089;
@@ -85,7 +95,9 @@ TEST(Nlt_Linear_Output_8bit, 8AVX2) {
     }
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(Nlt_Linear_Output_16bit, AVX2) {
     const int32_t w = 1999;
     const int32_t h = 1089;
@@ -152,6 +164,7 @@ TEST(Nlt_Linear_Output_16bit, AVX2) {
     }
     delete rnd;
 }
+#endif /* ARCH_X86_64 */
 
 void test_image_shift(void (*test_fn)(uint16_t* out_coeff_16bit, int32_t* in_coeff_32bit, uint32_t width, int32_t shift,
                                       int32_t offset)) {
@@ -199,15 +212,25 @@ void test_image_shift(void (*test_fn)(uint16_t* out_coeff_16bit, int32_t* in_coe
     delete rnd;
 }
 
+#ifdef ARCH_AARCH64
+TEST(image_shift, NEON) {
+    test_image_shift(image_shift_neon);
+}
+#endif /* ARCH_AARCH64 */
+
+#ifdef ARCH_X86_64
 TEST(image_shift, AVX2) {
     test_image_shift(image_shift_avx2);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(image_shift, AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         test_image_shift(image_shift_avx512);
     }
 }
+#endif /* ARCH_X86_64 */
 
 void test_linear_input_scaling_line_8bit(void (*test_fn)(const uint8_t* src, int32_t* dst, uint32_t w, uint8_t shift,
                                                          int32_t offset)) {
@@ -242,14 +265,24 @@ void test_linear_input_scaling_line_8bit(void (*test_fn)(const uint8_t* src, int
     delete rnd;
 }
 
+#ifdef ARCH_X86_64
 TEST(Nlt_Linear_Input_8bit, AVX2) {
     test_linear_input_scaling_line_8bit(linear_input_scaling_line_8bit_avx2);
 }
+
 TEST(Nlt_Linear_Input_8bit, AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         test_linear_input_scaling_line_8bit(linear_input_scaling_line_8bit_avx512);
     }
 }
+#endif /* ARCH_X86_64 */
+
+#ifdef ARCH_AARCH64
+TEST(Nlt_Linear_Input_8bit, NEON) {
+    test_linear_input_scaling_line_8bit(linear_input_scaling_line_8bit_neon);
+}
+#endif /* ARCH_AARCH64 */
+
 
 void test_inv_sign(void (*test_fn)(uint16_t* in_out, uint32_t width)) {
     const uint32_t w = 1999;
@@ -276,9 +309,11 @@ void test_inv_sign(void (*test_fn)(uint16_t* in_out, uint32_t width)) {
     delete rnd;
 }
 
+#ifdef ARCH_X86_64
 TEST(test_inverse_sign, AVX2) {
     test_inv_sign(inv_sign_avx2);
 }
+#endif /* ARCH_X86_64 */
 
 void test_linear_input_scaling_line_16bit(void (*test_fn)(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift,
                                                           int32_t offset, uint8_t bit_depth)) {
@@ -328,15 +363,26 @@ void test_linear_input_scaling_line_16bit(void (*test_fn)(const uint16_t* src, i
     delete rnd;
 }
 
+#ifdef ARCH_X86_64
 TEST(Nlt_Linear_Input_16bit, AVX2) {
     test_linear_input_scaling_line_16bit(linear_input_scaling_line_16bit_avx2);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_AARCH64
+TEST(Nlt_Linear_Input_16bit, NEON) {
+    test_linear_input_scaling_line_16bit(linear_input_scaling_line_16bit_neon);
+}
+#endif /* ARCH_AARCH64 */
+
+
+#ifdef ARCH_X86_64
 TEST(Nlt_Linear_Input_16bit, AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         test_linear_input_scaling_line_16bit(linear_input_scaling_line_16bit_avx512);
     }
 }
+#endif /* ARCH_X86_64 */
 
 void test_linear_input_scaling_line_16bit_msb(void (*test_fn)(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift,
                                                               int32_t offset, uint8_t bit_depth)) {
@@ -382,15 +428,26 @@ void test_linear_input_scaling_line_16bit_msb(void (*test_fn)(const uint16_t* sr
     delete rnd;
 }
 
+#ifdef ARCH_X86_64
 TEST(Nlt_Linear_Input_16bit_MSB, AVX2) {
     test_linear_input_scaling_line_16bit_msb(linear_input_scaling_line_16bit_msb_avx2);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_AARCH64
+TEST(Nlt_Linear_Input_16bit_MSB, NEON) {
+    test_linear_input_scaling_line_16bit_msb(linear_input_scaling_line_16bit_msb_neon);
+}
+#endif /* ARCH_AARCH64 */
+
+
+#ifdef ARCH_X86_64
 TEST(Nlt_Linear_Input_16bit_MSB, AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         test_linear_input_scaling_line_16bit_msb(linear_input_scaling_line_16bit_msb_avx512);
     }
 }
+#endif /* ARCH_X86_64 */
 
 void test_linear_output_scaling_16bit_line_msb(void (*test_fn)(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out,
                                                                uint32_t w)) {
@@ -435,15 +492,19 @@ void test_linear_output_scaling_16bit_line_msb(void (*test_fn)(int32_t* in, uint
     delete rnd;
 }
 
+#ifdef ARCH_X86_64
 TEST(Nlt_Linear_Output_16bit_MSB, AVX2) {
     test_linear_output_scaling_16bit_line_msb(linear_output_scaling_16bit_line_msb_avx2);
 }
+#endif /* ARCH_X86_64 */
 
+#ifdef ARCH_X86_64
 TEST(Nlt_Linear_Output_16bit_MSB, AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         test_linear_output_scaling_16bit_line_msb(linear_output_scaling_16bit_line_msb_avx512);
     }
 }
+#endif /* ARCH_X86_64 */
 
 /* Covers the Tnlt=1/2 gap: the msb_aligned post-shift must apply regardless of transfer curve. */
 TEST(Nlt_Inverse_Transform_Line_16bit_MSB, QuadraticAndExtended) {

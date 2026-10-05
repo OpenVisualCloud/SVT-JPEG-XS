@@ -15,6 +15,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/Source/Lib/Decoder/ASM_AVX512/
     ${PROJECT_SOURCE_DIR}/Source/Lib/Decoder/ASM_AVX2/
     ${PROJECT_SOURCE_DIR}/Source/Lib/Decoder/ASM_SSE4_1/
+    ${PROJECT_SOURCE_DIR}/Source/Lib/Decoder/ASM_NEON/
     )
 
 file(GLOB all_files

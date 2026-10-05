@@ -5,12 +5,19 @@
 
 #include "gtest/gtest.h"
 #include "random.h"
-#include <immintrin.h>
-#include "Dwt53Decoder_AVX2.h"
 #include "SvtUtility.h"
 #include "Dwt.h"
 #include "Idwt.h"
 #include "CodeDeprecated.h"
+
+#ifdef ARCH_X86_64
+#include <immintrin.h>
+#include "Dwt53Decoder_AVX2.h"
+#endif /* ARCH_X86_64 */
+
+/* Every case in this file compares the deprecated AVX2 inverse DWT against the C
+ * reference, so the whole file is x86-only. */
+#ifdef ARCH_X86_64
 
 typedef ::testing::tuple<int, int> size_param_t;
 
@@ -258,3 +265,4 @@ TEST_P(TransformIDWT53, DISABLED_speed_horizontal_AVX2) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TransformIDWT53, TransformIDWT53, ::testing::Combine(::testing::ValuesIn(params_block_sizes)));
+#endif /* ARCH_X86_64 */
