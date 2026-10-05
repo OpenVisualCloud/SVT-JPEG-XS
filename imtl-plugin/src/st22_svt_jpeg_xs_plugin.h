@@ -15,6 +15,10 @@
 
 #define MAX_ST22_ENCODER_SESSIONS (8)
 #define MAX_ST22_DECODER_SESSIONS (8)
+/* consecutive frames the decoder may fail to init on before the session gives up */
+#define DECODER_INIT_MAX_RETRY (60)
+/* per-frame codec errors are logged once every this many occurrences */
+#define ERR_LOG_INTERVAL (60)
 
 struct st22_encoder_session {
   int idx;
@@ -23,17 +27,24 @@ struct st22_encoder_session {
   st22p_encode_session session_p;
 
   volatile bool   stop_send;
+  volatile bool   pending_send;
   pthread_t       encode_thread_send;
   pthread_cond_t  wake_cond_send;
   pthread_mutex_t wake_mutex_send;
 
   volatile bool   stop_get;
+  volatile bool   pending_get;
   pthread_t       encode_thread_get;
   pthread_cond_t  wake_cond_get;
   pthread_mutex_t wake_mutex_get;
 
+  /* set once send_picture fails fatally; subsequent frames are failed
+   * immediately instead of being handed to the codec. */
+  volatile bool   session_failed;
+
   int frame_cnt;
   int frame_idx;
+  int get_err_cnt;
 
   svt_jpeg_xs_encoder_api_t* codec_ctx;
 };
@@ -45,17 +56,34 @@ struct st22_decoder_session {
   st22p_decode_session session_p;
 
   volatile bool   stop_send;
+  volatile bool   pending_send;
   pthread_t       decode_thread_send;
   pthread_cond_t  wake_cond_send;
   pthread_mutex_t wake_mutex_send;
 
   volatile bool   stop_get;
+  volatile bool   pending_get;
   pthread_t       decode_thread_get;
   pthread_cond_t  wake_cond_get;
   pthread_mutex_t wake_mutex_get;
 
+  /* set once send_frame fails, or decoder init / stream format check fails on
+   * DECODER_INIT_MAX_RETRY consecutive frames; subsequent frames are failed
+   * immediately instead of being handed to the codec. */
+  volatile bool   session_failed;
+  int             init_fail_cnt;
+  /* set by the get thread when the codec reports a mid-stream format/
+   * resolution change; the send thread re-inits the decoder on the next
+   * frame it sends, once all in-flight frames are drained. */
+  volatile bool   needs_reinit;
+  /* frames handed to the codec and not yet returned by get_frame */
+  volatile int    inflight;
+  /* serializes get_frame against decoder close/init during re-init */
+  pthread_mutex_t codec_mutex;
+
   int frame_cnt;
   int frame_idx;
+  int get_err_cnt;
 
   svt_jpeg_xs_decoder_api_t* codec_ctx;
   svt_jpeg_xs_image_config_t image_config;
