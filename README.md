@@ -1,5 +1,8 @@
 # Intel&reg; JPEG-XS Library
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/OpenVisualCloud/SVT-JPEG-XS/badge)](https://scorecard.dev/viewer/?uri=github.com/OpenVisualCloud/SVT-JPEG-XS)
+
+
 ## License
 
 Scalable Video Technology is licensed under the OSI-approved BSD+Patent license. See [LICENSE](LICENSE.md) for details.
