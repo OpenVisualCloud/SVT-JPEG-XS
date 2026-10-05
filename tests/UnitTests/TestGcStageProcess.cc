@@ -23,6 +23,7 @@
 #include "GcStage_neon.h"
 #endif /* ARCH_AARCH64 */
 
+#ifdef ARCH_X86_64
 void test_gc_stage_scalar(void (*test_fn)(uint8_t* gcli_data_ptr, uint16_t* coeff_data_ptr_16bit, uint32_t group_size,
                                           uint32_t width)) {
     /*Set pointers directly before calling the RTC function may cause an assert for Debug in other tests.*/
@@ -85,6 +86,7 @@ void test_gc_stage_scalar(void (*test_fn)(uint8_t* gcli_data_ptr, uint16_t* coef
     free(gc_data_avx2_ptr);
     free(out_compare_msb);
 }
+#endif /* ARCH_X86_64 */
 
 #ifdef ARCH_AARCH64
 /* The group loop on its own, against the C one. The group count is walked from

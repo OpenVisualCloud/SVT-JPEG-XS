@@ -165,6 +165,11 @@ TEST(TimedWaitSemaphore, AlreadyAvailable) {
     // Fast path: no timed slice at all.
     expect_tw_stats(0, 0, 0);
 #endif
+#if defined(__APPLE__)
+    // dispatch semaphores must have their initial count restored before release.
+    EXPECT_EQ(svt_jxs_post_semaphore(semaphore), SvtJxsErrorNone);
+    EXPECT_EQ(svt_jxs_post_semaphore(semaphore), SvtJxsErrorNone);
+#endif
     EXPECT_EQ(svt_jxs_destroy_semaphore(semaphore), SvtJxsErrorNone);
 }
 

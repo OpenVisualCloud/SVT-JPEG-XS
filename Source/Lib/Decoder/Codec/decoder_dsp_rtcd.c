@@ -8,13 +8,13 @@
 #include "Dequant.h"
 #include "Idwt.h"
 #include "Mct.h"
-#include "Mct_avx2.h"
-#include "Mct_avx512.h"
 #include "NltDec.h"
 #include "Precinct.h"
 #include "Packing.h"
 
 #ifdef ARCH_X86_64
+#include "Mct_avx2.h"
+#include "Mct_avx512.h"
 #include "Dwt53Decoder_AVX2.h"
 #include "Dequant_SSE4.h"
 #include "NltDec_AVX2.h"

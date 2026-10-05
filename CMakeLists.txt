@@ -30,6 +30,13 @@ include(CheckCSourceCompiles)
 # name. An unknown processor is not an error: the portable C paths build and run
 # everywhere, only without the vectorized implementations.
 if(CMAKE_OSX_ARCHITECTURES)
+    list(LENGTH CMAKE_OSX_ARCHITECTURES SVT_JXS_OSX_ARCH_COUNT)
+    if(SVT_JXS_OSX_ARCH_COUNT GREATER 1)
+        message(FATAL_ERROR "CMAKE_OSX_ARCHITECTURES lists multiple architectures "
+                            "(${CMAKE_OSX_ARCHITECTURES}); this build selects one SIMD "
+                            "tree per configuration and cannot produce a universal binary "
+                            "in a single invocation. Build each architecture separately.")
+    endif()
     set(SVT_JXS_TARGET_PROCESSOR "${CMAKE_OSX_ARCHITECTURES}")
 else()
     set(SVT_JXS_TARGET_PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}")
@@ -484,7 +491,12 @@ if(BUILD_TESTING)
     add_subdirectory(tests/UnitTests)
 endif()
 
-add_subdirectory(third_party/cpuinfo)
+if(ARCH_X86_64)
+    add_subdirectory(third_party/cpuinfo)
+else()
+    # CPU detection uses cpuinfo only on x86. The bundled copy has no ARM backend.
+    add_library(cpuinfo_public INTERFACE)
+endif()
 
 if(JPEGXS_PGO)
     set(JPEGXS_PGO_SAMPLES_DIR_RESOLVED "${JPEGXS_PGO_SAMPLES_DIR}")
