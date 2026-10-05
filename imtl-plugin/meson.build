@@ -3,7 +3,7 @@
 # SPDX - License - Identifier: BSD - 2 - Clause - Patent
 #
 
-project('svt-jpeg-xs plugin for intel media transport libraray', 'c', default_options: ['c_std=gnu11', 'buildtype=release'], version: '0.1',)
+project('svt-jpeg-xs plugin for intel media transport libraray', 'c', default_options: ['c_std=gnu11', 'buildtype=release'], version: '0.2',)
 
 # allow experimental api
 add_global_arguments('-DALLOW_EXPERIMENTAL_API', language : 'c')
@@ -12,7 +12,9 @@ cc = meson.get_compiler('c')
 
 mtl_dep = dependency('mtl', required : true)
 libpthread_dep = cc.find_library('pthread', required : true)
-jpegxs_dep = dependency('SvtJpegxs', required : true)
+# >= 0.10 for bpp_denominator and the image_config fields used to validate
+# the decoded stream format against the pipeline's requested output format.
+jpegxs_dep = dependency('SvtJpegxs', required : true, version : '>=0.10')
 
 # add include directory
 plugins_include_dir = [ include_directories('include'), ]
