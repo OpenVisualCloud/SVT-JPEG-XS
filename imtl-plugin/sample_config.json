@@ -41,8 +41,9 @@
     // rct requires "latency".
     "cpu_profile": "latency",
     // --- Coding tools (quality / speed trade-off) ---
-    // Vertical wavelet decomposition levels: 0, 1 or 2.
-    // Default 2; MTL quality mode SPEED sets 0.
+    // Vertical wavelet decomposition levels: 0, 1 or 2; 4:2:0 input needs 1 or 2.
+    // Default 2; MTL quality mode SPEED sets 0, so 4:2:0 in SPEED mode needs this
+    // key.
     // "decomp_v": 2,
     // Horizontal wavelet decomposition levels: 1-5, must be >= decomp_v.
     "decomp_h": 5,

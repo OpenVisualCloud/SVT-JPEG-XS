@@ -97,7 +97,41 @@ copied.
 Resolution, pixel format, bit depth, bpp (from the MTL codestream size) and packetization are set by
 MTL and can't be configured.
 
-## 4. Notes
+## 4. Formats
+
+The encoder takes and the decoder outputs these MTL pipeline formats:
+
+| MTL format | Sampling | Bit depth |
+| --- | --- | --- |
+| `YUV422PLANAR8` | 4:2:2 | 8 |
+| `YUV422PLANAR10LE` | 4:2:2 | 10 |
+| `YUV422PLANAR12LE` | 4:2:2 | 12 |
+| `YUV422PLANAR16LE` | 4:2:2 | 10, MSB-aligned in 16 bits |
+| `YUV420PLANAR8` | 4:2:0 | 8 |
+| `YUV444PLANAR10LE` | 4:4:4 | 10 |
+| `YUV444PLANAR12LE` | 4:4:4 | 12 |
+| `GBRPLANAR10LE` | 4:4:4 RGB | 10 |
+| `GBRPLANAR12LE` | 4:4:4 RGB | 12 |
+
+* `YUV422PLANAR16LE` needs an SVT-JPEG-XS library with MSB-aligned input/output; the plugin offers
+  it only when built against such a library. The decoder accepts only 10-bit 4:2:2 streams for it.
+  `lossless` can't be combined with it.
+* `GBRPLANAR*` frames store the planes G, B, R. The plugin hands them to the codec as components R,
+  G, B, the order the colour transform (`rct`) and other JPEG XS codecs expect. The SVT-JPEG-XS
+  ffmpeg plugin currently passes `gbrp` planes as G, B, R, so RGB streams from it decode with
+  swapped colours here, and the other way round.
+* A 4:4:4 stream doesn't say whether it carries YUV or RGB: it decodes into either
+  `YUV444PLANAR*` or `GBRPLANAR*` of the same bit depth. Sender and receiver must agree on the
+  colour space.
+* 4:2:0 needs `decomp_v` 1 or 2. The MTL quality mode SPEED sets `decomp_v` 0, so a
+  `YUV420PLANAR8` session in SPEED mode fails at session create unless the config file sets
+  `encoder.decomp_v` 1 or 2; `encoder.decomp_v` 0 fails the same way.
+* The decoder fails a session whose stream doesn't match the output format in sampling, bit
+  depth or resolution.
+* With `lossless`, 8-bit frames can exceed the raw frame size: a receiver must set
+  `max_codestream_size` to the worst case, the default (raw frame size) drops such frames.
+
+## 5. Notes
 
 If you get below similar message when runing the RxTxApp, it's likely a ld library path problem.
 
