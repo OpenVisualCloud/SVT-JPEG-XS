@@ -13,6 +13,8 @@
 #include <SvtJpegxs.h>
 #include <mtl/st_pipeline_api.h>
 
+#include "st22_svt_jpeg_xs_config.h"
+
 #define MAX_ST22_ENCODER_SESSIONS (8)
 #define MAX_ST22_DECODER_SESSIONS (8)
 /* consecutive frames the decoder may fail to init on before the session gives up */
@@ -94,11 +96,13 @@ struct st22_svt_jpeg_xs_ctx {
   st22_decoder_dev_handle decoder_dev_handle;
   struct st22_encoder_session* encoder_sessions[MAX_ST22_ENCODER_SESSIONS];
   struct st22_decoder_session* decoder_sessions[MAX_ST22_DECODER_SESSIONS];
+  struct st22_svt_jpeg_xs_config cfg;
 };
 
-/* the APIs for plugin */
-int st_plugin_get_meta(struct st_plugin_meta* meta);
-st_plugin_priv st_plugin_create(mtl_handle st);
-int st_plugin_free(st_plugin_priv handle);
+/* the APIs for plugin, looked up by MTL with dlsym */
+#define ST_PLUGIN_API __attribute__((visibility("default")))
+ST_PLUGIN_API int st_plugin_get_meta(struct st_plugin_meta* meta);
+ST_PLUGIN_API st_plugin_priv st_plugin_create(mtl_handle st);
+ST_PLUGIN_API int st_plugin_free(st_plugin_priv handle);
 
 #endif

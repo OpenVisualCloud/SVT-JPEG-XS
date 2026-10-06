@@ -1,0 +1,115 @@
+// SVT-JPEG-XS MTL plugin configuration.
+//
+// Loaded once at plugin start from the path in the SVT_JXS_MTL_PLUGIN_CONFIG
+// environment variable. Without the variable the plugin runs with built-in
+// defaults. Comments (// and /* */) are allowed.
+//
+// All keys are optional. A missing key keeps the built-in default, or the value
+// set by MTL's quality mode (SPEED/QUALITY) where noted. Settings apply to every
+// encoder/decoder session of the process.
+// An unknown key, an invalid value, or a key the installed SVT-JPEG-XS library
+// does not support makes plugin start fail.
+// Invalid combinations (e.g. rct with 4:2:2 input) are rejected by the library
+// when a session is created; only that session fails.
+//
+// Option names follow SvtJpegxsEncApp / SvtJpegxsDecApp; values tuned with the
+// apps can be copied. Choice values also accept the apps' numbers, e.g.
+// "quantization": 1.
+//
+// The values below are the defaults. Keys preset by MTL's quality mode are
+// commented out: setting them here overrides the preset.
+{
+  // Log threshold for plugin messages: "error", "warning", "info" or "debug".
+  // Also sets the SVT-JPEG-XS library verbosity: "error" = errors only,
+  // "warning" and "info" = library default (errors and system info),
+  // "debug" = also library warnings and multithreading info; the decoder then
+  // logs a warning per slice, which costs performance.
+  // When absent, the library keeps its own verbosity.
+  "log_level": "info",
+  "encoder": {
+    // --- Threading, performance ---
+    // Thread scaling (SvtJpegxsEncApp --lp). Higher = more threads, lower
+    // latency / higher fps.
+    // 0 = plugin rule: 10 for width >= 3840, 5 for width >= 1920, otherwise
+    // MTL's codec_thread_cnt.
+    "lp": 0,
+    // Limit SIMD instruction set: "c", "mmx", "sse", "sse2", "sse3", "ssse3",
+    // "sse4_1", "sse4_2", "avx", "avx2", "avx512" or "max" (all the CPU
+    // supports).
+    "asm": "max",
+    // CPU use profile: "latency" (low latency) or "cpu" (low CPU use).
+    // rct requires "latency".
+    "cpu_profile": "latency",
+    // --- Coding tools (quality / speed trade-off) ---
+    // Vertical wavelet decomposition levels: 0, 1 or 2.
+    // Default 2; MTL quality mode SPEED sets 0.
+    // "decomp_v": 2,
+    // Horizontal wavelet decomposition levels: 1-5, must be >= decomp_v.
+    "decomp_h": 5,
+    // Quantization: "deadzone" (0) or "uniform" (1).
+    // Default deadzone; MTL quality mode QUALITY sets uniform.
+    // "quantization": "deadzone",
+    // Slice height in lines. Default 16; MTL quality mode QUALITY sets 64.
+    // "slice_height": 16,
+    // Sign handling: "disable" (0), "fast" (1) or "full" (2).
+    "coding_signs": "disable",
+    // Significance coding.
+    "coding_sigf": true,
+    // Vertical prediction: "disable" (0), "zero_residuals" (1) or
+    // "zero_coefficients" (2).
+    "coding_vpred": "disable",
+    // Rate control, all CBR:
+    //   "precinct"          (0) budget per precinct
+    //   "precinct_padding"  (1) budget per precinct, padding moved (default)
+    //   "slice"             (2) budget per slice
+    //   "slice_max_rate"    (3) budget per slice, max slice size RATE
+    // Ignored when lossless is true.
+    "rc": "precinct_padding",
+    // --- Stream features / interoperability ---
+    // True lossless coding (Fq=0). Frame size depends on the content instead
+    // of MTL's codestream_size; the plugin sizes the output buffers for the
+    // worst case, so MTL reserves near-uncompressed bandwidth for the session;
+    // receivers must set max_codestream_size to that worst case too or drop
+    // the larger frames. rc and quantization are ignored. Not allowed with
+    // MSB-aligned input. Set coding_raw to false for strict MLS.12 conformance.
+    "lossless": false,
+    // Packet-based raw-mode coding. false = picture header Rl=0 and the
+    // raw-mode capability bit cleared. Must be false for MLS.12.
+    "coding_raw": true,
+    // Legacy CAP marker compatibility: write an empty CAP marker when no
+    // capability bit is needed, for strict third-party decoders that reject a
+    // non-empty one. A full CAP is still written when required (e.g. 4:2:0).
+    "cap_compat": false,
+    // Reversible colour transform (RCT, Cpih=1). Only for 4:4:4 / RGB planar
+    // input with cpu_profile "latency".
+    "rct": false,
+    // Profile (Ppih) declared in the picture header.
+    //   "auto" = derived from the input format (Main 420.12 / 422.10 / 444.12 /
+    //            4444.12; MLS.12 when lossless).
+    //   Names: "light422", "light444", "lightsubline422", "main420", "main422",
+    //          "main444", "main4444", "high420", "high444", "high4444".
+    //   Or a raw Ppih value as hex/decimal string, e.g. "0x6EC0" (MLS.12).
+    // Override only when encoder settings and receivers meet the profile; the
+    // encoder does not check it.
+    "stream_profile": "auto",
+    // Level (Plev) declared in the picture header.
+    //   "auto" = tightest level/sublevel bounding resolution and bitrate.
+    //   Names (sublevel unrestricted): "unrestricted", "1k-1", "2k-1", "4k-1",
+    //          "4k-2", "4k-3", "5k-1", "8k-1", "8k-2", "8k-3", "10k-1".
+    //   Or a raw Plev value = level + sublevel as hex/decimal string:
+    //     level:    unrestricted 0x0000, 1k-1 0x0400, 2k-1 0x1000,
+    //               4k-1 0x2000, 4k-2 0x2400, 4k-3 0x2800, 5k-1 0x2C00,
+    //               8k-1 0x3000, 8k-2 0x3400, 8k-3 0x3800, 10k-1 0x4000
+    //     sublevel: unrestricted 0x00, 12bpp 0x10, 9bpp 0x0C, 6bpp 0x08,
+    //               4bpp 0x06, 3bpp 0x04, 2bpp 0x03
+    //   e.g. "0x2004" = 4k-1 at 3 bpp.
+    "stream_level": "auto"
+  },
+  "decoder": {
+    // Thread scaling (SvtJpegxsDecApp --lp); 0 = same plugin rule as
+    // encoder.lp.
+    "lp": 0,
+    // Limit SIMD instruction set; same values as encoder.asm.
+    "asm": "max"
+  }
+}

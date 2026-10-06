@@ -13,8 +13,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../include/log.h"
-#include "../include/plugin_platform.h"
+#include "log.h"
+#include "plugin_platform.h"
 
 static void wait_pending(pthread_mutex_t* mutex, pthread_cond_t* cond,
                          volatile bool* pending, volatile bool* stop) {
@@ -191,7 +191,8 @@ static void* encode_thread_get(void* arg) {
 }
 
 static int encoder_init_session(struct st22_encoder_session* session,
-                                struct st22_encoder_create_req* req) {
+                                struct st22_encoder_create_req* req,
+                                const struct st22_svt_jpeg_xs_config* cfg) {
   int idx = session->idx;
 
   st_pthread_mutex_init(&session->wake_mutex_send, NULL);
@@ -257,6 +258,13 @@ static int encoder_init_session(struct st22_encoder_session* session,
     return -EIO;
   }
 
+  /* config file keys override the quality mode presets above */
+  if (st22_config_apply_encoder(cfg, session->codec_ctx) < 0) {
+    err("%s(%d), apply config fail\n", __func__, idx);
+    encoder_uinit_session(session);
+    return -EINVAL;
+  }
+
   if (req->codestream_size > UINT32_MAX / 8) {
     err("%s(%d), codestream_size %zu too large for bpp calculation\n", __func__, idx,
         req->codestream_size);
@@ -265,6 +273,27 @@ static int encoder_init_session(struct st22_encoder_session* session,
   }
   session->codec_ctx->bpp_numerator = (uint32_t)(req->codestream_size * 8);
   session->codec_ctx->bpp_denominator = req->width * req->height;
+
+#ifdef HAVE_ENC_LOSSLESS_ENABLE
+  if (session->codec_ctx->lossless_enable) {
+    /* lossless frame size depends on the content, size the output buffers for the worst case */
+    svt_jpeg_xs_image_config_t image_config;
+    uint32_t bytes_per_frame = 0;
+    ret = svt_jpeg_xs_encoder_get_image_config(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR,
+                                               session->codec_ctx, &image_config,
+                                               &bytes_per_frame);
+    if (ret != SvtJxsErrorNone) {
+      err("%s(%d), svt_jpeg_xs_encoder_get_image_config err = %d\n", __func__, idx, ret);
+      encoder_uinit_session(session);
+      return -EIO;
+    }
+    if (bytes_per_frame > req->max_codestream_size) {
+      req->max_codestream_size = bytes_per_frame;
+      session->req.max_codestream_size = bytes_per_frame;
+    }
+    info("%s(%d), lossless, worst case codestream size %u\n", __func__, idx, bytes_per_frame);
+  }
+#endif
 
   session->codec_ctx->callback_send_data_available = NULL;
   session->codec_ctx->callback_send_data_available_context = NULL;
@@ -310,7 +339,7 @@ static st22_encode_priv encoder_create_session(void* priv, st22p_encode_session 
     session->idx = i;
     session->session_p = session_p;
 
-    ret = encoder_init_session(session, req);
+    ret = encoder_init_session(session, req, &ctx->cfg);
     if (ret < 0) {
       err("%s(%d), init session fail %d\n", __func__, i, ret);
       free(session);
@@ -551,7 +580,8 @@ static void* decode_thread_get(void* arg) {
 }
 
 static int decoder_init_session(struct st22_decoder_session* session,
-                                struct st22_decoder_create_req* req) {
+                                struct st22_decoder_create_req* req,
+                                const struct st22_svt_jpeg_xs_config* cfg) {
   int idx = session->idx;
   int ret;
 
@@ -580,6 +610,12 @@ static int decoder_init_session(struct st22_decoder_session* session,
   session->codec_ctx->callback_get_data_available = callback_jpeg_xs_decoder_frame_ready;
   session->codec_ctx->callback_get_data_available_context = (void *)session;
   session->codec_ctx->threads_num = codec_threads_num(req->width, req->codec_thread_cnt);
+
+  if (st22_config_apply_decoder(cfg, session->codec_ctx) < 0) {
+    err("%s(%d), apply config fail\n", __func__, idx);
+    decoder_uinit_session(session);
+    return -EINVAL;
+  }
 
   if (req->input_fmt != ST_FRAME_FMT_JPEGXS_CODESTREAM) {
     err("%s(%d), unexpected input format\n", __func__, idx);
@@ -625,7 +661,7 @@ static st22_decode_priv decoder_create_session(void* priv, st22p_decode_session 
     session->idx = i;
     session->session_p = session_p;
 
-    ret = decoder_init_session(session, req);
+    ret = decoder_init_session(session, req, &ctx->cfg);
     if (ret < 0) {
       err("%s(%d), init session fail %d\n", __func__, i, ret);
       free(session);
@@ -671,6 +707,12 @@ st_plugin_priv st_plugin_create(mtl_handle st) {
   if (!ctx) return NULL;
   memset(ctx, 0, sizeof(*ctx));
 
+  if (st22_config_load(&ctx->cfg) < 0) {
+    err("%s, config load fail\n", __func__);
+    free(ctx);
+    return NULL;
+  }
+
   struct st22_decoder_dev d_dev;
   memset(&d_dev, 0, sizeof(d_dev));
   d_dev.name = "st22_svt_jpeg_xs_plugin_decoder";
@@ -684,6 +726,7 @@ st_plugin_priv st_plugin_create(mtl_handle st) {
   ctx->decoder_dev_handle = st22_decoder_register(st, &d_dev);
   if (!ctx->decoder_dev_handle) {
     info("%s, decoder register fail\n", __func__);
+    st22_config_free(&ctx->cfg);
     free(ctx);
     return NULL;
   }
@@ -702,6 +745,7 @@ st_plugin_priv st_plugin_create(mtl_handle st) {
   if (!ctx->encoder_dev_handle) {
     info("%s, encoder register fail\n", __func__);
     st22_decoder_unregister(ctx->decoder_dev_handle);
+    st22_config_free(&ctx->cfg);
     free(ctx);
     return NULL;
   }
@@ -733,6 +777,7 @@ int st_plugin_free(st_plugin_priv handle) {
     st22_encoder_unregister(ctx->encoder_dev_handle);
     ctx->encoder_dev_handle = NULL;
   }
+  st22_config_free(&ctx->cfg);
   free(ctx);
 
   info("%s, succ with st22 svt jpeg xs plugin\n", __func__);
