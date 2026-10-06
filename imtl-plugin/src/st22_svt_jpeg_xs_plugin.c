@@ -55,6 +55,68 @@ static uint32_t codec_threads_num(uint32_t width, uint32_t codec_thread_cnt) {
   return codec_thread_cnt;
 }
 
+/* the same list for encoder input and decoder output */
+#define PLUGIN_FMT(f, cf, depth) .fmt = (f), .colour_format = (cf), .bit_depth = (depth)
+static const struct st22_svt_jpeg_xs_fmt plugin_fmts[] = {
+    {PLUGIN_FMT(ST_FRAME_FMT_YUV422PLANAR10LE, COLOUR_FORMAT_PLANAR_YUV422, 10)},
+    {PLUGIN_FMT(ST_FRAME_FMT_YUV422PLANAR8, COLOUR_FORMAT_PLANAR_YUV422, 8)},
+    {PLUGIN_FMT(ST_FRAME_FMT_YUV422PLANAR12LE, COLOUR_FORMAT_PLANAR_YUV422, 12)},
+    {PLUGIN_FMT(ST_FRAME_FMT_YUV420PLANAR8, COLOUR_FORMAT_PLANAR_YUV420, 8)},
+    {PLUGIN_FMT(ST_FRAME_FMT_YUV444PLANAR10LE, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 10)},
+    {PLUGIN_FMT(ST_FRAME_FMT_YUV444PLANAR12LE, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12)},
+    {PLUGIN_FMT(ST_FRAME_FMT_GBRPLANAR10LE, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 10), .gbr = true},
+    {PLUGIN_FMT(ST_FRAME_FMT_GBRPLANAR12LE, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12), .gbr = true},
+#if defined(HAVE_ENC_INPUT_BIT_DEPTH_MSB_ALIGNED) && defined(HAVE_DEC_OUTPUT_BIT_DEPTH_MSB_ALIGNED)
+    /* MTL: 10-bit with 6-bit padding in the least significant bits */
+    {PLUGIN_FMT(ST_FRAME_FMT_YUV422PLANAR16LE, COLOUR_FORMAT_PLANAR_YUV422, 10),
+     .msb_aligned = true},
+#endif
+};
+#undef PLUGIN_FMT
+
+static const struct st22_svt_jpeg_xs_fmt* plugin_fmt_find(enum st_frame_fmt fmt) {
+  for (size_t i = 0; i < sizeof(plugin_fmts) / sizeof(plugin_fmts[0]); i++)
+    if (plugin_fmts[i].fmt == fmt) return &plugin_fmts[i];
+  return NULL;
+}
+
+static uint64_t plugin_fmt_caps(void) {
+  uint64_t caps = 0;
+  for (size_t i = 0; i < sizeof(plugin_fmts) / sizeof(plugin_fmts[0]); i++)
+    caps |= MTL_BIT64(plugin_fmts[i].fmt);
+  return caps;
+}
+
+/* MTL frame plane holding codec component comp: GBR planes are G, B, R, the codec
+ * (and its RCT) takes R, G, B */
+static uint8_t plugin_fmt_plane(const struct st22_svt_jpeg_xs_fmt* f, uint8_t comp) {
+  return f->gbr ? (uint8_t)((comp + 2) % 3) : comp;
+}
+
+/* point the codec image at the MTL frame planes, without copying; -EINVAL if the codec
+ * can't address the frame's line layout */
+static int plugin_fmt_image(const struct st22_svt_jpeg_xs_fmt* f, struct st_frame* frame,
+                            svt_jpeg_xs_image_buffer_t* image) {
+  uint8_t planes = st_frame_fmt_planes(frame->fmt);
+  for (uint8_t comp = 0; comp < planes; comp++) {
+    uint8_t plane = plugin_fmt_plane(f, comp);
+    image->data_yuv[comp] = frame->addr[plane];
+    /* the codec takes the stride in samples, 16-bit words above 8 bits */
+    image->stride[comp] = frame->linesize[plane];
+    if (f->bit_depth > 8) image->stride[comp] /= 2;
+    if (f->colour_format == COLOUR_FORMAT_PLANAR_YUV420 && comp > 0) {
+      /* MTL lays a 4:2:0 chroma plane out as height lines of width / 4 bytes, so one chroma
+       * row (width / 2 samples) spans two MTL lines. That is one codec row only without line
+       * padding, which user (ext) frames may have. */
+      if (frame->linesize[plane] != st_frame_least_linesize(frame->fmt, frame->width, plane))
+        return -EINVAL;
+      image->stride[comp] *= 2;
+    }
+    image->alloc_size[comp] = st_frame_plane_size(frame, plane);
+  }
+  return 0;
+}
+
 static int encoder_uinit_session(struct st22_encoder_session* session) {
   int idx = session->idx;
 
@@ -100,18 +162,12 @@ static void* encode_thread_send(void* arg) {
     }
 
     svt_jpeg_xs_frame_t enc_input;
-    uint8_t planes = st_frame_fmt_planes(frame->src->fmt);
-    for (uint8_t plane = 0; plane < planes; plane++) {
-      enc_input.image.data_yuv[plane] = frame->src->addr[plane];
-
-      // svt-jpegxs require stride in pixel's not in bytes, this means that for 10 bit-depth stride is half the linesize
-      enc_input.image.stride[plane] = frame->src->linesize[plane];
-      if (s->codec_ctx->input_bit_depth == 10) {
-        enc_input.image.stride[plane] /=2;
-      }
-
-      size_t plane_sz = st_frame_plane_size(frame->src, plane);
-      enc_input.image.alloc_size[plane] = plane_sz;
+    if (plugin_fmt_image(s->fmt, frame->src, &enc_input.image) < 0) {
+      if (err_log_due(&s->layout_err_cnt))
+        err("%s(%d), %s frame with padded chroma lines is not supported, frames failed %d\n",
+            __func__, s->idx, st_frame_fmt_name(frame->src->fmt), s->layout_err_cnt);
+      st22_encoder_put_frame(session_p, frame, -EIO);
+      continue;
     }
 
     enc_input.bitstream.buffer = frame->dst->addr[0];
@@ -225,19 +281,17 @@ static int encoder_init_session(struct st22_encoder_session* session,
   session->codec_ctx->use_cpu_flags = CPU_FLAGS_ALL;
   session->codec_ctx->threads_num = codec_threads_num(req->width, req->codec_thread_cnt);
 
-  if (req->input_fmt == ST_FRAME_FMT_YUV422PLANAR10LE) {
-    session->codec_ctx->input_bit_depth = 10;
-    session->codec_ctx->colour_format = COLOUR_FORMAT_PLANAR_YUV422;
-  }
-  else if (req->input_fmt == ST_FRAME_FMT_YUV422PLANAR8) {
-    session->codec_ctx->input_bit_depth = 8;
-    session->codec_ctx->colour_format = COLOUR_FORMAT_PLANAR_YUV422;
-  } else {
-  //TODO: add YUV420 support
-    err("%s(%d), unsupported colour format %u\n", __func__, idx, req->input_fmt);
+  session->fmt = plugin_fmt_find(req->input_fmt);
+  if (!session->fmt) {
+    err("%s(%d), unsupported input format %s\n", __func__, idx, st_frame_fmt_name(req->input_fmt));
     encoder_uinit_session(session);
     return -EIO;
   }
+  session->codec_ctx->input_bit_depth = session->fmt->bit_depth;
+  session->codec_ctx->colour_format = session->fmt->colour_format;
+#ifdef HAVE_ENC_INPUT_BIT_DEPTH_MSB_ALIGNED
+  session->codec_ctx->input_bit_depth_msb_aligned = session->fmt->msb_aligned;
+#endif
 
   if (req->output_fmt != ST_FRAME_FMT_JPEGXS_CODESTREAM) {
     err("%s(%d), unexpected output format\n", __func__, idx);
@@ -261,6 +315,15 @@ static int encoder_init_session(struct st22_encoder_session* session,
   /* config file keys override the quality mode presets above */
   if (st22_config_apply_encoder(cfg, session->codec_ctx) < 0) {
     err("%s(%d), apply config fail\n", __func__, idx);
+    encoder_uinit_session(session);
+    return -EINVAL;
+  }
+
+  if (session->fmt->colour_format == COLOUR_FORMAT_PLANAR_YUV420 &&
+      session->codec_ctx->ndecomp_v == 0) {
+    err("%s(%d), %s needs decomp_v 1 or 2, got 0 from quality mode SPEED or encoder.decomp_v "
+        "in the config file\n",
+        __func__, idx, st_frame_fmt_name(req->input_fmt));
     encoder_uinit_session(session);
     return -EINVAL;
   }
@@ -461,11 +524,9 @@ static void* decode_thread_send(void* arg) {
         if (s->init_fail_cnt == 0)
           err("%s(%d), svt_jpeg_xs_decoder_init err = %d\n", __func__, s->idx, ret);
       } else {
-        bool depth_ok = (s->req.output_fmt == ST_FRAME_FMT_YUV422PLANAR10LE &&
-                         s->image_config.bit_depth == 10) ||
-                        (s->req.output_fmt == ST_FRAME_FMT_YUV422PLANAR8 &&
-                         s->image_config.bit_depth == 8);
-        stream_ok = depth_ok && s->image_config.format == COLOUR_FORMAT_PLANAR_YUV422 &&
+        /* a 4:4:4 stream doesn't say YUV or RGB, it decodes into either output */
+        stream_ok = s->image_config.bit_depth == s->fmt->bit_depth &&
+                    s->image_config.format == s->fmt->colour_format &&
                     s->image_config.width == s->req.width &&
                     s->image_config.height == s->req.height;
         if (!stream_ok && s->init_fail_cnt == 0)
@@ -495,15 +556,12 @@ static void* decode_thread_send(void* arg) {
     dec_input.bitstream.allocation_size = frame->src->buffer_size;
     dec_input.bitstream.used_size = frame->src->data_size;
 
-    uint8_t planes = st_frame_fmt_planes(frame->dst->fmt);
-    for (uint8_t plane = 0; plane < planes; plane++) {
-      dec_input.image.data_yuv[plane] = frame->dst->addr[plane];
-      dec_input.image.stride[plane] = frame->dst->linesize[plane];
-      if (s->image_config.bit_depth > 8) {
-        dec_input.image.stride[plane] /= 2;
-      }
-      size_t plane_sz = st_frame_plane_size(frame->dst, plane);
-      dec_input.image.alloc_size[plane] = plane_sz;
+    if (plugin_fmt_image(s->fmt, frame->dst, &dec_input.image) < 0) {
+      if (err_log_due(&s->layout_err_cnt))
+        err("%s(%d), %s frame with padded chroma lines is not supported, frames failed %d\n",
+            __func__, s->idx, st_frame_fmt_name(frame->dst->fmt), s->layout_err_cnt);
+      st22_decoder_put_frame(session_p, frame, -EIO);
+      continue;
     }
     dec_input.user_prv_ctx_ptr = frame;
 
@@ -623,12 +681,16 @@ static int decoder_init_session(struct st22_decoder_session* session,
     return -EIO;
   }
 
-  if (req->output_fmt != ST_FRAME_FMT_YUV422PLANAR10LE &&
-      req->output_fmt != ST_FRAME_FMT_YUV422PLANAR8) {
-    err("%s(%d), unexpected output format\n", __func__, idx);
+  session->fmt = plugin_fmt_find(req->output_fmt);
+  if (!session->fmt) {
+    err("%s(%d), unsupported output format %s\n", __func__, idx,
+        st_frame_fmt_name(req->output_fmt));
     decoder_uinit_session(session);
     return -EIO;
   }
+#ifdef HAVE_DEC_OUTPUT_BIT_DEPTH_MSB_ALIGNED
+  session->codec_ctx->output_bit_depth_msb_aligned = session->fmt->msb_aligned;
+#endif
 
   ret = pthread_create(&session->decode_thread_send, NULL, decode_thread_send, session);
   if (ret != 0) {
@@ -719,7 +781,7 @@ st_plugin_priv st_plugin_create(mtl_handle st) {
   d_dev.priv = ctx;
   d_dev.target_device = ST_PLUGIN_DEVICE_CPU;
   d_dev.input_fmt_caps = ST_FMT_CAP_JPEGXS_CODESTREAM;
-  d_dev.output_fmt_caps = ST_FMT_CAP_YUV422PLANAR10LE | ST_FMT_CAP_YUV422PLANAR8;
+  d_dev.output_fmt_caps = plugin_fmt_caps();
   d_dev.create_session = decoder_create_session;
   d_dev.free_session = decoder_free_session;
   d_dev.notify_frame_available = decoder_frame_available;
@@ -736,7 +798,7 @@ st_plugin_priv st_plugin_create(mtl_handle st) {
   e_dev.name = "st22_svt_jpeg_xs_plugin_encoder";
   e_dev.priv = ctx;
   e_dev.target_device = ST_PLUGIN_DEVICE_CPU;
-  e_dev.input_fmt_caps = ST_FMT_CAP_YUV422PLANAR10LE | ST_FMT_CAP_YUV422PLANAR8;
+  e_dev.input_fmt_caps = plugin_fmt_caps();
   e_dev.output_fmt_caps = ST_FMT_CAP_JPEGXS_CODESTREAM;
   e_dev.create_session = encoder_create_session;
   e_dev.free_session = encoder_free_session;

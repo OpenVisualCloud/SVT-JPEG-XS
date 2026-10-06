@@ -31,12 +31,18 @@ plugins_c_args = []
 # probe the installed headers for them; config keys for missing ones are
 # rejected at plugin start
 foreach member : ['lossless_enable', 'coding_raw_disable', 'cap_compat',
-                  'enable_color_transform', 'profile_ppih_override', 'level_plev_override']
+                  'enable_color_transform', 'profile_ppih_override', 'level_plev_override',
+                  'input_bit_depth_msb_aligned']
   if cc.has_member('svt_jpeg_xs_encoder_api_t', member, prefix : '#include <SvtJpegxsEnc.h>',
                    dependencies : jpegxs_dep)
     plugins_c_args += ['-DHAVE_ENC_' + member.to_upper()]
   endif
 endforeach
+# YUV422PLANAR16LE (MSB-aligned) needs both the encoder and the decoder field
+if cc.has_member('svt_jpeg_xs_decoder_api_t', 'output_bit_depth_msb_aligned',
+                 prefix : '#include <SvtJpegxsDec.h>', dependencies : jpegxs_dep)
+  plugins_c_args += ['-DHAVE_DEC_OUTPUT_BIT_DEPTH_MSB_ALIGNED']
+endif
 #enable warning as error
 plugins_c_args += ['-Werror']
 plugins_c_args += ['-Wall']
