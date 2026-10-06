@@ -432,7 +432,7 @@ ConfigEntry config_entry[] = {
     {CODING_OPTIONS, CODING_SIGNS_TOKEN,    "Enable Signs handling strategy (full:2, fast:1, disable:0, default:0)", 0, 1, coding_signs_handling},
     {CODING_OPTIONS, CODING_SIGF_TOKEN,     "Enable Significance coding (enabled:1, disable:0, default:1)", 0, 1, set_coding_significance},
     {CODING_OPTIONS, CODING_PRED_TOKEN,     "Enable Vertical Prediction coding (disable:0, zero prediction residuals:1, zero coefficients:2, default: 0)", 0, 1, set_coding_vpred},
-    {CODING_OPTIONS, CODING_RATE_CONTROL,   "Rate Control mode (CBR: budget per precinct: 0, CBR: budget per precinct with padding movement: 1, CBR: budget per slice: 2, CBR: budget per slice with max size RATE: 3, default 0)", 0, 1, set_rate_control_mode},
+    {CODING_OPTIONS, CODING_RATE_CONTROL,   "Rate Control mode (CBR: budget per precinct: 0, CBR: budget per precinct with padding movement: 1, CBR: budget per slice: 2, CBR: budget per slice with max size RATE: 3, default 1)", 0, 1, set_rate_control_mode},
     {CODING_OPTIONS, CODING_RAW_TOKEN,      "Packet-based raw-mode coding (enabled:1, disabled:0, default:1). Disabling clears the raw-mode capability bit and never selects raw packet packing.", 0, 1, set_coding_raw},
     {CODING_OPTIONS, CAP_COMPAT_TOKEN,      "Legacy decoder CAP-marker compatibility (full CAP:0, empty CAP when no capability bit set:1, default:0)", 0, 1, set_cap_compat},
     {CODING_OPTIONS, COLOR_TRANSFORM_TOKEN, "Encoder-side reversible colour transform (RCT, Cpih=1) for 3-component unsubsampled planar input (enabled:1, disabled:0, default:0). Requires --colour-format rgb or yuv444, and --profile latency.", 0, 1, set_color_transform},
