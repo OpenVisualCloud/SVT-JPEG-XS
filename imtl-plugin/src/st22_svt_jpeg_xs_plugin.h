@@ -22,11 +22,23 @@
 /* per-frame codec errors are logged once every this many occurrences */
 #define ERR_LOG_INTERVAL (60)
 
+/* an MTL frame format the plugin encodes from and decodes to */
+struct st22_svt_jpeg_xs_fmt {
+  enum st_frame_fmt fmt;
+  ColourFormat_t colour_format;
+  uint8_t bit_depth;
+  /* samples in the high bits of 16-bit words, low bits zero */
+  bool msb_aligned;
+  /* planes stored G, B, R; the codec gets them as components R, G, B */
+  bool gbr;
+};
+
 struct st22_encoder_session {
   int idx;
 
   struct st22_encoder_create_req req;
   st22p_encode_session session_p;
+  const struct st22_svt_jpeg_xs_fmt* fmt;
 
   volatile bool   stop_send;
   volatile bool   pending_send;
@@ -47,6 +59,8 @@ struct st22_encoder_session {
   int frame_cnt;
   int frame_idx;
   int get_err_cnt;
+  /* frames failed because the codec can't address their line layout */
+  int layout_err_cnt;
 
   svt_jpeg_xs_encoder_api_t* codec_ctx;
 };
@@ -56,6 +70,7 @@ struct st22_decoder_session {
 
   struct st22_decoder_create_req req;
   st22p_decode_session session_p;
+  const struct st22_svt_jpeg_xs_fmt* fmt;
 
   volatile bool   stop_send;
   volatile bool   pending_send;
@@ -86,6 +101,8 @@ struct st22_decoder_session {
   int frame_cnt;
   int frame_idx;
   int get_err_cnt;
+  /* frames failed because the codec can't address their line layout */
+  int layout_err_cnt;
 
   svt_jpeg_xs_decoder_api_t* codec_ctx;
   svt_jpeg_xs_image_config_t image_config;
