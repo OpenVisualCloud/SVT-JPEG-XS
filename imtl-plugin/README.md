@@ -126,8 +126,13 @@ The encoder takes and the decoder outputs these MTL pipeline formats:
 * 4:2:0 needs `decomp_v` 1 or 2. The MTL quality mode SPEED sets `decomp_v` 0, so a
   `YUV420PLANAR8` session in SPEED mode fails at session create unless the config file sets
   `encoder.decomp_v` 1 or 2; `encoder.decomp_v` 0 fails the same way.
+* Interlaced sessions are coded one field at a time, as MTL hands them over: each field is its own
+  codestream of half the frame height, and the MTL codestream size applies per field. MTL halves an
+  interlaced receiver's codestream buffer once more, to half the raw field size by default, so
+  fields above that (e.g. with `lossless`) are dropped unless the receiver sets
+  `max_codestream_size` to twice the size it needs.
 * The decoder fails a session whose stream doesn't match the output format in sampling, bit
-  depth or resolution.
+  depth or resolution (the field height for interlaced sessions).
 * With `lossless`, 8-bit frames can exceed the raw frame size: a receiver must set
   `max_codestream_size` to the worst case, the default (raw frame size) drops such frames.
 

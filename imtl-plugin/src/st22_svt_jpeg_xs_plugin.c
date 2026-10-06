@@ -277,7 +277,9 @@ static int encoder_init_session(struct st22_encoder_session* session,
   }
 
   session->codec_ctx->source_width = req->width;
-  session->codec_ctx->source_height = req->height;
+  /* interlaced video is coded one field at a time: MTL hands over each field as its own frame,
+   * with codestream_size per field; req->height is the frame height */
+  session->codec_ctx->source_height = req->interlaced ? req->height / 2 : req->height;
   session->codec_ctx->use_cpu_flags = CPU_FLAGS_ALL;
   session->codec_ctx->threads_num = codec_threads_num(req->width, req->codec_thread_cnt);
 
@@ -335,7 +337,7 @@ static int encoder_init_session(struct st22_encoder_session* session,
     return -EINVAL;
   }
   session->codec_ctx->bpp_numerator = (uint32_t)(req->codestream_size * 8);
-  session->codec_ctx->bpp_denominator = req->width * req->height;
+  session->codec_ctx->bpp_denominator = req->width * session->codec_ctx->source_height;
 
 #ifdef HAVE_ENC_LOSSLESS_ENABLE
   if (session->codec_ctx->lossless_enable) {
@@ -410,8 +412,9 @@ static st22_encode_priv encoder_create_session(void* priv, st22p_encode_session 
     }
 
     ctx->encoder_sessions[i] = session;
-    info("%s(%d), input fmt: %s, output fmt: %s\n", __func__, i,
-         st_frame_fmt_name(req->input_fmt), st_frame_fmt_name(req->output_fmt));
+    info("%s(%d), input fmt: %s, output fmt: %s, %ux%u%s\n", __func__, i,
+         st_frame_fmt_name(req->input_fmt), st_frame_fmt_name(req->output_fmt), req->width,
+         req->height, req->interlaced ? " interlaced, coded per field" : "");
     info("%s(%d), max_codestream_size %ld\n", __func__, i,
          session->req.max_codestream_size);
     return session;
@@ -524,16 +527,17 @@ static void* decode_thread_send(void* arg) {
         if (s->init_fail_cnt == 0)
           err("%s(%d), svt_jpeg_xs_decoder_init err = %d\n", __func__, s->idx, ret);
       } else {
+        /* an interlaced stream codes each field as its own picture */
+        const uint32_t height = s->req.interlaced ? s->req.height / 2 : s->req.height;
         /* a 4:4:4 stream doesn't say YUV or RGB, it decodes into either output */
         stream_ok = s->image_config.bit_depth == s->fmt->bit_depth &&
                     s->image_config.format == s->fmt->colour_format &&
-                    s->image_config.width == s->req.width &&
-                    s->image_config.height == s->req.height;
+                    s->image_config.width == s->req.width && s->image_config.height == height;
         if (!stream_ok && s->init_fail_cnt == 0)
-          err("%s(%d), stream mismatch: %ux%u bit_depth %u format %u, expect %ux%u %s\n",
+          err("%s(%d), stream mismatch: %ux%u bit_depth %u format %u, expect %ux%u%s %s\n",
               __func__, s->idx, s->image_config.width, s->image_config.height,
-              s->image_config.bit_depth, s->image_config.format, s->req.width,
-              s->req.height, st_frame_fmt_name(s->req.output_fmt));
+              s->image_config.bit_depth, s->image_config.format, s->req.width, height,
+              s->req.interlaced ? " field" : "", st_frame_fmt_name(s->req.output_fmt));
       }
 
       if (!stream_ok) {
@@ -731,8 +735,9 @@ static st22_decode_priv decoder_create_session(void* priv, st22p_decode_session 
     }
 
     ctx->decoder_sessions[i] = session;
-    info("%s(%d), input fmt: %s, output fmt: %s\n", __func__, i,
-         st_frame_fmt_name(req->input_fmt), st_frame_fmt_name(req->output_fmt));
+    info("%s(%d), input fmt: %s, output fmt: %s, %ux%u%s\n", __func__, i,
+         st_frame_fmt_name(req->input_fmt), st_frame_fmt_name(req->output_fmt), req->width,
+         req->height, req->interlaced ? " interlaced, coded per field" : "");
     return session;
   }
 
