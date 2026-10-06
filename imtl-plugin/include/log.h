@@ -21,28 +21,25 @@
 
 #include <stdio.h>
 
+/* log levels, set from the plugin config "log_level" */
+enum pl_log_level {
+  PL_LOG_ERROR = 0,
+  PL_LOG_WARNING,
+  PL_LOG_INFO,
+  PL_LOG_DEBUG,
+};
+
+extern int pl_log_level;
+
+#define pl_log(level, ...)                              \
+  do {                                                  \
+    if ((level) <= pl_log_level) printf(__VA_ARGS__);   \
+  } while (0)
+
 /* log define */
-#ifdef DEBUG
-#define dbg(...)         \
-  do {                   \
-    printf(__VA_ARGS__); \
-  } while (0)
-#else
-#define dbg(...) \
-  do {           \
-  } while (0)
-#endif
-#define info(...)        \
-  do {                   \
-    printf(__VA_ARGS__); \
-  } while (0)
-#define warn(...)        \
-  do {                   \
-    printf(__VA_ARGS__); \
-  } while (0)
-#define err(...)         \
-  do {                   \
-    printf(__VA_ARGS__); \
-  } while (0)
+#define dbg(...) pl_log(PL_LOG_DEBUG, __VA_ARGS__)
+#define info(...) pl_log(PL_LOG_INFO, __VA_ARGS__)
+#define warn(...) pl_log(PL_LOG_WARNING, __VA_ARGS__)
+#define err(...) pl_log(PL_LOG_ERROR, __VA_ARGS__)
 
 #endif
