@@ -96,13 +96,17 @@ static const struct name_value rc_names[] = {
     {"precinct", 0}, {"precinct_padding", 1}, {"slice", 2}, {"slice_max_rate", 3}, {NULL, 0},
 };
 
+/* only referenced by keys the installed library supports, unused tables fail -Werror */
+#ifdef HAVE_ENC_PROFILE_PPIH_OVERRIDE
 /* Ppih per ISO/IEC 21122-2 Annex A, same names as SvtJpegxsEncApp --stream-profile */
 static const struct name_value stream_profile_names[] = {
     {"auto", 0x0000},     {"light422", 0x1500}, {"light444", 0x1A00}, {"lightsubline422", 0x2500},
     {"main420", 0x3240},  {"main422", 0x3540},  {"main444", 0x3A40},  {"main4444", 0x3E40},
     {"high420", 0x4240},  {"high444", 0x4A40},  {"high4444", 0x4E40}, {NULL, 0},
 };
+#endif
 
+#ifdef HAVE_ENC_LEVEL_PLEV_OVERRIDE
 /* Plev level part (bits 15:10) with unrestricted sublevel, same names as
  * SvtJpegxsEncApp --stream-level; a raw value also selects the sublevel */
 static const struct name_value stream_level_names[] = {
@@ -112,6 +116,7 @@ static const struct name_value stream_level_names[] = {
     {"8k-2", 0x000D << 10},  {"8k-3", 0x000E << 10},   {"10k-1", 0x0010 << 10},
     {NULL, 0},
 };
+#endif
 
 static const struct key_desc log_level_key = {
     .name = "log_level", .kind = KEY_NAME, .names = log_level_names};
