@@ -17,6 +17,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#define log_file_lock(f) _lock_file(f)
+#define log_file_unlock(f) _unlock_file(f)
+#else
+#define log_file_lock(f) flockfile(f)
+#define log_file_unlock(f) funlockfile(f)
+#endif
+
 static const char *log_level_str(SvtLogLevel level) {
     switch (level) {
     case SVT_LOG_FATAL:
@@ -50,10 +58,13 @@ static void default_logger(void *context, SvtLogLevel level, const char *tag, co
     DefaultLogCtx *logger = (DefaultLogCtx *)context;
     if (level > logger->level)
         return;
+    // Hold the stream across prefix and message, so lines logged from several threads don't interleave
+    log_file_lock(logger->file);
     if (tag)
         fprintf(logger->file, "%s[%s]: ", tag, log_level_str(level));
     vfprintf(logger->file, fmt, args);
     fflush(logger->file);
+    log_file_unlock(logger->file);
 }
 
 static SvtLogger *g_logger;
