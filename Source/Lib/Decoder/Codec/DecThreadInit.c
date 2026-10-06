@@ -166,6 +166,8 @@ static void send_slices_tasks(svt_jpeg_xs_decoder_api_prv_t* dec_api_prv, TaskIn
         int32_t ret = get_slice_size(
             &dec_ctx->dec_common->pi, buffer_output->bitstream_buf, buffer_output->bitstream_buf_size, slice, &out_slice_size);
         if (!ret) {
+            //Limit the slice thread to this slice, as in packet mode, instead of the rest of the frame
+            buffer_output->bitstream_buf_size = out_slice_size;
             offset += out_slice_size;
             if (slice + 1 == pi->slice_num) {
                 if (offset + 1 < input_buffer_ptr->dec_input.bitstream.used_size) {
