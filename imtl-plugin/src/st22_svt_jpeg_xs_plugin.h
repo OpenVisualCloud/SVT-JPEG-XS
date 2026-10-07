@@ -91,8 +91,9 @@ struct st22_decoder_session {
   int             init_fail_cnt;
   /* set by the get thread when the codec reports a mid-stream format/
    * resolution change; the send thread re-inits the decoder on the next
-   * frame it sends, once all in-flight frames are drained. */
-  volatile bool   needs_reinit;
+   * frame it sends, once all in-flight frames are drained. Accessed only
+   * with __atomic builtins. */
+  bool            needs_reinit;
   /* frames handed to the codec and not yet returned by get_frame */
   volatile int    inflight;
   /* serializes get_frame against decoder close/init during re-init */
