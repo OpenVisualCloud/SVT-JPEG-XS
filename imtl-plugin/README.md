@@ -4,7 +4,7 @@
 
 ### 1.1 Build and install Intel Media Transport Library
 
-Please refer to https://github.com/OpenVisualCloud/Media-Transport-Library/blob/main/doc/build.md
+Requires Media Transport Library 26.09 or newer. Please refer to https://github.com/OpenVisualCloud/Media-Transport-Library/blob/main/doc/build.md
 
 ### 1.2 Build and install svt-jpeg-xs
 
