@@ -10,7 +10,8 @@ add_global_arguments('-DALLOW_EXPERIMENTAL_API', language : 'c')
 
 cc = meson.get_compiler('c')
 
-mtl_dep = dependency('mtl', required : true)
+# >= 26.09, the MTL release this plugin is tested with
+mtl_dep = dependency('mtl', required : true, version : '>=26.09')
 libpthread_dep = cc.find_library('pthread', required : true)
 # >= 0.10 for bpp_denominator and the image_config fields used to validate
 # the decoded stream format against the pipeline's requested output format.
