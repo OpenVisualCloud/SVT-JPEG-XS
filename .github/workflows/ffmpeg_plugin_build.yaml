@@ -440,7 +440,7 @@ jobs:
   ffmpeg-6-1-linux-tests:
       needs: [changes, ffmpeg-6-1-linux-build]
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -507,7 +507,7 @@ jobs:
   ffmpeg-7-0-linux-tests:
       needs: [changes, ffmpeg-7-0-linux-build]
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -574,7 +574,7 @@ jobs:
   ffmpeg-7-1-linux-tests:
       needs: [changes, ffmpeg-7-1-linux-build]
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -641,7 +641,7 @@ jobs:
   ffmpeg-8-0-linux-tests:
       needs: [changes, ffmpeg-8-0-linux-build]
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -708,7 +708,7 @@ jobs:
   ffmpeg-8-1-linux-tests:
       needs: [changes, ffmpeg-8-1-linux-build]
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -775,7 +775,7 @@ jobs:
   ffmpeg-9-0-linux-tests:
       needs: [changes, ffmpeg-9-0-linux-build]
       if: ${{ needs.changes.outputs.changed == 'true' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+      runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
       timeout-minutes: 120
       steps:
       - name: 'Harden Runner'
@@ -841,7 +841,7 @@ jobs:
 
   ffmpeg-9-0-performance-tests:
       needs: ffmpeg-9-0-linux-build
-      runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
+      runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
       timeout-minutes: 120
       steps:
         - name: 'Harden Runner'

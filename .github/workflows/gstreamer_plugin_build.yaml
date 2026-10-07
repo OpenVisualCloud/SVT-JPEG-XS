@@ -49,7 +49,7 @@ jobs:
   gstreamer-linux-build-test:
     needs: changes
     if: ${{ needs.changes.outputs.changed == 'true' }}
-    runs-on: ['self-hosted', 'linux', 'x64', 'docker', 'kubernetes', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 120
     outputs:
       artifact_name: ${{ env.GST_ARTIFACTS }}
@@ -152,7 +152,7 @@ jobs:
 
   gstreamer-performance-tests:
     needs: gstreamer-linux-build-test
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 120
     steps:
       - name: 'Harden Runner'

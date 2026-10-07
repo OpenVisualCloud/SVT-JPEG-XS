@@ -46,7 +46,7 @@ jobs:
   linux-build:
     needs: changes
     if: ${{ needs.changes.outputs.changed == 'true' }}
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     outputs:
       artifact_name: ${{ env.LINUX_ARTIFACTS }}
     steps:
@@ -89,7 +89,7 @@ jobs:
 
   linux-unit-tests-release:
     needs: linux-build
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
@@ -119,7 +119,7 @@ jobs:
 
   linux-unit-tests-debug:
     needs: linux-build
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
@@ -149,7 +149,7 @@ jobs:
 
   linux-unit-tests-valgrind:
     needs: linux-build
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
@@ -184,7 +184,7 @@ jobs:
 
   linux-conformance-tests:
     needs: linux-build
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 120
     steps:
     - name: 'Harden Runner'
@@ -253,7 +253,7 @@ jobs:
 
   performance-tests:
     needs: linux-build
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 120
     env:
       INPUT_FILES_PATH: /opt/samples

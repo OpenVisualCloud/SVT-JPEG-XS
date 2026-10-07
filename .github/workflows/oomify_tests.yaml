@@ -45,7 +45,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.changed == 'true' }}
     name: "OOMify: malloc failure injection"
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 60
     steps:
     - name: 'Harden Runner'
