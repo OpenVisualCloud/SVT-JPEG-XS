@@ -22,8 +22,9 @@
   // Log threshold for plugin messages: "error", "warning", "info" or "debug".
   // Also sets the SVT-JPEG-XS library verbosity: "error" = errors only,
   // "warning" and "info" = library default (errors and system info),
-  // "debug" = also library warnings and multithreading info; the decoder then
-  // logs a warning per slice, which costs performance.
+  // "debug" = also library warnings and multithreading info; SVT-JPEG-XS
+  // v0.9.0, and later builds without the decoder slice size fix, then log a
+  // false warning for every decoded slice, which costs performance.
   // When absent, the library keeps its own verbosity.
   "log_level": "info",
   "encoder": {

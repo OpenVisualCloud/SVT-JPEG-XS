@@ -446,6 +446,12 @@ static int encoder_frame_available(void* priv) {
   return 0;
 }
 
+/* decoder close also drops the library instance count of debug builds when nothing is open */
+static void decoder_close_if_open(svt_jpeg_xs_decoder_api_t* codec_ctx) {
+  if (codec_ctx->private_ptr)
+    svt_jpeg_xs_decoder_close(codec_ctx);
+}
+
 static int decoder_uinit_session(struct st22_decoder_session* session) {
   int idx = session->idx;
 
@@ -456,7 +462,7 @@ static int decoder_uinit_session(struct st22_decoder_session* session) {
               &session->wake_cond_get, &session->stop_get, &session->pending_get);
 
   if (session->codec_ctx) {
-    svt_jpeg_xs_decoder_close(session->codec_ctx);
+    decoder_close_if_open(session->codec_ctx);
     free(session->codec_ctx);
     session->codec_ctx = NULL;
   }
@@ -493,7 +499,7 @@ static void* decode_thread_send(void* arg) {
       continue;
     }
 
-    if (s->needs_reinit) {
+    if (__atomic_load_n(&s->needs_reinit, __ATOMIC_ACQUIRE)) {
       /* closing the decoder drops queued frames, let the get thread return them first */
       st_pthread_mutex_lock(&s->wake_mutex_send);
       while (__atomic_load_n(&s->inflight, __ATOMIC_ACQUIRE) > 0 && !s->stop_send)
@@ -505,7 +511,7 @@ static void* decode_thread_send(void* arg) {
       }
       decoder_initialized = 0;
       reinit = true;
-      s->needs_reinit = false;
+      __atomic_store_n(&s->needs_reinit, false, __ATOMIC_RELEASE);
     }
 
     if (!decoder_initialized) {
@@ -513,7 +519,7 @@ static void* decode_thread_send(void* arg) {
         info("%s(%d), svt-jpeg-xs %s decoder\n", __func__, s->idx,
              reinit ? "re-initialize" : "initialize");
       st_pthread_mutex_lock(&s->codec_mutex);
-      svt_jpeg_xs_decoder_close(s->codec_ctx); /* no-op if not initialized */
+      decoder_close_if_open(s->codec_ctx);
       ret = svt_jpeg_xs_decoder_init(SVT_JPEGXS_API_VER_MAJOR,
                                      SVT_JPEGXS_API_VER_MINOR,
                                      s->codec_ctx,
@@ -623,9 +629,8 @@ static void* decode_thread_get(void* arg) {
       s->frame_cnt++;
     } else {
       if (ret == SvtJxsErrorDecoderConfigChange) {
-        if (!s->needs_reinit)
+        if (!__atomic_exchange_n(&s->needs_reinit, true, __ATOMIC_ACQ_REL))
           warn("%s(%d), decoder config change, re-init on next frame\n", __func__, s->idx);
-        s->needs_reinit = true;
       } else if (err_log_due(&s->get_err_cnt)) {
         err("%s(%d), svt_jpeg_xs_decoder_get_frame err = %d, %d errors so far\n", __func__,
             s->idx, ret, s->get_err_cnt);
@@ -633,7 +638,8 @@ static void* decode_thread_get(void* arg) {
       st22_decoder_put_frame(session_p, frame, -EIO);
     }
 
-    if (__atomic_sub_fetch(&s->inflight, 1, __ATOMIC_ACQ_REL) == 0 && s->needs_reinit)
+    if (__atomic_sub_fetch(&s->inflight, 1, __ATOMIC_ACQ_REL) == 0 &&
+        __atomic_load_n(&s->needs_reinit, __ATOMIC_ACQUIRE))
       signal_pending(&s->wake_mutex_send, &s->wake_cond_send, &s->pending_send);
   }
   info("%s(%d), stop\n", __func__, s->idx);
