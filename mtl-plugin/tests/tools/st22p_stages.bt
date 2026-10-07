@@ -1,0 +1,272 @@
+/*
+ * Copyright(c) 2026 Intel Corporation
+ * SPDX - License - Identifier: BSD - 2 - Clause - Patent
+ *
+ * Time every stage of the MTL ST22 pipeline (st22p) with MTL's USDT probes, for all processes
+ * using the libmtl given as $1. TX and RX may be two processes: bpftrace's clock (nsecs) is the
+ * same for both, and a TX frame is matched to its RX frame by the RTP timestamp both sides see.
+ *
+ * A frame passes these probes, in this order (MTL function, lib/src/st2110/pipeline/):
+ *
+ *   TX  tx_frame_put        st22p_tx_put_frame()          app hands over a raw frame
+ *       tx_encode_get       tx_st22p_encode_get_frame()   plugin encoder takes it
+ *       tx_encode_put       tx_st22p_encode_put_frame()   plugin returns the codestream
+ *       tx_frame_next       tx_st22p_next_frame()         MTL transport takes the codestream
+ *       tx_frame_done       tx_st22p_frame_done()         transport freed the packet buffers
+ *   RX  rx_frame_available  rx_st22p_frame_ready()        transport has the whole codestream
+ *       rx_decode_get       rx_st22p_decode_get_frame()   plugin decoder takes it
+ *       rx_decode_put       rx_st22p_decode_put_frame()   plugin returns the decoded frame
+ *       rx_frame_get        st22p_rx_get_frame()          app gets the decoded frame
+ *
+ * The stages are the times between consecutive probes, each explained at its probe below:
+ *
+ *   tx_queue     tx_frame_put       -> tx_encode_get
+ *   tx_encode    tx_encode_get      -> tx_encode_put
+ *   tx_wait      tx_encode_put      -> tx_frame_next
+ *   tx_send      tx_frame_next      -> tx_frame_done
+ *   rx_receive   tx_frame_done      -> rx_frame_available   (TX -> RX, matched by RTP timestamp)
+ *   rx_queue     rx_frame_available -> rx_decode_get
+ *   rx_decode    rx_decode_get      -> rx_decode_put
+ *   rx_handover  rx_decode_put      -> rx_frame_get
+ *   total        tx_frame_put       -> rx_frame_get         (sum of the stages above)
+ *
+ * Every probe carries the session (arg0) and the frame buffer index (arg1); TX and RX each have
+ * a small ring of frame buffers (a few, set by the application), so arg1 repeats every few
+ * frames. Times are kept
+ * per buffer index and deleted once used, and a buffer's leftovers are dropped when its next
+ * frame starts: MTL may fire a probe after the next step already ran (e.g. rx_frame_get before
+ * rx_decode_put), and a stale start time from the buffer's previous frame would add whole frame
+ * periods. A frame whose probes come in the wrong order is left out of that stage instead.
+ *
+ * The first SKIP frames of each stage (session start) are left out. At exit (SIGINT or SIGTERM)
+ * bpftrace prints its maps; per stage @c[<stage>] frames, @s[<stage>] sum and @m[<stage>] max in
+ * ns. (No END block: Ubuntu's bpftrace 0.14 package can't attach BEGIN/END probes.)
+ *
+ * usage: bpftrace st22p_stages.bt <path of libmtl.so>
+ */
+
+#define SKIP 60
+
+/* --- TX ------------------------------------------------------------------------------------- */
+
+/*
+ * tx_frame_put: the TX application hands a raw frame to MTL (st22p_tx_put_frame), the start of
+ * every TX measurement and of "total". A frame buffer's cycle starts here: drop what is left
+ * from its previous frame.
+ */
+usdt:$1:st22p:tx_frame_put
+{
+    @tx_put[arg1] = nsecs;
+    delete(@tx_eget[arg1]);
+    delete(@tx_eput[arg1]);
+    delete(@tx_next[arg1]);
+}
+
+/*
+ * tx_encode_get: the plugin's encoder send thread takes the raw frame (st22_encoder_get_frame,
+ * then svt_jpeg_xs_encoder_send_picture).
+ *
+ * tx_queue = tx_frame_put -> tx_encode_get: the raw frame waits for the encoder: MTL notifies
+ * the plugin, its send thread wakes up and asks for the frame. Grows when the encoder is still
+ * busy with earlier frames (no free encoder slot), stays near 0 when it keeps up.
+ */
+usdt:$1:st22p:tx_encode_get
+{
+    @tx_eget[arg1] = nsecs;
+    if (@tx_put[arg1]) {
+        $d = nsecs - @tx_put[arg1];
+        if (@n["tx_queue"]++ >= SKIP) {
+            @s["tx_queue"] += $d;
+            @c["tx_queue"]++;
+            if ($d > @m["tx_queue"]) { @m["tx_queue"] = $d; }
+        }
+    }
+}
+
+/*
+ * tx_encode_put: the plugin's encoder get thread hands the finished codestream back to MTL
+ * (svt_jpeg_xs_encoder_get_packet, then st22_encoder_put_frame); arg5 is its size.
+ *
+ * tx_encode = tx_encode_get -> tx_encode_put: the frame inside the SVT-JPEG-XS encoder, with
+ * its worker threads (the plugin uses 5 at 1080p and 10 at 4K, the session's codec_thread_cnt
+ * below, see codec_threads_num()) and any wait for the previous frame still being encoded.
+ * The codec's own speed is what CODEC_TIER=1 measures.
+ */
+usdt:$1:st22p:tx_encode_put
+{
+    @tx_eput[arg1] = nsecs;
+    if (@tx_eget[arg1]) {
+        $d = nsecs - @tx_eget[arg1];
+        delete(@tx_eget[arg1]);
+        if (@n["tx_encode"]++ >= SKIP) {
+            @s["tx_encode"] += $d;
+            @c["tx_encode"]++;
+            if ($d > @m["tx_encode"]) { @m["tx_encode"] = $d; }
+        }
+    }
+}
+
+/*
+ * tx_frame_next: the MTL ST22 transport session takes the codestream to send it
+ * (tx_st22p_next_frame, called from the transport tasklet when it schedules its next frame).
+ *
+ * tx_wait = tx_encode_put -> tx_frame_next: the encoded frame waits until the transport is
+ * ready for its next frame, i.e. until it has finished with the frame before. With the encoder
+ * faster than real time this is the slack between encode and the transmit schedule: a faster
+ * encoder makes this longer, not the total shorter.
+ */
+usdt:$1:st22p:tx_frame_next
+{
+    @tx_next[arg1] = nsecs;
+    if (@tx_eput[arg1]) {
+        $d = nsecs - @tx_eput[arg1];
+        delete(@tx_eput[arg1]);
+        if (@n["tx_wait"]++ >= SKIP) {
+            @s["tx_wait"] += $d;
+            @c["tx_wait"]++;
+            if ($d > @m["tx_wait"]) { @m["tx_wait"] = $d; }
+        }
+    }
+}
+
+/*
+ * tx_frame_done: the transport is done with the frame (tx_st22p_frame_done, from the free
+ * callback of the last packet buffer, tv_frame_free_cb in st_tx_video_session.c); arg2 is the
+ * frame's RTP timestamp, which links it to the RX side.
+ *
+ * tx_send = tx_frame_next -> tx_frame_done: the frame waits for its transmit slot (ST 2110
+ * sends one frame per frame period, starting at the frame's epoch), MTL builds the RTP packets
+ * and the NIC reads them (DMA), after which the buffers are freed. The NIC reads the packets
+ * ahead of the paced transmission, so most of the time on the wire falls into rx_receive.
+ * About one frame period when the pipeline keeps up.
+ */
+usdt:$1:st22p:tx_frame_done
+{
+    if (@tx_next[arg1]) {
+        $d = nsecs - @tx_next[arg1];
+        delete(@tx_next[arg1]);
+        if (@n["tx_send"]++ >= SKIP) {
+            @s["tx_send"] += $d;
+            @c["tx_send"]++;
+            if ($d > @m["tx_send"]) { @m["tx_send"] = $d; }
+        }
+    }
+    @done_by_ts[arg2] = nsecs;
+    if (@tx_put[arg1]) {
+        @put_by_ts[arg2] = @tx_put[arg1];
+        delete(@tx_put[arg1]);
+    }
+}
+
+/* --- RX ------------------------------------------------------------------------------------- */
+
+/*
+ * rx_frame_available: the RX transport session has the whole codestream of a frame
+ * (rx_st22p_frame_ready, from the transport callback when the frame is complete); arg3 is its
+ * RTP timestamp.
+ *
+ * rx_receive = tx_frame_done -> rx_frame_available, across the two processes: the paced
+ * transmission of the frame's packets (spread over the frame period by the TX pacing, rest of
+ * it after the NIC read them), the network and RX reassembly. tx_send + rx_receive is the time
+ * from the transport taking the codestream to RX having all of it; where the boundary falls
+ * depends on when the NIC and its driver release the TX buffers.
+ */
+usdt:$1:st22p:rx_frame_available
+{
+    /* a frame buffer's cycle starts here: drop what is left from its previous frame */
+    delete(@rx_dget[arg1]);
+    delete(@rx_dput[arg1]);
+    @rx_avail[arg1] = nsecs;
+    @rx_ts[arg1] = arg3;
+    if (@done_by_ts[arg3]) {
+        $d = nsecs - @done_by_ts[arg3];
+        if (@n["rx_receive"]++ >= SKIP) {
+            @s["rx_receive"] += $d;
+            @c["rx_receive"]++;
+            if ($d > @m["rx_receive"]) { @m["rx_receive"] = $d; }
+        }
+        delete(@done_by_ts[arg3]);
+    }
+}
+
+/*
+ * rx_decode_get: the plugin's decoder send thread takes the codestream (st22_decoder_get_frame,
+ * then svt_jpeg_xs_decoder_send_frame).
+ *
+ * rx_queue = rx_frame_available -> rx_decode_get: the codestream waits for the decoder: MTL
+ * notifies the plugin, its send thread wakes up and asks for it. Grows when the decoder is
+ * still busy with earlier frames.
+ */
+usdt:$1:st22p:rx_decode_get
+{
+    @rx_dget[arg1] = nsecs;
+    if (@rx_avail[arg1]) {
+        $d = nsecs - @rx_avail[arg1];
+        delete(@rx_avail[arg1]);
+        if (@n["rx_queue"]++ >= SKIP) {
+            @s["rx_queue"] += $d;
+            @c["rx_queue"]++;
+            if ($d > @m["rx_queue"]) { @m["rx_queue"] = $d; }
+        }
+    }
+}
+
+/*
+ * rx_decode_put: the plugin's decoder get thread hands the decoded frame back to MTL
+ * (svt_jpeg_xs_decoder_get_frame, then st22_decoder_put_frame).
+ *
+ * rx_decode = rx_decode_get -> rx_decode_put: the frame inside the SVT-JPEG-XS decoder, with
+ * its worker threads (as for the encoder) and any wait for the previous frame still being
+ * decoded.
+ */
+usdt:$1:st22p:rx_decode_put
+{
+    @rx_dput[arg1] = nsecs;
+    if (@rx_dget[arg1]) {
+        $d = nsecs - @rx_dget[arg1];
+        delete(@rx_dget[arg1]);
+        if (@n["rx_decode"]++ >= SKIP) {
+            @s["rx_decode"] += $d;
+            @c["rx_decode"]++;
+            if ($d > @m["rx_decode"]) { @m["rx_decode"] = $d; }
+        }
+    }
+}
+
+/*
+ * rx_frame_get: the RX application gets the decoded frame (st22p_rx_get_frame), the end of
+ * every measurement.
+ *
+ * rx_handover = rx_decode_put -> rx_frame_get: the decoded frame waits for the application:
+ * MTL notifies it and its thread wakes up (or was already waiting in st22p_rx_get_frame).
+ * Grows when the application is slow to take frames. MTL can fire rx_frame_get before
+ * rx_decode_put for the same frame; such frames are left out here.
+ *
+ * total = tx_frame_put -> rx_frame_get: raw frame in at TX to decoded frame out at RX, matched
+ * by the RTP timestamp. RxTxApp's "rx latency" is the same end point minus the RTP timestamp
+ * (the start of the frame's transmit slot), so it leaves out tx_queue, tx_encode, tx_wait and
+ * the slot wait in tx_send.
+ */
+usdt:$1:st22p:rx_frame_get
+{
+    if (@rx_dput[arg1]) {
+        $d = nsecs - @rx_dput[arg1];
+        delete(@rx_dput[arg1]);
+        if (@n["rx_handover"]++ >= SKIP) {
+            @s["rx_handover"] += $d;
+            @c["rx_handover"]++;
+            if ($d > @m["rx_handover"]) { @m["rx_handover"] = $d; }
+        }
+    }
+    $ts = @rx_ts[arg1];
+    delete(@rx_ts[arg1]);
+    if (@put_by_ts[$ts]) {
+        $d = nsecs - @put_by_ts[$ts];
+        if (@n["total"]++ >= SKIP) {
+            @s["total"] += $d;
+            @c["total"]++;
+            if ($d > @m["total"]) { @m["total"] = $d; }
+        }
+        delete(@put_by_ts[$ts]);
+    }
+}
