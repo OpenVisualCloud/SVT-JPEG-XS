@@ -84,8 +84,9 @@ copied.
 * Settings apply to all encoder/decoder sessions of the process.
 * `log_level` (`error`, `warning`, `info`, `debug`) filters plugin messages and sets the SVT-JPEG-XS
   library verbosity: `error` shows library errors only, `warning` and `info` keep the library
-  default, `debug` adds library warnings and multithreading info. With `debug` the decoder logs a
-  warning per slice, which costs performance.
+  default, `debug` adds library warnings and multithreading info. SVT-JPEG-XS v0.9.0, and later
+  builds without the decoder slice size fix, then log a false warning for every decoded slice,
+  which costs performance.
 * An unknown key, an invalid value, a syntax error, or a key the installed SVT-JPEG-XS library does
   not support makes plugin start fail; the error names the key and the allowed values. Invalid
   combinations (e.g. `rct` with 4:2:2 input) make only the affected session fail.
