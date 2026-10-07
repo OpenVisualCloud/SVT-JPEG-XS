@@ -2,7 +2,7 @@
 
 ## 1. Build
 
-### 1.1 Build and install Intel Media Transport Library
+### 1.1 Build and install Media Transport Library
 
 Requires Media Transport Library 26.09 or newer. Please refer to https://github.com/OpenVisualCloud/Media-Transport-Library/blob/main/doc/build.md
 
@@ -13,12 +13,12 @@ cd <jpeg-xs-repo>/Build/linux
 ./build.sh install
 ```
 
-### 1.3 Build and install imtl-plugin
+### 1.3 Build and install mtl-plugin
 
 Requires json-c (already a dependency of Media Transport Library).
 
 ```bash
-cd <jpeg-xs-repo>/imtl-plugin
+cd <jpeg-xs-repo>/mtl-plugin
 ./build.sh
 ```
 
@@ -32,9 +32,9 @@ ffmpeg -i jellyfish-3-mbps-hd-hevc.mkv -vframes 3 -c:v rawvideo yuv420p8le.yuv
 ffmpeg -s 1920x1080 -pix_fmt yuv420p -i yuv420p8le.yuv -pix_fmt yuv422p test_planar8.yuv
 ```
 
-### 2.2 Edit "IMTL-repo/kahawai.json" to enable the st22 svt jpeg xs plugin
+### 2.2 Edit "MTL-repo/kahawai.json" to enable the st22 svt jpeg xs plugin
 
-You can also copy kahawai.json from ```<jpeg-xs-repo>/imtl-plugin/kahawai.json```
+You can also copy kahawai.json from ```<jpeg-xs-repo>/mtl-plugin/kahawai.json```
 
 ```json
         {
@@ -49,18 +49,18 @@ You can also copy kahawai.json from ```<jpeg-xs-repo>/imtl-plugin/kahawai.json``
         }
 ```
 
-### 2.3 Run the imtl sample with tx and rx based on jpegxs
+### 2.3 Run the MTL sample with tx and rx based on jpegxs
 
 Tx run:
 
 ```bash
-<IMTL-repo>/build/app/TxSt22PipelineSample --st22_codec jpegxs --pipeline_fmt YUV422PLANAR8 --p_port 0000:31:00.0 --tx_url test_planar8.yuv
+<MTL-repo>/build/app/TxSt22PipelineSample --st22_codec jpegxs --pipeline_fmt YUV422PLANAR8 --p_port 0000:31:00.0 --tx_url test_planar8.yuv
 ```
 
 Rx run:
 
 ```bash
-<IMTL-repo>/build/app/RxSt22PipelineSample --st22_codec jpegxs --pipeline_fmt YUV422PLANAR8 --p_port 0000:31:00.1 --rx_url out_planar8.yuv
+<MTL-repo>/build/app/RxSt22PipelineSample --st22_codec jpegxs --pipeline_fmt YUV422PLANAR8 --p_port 0000:31:00.1 --rx_url out_planar8.yuv
 ```
 
 ## 3. Configuration
@@ -70,7 +70,7 @@ from the path in the `SVT_JXS_MTL_PLUGIN_CONFIG` environment variable. Without t
 plugin runs with built-in defaults.
 
 ```bash
-export SVT_JXS_MTL_PLUGIN_CONFIG=<jpeg-xs-repo>/imtl-plugin/sample_config.json
+export SVT_JXS_MTL_PLUGIN_CONFIG=<jpeg-xs-repo>/mtl-plugin/sample_config.json
 ```
 
 `sample_config.json` lists every key with its allowed values and default; comments are allowed in
