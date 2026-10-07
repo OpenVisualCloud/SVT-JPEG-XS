@@ -3,7 +3,7 @@
 # SPDX - License - Identifier: BSD - 2 - Clause - Patent
 #
 
-project('svt-jpeg-xs plugin for intel media transport libraray', 'c', default_options: ['c_std=gnu11', 'buildtype=release'], version: '0.2',)
+project('svt-jpeg-xs plugin for media transport library', 'c', default_options: ['c_std=gnu11', 'buildtype=release'], version: '0.2',)
 
 # allow experimental api
 add_global_arguments('-DALLOW_EXPERIMENTAL_API', language : 'c')
