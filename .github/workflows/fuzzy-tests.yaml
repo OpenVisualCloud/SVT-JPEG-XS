@@ -42,7 +42,7 @@ jobs:
     - name: 'Setup:  Install dependencies'
       run: |
             sudo apt update
-            sudo apt -y install cmake nasm clang
+            sudo apt -y install cmake nasm clang g++
 
     - name: Fix workspace permissions
       if: always()
@@ -91,7 +91,7 @@ jobs:
     - name: 'Setup:  Install dependencies'
       run: |
             sudo apt update
-            sudo apt -y install cmake nasm clang
+            sudo apt -y install cmake nasm clang g++
 
     - name: Fix workspace permissions
       if: always()
@@ -138,7 +138,7 @@ jobs:
     - name: 'Setup:  Install dependencies'
       run: |
             sudo apt update
-            sudo apt -y install cmake nasm clang
+            sudo apt -y install cmake nasm clang g++
 
     - name: Fix workspace permissions
       if: always()
