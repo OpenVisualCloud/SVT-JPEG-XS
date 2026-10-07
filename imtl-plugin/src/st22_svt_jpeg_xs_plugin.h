@@ -40,13 +40,13 @@ struct st22_encoder_session {
   st22p_encode_session session_p;
   const struct st22_svt_jpeg_xs_fmt* fmt;
 
-  volatile bool   stop_send;
+  bool            stop_send; /* accessed only with __atomic builtins */
   volatile bool   pending_send;
   pthread_t       encode_thread_send;
   pthread_cond_t  wake_cond_send;
   pthread_mutex_t wake_mutex_send;
 
-  volatile bool   stop_get;
+  bool            stop_get; /* accessed only with __atomic builtins */
   volatile bool   pending_get;
   pthread_t       encode_thread_get;
   pthread_cond_t  wake_cond_get;
@@ -72,13 +72,13 @@ struct st22_decoder_session {
   st22p_decode_session session_p;
   const struct st22_svt_jpeg_xs_fmt* fmt;
 
-  volatile bool   stop_send;
+  bool            stop_send; /* accessed only with __atomic builtins */
   volatile bool   pending_send;
   pthread_t       decode_thread_send;
   pthread_cond_t  wake_cond_send;
   pthread_mutex_t wake_mutex_send;
 
-  volatile bool   stop_get;
+  bool            stop_get; /* accessed only with __atomic builtins */
   volatile bool   pending_get;
   pthread_t       decode_thread_get;
   pthread_cond_t  wake_cond_get;

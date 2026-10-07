@@ -16,10 +16,15 @@
 #include "log.h"
 #include "plugin_platform.h"
 
+/* stop flags are set by stop_thread() and polled by the workers */
+static bool stopped(const bool* stop) {
+  return __atomic_load_n(stop, __ATOMIC_ACQUIRE);
+}
+
 static void wait_pending(pthread_mutex_t* mutex, pthread_cond_t* cond,
-                         volatile bool* pending, volatile bool* stop) {
+                         volatile bool* pending, const bool* stop) {
   st_pthread_mutex_lock(mutex);
-  while (!*pending && !*stop) st_pthread_cond_wait(cond, mutex);
+  while (!*pending && !stopped(stop)) st_pthread_cond_wait(cond, mutex);
   *pending = false;
   st_pthread_mutex_unlock(mutex);
 }
@@ -33,11 +38,11 @@ static void signal_pending(pthread_mutex_t* mutex, pthread_cond_t* cond,
 }
 
 static void stop_thread(const char* name, int idx, pthread_t* thread, pthread_mutex_t* mutex,
-                        pthread_cond_t* cond, volatile bool* stop, volatile bool* pending) {
+                        pthread_cond_t* cond, bool* stop, volatile bool* pending) {
   if (!*thread) return;
   info("%s(%d), trying stop %s\n", __func__, idx, name);
   st_pthread_mutex_lock(mutex);
-  *stop = true;
+  __atomic_store_n(stop, true, __ATOMIC_RELEASE);
   *pending = true;
   st_pthread_cond_signal(cond);
   st_pthread_mutex_unlock(mutex);
@@ -149,7 +154,7 @@ static void* encode_thread_send(void* arg) {
   SvtJxsErrorType_t ret = SvtJxsErrorNone;
 
   info("%s(%d), start\n", __func__, s->idx);
-  while (!s->stop_send) {
+  while (!stopped(&s->stop_send)) {
     frame = st22_encoder_get_frame(session_p);
     if (!frame) { /* no frame */
       wait_pending(&s->wake_mutex_send, &s->wake_cond_send, &s->pending_send, &s->stop_send);
@@ -206,7 +211,7 @@ static void* encode_thread_get(void* arg) {
   SvtJxsErrorType_t ret = SvtJxsErrorNone;
 
   info("%s(%d), start\n", __func__, s->idx);
-  while (!s->stop_get) {
+  while (!stopped(&s->stop_get)) {
     svt_jpeg_xs_frame_t enc_output;
     /* not written by the codec on parameter errors */
     enc_output.user_prv_ctx_ptr = NULL;
@@ -487,7 +492,7 @@ static void* decode_thread_send(void* arg) {
   bool reinit = false;
 
   info("%s(%d), start\n", __func__, s->idx);
-  while (!s->stop_send) {
+  while (!stopped(&s->stop_send)) {
     frame = st22_decoder_get_frame(session_p);
     if (!frame) { /* no frame */
       wait_pending(&s->wake_mutex_send, &s->wake_cond_send, &s->pending_send, &s->stop_send);
@@ -502,10 +507,10 @@ static void* decode_thread_send(void* arg) {
     if (__atomic_load_n(&s->needs_reinit, __ATOMIC_ACQUIRE)) {
       /* closing the decoder drops queued frames, let the get thread return them first */
       st_pthread_mutex_lock(&s->wake_mutex_send);
-      while (__atomic_load_n(&s->inflight, __ATOMIC_ACQUIRE) > 0 && !s->stop_send)
+      while (__atomic_load_n(&s->inflight, __ATOMIC_ACQUIRE) > 0 && !stopped(&s->stop_send))
         st_pthread_cond_wait(&s->wake_cond_send, &s->wake_mutex_send);
       st_pthread_mutex_unlock(&s->wake_mutex_send);
-      if (s->stop_send) {
+      if (stopped(&s->stop_send)) {
         st22_decoder_put_frame(session_p, frame, -EIO);
         break;
       }
@@ -606,7 +611,7 @@ static void* decode_thread_get(void* arg) {
   SvtJxsErrorType_t ret = SvtJxsErrorNone;
 
   info("%s(%d), start\n", __func__, s->idx);
-  while (!s->stop_get) {
+  while (!stopped(&s->stop_get)) {
     svt_jpeg_xs_frame_t dec_output;
     /* not written by the codec when it is not initialized (before first frame, during re-init) */
     dec_output.user_prv_ctx_ptr = NULL;
