@@ -21,7 +21,7 @@ jobs:
   # Relies on the self-hosted runner's workspace persisting between jobs.
   setup:
     name: 'Setup: checkout + toolchain'
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 30
     steps:
     - name: 'Harden Runner'
@@ -60,7 +60,7 @@ jobs:
       matrix:
         sanitizer: [address, thread, undefined, integer, memory]
     name: "Sanitizer: ${{ matrix.sanitizer }}"
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 180
     env:
       INPUT_FILES_PATH: /opt/samples
