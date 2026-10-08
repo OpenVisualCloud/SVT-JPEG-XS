@@ -119,62 +119,57 @@ echo "CSV ready, entering test matrix loop"
 # where running the full $FRAMES would blow the ramdisk tmpfs budget below.
 MATRIX=(
     # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling.
-    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH|40|37"
-    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|8|SYNTH|185|124"
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH|52|89"
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|8|SYNTH|287|431"
 
     # 1080p rgba/yuva444 (4:4:4:4) 8-bit - 5.0 BPP Thread Scaling.
-    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|1|SYNTH|32|38"
-    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|8|SYNTH|152|110"
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|1|SYNTH|42|69"
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|8|SYNTH|236|332"
 
     # 1080p 422p 10-bit - 1.5 BPP Thread Scaling
-    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|74|128"
-    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|392|589"
+    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|88|155"
+    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|482|719"
 
     # 1080p 422p 10-bit - 3.0 BPP Thread Scaling
-    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|58|101"
-    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|313|480"
+    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|78|129"
+    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|423|614"
 
     # 1080p 420p 10-bit - 1.5 BPP Thread Scaling
-    "1080p60_420p10|1920|1080|10|yuv420|60|1.5|1|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|83|145"
-    "1080p60_420p10|1920|1080|10|yuv420|60|1.5|8|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|465|676"
+    "1080p60_420p10|1920|1080|10|yuv420|60|1.5|1|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|105|180"
+    "1080p60_420p10|1920|1080|10|yuv420|60|1.5|8|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|569|847"
 
     # 1080p 420p 10-bit - 3.0 BPP Thread Scaling
-    "1080p60_420p10|1920|1080|10|yuv420|60|3.0|1|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|62|112"
-    "1080p60_420p10|1920|1080|10|yuv420|60|3.0|8|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|348|548"
+    "1080p60_420p10|1920|1080|10|yuv420|60|3.0|1|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|88|144"
+    "1080p60_420p10|1920|1080|10|yuv420|60|3.0|8|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|476|699"
 
     # 1080p 422p 8-bit - 1.5 BPP Thread Scaling
-    "1080p60_422p8|1920|1080|8|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|76|129"
-    "1080p60_422p8|1920|1080|8|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|406|595"
+    "1080p60_422p8|1920|1080|8|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|90|161"
+    "1080p60_422p8|1920|1080|8|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|498|747"
 
     # 1080p 422p 8-bit - 3.0 BPP Thread Scaling
-    "1080p60_422p8|1920|1080|8|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|59|102"
-    "1080p60_422p8|1920|1080|8|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|319|486"
+    "1080p60_422p8|1920|1080|8|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|79|133"
+    "1080p60_422p8|1920|1080|8|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|434|631"
 
-    # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output: same baseline as the equivalent
-    # LSB row above (msb-aligned kernels have same perf as LSB, verified separately).
-    "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|313|480|-msb_aligned 1|-msb_aligned 1"
+    # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output.
+    "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|422|605|-msb_aligned 1|-msb_aligned 1"
 
     # 1080p yuv444p (3-component, unsubsampled) 8-bit - 4.0 BPP Thread Scaling, encoder-side
     # reversible colour transform enabled (-color_transform 1, RCT, Cpih=1). Plugin rejects it
-    # unless the input pixel format is planar RGB or planar YUV444. Encode and decode baselines
-    # reuse the 1080p60_yuva444p8 row above. The decoder applies the inverse RCT per precinct in
-    # the --threads slice workers, so decode scales with threads like non-RCT decode.
-    "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|1|SYNTH|32|38|-color_transform 1 -cpu_profile latency"
-    "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|8|SYNTH|152|110|-color_transform 1 -cpu_profile latency"
+    # unless the input pixel format is planar RGB or planar YUV444. The decoder applies the
+    # inverse RCT per precinct in the --threads slice workers, so decode scales with threads like
+    # non-RCT decode.
+    "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|1|SYNTH|62|104|-color_transform 1 -cpu_profile latency"
+    "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|8|SYNTH|324|472|-color_transform 1 -cpu_profile latency"
 
     # 1080p 422p 10-bit true lossless (-lossless 1, Fq=0) Thread Scaling. -bpp is passed but
     # ignored by the encoder in this mode (kept only for CSV-column consistency with the other
     # 422p10 rows above). Decode needs no extra flag - it auto-detects Fq=0 from the bitstream
     # header. FramesOverride=200: see PerformanceTestSampleApp.sh's equivalent row for the ramdisk
     # sizing rationale (lossless's ~2 bytes/sample worst case would blow the tmpfs budget at full
-    # $FRAMES). The threads=8 baselines used to be reused as-is from that same native-binary row,
-    # on the assumption that since this ffmpeg plugin wraps the same encoder/decoder core its
-    # throughput would track the native binary's - CI showed that's wrong: the plugin's rawvideo
-    # demuxer / image2pipe muxer pipe I/O adds real overhead the native binary doesn't have (measured
-    # ~357 FPS encode, ~400 FPS decode on CI vs. the native binary's 450/585). Baselines below are
-    # calibrated from that measurement with the same ~5% margin as the RCT decode row above.
-    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|78|125|-lossless 1||200"
-    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|340|380|-lossless 1||200"
+    # $FRAMES). The threads=8 baselines are lower than the native binary's: the plugin's rawvideo
+    # demuxer / image2pipe muxer pipe I/O adds overhead the native binary doesn't have.
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|66|97|-lossless 1||200"
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|321|341|-lossless 1||200"
 )
 
 # get_ffmpeg_pix_fmt colour_format bit_depth: maps to the ffmpeg pix_fmt name.
