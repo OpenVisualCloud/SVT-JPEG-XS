@@ -251,8 +251,11 @@ jobs:
           fi
         } >> "$GITHUB_STEP_SUMMARY"
 
+  # Waits for all Linux build/test jobs so perf does not share the runner with them; still runs if
+  # a test job failed, as long as linux-build itself succeeded.
   performance-tests:
-    needs: linux-build
+    needs: [linux-build, linux-unit-tests-release, linux-unit-tests-debug, linux-unit-tests-valgrind, linux-conformance-tests]
+    if: ${{ always() && needs.linux-build.result == 'success' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 120
     env:
