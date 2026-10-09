@@ -62,10 +62,16 @@ jobs:
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: 'Setup: Install dependencies'
+      - name: 'Verify host toolchain'
         run: |
-            sudo apt-get update
-            sudo apt-get -y install cmake make gcc g++ nasm ninja-build python3-venv pkg-config flex bison libglib2.0-dev
+          missing=()
+          for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+            command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+          done
+          if ((${#missing[@]})); then
+            echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+            exit 1
+          fi
 
       - name: 'Setup: Download pre-built svt-jpegxs artifact from Base Build (falls back to local build if missing)'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -150,9 +156,11 @@ jobs:
         if: always()
         run: git clean -ffdx
 
+  # Runs on the dedicated 'performance' runner, so it is never measured alongside the build/test
+  # job above.
   gstreamer-performance-tests:
     needs: gstreamer-linux-build-test
-    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
+    runs-on: ['self-hosted', 'linux', 'x64', 'performance']
     timeout-minutes: 120
     steps:
       - name: 'Harden Runner'
@@ -160,10 +168,16 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: 'Setup: Install dependencies'
+      - name: 'Verify host toolchain'
         run: |
-          sudo apt-get update
-          sudo apt-get -y install numactl
+          missing=()
+          for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+            command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+          done
+          if ((${#missing[@]})); then
+            echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+            exit 1
+          fi
 
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

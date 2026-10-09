@@ -448,6 +448,17 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: 'Verify host toolchain'
+        run: |
+          missing=()
+          for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+            command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+          done
+          if ((${#missing[@]})); then
+            echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+            exit 1
+          fi
+
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -514,6 +525,17 @@ jobs:
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
+
+      - name: 'Verify host toolchain'
+        run: |
+          missing=()
+          for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+            command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+          done
+          if ((${#missing[@]})); then
+            echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+            exit 1
+          fi
 
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -582,6 +604,17 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: 'Verify host toolchain'
+        run: |
+          missing=()
+          for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+            command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+          done
+          if ((${#missing[@]})); then
+            echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+            exit 1
+          fi
+
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -648,6 +681,17 @@ jobs:
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
+
+      - name: 'Verify host toolchain'
+        run: |
+          missing=()
+          for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+            command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+          done
+          if ((${#missing[@]})); then
+            echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+            exit 1
+          fi
 
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -716,6 +760,17 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: 'Verify host toolchain'
+        run: |
+          missing=()
+          for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+            command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+          done
+          if ((${#missing[@]})); then
+            echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+            exit 1
+          fi
+
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -783,6 +838,17 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: 'Verify host toolchain'
+        run: |
+          missing=()
+          for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+            command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+          done
+          if ((${#missing[@]})); then
+            echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+            exit 1
+          fi
+
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -839,15 +905,16 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # Waits for all Linux ffmpeg build/test jobs so perf does not share the runner with them; still
-  # runs if any of those failed, as long as the ffmpeg 9.0 build it measures succeeded.
+  # Runs on the dedicated 'performance' runner, so it is never measured alongside the build/test
+  # jobs above. Still runs if any of those failed, as long as the ffmpeg 9.0 build it
+  # measures succeeded.
   ffmpeg-9-0-performance-tests:
       needs: [changes,
               ffmpeg-9-0-linux-build,
               ffmpeg-6-1-linux-tests, ffmpeg-7-0-linux-tests, ffmpeg-7-1-linux-tests,
               ffmpeg-8-0-linux-tests, ffmpeg-8-1-linux-tests, ffmpeg-9-0-linux-tests]
       if: ${{ always() && needs.changes.outputs.changed == 'true' && needs.ffmpeg-9-0-linux-build.result == 'success' }}
-      runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
+      runs-on: ['self-hosted', 'linux', 'x64', 'performance']
       timeout-minutes: 120
       steps:
         - name: 'Harden Runner'
@@ -855,10 +922,16 @@ jobs:
           with:
             egress-policy: audit
 
-        - name: 'Setup: Install dependencies'
+        - name: 'Verify host toolchain'
           run: |
-            sudo apt-get update
-            sudo apt-get -y install numactl
+            missing=()
+            for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+              command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+            done
+            if ((${#missing[@]})); then
+              echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+              exit 1
+            fi
 
         - name: 'Checkout repository'
           uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

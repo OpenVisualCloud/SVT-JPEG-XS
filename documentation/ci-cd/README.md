@@ -16,6 +16,14 @@ rebuilds.
 | `coverity.yaml` | Coverity Build | scheduled, `workflow_dispatch` | Nightly Coverity static analysis scan. |
 | `linter.yaml` | - | `push`, `pull_request` | super-linter checks (bash, markdown, etc.). |
 
+## Self-hosted runners
+
+Most Linux jobs run on self-hosted runners (`runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']`,
+or `'performance'` for the performance jobs). Those runners are pre-provisioned: their jobs do not
+install packages, they only verify the expected toolchain is present and fail fast if it is not.
+See [self-hosted-runner-setup.md](self-hosted-runner-setup.md) for what a runner must provide and
+the constraints a job targeting one has to respect.
+
 ## Why `workflow_call` instead of `workflow_run`
 
 `ffmpeg_plugin_build.yaml`, `gstreamer_plugin_build.yaml`, `fuzzy-tests.yaml` and `oomify_tests.yaml`

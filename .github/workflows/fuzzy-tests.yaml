@@ -39,10 +39,16 @@ jobs:
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.sha }}
 
-    - name: 'Setup:  Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-            sudo apt update
-            sudo apt -y install cmake nasm clang g++
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: Fix workspace permissions
       if: always()
@@ -88,10 +94,16 @@ jobs:
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.sha }}
 
-    - name: 'Setup:  Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-            sudo apt update
-            sudo apt -y install cmake nasm clang g++
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: Fix workspace permissions
       if: always()
@@ -135,10 +147,16 @@ jobs:
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.sha }}
 
-    - name: 'Setup:  Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-            sudo apt update
-            sudo apt -y install cmake nasm clang g++
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: Fix workspace permissions
       if: always()

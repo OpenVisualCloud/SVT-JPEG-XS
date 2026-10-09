@@ -58,11 +58,16 @@ jobs:
     - name: 'Checkout repository'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: 'Setup:  Install dependencies'
-      working-directory: Build/linux
+    - name: 'Verify host toolchain'
       run: |
-           sudo apt-get update
-           sudo apt-get -y install cmake nasm valgrind make gcc g++
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: 'Build:  Debug and Release versions, install Release tree (reused by ffmpeg/gstreamer/fuzzy-test workflows)'
       working-directory: Build/linux
@@ -97,10 +102,16 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: 'Setup:  Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-           sudo apt-get update
-           sudo apt-get -y install cmake nasm valgrind make gcc g++
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: download build artifacts
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -127,10 +138,16 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: 'Setup:  Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-           sudo apt-get update
-           sudo apt-get -y install cmake nasm valgrind make gcc g++
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: download build artifacts
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -163,10 +180,16 @@ jobs:
         rm -rf ./.??* || true
         ls -la ./
 
-    - name: 'Setup: Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-           sudo apt-get update
-           sudo apt-get -y install cmake nasm valgrind make gcc g++
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: 'Setup: Download build artifacts'
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -192,10 +215,16 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: 'Setup: Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-           sudo apt-get update
-           sudo apt-get -y install cmake nasm valgrind make gcc g++
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: 'Setup: Download build artifacts'
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -251,12 +280,12 @@ jobs:
           fi
         } >> "$GITHUB_STEP_SUMMARY"
 
-  # Waits for all Linux build/test jobs so perf does not share the runner with them; still runs if
-  # a test job failed, as long as linux-build itself succeeded.
+  # Runs on the dedicated 'performance' runner, so it is never measured alongside the build/test
+  # jobs above. Still runs if a test job failed, as long as linux-build itself succeeded.
   performance-tests:
     needs: [linux-build, linux-unit-tests-release, linux-unit-tests-debug, linux-unit-tests-valgrind, linux-conformance-tests]
     if: ${{ always() && needs.linux-build.result == 'success' }}
-    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
+    runs-on: ['self-hosted', 'linux', 'x64', 'performance']
     timeout-minutes: 120
     env:
       INPUT_FILES_PATH: /opt/samples
@@ -266,10 +295,16 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: 'Setup: Install dependencies'
+      - name: 'Verify host toolchain'
         run: |
-          sudo apt-get update
-          sudo apt-get -y install numactl
+          missing=()
+          for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+            command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+          done
+          if ((${#missing[@]})); then
+            echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+            exit 1
+          fi
 
       - name: 'Checkout repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
