@@ -15,13 +15,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Configuration
 SAMPLES_DIR="${1:-$SCRIPT_DIR/../../Conformance-tests}"
 CSV_FILE="$SCRIPT_DIR/gstreamer_results.csv"
-# Node 1 is what the dual-socket CI runner is calibrated against; a single-node host (no node1
-# under sysfs) has nothing to bind to there, so fall back to node 0.
-if [ -d /sys/devices/system/node/node1 ]; then
-    NUMA_NODE=1
-else
-    NUMA_NODE=0
-fi
+# Sets NUMA_NODE and NUMA_PHYS_CPUS (one CPU per physical core of that node).
+source "$SCRIPT_DIR/perf_numa.sh"
 FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
@@ -72,7 +67,10 @@ echo "stale mount cleanup done"
 # never exceeds bpp=3.0, so the largest single row needs ~1.45 GiB for the JXS (2000 frames *
 # 1920*1080*3/8 bytes) plus the small raw YUV input, comfortably under this.
 sudo mkdir -p "$RAMDISK_MOUNT"
-sudo mount -t tmpfs -o size=3G,mode=1777 tmpfs "$RAMDISK_MOUNT"
+# mpol=bind pins tmpfs pages to $NUMA_NODE regardless of which process writes them: the input
+# YUV is populated by an unbound cp, so without this it could land on a remote node and the
+# numactl-bound encoder would read it across the interconnect.
+sudo mount -t tmpfs -o size=3G,mode=1777,mpol=bind:"$NUMA_NODE" tmpfs "$RAMDISK_MOUNT"
 echo "ramdisk mounted at $RAMDISK_MOUNT"
 
 RUN_DIR="$RAMDISK_MOUNT"
@@ -220,7 +218,7 @@ for test_case in "${MATRIX[@]}"; do
     # Stream exactly FRAMES frames of raw YUV (looping the source file as needed) into
     # fdsrc, encode with svtjpegxsenc, and write the JPEG-XS bitstream to RAMDISK_JXS.
     echo "Encoding: $name (bpp=$bpp, threads=$threads)"
-    enc_cmd="numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
+    enc_cmd="numactl --physcpubind=$NUMA_PHYS_CPUS --membind=$NUMA_NODE \
 gst-launch-1.0 -q \
 fdsrc \
 ! rawvideoparse format=$gst_fmt width=$w height=$h framerate=$framerate/1 \
@@ -261,7 +259,7 @@ fdsrc \
     # Decode from RAMDISK_JXS using filesrc with fixed blocksize=one frame, send output
     # to fakesink with sync=false to measure raw decode throughput (no clock throttling).
     echo "Decoding: $name (bpp=$bpp, threads=$threads)"
-    dec_cmd="numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
+    dec_cmd="numactl --physcpubind=$NUMA_PHYS_CPUS --membind=$NUMA_NODE \
 gst-launch-1.0 -q \
 filesrc location=$RAMDISK_JXS blocksize=$frame_jxsc_size \
 ! \"image/x-jxsc,alignment=(string)frame,interlace-mode=(string)progressive,sampling=(string)$sampling,depth=(int)$depth,width=(int)$w,height=(int)$h,framerate=(fraction)$framerate/1\" \

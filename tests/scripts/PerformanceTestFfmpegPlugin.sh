@@ -12,13 +12,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FFMPEG_BIN="ffmpeg"
 SAMPLES_DIR="${1:-$SCRIPT_DIR/../../Conformance-tests}"
 CSV_FILE="$SCRIPT_DIR/ffmpeg_results.csv"
-# Node 1 is what the dual-socket CI runner is calibrated against; a single-node host (no node1
-# under sysfs) has nothing to bind to there, so fall back to node 0.
-if [ -d /sys/devices/system/node/node1 ]; then
-    NUMA_NODE=1
-else
-    NUMA_NODE=0
-fi
+# Sets NUMA_NODE and NUMA_PHYS_CPUS (one CPU per physical core of that node).
+source "$SCRIPT_DIR/perf_numa.sh"
 FRAMES=2000
 REGRESSION_THRESHOLD_PCT=5  # max % FPS drop vs. baseline before failing
 SCRIPT_FAILED=0             # set by check_result() on any failure
@@ -68,7 +63,10 @@ echo "stale mount cleanup done"
 # plus the raw YUV input and synth files - this leaves only modest headroom, so don't shrink
 # further than this.
 sudo mkdir -p "$RAMDISK_MOUNT"
-sudo mount -t tmpfs -o size=3G,mode=1777 tmpfs "$RAMDISK_MOUNT"
+# mpol=bind pins tmpfs pages to $NUMA_NODE regardless of which process writes them: the input
+# YUV is populated by an unbound cp, so without this it could land on a remote node and the
+# numactl-bound encoder would read it across the interconnect.
+sudo mount -t tmpfs -o size=3G,mode=1777,mpol=bind:"$NUMA_NODE" tmpfs "$RAMDISK_MOUNT"
 echo "ramdisk mounted at $RAMDISK_MOUNT"
 
 RUN_DIR="$RAMDISK_MOUNT"
@@ -273,7 +271,7 @@ for test_case in "${MATRIX[@]}"; do
 
     # Encode: -threads must come after -i (applies to the encoder, not the input reader).
     echo "Encoding: $name (bpp=$bpp, threads=$threads)"
-    enc_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
+    enc_cmd_arr=(numactl --physcpubind=$NUMA_PHYS_CPUS --membind=$NUMA_NODE \
         "$FFMPEG_BIN" -y -hide_banner -loglevel info -nostats -benchmark \
         -stream_loop -1 -f rawvideo -pix_fmt "$pix_fmt" -s:v "${w}x${h}" -framerate "$framerate" \
         -i "$RAMDISK_YUV" \
@@ -296,7 +294,7 @@ for test_case in "${MATRIX[@]}"; do
 
     # Decode: -threads applies to libsvtjpegxs as the input decoder here.
     echo "Decoding: $name (bpp=$bpp, threads=$threads)"
-    dec_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
+    dec_cmd_arr=(numactl --physcpubind=$NUMA_PHYS_CPUS --membind=$NUMA_NODE \
         "$FFMPEG_BIN" -y -hide_banner -loglevel info -nostats -benchmark \
         -threads "$threads" -f jpegxs_pipe -c:v libsvtjpegxs $extra_dec_args -i "$RAMDISK_JXS" \
         -f rawvideo /dev/null)

@@ -15,13 +15,8 @@ DEC_APP="$SCRIPT_DIR/../../Bin/Release/SvtJpegxsDecApp"
 SAMPLES_DIR="${1:-$SCRIPT_DIR/../../Conformance-tests}"
 ASM_LEVEL="${2:-avx512}"
 CSV_FILE="$SCRIPT_DIR/svt_app_results.csv"
-# Node 1 is what the dual-socket CI runner is calibrated against; a single-node host (no node1
-# under sysfs) has nothing to bind to there, so fall back to node 0.
-if [ -d /sys/devices/system/node/node1 ]; then
-    NUMA_NODE=1
-else
-    NUMA_NODE=0
-fi
+# Sets NUMA_NODE and NUMA_PHYS_CPUS (one CPU per physical core of that node).
+source "$SCRIPT_DIR/perf_numa.sh"
 FRAMES=2000
 
 case "$ASM_LEVEL" in
@@ -86,7 +81,10 @@ echo "stale mount cleanup done"
 # bitstream (2000 frames * 1920*1080*5/8 bytes) plus the raw YUV input and synth files - this
 # leaves only modest headroom, so don't shrink further than this.
 sudo mkdir -p "$RAMDISK_MOUNT"
-sudo mount -t tmpfs -o size=3G,mode=1777 tmpfs "$RAMDISK_MOUNT"
+# mpol=bind pins tmpfs pages to $NUMA_NODE regardless of which process writes them: the input
+# YUV is populated by an unbound cp, so without this it could land on a remote node and the
+# numactl-bound encoder would read it across the interconnect.
+sudo mount -t tmpfs -o size=3G,mode=1777,mpol=bind:"$NUMA_NODE" tmpfs "$RAMDISK_MOUNT"
 echo "ramdisk mounted at $RAMDISK_MOUNT"
 
 RUN_DIR="$RAMDISK_MOUNT"
@@ -310,7 +308,7 @@ for test_case in "${MATRIX[@]}"; do
 
     # --- Encode ---
     echo "Encoding: $name (bpp=$bpp, threads=$threads, asm=$ASM_LEVEL)"
-    enc_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
+    enc_cmd_arr=(numactl --physcpubind=$NUMA_PHYS_CPUS --membind=$NUMA_NODE \
         "$ENC_APP" -i "$RAMDISK_YUV" -b "$RAMDISK_JXS" -w "$w" -h "$h" \
         --input-depth "$depth" --colour-format "$fmt" --bpp "$bpp" -n "$frames" --lp "$threads" --asm "$ASM_LEVEL" $extra_enc_args)
     enc_cmd=$(printf '%q ' "${enc_cmd_arr[@]}")
@@ -329,7 +327,7 @@ for test_case in "${MATRIX[@]}"; do
     fi
 
     echo "Decoding: $name (bpp=$bpp, threads=$threads, asm=$ASM_LEVEL)"
-    dec_cmd_arr=(numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE \
+    dec_cmd_arr=(numactl --physcpubind=$NUMA_PHYS_CPUS --membind=$NUMA_NODE \
         "$DEC_APP" -i "$RAMDISK_JXS" -o /dev/null -n "$frames" --lp "$threads" --asm "$ASM_LEVEL" $extra_dec_args)
     dec_cmd=$(printf '%q ' "${dec_cmd_arr[@]}")
     dec_fps=$(run_measured "${dec_cmd_arr[@]}")
