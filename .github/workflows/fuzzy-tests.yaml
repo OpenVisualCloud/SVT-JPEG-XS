@@ -27,7 +27,7 @@ env:
   TIMEOUT_SECONDS: ${{ inputs.timeout || 60 }}
 jobs:
   build-lib:
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     steps:
     - name: 'Harden Runner'
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -39,10 +39,16 @@ jobs:
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.sha }}
 
-    - name: 'Setup:  Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-            sudo apt update
-            sudo apt -y install cmake nasm clang
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: Fix workspace permissions
       if: always()
@@ -76,7 +82,7 @@ jobs:
 
   decoder:
     needs: build-lib
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     steps:
     - name: 'Harden Runner'
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -88,10 +94,16 @@ jobs:
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.sha }}
 
-    - name: 'Setup:  Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-            sudo apt update
-            sudo apt -y install cmake nasm clang
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: Fix workspace permissions
       if: always()
@@ -123,7 +135,7 @@ jobs:
 
   encoder:
     needs: [build-lib, decoder]
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     steps:
     - name: 'Harden Runner'
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -135,10 +147,16 @@ jobs:
       with:
         ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.sha }}
 
-    - name: 'Setup:  Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-            sudo apt update
-            sudo apt -y install cmake nasm clang
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: Fix workspace permissions
       if: always()

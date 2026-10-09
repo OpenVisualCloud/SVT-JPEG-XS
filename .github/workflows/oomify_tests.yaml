@@ -45,7 +45,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.changed == 'true' }}
     name: "OOMify: malloc failure injection"
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind']
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
     timeout-minutes: 60
     steps:
     - name: 'Harden Runner'
@@ -61,10 +61,16 @@ jobs:
         sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
 
-    - name: 'Setup: Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-        sudo apt-get update
-        sudo apt-get -y install cmake nasm make gcc g++
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: 'Setup: Download pre-built svt-jpegxs artifact from Base Build (falls back to local build if missing)'
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -85,15 +91,19 @@ jobs:
     - name: 'Setup: Make svt-jpegxs artifact executable'
       run: sudo chmod -R 755 install-dir/
 
+    # runner.temp is unique per runner and cleaned between jobs, so concurrent jobs on the same
+    # host each get their own source tree instead of racing over a shared /tmp path.
     - name: 'Setup: Build oomify'
+      env:
+        OOMIFY_SRC: ${{ runner.temp }}/oomify-src
       run: |
-        git init -q /tmp/oomify-src
-        git -C /tmp/oomify-src fetch -q --depth 1 \
+        git init -q "$OOMIFY_SRC"
+        git -C "$OOMIFY_SRC" fetch -q --depth 1 \
           https://github.com/tavianator/oomify.git a1cdde8aab003b4f720cda6bee6b4290fde8b49b
-        git -C /tmp/oomify-src checkout -q FETCH_HEAD
-        make -C /tmp/oomify-src
+        git -C "$OOMIFY_SRC" checkout -q FETCH_HEAD
+        make -C "$OOMIFY_SRC"
         mkdir -p "${{ github.workspace }}/oomify-bin"
-        cp /tmp/oomify-src/oomify /tmp/oomify-src/liboomify.so "${{ github.workspace }}/oomify-bin/"
+        cp "$OOMIFY_SRC/oomify" "$OOMIFY_SRC/liboomify.so" "${{ github.workspace }}/oomify-bin/"
 
     - name: 'Test: OOMify fault injection'
       run: |

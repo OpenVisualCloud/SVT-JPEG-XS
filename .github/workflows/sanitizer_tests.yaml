@@ -17,13 +17,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # One-time checkout + toolchain install, shared by every sanitizer job below.
-  # Relies on the self-hosted runner's workspace persisting between jobs.
-  setup:
-    name: 'Setup: checkout + toolchain'
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
-    timeout-minutes: 30
+  # Build + run + report/gate for every sanitizer is fully encapsulated in
+  # tests/scripts/sanitize.sh, so the 'Run sanitizer' step below is a single-
+  # line call that reproduces exactly with: tests/scripts/sanitize.sh <sanitizer>
+  #
+  # Each matrix job checks out for itself: every self-hosted runner has its own
+  # _work tree, so a workspace prepared by one job is not visible to a job that
+  # lands on a different runner.
+  sanitizer:
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        sanitizer: [address, thread, undefined, integer, memory]
+    name: "Sanitizer: ${{ matrix.sanitizer }}"
+    runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']
+    timeout-minutes: 180
+    env:
+      INPUT_FILES_PATH: /opt/samples
     steps:
+    # Harden Runner is per-job network egress monitoring, not shared setup -
+    # it has to run in every job it should actually cover, so it's repeated here.
     - name: 'Harden Runner'
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
@@ -37,55 +51,22 @@ jobs:
     - name: 'Checkout repository'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: 'Setup: Install dependencies'
+    - name: 'Verify host toolchain'
       run: |
-        sudo apt-get update
-        sudo apt-get -y install cmake nasm clang llvm make
+        missing=()
+        for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+        done
+        if ((${#missing[@]})); then
+          echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
+          exit 1
+        fi
 
     - name: 'Fix workspace permissions'
-      if: always()
       run: |
         sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
         chmod -R u+rwX "$GITHUB_WORKSPACE" || true
         chmod +x tests/scripts/*.sh
-
-  # Build + run + report/gate for every sanitizer is fully encapsulated in
-  # tests/scripts/sanitize.sh, so the 'Run sanitizer' step below is a single-
-  # line call that reproduces exactly with: tests/scripts/sanitize.sh <sanitizer>
-  sanitizer:
-    needs: setup
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        sanitizer: [address, thread, undefined, integer, memory]
-    name: "Sanitizer: ${{ matrix.sanitizer }}"
-    runs-on: ['self-hosted', 'linux', 'x64', 'valgrind', 'jpeg-perf']
-    timeout-minutes: 180
-    env:
-      INPUT_FILES_PATH: /opt/samples
-    steps:
-    # Harden Runner is per-job network egress monitoring, not shared setup -
-    # it has to run in every job it should actually cover, so it's repeated here.
-    - name: 'Harden Runner'
-      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
-      with:
-        egress-policy: audit
-
-    # Fails loudly if this job ever lands on a runner that doesn't have 'setup's
-    # checkout at the expected commit, instead of silently testing the wrong
-    # revision (or erroring later with a confusing 'sanitize.sh: not found').
-    - name: 'Verify checkout matches setup'
-      run: |
-        if [ ! -x tests/scripts/sanitize.sh ]; then
-          echo "::error::tests/scripts/sanitize.sh missing - this runner did not receive 'setup's checkout" >&2
-          exit 1
-        fi
-        actual_sha="$(git rev-parse HEAD)"
-        if [ "$actual_sha" != "${{ github.sha }}" ]; then
-          echo "::error::checked out commit $actual_sha does not match expected ${{ github.sha }} - stale workspace from another run" >&2
-          exit 1
-        fi
 
     # report-only for integer: sanitize.sh's internal --no-gate means this
     # step (and therefore this job) only fails on a genuine infra/build
@@ -120,15 +101,13 @@ jobs:
   # and shouldn't consume - the constrained self-hosted pool.
   gate:
     name: 'Gate: report overall sanitizer result'
-    needs: [setup, sanitizer]
+    needs: [sanitizer]
     if: always()
     runs-on: ubuntu-latest
     steps:
     - name: 'Check sanitizer matrix result'
       run: |
-        setup_result="${{ needs.setup.result }}"
         sanitizer_results="${{ needs.sanitizer.result }}"
-        echo "Setup result: $setup_result"
         echo "Sanitizer matrix result: $sanitizer_results"
         if [[ "$sanitizer_results" != "success" ]]; then
           echo "::error::One or more sanitizer jobs failed - see the per-sanitizer job above for details."
