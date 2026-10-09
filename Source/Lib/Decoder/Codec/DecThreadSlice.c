@@ -83,7 +83,7 @@ void* thread_universal_stage_kernel(void* input_ptr) {
         SvtJxsErrorType_t ret_decode = SvtJxsErrorNone;
         /*Check that other slice or header did not have error while decoding.*/
         if (input_buffer_ptr->frame_error == 0) {
-            uint32_t out_slice_size;
+            uint32_t out_slice_size = 0;
             ret_decode = svt_jpeg_xs_decode_slice(dec_ctx,
                                                   dec_thread_context,
                                                   input_buffer_ptr->bitstream_buf,
@@ -95,16 +95,17 @@ void* thread_universal_stage_kernel(void* input_ptr) {
             if (ret_decode < 0) {
                 input_buffer_ptr->frame_error = ret_decode;
             }
-        }
 
-        if (dec_api_prv->verbose >= VERBOSE_WARNINGS) {
-            if (ret_decode >= 0 && ret_decode != (int)input_buffer_ptr->bitstream_buf_size) {
-                SVT_WARN("[%s:Process ID: %i] WARNING frame %i !!! Unexpected size of frame, expected: %i get: %i\n",
+            //bitstream_buf_size is the size of this slice, decoding it must use all of it
+            if (dec_api_prv->verbose >= VERBOSE_WARNINGS && ret_decode == SvtJxsErrorNone &&
+                out_slice_size != input_buffer_ptr->bitstream_buf_size) {
+                SVT_WARN("[%s:Process ID: %i] WARNING frame %i slice %u !!! Unexpected size of slice, expected: %u get: %u\n",
                          __FUNCTION__,
                          universal_ctx->process_idx,
                          (int)dec_ctx->frame_num,
-                         (int)input_buffer_ptr->bitstream_buf_size,
-                         ret_decode);
+                         input_buffer_ptr->slice_id,
+                         (uint32_t)input_buffer_ptr->bitstream_buf_size,
+                         out_slice_size);
             }
         }
 

@@ -84,7 +84,7 @@ normalize() {
         s/tid=[0-9]+/tid=_/g;
         s/ T[0-9]+/ T_/g;
         s/value [-0-9.eE+]+/value _/g;
-        s#[^ (]*/(Source|tests|ffmpeg-plugin|imtl-plugin|gst-[^/]*)/#\1/#g;
+        s#[^ (]*/(Source|tests|ffmpeg-plugin|mtl-plugin|gst-[^/]*)/#\1/#g;
         s/  +/ /g
     '
 }

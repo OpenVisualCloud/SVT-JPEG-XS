@@ -46,4 +46,4 @@ add_dependencies(SvtJpegxsSampleEncoder
     ${SVT_JXS_SIMD_TARGETS_ENCODER}
     cpuinfo_public)
 
-install(TARGETS SvtJpegxsSampleEncoder RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+install(TARGETS SvtJpegxsSampleEncoder RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

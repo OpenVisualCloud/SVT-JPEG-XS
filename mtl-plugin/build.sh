@@ -8,7 +8,7 @@ set -e
 
 function usage()
 {
-    echo "Usage: $0 [debug]"
+    echo "Usage: $0 [debug|plain|build-only]"
     exit 0
 }
 
