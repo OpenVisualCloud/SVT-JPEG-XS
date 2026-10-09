@@ -46,7 +46,7 @@ ephemeral and keep their own install steps; self-hosted jobs do not.
 The conformance, functional and performance suites read their inputs from `/opt/samples`, which
 must exist on every runner, be readable by the runner's service account, and contain:
 
-```
+```text
 /opt/samples/test_bitsreams/
 /opt/samples/reference_decode/
 /opt/samples/bitstream_multi_frames/
