@@ -19,8 +19,12 @@ not describe any particular deployment.
 Several runners may share the `jpeg-xs` label, and a job is dispatched to whichever one is idle.
 Jobs must therefore target the shared label and never a label identifying one individual runner.
 
-Performance jobs use a separate label so that measurements are not taken on a machine, or a
-processor socket, that is concurrently running a build.
+Performance jobs use a separate label, but a label only controls which runner a job is
+dispatched to; it does not stop a `performance` runner and a `jpeg-xs` runner from executing
+jobs at the same time. Hardware exclusivity is therefore a provisioning requirement: a
+`performance` runner must not share a host, or at least a processor socket and its memory node,
+with any `jpeg-xs` runner or other workload, so that measurements are never taken alongside a
+build.
 
 ## Required packages
 
@@ -37,16 +41,32 @@ Self-hosted jobs assert the resulting binaries are present with a `Verify host t
 for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do ...
 ```
 
+The GStreamer build job additionally checks for `git`, `python3`, a working `python3 -m venv`
+(`python3-venv`) and `pkg-config --exists glib-2.0` (`libglib2.0-dev`).
+
 If that step reports a missing tool, install the corresponding package on the runner rather than
 adding an `apt-get` step back into the workflow. GitHub-hosted jobs (`ubuntu-*`, `windows-*`) are
 ephemeral and keep their own install steps; self-hosted jobs do not.
+
+## Privileges
+
+The runner's service account must be able to run the following through `sudo` without a
+password prompt; a prompt blocks the job until it times out. Grant only these commands (for
+example with a dedicated `sudoers.d` drop-in) rather than blanket `NOPASSWD: ALL`:
+
+- `chown` and `chmod` on paths under the runner's own `_work` directory, used by the build, fuzzing,
+  sanitizer and plugin jobs to repair workspace ownership and permissions.
+- On `performance` runners only: `mkdir`, `rmdir`, `mount -t tmpfs` and `umount` for the
+  per-run ramdisk the performance scripts create, and `tee` to
+  `/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor` to pin the CPU frequency governor for
+  the duration of a run.
 
 ## Test assets
 
 The conformance, functional and performance suites read their inputs from `/opt/samples`, which
 must exist on every runner, be readable by the runner's service account, and contain:
 
-```
+```text
 /opt/samples/test_bitsreams/
 /opt/samples/reference_decode/
 /opt/samples/bitstream_multi_frames/
@@ -59,12 +79,18 @@ must exist on every runner, be readable by the runner's service account, and con
 Where a runner is pinned to a NUMA node, that pinning is applied once by the host configuration
 (for example in the runner's service unit), **not** by the workflows.
 
-Jobs inherit that placement and must not try to re-assert it. A process can only ever *narrow*
-its CPU and memory affinity, never widen it, so a job that calls `numactl --cpunodebind=<node>`
-for a node it was not given either fails or silently does nothing.
-[tests/scripts/perf_numa.sh](../../tests/scripts/perf_numa.sh) follows this rule: it reads the
-inherited binding from `/proc/self/status` and only narrows within it, down to one logical CPU per
-physical core so that two worker threads never share a core's execution units.
+Jobs inherit that placement and must not try to re-assert or leave it. Note that plain CPU
+affinity and NUMA memory policy (`taskset`, `numactl`, or systemd `CPUAffinity=` /
+`NUMAPolicy=`) are only defaults: any process can widen its own affinity or policy again, up to
+whatever its cpuset cgroup permits. Only cpuset constraints are enforced. A runner that needs
+real isolation must therefore be confined with a cpuset, for example systemd `AllowedCPUs=` and
+`AllowedMemoryNodes=` in its service unit.
+
+[tests/scripts/perf_numa.sh](../../tests/scripts/perf_numa.sh) stays within the inherited
+placement either way: it reads `Cpus_allowed_list` and `Mems_allowed_list` from
+`/proc/self/status`, picks a node that is memory-eligible and holds at least one allowed CPU, and
+narrows to one logical CPU per physical core of that node so that two worker threads never share
+a core's execution units.
 
 ## Workspace isolation
 

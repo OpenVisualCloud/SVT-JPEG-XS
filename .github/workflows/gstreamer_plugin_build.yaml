@@ -65,9 +65,12 @@ jobs:
       - name: 'Verify host toolchain'
         run: |
           missing=()
-          for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang; do
+          for t in cmake nasm make gcc g++ pkg-config ninja valgrind numactl flex bison clang git python3; do
             command -v "$t" >/dev/null 2>&1 || missing+=("$t")
           done
+          # build_gstreamer_plugin.sh creates a meson venv (needs python3-venv) and builds against GLib.
+          python3 -c 'import ensurepip, venv' >/dev/null 2>&1 || missing+=("python3-venv")
+          pkg-config --exists glib-2.0 2>/dev/null || missing+=("libglib2.0-dev")
           if ((${#missing[@]})); then
             echo "::error::Runner is missing: ${missing[*]} — see documentation/ci-cd/self-hosted-runner-setup.md"
             exit 1
