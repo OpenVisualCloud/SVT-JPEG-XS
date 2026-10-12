@@ -33,9 +33,9 @@ function end {
 # (1:expected error code, or "NONZERO" to accept any non-zero code)
 # (2:expected md5 of raw bitstream, or "IGNORE" to skip the check)
 # (3:name of input yuv, without .yuv extension, from encoder_tests/, or one of the
-#    SYNTH:yuva422p8/SYNTH:yuva444p8/SYNTH:gbrap8/SYNTH:planar444p8 sentinels for the synthesized
-#    4-component or 3-component 4:4:4 fixtures generated below (no real 4:4:4 or 4-component
-#    sample exists in encoder_tests/))
+#    SYNTH:yuva422p8/SYNTH:yuva444p8/SYNTH:gbrap8/SYNTH:planar444p8/SYNTH:abc444p8/SYNTH:cab444p8/
+#    SYNTH:abca444p8/SYNTH:caba444p8 sentinels for the synthesized 4-component or 3-component 4:4:4
+#    fixtures generated below (no real 4:4:4 or 4-component sample exists in encoder_tests/))
 # (4:width) (5:height) (6:ffmpeg pix_fmt) (7:number of frames to encode)
 # (8: all other jpegxs encoder AVOptions, e.g. "-bpp 3 -decomp_v 2 -decomp_h 5")
 function test_enc {
@@ -52,6 +52,10 @@ function test_enc {
         SYNTH:yuva444p8) path_yuv="$SYNTH_YUVA444P8" ;;
         SYNTH:gbrap8) path_yuv="$SYNTH_GBRAP8" ;;
         SYNTH:planar444p8) path_yuv="$SYNTH_PLANAR444P8" ;;
+        SYNTH:abc444p8) path_yuv="$SYNTH_ABC444P8" ;;
+        SYNTH:cab444p8) path_yuv="$SYNTH_CAB444P8" ;;
+        SYNTH:abca444p8) path_yuv="$SYNTH_ABCA444P8" ;;
+        SYNTH:caba444p8) path_yuv="$SYNTH_CABA444P8" ;;
         *) path_yuv=$path_correct"/"$name_yuv".yuv" ;;
     esac
 
@@ -222,6 +226,10 @@ SYNTH_YUVA422P8="$tmp_dir/synth_yuva422p8.yuv"
 SYNTH_YUVA444P8="$tmp_dir/synth_yuva444p8.yuv"
 SYNTH_GBRAP8="$tmp_dir/synth_gbrap8.yuv"
 SYNTH_PLANAR444P8="$tmp_dir/synth_planar444p8.yuv"
+SYNTH_ABC444P8="$tmp_dir/synth_abc444p8.yuv"
+SYNTH_CAB444P8="$tmp_dir/synth_cab444p8.yuv"
+SYNTH_ABCA444P8="$tmp_dir/synth_abca444p8.yuv"
+SYNTH_CABA444P8="$tmp_dir/synth_caba444p8.yuv"
 if [ -f "$SYNTH_SRC" ]; then
     SYNTH_Y_SIZE=$((1920 * 1080))
     SYNTH_C_SIZE=$((1920 * 1080 / 2))
@@ -241,6 +249,21 @@ if [ -f "$SYNTH_SRC" ]; then
     head -c $SYNTH_Y_SIZE "$SYNTH_SRC" > "$tmp_dir/synth_y0.raw"
     cat "$tmp_dir/synth_y0.raw" "$tmp_dir/synth_y0.raw" "$tmp_dir/synth_y0.raw" > "$SYNTH_PLANAR444P8"
     rm -f "$tmp_dir/synth_y0.raw"
+
+#   Component order fixtures: three distinct full-resolution planes A (Y), B (Cb twice), C (Cr twice).
+#   gbrp/gbrap planes are G, B, R(, A), and the plugin passes them to the library as R, G, B(, A),
+#   so gbrp input A,B,C must code exactly like yuv444p input C,A,B (and gbrap A,B,C,A like
+#   yuva444p C,A,B,A).
+    head -c $SYNTH_Y_SIZE "$SYNTH_SRC" > "$tmp_dir/synth_a.raw"
+    tail -c +$((SYNTH_Y_SIZE + 1)) "$SYNTH_SRC" | head -c $SYNTH_C_SIZE > "$tmp_dir/synth_b_half.raw"
+    tail -c +$((SYNTH_Y_SIZE + SYNTH_C_SIZE + 1)) "$SYNTH_SRC" | head -c $SYNTH_C_SIZE > "$tmp_dir/synth_c_half.raw"
+    cat "$tmp_dir/synth_b_half.raw" "$tmp_dir/synth_b_half.raw" > "$tmp_dir/synth_b.raw"
+    cat "$tmp_dir/synth_c_half.raw" "$tmp_dir/synth_c_half.raw" > "$tmp_dir/synth_c.raw"
+    cat "$tmp_dir/synth_a.raw" "$tmp_dir/synth_b.raw" "$tmp_dir/synth_c.raw" > "$SYNTH_ABC444P8"
+    cat "$tmp_dir/synth_c.raw" "$tmp_dir/synth_a.raw" "$tmp_dir/synth_b.raw" > "$SYNTH_CAB444P8"
+    cat "$tmp_dir/synth_a.raw" "$tmp_dir/synth_b.raw" "$tmp_dir/synth_c.raw" "$tmp_dir/synth_a.raw" > "$SYNTH_ABCA444P8"
+    cat "$tmp_dir/synth_c.raw" "$tmp_dir/synth_a.raw" "$tmp_dir/synth_b.raw" "$tmp_dir/synth_a.raw" > "$SYNTH_CABA444P8"
+    rm -f "$tmp_dir/synth_a.raw" "$tmp_dir/synth_b_half.raw" "$tmp_dir/synth_c_half.raw" "$tmp_dir/synth_b.raw" "$tmp_dir/synth_c.raw"
 fi
 
 function test_all {
@@ -357,10 +380,9 @@ function test_all {
 #   4:4:4:4 (YUVA444, synthesized fixture, SDBQ-3776). NEW md5, pinned from this ffmpeg build.
     test_enc 0 fb905b390b6bbe62ffda9a93215e5922 SYNTH:yuva444p8 1920 1080 yuva444p 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
 
-#   4:4:4:4 via GBRA (RGBA colour family, same COLOUR_FORMAT_PLANAR_4_COMPONENTS as YUVA444,
-#   SDBQ-3776): byte-identical to the YUVA444P test above, confirming the plugin can't and
-#   doesn't distinguish RGB/YUV colour family for 4-component input (matches the existing
-#   YUV444P/GBRP behavior for 3-component input).
+#   4:4:4:4 via GBRA (COLOUR_FORMAT_PLANAR_RGBA, SDBQ-3776): the fixture's 4 planes are identical,
+#   so the G, B, R, A to R, G, B, A plane reorder does not change the bytes - byte-identical to the
+#   YUVA444P test above (component order is covered by the SYNTH:abca444p8 rows below).
     test_enc 0 fb905b390b6bbe62ffda9a93215e5922 SYNTH:gbrap8 1920 1080 gbrap 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
 
 #   color_transform=0 (explicit): must be byte-identical to leaving the option unset (the -1
@@ -376,10 +398,35 @@ function test_all {
 #   NEW md5, pinned from this ffmpeg build.
     test_enc 0 eb9d4759fd43aa34c70c7358ea8e0e30 SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 1"
 
-#   color_transform=1 on yuv444p: gbrp and yuv444p both map to the same library colour_format
-#   (COLOUR_FORMAT_PLANAR_YUV444_OR_RGB), so this must be byte-identical to the gbrp
-#   color_transform=1 row above given the same raw input bytes - not rejected.
-    test_enc 0 eb9d4759fd43aa34c70c7358ea8e0e30 SYNTH:planar444p8 1920 1080 yuv444p 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 1"
+#   Error path: color_transform=1 on yuv444p must be rejected - Cpih=1 is decoded as R, G, B, so
+#   the plugin only accepts it for planar RGB (gbrp*) input.
+    test_enc NONZERO IGNORE SYNTH:planar444p8 1920 1080 yuv444p 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 1"
+
+#   Component order: gbrp planes A,B,C (G,B,R) are coded as R,G,B = C,A,B, byte-identical to
+#   yuv444p input C,A,B. NEW md5, pinned from this ffmpeg build.
+    test_enc 0 da3aa90175b7d3e4ad96adf53076e43c SYNTH:abc444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5"
+    test_enc 0 da3aa90175b7d3e4ad96adf53076e43c SYNTH:cab444p8 1920 1080 yuv444p 1 "-bpp 3 -decomp_v 2 -decomp_h 5"
+
+#   Component order, 4 components: gbrap A,B,C,A is coded as C,A,B,A, byte-identical to yuva444p
+#   input C,A,B,A. NEW md5, pinned from this ffmpeg build.
+    test_enc 0 56b84f5642160de57467c2d4ff781bd6 SYNTH:abca444p8 1920 1080 gbrap 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
+    test_enc 0 56b84f5642160de57467c2d4ff781bd6 SYNTH:caba444p8 1920 1080 yuva444p 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
+
+#   Component order with color_transform=1: RCT on gbrp A,B,C must see R,G,B = C,A,B (base channel
+#   G = A). NEW md5, pinned from this ffmpeg build.
+    test_enc 0 4aa252ed0c9a34f1d4d37ce1af45e56d SYNTH:abc444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 1"
+
+#   No -bpp: the uncompressed-equivalent default bpp must also cover gbrp/gbrap (planar RGB/RGBA
+#   library formats), byte-identical to yuv444p/yuva444p with the planes reordered.
+#   NEW md5, pinned from this ffmpeg build.
+    test_enc 0 412f4e450add7159257fd15a079552fc SYNTH:abc444p8 1920 1080 gbrp 1 "-decomp_v 2 -decomp_h 5"
+    test_enc 0 412f4e450add7159257fd15a079552fc SYNTH:cab444p8 1920 1080 yuv444p 1 "-decomp_v 2 -decomp_h 5"
+    test_enc 0 e60f6f3743457cda8f8a8b37d1120dc6 SYNTH:abca444p8 1920 1080 gbrap 1 "-decomp_v 2 -decomp_h 5"
+    test_enc 0 e60f6f3743457cda8f8a8b37d1120dc6 SYNTH:caba444p8 1920 1080 yuva444p 1 "-decomp_v 2 -decomp_h 5"
+
+#   bgr24 is not accepted by the plugin (it would store B, G, R); ffmpeg converts it to a
+#   supported format, so encoding must still succeed.
+    test_enc 0 IGNORE SYNTH:planar444p8 1920 1080 bgr24 1 "-bpp 3 -decomp_v 2 -decomp_h 5"
 
 #   Error path: color_transform=1 requires a 3-component unsubsampled planar input; yuv422p must
 #   be rejected by the underlying library at encoder init (non-zero ffmpeg exit code).
