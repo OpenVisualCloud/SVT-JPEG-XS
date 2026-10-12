@@ -100,7 +100,8 @@ The reversible colour transform (RCT, Cpih=1) is applied per precinct, in the sa
 a precinct, each finished line of components 0-2 is copied to a scratch buffer, the inverse RCT is applied there and the
 line is written to the output picture. The copy is needed because the IDWT line buffers are still read by the vertical
 IDWT of the next precinct. This needs components 0-2 to be wavelet transformed and to have the same size, decomposition
-levels and precinct height. RCT streams from the SVT-JPEGXS encoder always meet these conditions.
+levels and precinct height. RCT streams from the SVT-JPEGXS encoder always meet these conditions. The output components
+are R, G, B(, A), and the decoder reports such streams as `COLOUR_FORMAT_PLANAR_RGB` (`COLOUR_FORMAT_PLANAR_RGBA`).
 
 The other colour transforms (Star-Tetrix, Cpih=3), and RCT on components that do not meet the conditions above, are applied
 to the whole frame. In that case "unpack precinct" and "precinct calculate data" are still performed in the universal

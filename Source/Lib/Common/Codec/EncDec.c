@@ -88,11 +88,17 @@ const char* svt_jpeg_xs_get_format_name(ColourFormat_t format) {
     else if (COLOUR_FORMAT_PLANAR_YUV422 == format) {
         return "PLANAR YUV422";
     }
-    else if (COLOUR_FORMAT_PLANAR_YUV444_OR_RGB == format) {
-        return "PLANAR YUV444 OR RGB";
+    else if (COLOUR_FORMAT_PLANAR_YUV444 == format) {
+        return "PLANAR YUV444";
+    }
+    else if (COLOUR_FORMAT_PLANAR_RGB == format) {
+        return "PLANAR RGB";
     }
     else if (COLOUR_FORMAT_PLANAR_4_COMPONENTS == format) {
         return "PLANAR 4:4:4:4 (RGBA/YUVA444)";
+    }
+    else if (COLOUR_FORMAT_PLANAR_RGBA == format) {
+        return "PLANAR RGBA";
     }
     else if (COLOUR_FORMAT_PLANAR_YUV422_ALPHA == format) {
         return "PLANAR YUV422 + ALPHA (4:2:2:4)";

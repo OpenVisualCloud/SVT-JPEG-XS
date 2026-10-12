@@ -53,7 +53,7 @@ TEST_P(ColorTransformDecompV, EncodeDecodeSignalsCpihAndIsVisuallyPlausible) {
     enc.source_width = width;
     enc.source_height = height;
     enc.input_bit_depth = 8;
-    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    enc.colour_format = COLOUR_FORMAT_PLANAR_RGB;
     enc.cpu_profile = 0; //CPU_PROFILE_LOW_LATENCY
     enc.ndecomp_v = ndecomp_v;
     enc.ndecomp_h = 5;
@@ -120,6 +120,8 @@ TEST_P(ColorTransformDecompV, EncodeDecodeSignalsCpihAndIsVisuallyPlausible) {
                                        bitstream.size(),
                                        &dec_image_config),
              SvtJxsErrorNone);
+    //Cpih=1 output is R, G, B.
+    EXPECT_EQ(dec_image_config.format, COLOUR_FORMAT_PLANAR_RGB);
 
     svt_jpeg_xs_image_buffer_t* out_img = svt_jpeg_xs_image_buffer_alloc(&dec_image_config);
     ASSERT_NE(out_img, nullptr);
@@ -177,7 +179,7 @@ TEST(ColorTransform, MultipleFramesWithDifferentContentEachDecodePlausibly) {
     enc.source_width = width;
     enc.source_height = height;
     enc.input_bit_depth = 8;
-    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    enc.colour_format = COLOUR_FORMAT_PLANAR_RGB;
     enc.cpu_profile = 0; //CPU_PROFILE_LOW_LATENCY
     enc.ndecomp_v = 2;   //Deepest sliding window (13 slots) - most likely to expose cache bugs.
     enc.ndecomp_h = 5;
@@ -267,4 +269,131 @@ TEST(ColorTransform, MultipleFramesWithDifferentContentEachDecodePlausibly) {
     }
 
     svt_jpeg_xs_encoder_close(&enc);
+}
+
+namespace {
+
+/* Encode one 64x64 8-bit 4:4:4 gradient frame, return the codestream. */
+std::vector<uint8_t> encode_444_frame(ColourFormat_t colour_format, uint8_t enable_color_transform) {
+    const uint32_t width = 64;
+    const uint32_t height = 64;
+    std::vector<uint8_t> bitstream;
+
+    svt_jpeg_xs_encoder_api_t enc;
+    if (svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc) !=
+        SvtJxsErrorNone) {
+        return bitstream;
+    }
+    enc.verbose = VERBOSE_NONE;
+    enc.source_width = width;
+    enc.source_height = height;
+    enc.input_bit_depth = 8;
+    enc.colour_format = colour_format;
+    enc.cpu_profile = 0; //CPU_PROFILE_LOW_LATENCY
+    enc.bpp_numerator = 8;
+    enc.bpp_denominator = 1;
+    enc.enable_color_transform = enable_color_transform;
+    if (svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc) != SvtJxsErrorNone) {
+        return bitstream;
+    }
+
+    svt_jpeg_xs_image_config_t image_config;
+    uint32_t bytes_per_frame = 0;
+    svt_jpeg_xs_image_buffer_t* in_buf = NULL;
+    uint8_t* out_data = NULL;
+    if (svt_jpeg_xs_encoder_get_image_config(
+            SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc, &image_config, &bytes_per_frame) == SvtJxsErrorNone) {
+        in_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
+        out_data = (uint8_t*)malloc(bytes_per_frame * 2 + 4096);
+    }
+    if (in_buf && out_data) {
+        for (int32_t c = 0; c < image_config.components_num; ++c) {
+            uint8_t* plane = (uint8_t*)in_buf->data_yuv[c];
+            for (uint32_t y = 0; y < height; y++) {
+                for (uint32_t x = 0; x < width; x++) {
+                    plane[y * in_buf->stride[c] + x] = (uint8_t)((x * 4 + y * 2 + c * 37) & 0xFF);
+                }
+            }
+        }
+        svt_jpeg_xs_frame_t enc_input;
+        enc_input.bitstream.buffer = out_data;
+        enc_input.bitstream.allocation_size = bytes_per_frame * 2 + 4096;
+        enc_input.bitstream.used_size = 0;
+        enc_input.image = *in_buf;
+        enc_input.user_prv_ctx_ptr = NULL;
+        svt_jpeg_xs_frame_t enc_output;
+        memset(&enc_output, 0, sizeof(enc_output));
+        if (svt_jpeg_xs_encoder_send_picture(&enc, &enc_input, 1 /*blocking*/) == SvtJxsErrorNone &&
+            svt_jpeg_xs_encoder_get_packet(&enc, &enc_output, 1 /*blocking*/) == SvtJxsErrorNone) {
+            bitstream.assign(enc_output.bitstream.buffer, enc_output.bitstream.buffer + enc_output.bitstream.used_size);
+        }
+    }
+    svt_jpeg_xs_encoder_close(&enc);
+    svt_jpeg_xs_image_buffer_free(in_buf);
+    free(out_data);
+    return bitstream;
+}
+
+ColourFormat_t decoder_init_format(const std::vector<uint8_t>& bitstream) {
+    svt_jpeg_xs_decoder_api_t dec;
+    memset(&dec, 0, sizeof(dec));
+    svt_jpeg_xs_image_config_t image_config;
+    memset(&image_config, 0, sizeof(image_config));
+    if (svt_jpeg_xs_decoder_init(
+            SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &dec, bitstream.data(), bitstream.size(), &image_config) !=
+        SvtJxsErrorNone) {
+        return COLOUR_FORMAT_INVALID;
+    }
+    svt_jpeg_xs_decoder_close(&dec);
+    return image_config.format;
+}
+
+} // namespace
+
+TEST(ColorTransform, PlanarRgbWithoutTransformIsIdenticalToPlanarYuv444) {
+    // PLANAR_RGB only declares the component order; without RCT the codestream is unchanged.
+    const std::vector<uint8_t> rgb = encode_444_frame(COLOUR_FORMAT_PLANAR_RGB, 0);
+    const std::vector<uint8_t> yuv = encode_444_frame(COLOUR_FORMAT_PLANAR_YUV444, 0);
+    ASSERT_GT(rgb.size(), 0u);
+    EXPECT_EQ(rgb, yuv);
+}
+
+TEST(ColorTransform, DecoderReportsRgbOnlyForCpih1) {
+    const std::vector<uint8_t> cpih1 = encode_444_frame(COLOUR_FORMAT_PLANAR_RGB, 1);
+    const std::vector<uint8_t> cpih0 = encode_444_frame(COLOUR_FORMAT_PLANAR_RGB, 0);
+    ASSERT_GT(cpih1.size(), 0u);
+    ASSERT_GT(cpih0.size(), 0u);
+    EXPECT_EQ(decoder_init_format(cpih1), COLOUR_FORMAT_PLANAR_RGB);
+    // Cpih=0 does not signal RGB.
+    EXPECT_EQ(decoder_init_format(cpih0), COLOUR_FORMAT_PLANAR_YUV444);
+}
+
+TEST(ColorTransform, GetSingleFrameSizeReportsSameFormatAsDecoderInit) {
+    const std::vector<uint8_t> cpih1 = encode_444_frame(COLOUR_FORMAT_PLANAR_RGB, 1);
+    ASSERT_GT(cpih1.size(), 0u);
+    svt_jpeg_xs_image_config_t image_config;
+    uint32_t frame_size = 0;
+
+    memset(&image_config, 0, sizeof(image_config));
+    ASSERT_EQ(svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
+                  cpih1.data(), cpih1.size(), &image_config, &frame_size, 1 /*fast_search*/, proxy_mode_full),
+              SvtJxsErrorNone);
+    EXPECT_EQ(image_config.format, COLOUR_FORMAT_PLANAR_RGB);
+    EXPECT_EQ(frame_size, cpih1.size());
+
+    memset(&image_config, 0, sizeof(image_config));
+    ASSERT_EQ(svt_jpeg_xs_decoder_get_single_frame_size(cpih1.data(), cpih1.size(), &image_config, &frame_size, 1),
+              SvtJxsErrorNone);
+    EXPECT_EQ(image_config.format, COLOUR_FORMAT_PLANAR_RGB);
+}
+
+TEST(ColorTransform, RgbFormatMapping) {
+    EXPECT_EQ(svt_jpeg_xs_get_rgb_format(COLOUR_FORMAT_PLANAR_YUV444, 1), COLOUR_FORMAT_PLANAR_RGB);
+    EXPECT_EQ(svt_jpeg_xs_get_rgb_format(COLOUR_FORMAT_PLANAR_4_COMPONENTS, 1), COLOUR_FORMAT_PLANAR_RGBA);
+    EXPECT_EQ(svt_jpeg_xs_get_rgb_format(COLOUR_FORMAT_PLANAR_YUV444, 0), COLOUR_FORMAT_PLANAR_YUV444);
+    EXPECT_EQ(svt_jpeg_xs_get_rgb_format(COLOUR_FORMAT_PLANAR_4_COMPONENTS, 0), COLOUR_FORMAT_PLANAR_4_COMPONENTS);
+    // Cpih=3 (Star-Tetrix) is not an RGB signal.
+    EXPECT_EQ(svt_jpeg_xs_get_rgb_format(COLOUR_FORMAT_PLANAR_4_COMPONENTS, 3), COLOUR_FORMAT_PLANAR_4_COMPONENTS);
+    EXPECT_EQ(svt_jpeg_xs_get_rgb_format(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 1), COLOUR_FORMAT_PLANAR_YUV422_ALPHA);
+    EXPECT_EQ(svt_jpeg_xs_get_rgb_format(COLOUR_FORMAT_PLANAR_YUV422, 1), COLOUR_FORMAT_PLANAR_YUV422);
 }

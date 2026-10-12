@@ -490,7 +490,7 @@ TEST(EncoderInit, ColorTransformRequiresLowLatencyProfileReturnsError) {
     encoder.source_width = 16;
     encoder.source_height = 16;
     encoder.input_bit_depth = 8;
-    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_RGB;
     encoder.bpp_numerator = 3;
     encoder.cpu_profile = 1; //CPU_PROFILE_CPU
     encoder.enable_color_transform = 1;
@@ -512,7 +512,7 @@ TEST(EncoderInit, ColorTransformWithCpuProfileRejectedEvenWhenNdecompVZeroForces
     encoder.source_width = 16;
     encoder.source_height = 16;
     encoder.input_bit_depth = 8;
-    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_RGB;
     encoder.bpp_numerator = 3;
     encoder.ndecomp_v = 0;
     encoder.cpu_profile = 1; //CPU_PROFILE_CPU
@@ -538,6 +538,92 @@ TEST(EncoderInit, ColorTransformRequiresPlanar444FormatReturnsError) {
     SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
     ASSERT_EQ(ret, SvtJxsErrorBadParameter);
     ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
+static void load_rct_test_encoder(svt_jpeg_xs_encoder_api_t* encoder, ColourFormat_t colour_format) {
+    svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, encoder);
+    encoder->verbose = VERBOSE_NONE;
+    encoder->source_width = 64;
+    encoder->source_height = 64;
+    encoder->input_bit_depth = 8;
+    encoder->colour_format = colour_format;
+    encoder->bpp_numerator = 3;
+    encoder->cpu_profile = 0; //CPU_PROFILE_LOW_LATENCY
+}
+
+TEST(EncoderInit, ColorTransformRejectsPlanarYuv444) {
+    // Cpih=1 tells the decoder the output is R, G, B, so RCT needs input declared as RGB.
+    // Control: the same configuration with COLOUR_FORMAT_PLANAR_RGB must initialize.
+    svt_jpeg_xs_encoder_api_t control;
+    load_rct_test_encoder(&control, COLOUR_FORMAT_PLANAR_RGB);
+    control.enable_color_transform = 1;
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &control), SvtJxsErrorNone);
+    svt_jpeg_xs_encoder_close(&control);
+
+    svt_jpeg_xs_encoder_api_t encoder;
+    load_rct_test_encoder(&encoder, COLOUR_FORMAT_PLANAR_YUV444);
+    encoder.enable_color_transform = 1;
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder), SvtJxsErrorBadParameter);
+    ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
+TEST(EncoderInit, ColorTransformRejectsDeprecatedYuv444OrRgb) {
+    svt_jpeg_xs_encoder_api_t encoder;
+    load_rct_test_encoder(&encoder, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB);
+    encoder.enable_color_transform = 1;
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder), SvtJxsErrorBadParameter);
+    ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
+TEST(EncoderInit, ColorTransformRejectsPlanarRgba) {
+    // The RCT is 3-component only.
+    svt_jpeg_xs_encoder_api_t encoder;
+    load_rct_test_encoder(&encoder, COLOUR_FORMAT_PLANAR_RGBA);
+    encoder.enable_color_transform = 1;
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder), SvtJxsErrorBadParameter);
+    ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
+TEST(EncoderInit, PlanarRgbAndRgbaWithoutColorTransformInitialize) {
+    const ColourFormat_t formats[] = {COLOUR_FORMAT_PLANAR_RGB, COLOUR_FORMAT_PLANAR_RGBA};
+    for (ColourFormat_t format : formats) {
+        svt_jpeg_xs_encoder_api_t encoder;
+        load_rct_test_encoder(&encoder, format);
+        ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder), SvtJxsErrorNone)
+            << "format " << format;
+        svt_jpeg_xs_encoder_close(&encoder);
+    }
+}
+
+TEST(EncoderImageConfig, PlanarRgbMatchesPlanarYuv444Layout) {
+    // PLANAR_RGB / PLANAR_RGBA only declare the component order: the reported format is the caller's,
+    // the buffer layout is the same as PLANAR_YUV444 / PLANAR_4_COMPONENTS.
+    const ColourFormat_t pairs[][2] = {{COLOUR_FORMAT_PLANAR_RGB, COLOUR_FORMAT_PLANAR_YUV444},
+                                       {COLOUR_FORMAT_PLANAR_RGBA, COLOUR_FORMAT_PLANAR_4_COMPONENTS}};
+    for (const auto& pair : pairs) {
+        svt_jpeg_xs_encoder_api_t rgb;
+        svt_jpeg_xs_encoder_api_t yuv;
+        load_rct_test_encoder(&rgb, pair[0]);
+        load_rct_test_encoder(&yuv, pair[1]);
+        svt_jpeg_xs_image_config_t rgb_config;
+        svt_jpeg_xs_image_config_t yuv_config;
+        uint32_t rgb_bytes = 0;
+        uint32_t yuv_bytes = 0;
+        ASSERT_EQ(svt_jpeg_xs_encoder_get_image_config(
+                      SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &rgb, &rgb_config, &rgb_bytes),
+                  SvtJxsErrorNone);
+        ASSERT_EQ(svt_jpeg_xs_encoder_get_image_config(
+                      SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &yuv, &yuv_config, &yuv_bytes),
+                  SvtJxsErrorNone);
+        EXPECT_EQ(rgb_config.format, pair[0]);
+        EXPECT_EQ(rgb_bytes, yuv_bytes);
+        ASSERT_EQ(rgb_config.components_num, yuv_config.components_num);
+        for (uint32_t c = 0; c < rgb_config.components_num; c++) {
+            EXPECT_EQ(rgb_config.components[c].width, yuv_config.components[c].width);
+            EXPECT_EQ(rgb_config.components[c].height, yuv_config.components[c].height);
+            EXPECT_EQ(rgb_config.components[c].byte_size, yuv_config.components[c].byte_size);
+        }
+    }
 }
 
 TEST(EncoderInit, LosslessRejectsMsbAlignedInput) {
@@ -602,7 +688,7 @@ TEST(EncoderInit, LosslessRejectsRctAboveBitDepth12) {
     encoder.source_width = 64;
     encoder.source_height = 64;
     encoder.input_bit_depth = 13;
-    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_RGB;
     encoder.bpp_numerator = 3;
     encoder.lossless_enable = 1;
     encoder.enable_color_transform = 1;
@@ -621,7 +707,7 @@ TEST(EncoderInit, LosslessAcceptsRctAtBitDepth12) {
     encoder.source_width = 64;
     encoder.source_height = 64;
     encoder.input_bit_depth = 12;
-    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_RGB;
     encoder.bpp_numerator = 3;
     encoder.lossless_enable = 1;
     encoder.enable_color_transform = 1;

@@ -212,17 +212,17 @@ TEST_P(LosslessDepthFormat, EncodeDecodeBitExact) {
     free(out_buf.buffer);
 }
 
-/* The RCT cases are 4:4:4 because that is the only format the colour transform accepts, and stop at
+/* The RCT cases are planar RGB because that is the only format the colour transform accepts, and stop at
  * 12-bit because encoder_init() rejects RCT with lossless above that (see
  * EncoderInit.LosslessRejectsRctAboveBitDepth12). 8-bit is included as well as 12-bit: the 12-bit
  * case has the least headroom, the 8-bit one keeps the transform covered if that ceiling ever moves. */
 INSTANTIATE_TEST_SUITE_P(BitDepthSweep, LosslessDepthFormat,
                         ::testing::Values(LosslessCase{8, COLOUR_FORMAT_PLANAR_YUV420, 0},
                                           LosslessCase{10, COLOUR_FORMAT_PLANAR_YUV422, 0},
-                                          LosslessCase{12, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 0},
+                                          LosslessCase{12, COLOUR_FORMAT_PLANAR_YUV444, 0},
                                           LosslessCase{14, COLOUR_FORMAT_PLANAR_YUV420, 0},
-                                          LosslessCase{8, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 1},
-                                          LosslessCase{12, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 1}));
+                                          LosslessCase{8, COLOUR_FORMAT_PLANAR_RGB, 1},
+                                          LosslessCase{12, COLOUR_FORMAT_PLANAR_RGB, 1}));
 
 /* Multi-frame: proves the PictureControlSet pool (slice_real_bytes_arr etc.) doesn't leak state
  * between frames sharing the same encoder instance, and that flat frames really do end up smaller
@@ -469,7 +469,7 @@ TEST(Lossless, AdversarialCheckerboardAtMaxDecompositionDoesNotOverflowCoefficie
     enc.source_width = width;
     enc.source_height = height;
     enc.input_bit_depth = bit_depth;
-    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV444;
     enc.lossless_enable = 1;
     //Leave ndecomp_v/ndecomp_h at their (deepest) defaults - maximum decomposition depth is where
     //accumulated wavelet growth is largest.
@@ -579,7 +579,7 @@ TEST(Lossless, RawDisableAdversarialNoiseDoesNotExceedWorstCaseBound) {
     enc.source_width = width;
     enc.source_height = height;
     enc.input_bit_depth = bit_depth;
-    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV444;
     enc.lossless_enable = 1;
     enc.coding_raw_disable = 1;
 
@@ -688,7 +688,7 @@ TEST_P(LosslessNarrow, NoiseFitsWorstCaseBoundAndIsBitExact) {
     enc.source_width = p.width;
     enc.source_height = p.height;
     enc.input_bit_depth = p.bit_depth;
-    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV444;
     enc.ndecomp_h = p.ndecomp_h;
     enc.ndecomp_v = p.ndecomp_v;
     enc.lossless_enable = 1;

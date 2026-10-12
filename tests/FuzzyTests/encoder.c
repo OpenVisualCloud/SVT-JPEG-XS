@@ -125,7 +125,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
         in_buf.alloc_size[1] = in_buf.stride[1] * encoder.source_height * pixel_size;
         in_buf.alloc_size[2] = in_buf.stride[2] * encoder.source_height * pixel_size;
     }
-    else if (encoder.colour_format == COLOUR_FORMAT_PLANAR_YUV444_OR_RGB) {
+    else if (encoder.colour_format == COLOUR_FORMAT_PLANAR_YUV444 || encoder.colour_format == COLOUR_FORMAT_PLANAR_RGB) {
         in_buf.stride[0] = encoder.source_width;
         in_buf.stride[1] = encoder.source_width;
         in_buf.stride[2] = encoder.source_width;
@@ -141,8 +141,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
         in_buf.alloc_size[1] = 0;
         in_buf.alloc_size[2] = 0;
     }
-    else if (encoder.colour_format == COLOUR_FORMAT_PLANAR_4_COMPONENTS) {
-        //4:4:4:4 - RGBA/GBRA/YUVA444, all 4 components full resolution
+    else if (encoder.colour_format == COLOUR_FORMAT_PLANAR_4_COMPONENTS || encoder.colour_format == COLOUR_FORMAT_PLANAR_RGBA) {
+        //4:4:4:4 - RGBA/YUVA444, all 4 components full resolution
         num_components = 4;
         for (uint8_t i = 0; i < num_components; ++i) {
             in_buf.stride[i] = encoder.source_width;

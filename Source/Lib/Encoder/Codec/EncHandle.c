@@ -75,7 +75,7 @@ static void print_lib_params(svt_jpeg_xs_encoder_api_t* enc_api) {
     svt_jpeg_xs_encoder_api_prv_t* enc_api_prv = (svt_jpeg_xs_encoder_api_prv_t*)enc_api->private_ptr;
     svt_jpeg_xs_encoder_common_t* enc_common = &enc_api_prv->enc_common;
 
-    const char* color_format_name = svt_jpeg_xs_get_format_name(enc_common->colour_format);
+    const char* color_format_name = svt_jpeg_xs_get_format_name(enc_api->colour_format);
 
     SVT_LOG("------------------------------------------- ");
     SVT_LOG("\nSVT [config]: Resolution [width x height]         \t: %d x %d", enc_common->pi.width, enc_common->pi.height);
@@ -239,7 +239,15 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         }
         return SvtJxsErrorBadParameter;
     }
+    /* PLANAR_RGB and PLANAR_RGBA only declare the component order (R, G, B[, A]). They are coded
+     * exactly like PLANAR_YUV444 and PLANAR_4_COMPONENTS, so the internal format uses those. */
     enc_common->colour_format = config_struct->colour_format;
+    if (enc_common->colour_format == COLOUR_FORMAT_PLANAR_RGB) {
+        enc_common->colour_format = COLOUR_FORMAT_PLANAR_YUV444;
+    }
+    else if (enc_common->colour_format == COLOUR_FORMAT_PLANAR_RGBA) {
+        enc_common->colour_format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
+    }
     SvtJxsErrorType_t return_error = format_get_sampling_factory(
         enc_common->colour_format, &num_comp, sx, sy, config_struct->verbose);
     if (return_error) {
@@ -488,9 +496,11 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
             }
             return SvtJxsErrorBadParameter;
         }
-        if (enc_common->colour_format != COLOUR_FORMAT_PLANAR_YUV444_OR_RGB || num_comp != 3) {
+        /* The RCT (ISO/IEC 21122-1 Table F.2) is defined for R, G, B input and Cpih=1 tells the
+         * decoder the output is RGB, so the caller must declare RGB input explicitly. */
+        if (config_struct->colour_format != COLOUR_FORMAT_PLANAR_RGB) {
             if (config_struct->verbose >= VERBOSE_ERRORS) {
-                SVT_ERROR("Error: enable_color_transform requires 3-component planar 4:4:4 (RGB-like) input!\n");
+                SVT_ERROR("Error: enable_color_transform requires COLOUR_FORMAT_PLANAR_RGB input!\n");
             }
             return SvtJxsErrorBadParameter;
         }

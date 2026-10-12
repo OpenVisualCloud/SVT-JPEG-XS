@@ -134,11 +134,12 @@ typedef struct svt_jpeg_xs_encoder_api {
     uint8_t input_bit_depth_msb_aligned;
 
     /* Enable the ISO/IEC 21122-1 Table F.2 reversible colour transformation (RCT) between
-     * RGB (or equivalent 4:4:4 planar) source samples and YCbCr-like decorrelated
-     * components, signalled in the picture header as Cpih=1.
-     * Requires colour_format == COLOUR_FORMAT_PLANAR_YUV444_OR_RGB (exactly 3, unsubsampled
-     * planar components) and cpu_profile == CPU_PROFILE_LOW_LATENCY; rejected otherwise at
-     * svt_jpeg_xs_encoder_init() time.
+     * R, G, B source samples and YCbCr-like decorrelated components, signalled in the picture
+     * header as Cpih=1. Decoders treat Cpih=1 output as R, G, B.
+     * Requires colour_format == COLOUR_FORMAT_PLANAR_RGB (components 0, 1, 2 = R, G, B) and
+     * cpu_profile == CPU_PROFILE_LOW_LATENCY; rejected otherwise at svt_jpeg_xs_encoder_init()
+     * time. YUV 4:4:4 input (COLOUR_FORMAT_PLANAR_YUV444) is rejected: it is already
+     * decorrelated, and the stream would be decoded as RGB.
      * 0 = disabled (default, current behavior): Cpih=0, no colour transform, input samples
      *     are coded as-is.
      * 1 = enabled: forward RCT is applied before the wavelet transform; the decoder inverts

@@ -102,7 +102,7 @@ echo "mktemp scratch files created on ramdisk"
 # as tests/scripts/EncoderTest.sh) - the app rewinds/loops the input file to satisfy -n $FRAMES, so a
 # short synthesized file is enough. Real Y/Cb/Cr planes kept as-is, alpha/extra planes are Y duplicates.
 # yuv444 (3-component, unsubsampled) is 3 Y-plane copies with no alpha - the shape --color-transform
-# (encoder-side reversible colour transform, Cpih=1) requires.
+# (encoder-side reversible colour transform, Cpih=1) requires; the RCT rows encode it as rgb.
 #
 # Use dd with iflag=skip_bytes,count_bytes instead of tail|head: dd seeks directly without a pipe so
 # there is no SIGPIPE, and any write failure (e.g. ENOSPC) propagates as a non-zero exit code that
@@ -183,13 +183,13 @@ MATRIX=(
     # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output.
     "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|466|641|--input-msb-aligned 1|--output-msb-aligned 1"
 
-    # 1080p yuv444 (3-component, unsubsampled) 8-bit - 4.0 BPP Thread Scaling, encoder-side
+    # 1080p planar RGB (3-component, unsubsampled) 8-bit - 4.0 BPP Thread Scaling, encoder-side
     # reversible colour transform enabled (--color-transform 1, RCT, Cpih=1). Requires
-    # --colour-format yuv444/rgb and --profile latency (already the default). The decoder
+    # --colour-format rgb and --profile latency (already the default). The decoder
     # applies the inverse RCT per precinct in the --lp slice workers, so decode scales with
     # threads like non-RCT decode.
-    "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|1|SYNTH:yuv444|63|103|--color-transform 1 --profile latency"
-    "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|8|SYNTH:yuv444|357|498|--color-transform 1 --profile latency"
+    "1080p60_rgb8_rct|1920|1080|8|rgb|60|4.0|1|SYNTH:yuv444|63|103|--color-transform 1 --profile latency"
+    "1080p60_rgb8_rct|1920|1080|8|rgb|60|4.0|8|SYNTH:yuv444|357|498|--color-transform 1 --profile latency"
 
     # 1080p 422p 10-bit true lossless (--lossless 1, Fq=0) Thread Scaling. --bpp is passed but
     # ignored by the encoder in this mode (kept only for CSV-column consistency with the other

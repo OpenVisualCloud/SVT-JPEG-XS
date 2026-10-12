@@ -94,30 +94,52 @@ Supported OS versions:
 | YUV 420 10/12/14-bit | yuv420 + 10/12/14 | yuv420p{10/12/14}le | Tested, working properly |
 | YUV 422 8-bit | yuv422 + 8 | yuv422p | Tested, working properly |
 | YUV 422 10/12/14-bit | yuv422 + 10/12/14 | yuv422p{10/12/14}le | Tested, working properly |
-| YUV 444 8-bit | yuv444 + 8 | yuv444p | Tested, working properly. Accepts `--color-transform 1` (requires `--profile latency`) but it is __not recommended__ here - measured -2.9dB PSNR at matched bpp on real footage, see note below |
-| YUV 444 10/12/14-bit | yuv444 + 10/12/14 | yuv444p{10/12/14}le | Tested, working properly. Accepts `--color-transform 1` (requires `--profile latency`) but it is __not recommended__ here - measured -2.9dB PSNR at matched bpp on real footage, see note below |
-| RGB 8-bit | rgb  + 8 | gbrp | Tested, working properly. Supports `--color-transform 1` (forward RCT, requires `--profile latency`) - measured +5.9dB PSNR at matched bpp on real footage, see note below |
-| RGB 10/12/14-bit | rgb + 10/12/14 | gbrp{10/12/14}le | Tested, working properly. Supports `--color-transform 1` (forward RCT, requires `--profile latency`) - measured +5.9dB PSNR at matched bpp on real footage, see note below |
-| YUV 422 + Alpha (4:2:2:4) 8-bit | yuva422 + 8 | - | Tested, working properly |
-| YUV 422 + Alpha (4:2:2:4) 10/12/14-bit | yuva422 + 10/12/14 | - | Tested, working properly |
-| RGBA/YUVA444 (4:4:4:4) 8-bit | rgba/yuva444 + 8 | - | Tested, working properly |
-| RGBA/YUVA444 (4:4:4:4) 10/12/14-bit | rgba/yuva444 + 10/12/14 | - | Tested, working properly |
+| YUV 444 8-bit | yuv444 + 8 | yuv444p | Tested, working properly. `--color-transform 1` is rejected, see "Component order and colour transform" below |
+| YUV 444 10/12/14-bit | yuv444 + 10/12/14 | yuv444p{10/12/14}le | Tested, working properly. `--color-transform 1` is rejected, see "Component order and colour transform" below |
+| RGB 8-bit | rgb  + 8 | gbrp (planes G, B, R, see below) | Tested, working properly. Planes in R, G, B order. Supports `--color-transform 1` (forward RCT, requires `--profile latency`) |
+| RGB 10/12/14-bit | rgb + 10/12/14 | gbrp{10/12/14}le (planes G, B, R, see below) | Tested, working properly. Planes in R, G, B order. Supports `--color-transform 1` (forward RCT, requires `--profile latency`) |
+| YUV 422 + Alpha (4:2:2:4) 8-bit | yuva422 + 8 | yuva422p | Tested, working properly |
+| YUV 422 + Alpha (4:2:2:4) 10/12/14-bit | yuva422 + 10/12/14 | yuva422p{10/12}le (no 14-bit) | Tested, working properly |
+| RGBA/YUVA444 (4:4:4:4) 8-bit | rgba/yuva444 + 8 | gbrap (planes G, B, R, A) / yuva444p | Tested, working properly. rgba planes in R, G, B, A order |
+| RGBA/YUVA444 (4:4:4:4) 10/12/14-bit | rgba/yuva444 + 10/12/14 | gbrap{10/12/14}le (planes G, B, R, A) / yuva444p{10/12}le | Tested, working properly. rgba planes in R, G, B, A order |
 | YUV 400 8-bit | yuv400 + 8 | - | Unsupported |
 | YUV 400 10-bit | yuv400 + 10/12/14 | - | Unsupported |
-
-__`--color-transform` note:__ the underlying format check only requires an unsubsampled 3-component
-planar layout (`COLOUR_FORMAT_PLANAR_YUV444_OR_RGB`), which rgb and yuv444 both satisfy, so both are
-_accepted_. Only rgb is _recommended_: the transform decorrelates RGB-like input into a YCbCr-like
-representation, which helps quantization efficiency; yuv444 input is already in a YCbCr-like
-representation, so applying the same transform again does not help and measured worse quality at
-matched bpp on real footage (RGB: +5.9dB PSNR, YUV444: -2.9dB PSNR).
 
 #### PACKED
 
 | format | EncApp: format + input-depth | ffmpeg name | status |
 | -- | -- | -- | -- |
-| RGB 8bit | rgbp + 8 | rgb24/bgr24 | Tested, working properly, __decoder decodes to planar format only__, __`--profile cpu` (CPU_PROFILE_CPU) not implemented for this format, use the default Low latency profile__ |
+| RGB 8bit | rgbp + 8 | rgb24 (bytes in R, G, B order; bgr24 is not supported) | Tested, working properly, __decoder decodes to planar format only__, __`--profile cpu` (CPU_PROFILE_CPU) not implemented for this format, use the default Low latency profile__ |
 | RGB 10/12/14bit | rgbp + 10/12/14 | - | Tested, working properly, __decoder decodes to planar format only__, __`--profile cpu` (CPU_PROFILE_CPU) not implemented for this format, use the default Low latency profile__ |
+
+#### Component order and colour transform
+
+The input file holds each frame as planes (planar formats) or interleaved bytes (`rgbp`), in the
+order below. Components are coded in that order. The colour transform (`--color-transform 1`, RCT,
+ISO/IEC 21122-1 Table F.2, signalled as Cpih=1) is defined for R, G, B input, so it is accepted
+only for `rgb`; decoders treat Cpih=1 output as R, G, B.
+
+| `--colour-format` | Library `colour_format` | Components per frame, in file order | FFmpeg plugin pixel format | `--color-transform 1` |
+| -- | -- | -- | -- | -- |
+| yuv400 (unsupported) | `COLOUR_FORMAT_PLANAR_YUV400` | Y | gray* (decode only) | rejected |
+| yuv420 | `COLOUR_FORMAT_PLANAR_YUV420` | Y, Cb, Cr | yuv420p* | rejected |
+| yuv422 | `COLOUR_FORMAT_PLANAR_YUV422` | Y, Cb, Cr | yuv422p* | rejected |
+| yuv444 | `COLOUR_FORMAT_PLANAR_YUV444` | Y, Cb, Cr | yuv444p* | rejected |
+| rgb | `COLOUR_FORMAT_PLANAR_RGB` | R, G, B | gbrp* (planes G, B, R; the plugin reorders them) | accepted |
+| rgbp | `COLOUR_FORMAT_PACKED_YUV444_OR_RGB` | R, G, B interleaved per pixel | rgb24 | rejected |
+| yuva422 | `COLOUR_FORMAT_PLANAR_YUV422_ALPHA` | Y, Cb, Cr, A | yuva422p* | rejected |
+| yuva444 | `COLOUR_FORMAT_PLANAR_4_COMPONENTS` | Y, Cb, Cr, A | yuva444p* | rejected |
+| rgba | `COLOUR_FORMAT_PLANAR_RGBA` | R, G, B, A | gbrap* (planes G, B, R, A; the plugin reorders them) | rejected (3 components only) |
+
+Notes:
+
+- FFmpeg has no planar pixel format in R, G, B order. A raw file written by FFmpeg as `gbrp*` or
+  `gbrap*` holds G, B, R(, A) and must be reordered before it is passed to SvtJpegxsEncApp.
+- `bgr24` (B, G, R bytes) is not supported. Convert it to `rgb24` first.
+- `yuv444` is rejected with `--color-transform 1`: YUV input is already decorrelated, and the
+  stream would be decoded as RGB.
+- Without `--color-transform` (Cpih=0) the stream does not signal whether it holds YUV or RGB;
+  `rgb` and `yuv444` produce identical streams. Only Cpih=1 streams are known to be RGB.
 
 ### Usage examples
 
@@ -160,7 +182,7 @@ To encode a mathematically lossless stream (decoded output is bit-exact with the
   raw-mode to be disabled (Rl=0), so pass `--coding-raw 0` for a strictly conformant stream. MLS.12
   only covers 8/10/12-bit input; 13/14-bit lossless input is supported, but the encoder warns that
   no defined profile matches it.
-- `--color-transform 1` (requires `--profile latency`) can be combined with `--lossless 1`, since
+- `--color-transform 1` (requires `--colour-format rgb` and `--profile latency`) can be combined with `--lossless 1`, since
   RCT is reversible, for 8-12-bit input only; at 13/14 bits the colour-transformed coefficients
   would exceed the coded magnitude range, so this combination is rejected.
 - Not supported together with `--input-msb-aligned 1` or `--packetization-mode 1`; encoder
@@ -201,11 +223,14 @@ Input Options:
 -i                         Input Filename
 -w                         Frame width
 -h                         Frame height
---colour-format            Set encoder colour format (yuv420, yuv422,  yuv444, rgb(planar), rgbp(packed),
-                            rgba/yuva444 (4:4:4:4 planar, 4 components), yuva422 (4:2:2:4 planar, YUV422 + alpha))
+--colour-format            Set encoder colour format and the component order of the input file:
+                            yuv420, yuv422, yuv444 (planes Y, Cb, Cr),
+                            rgb (planes R, G, B), rgbp (packed, bytes R, G, B per pixel),
+                            yuva444 (planes Y, Cb, Cr, A), rgba (planes R, G, B, A),
+                            yuva422 (4:2:2:4, planes Y, Cb, Cr, A)
                             (Experimental: yuv400)
-                            Only rgb(planar) and yuv444 are compatible with --color-transform (rgb
-                            recommended, yuv444 is accepted but not recommended, see --color-transform)
+                            FFmpeg gbrp/gbrap files hold planes G, B, R(, A): reorder them for rgb/rgba
+                            Only rgb is compatible with --color-transform
 --input-depth              Input depth
 [--input-msb-aligned]      Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit
                             word instead of LSB-aligned (enabled:1, disabled:0, default:0)
@@ -239,14 +264,10 @@ Coding features used during Rate Calculation (quality/speed tradeoff):
 [--coding-vpred]           Enable Vertical Prediction coding (disable:0, zero prediction residuals:1, zero coefficients:2, default: 0)
 [--coding-raw]             Enable packet-based raw-mode coding (enabled:1, disable for legacy-decoder compatibility:0, default:1)
 [--cap-compat]             Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required (enabled:1, disable:0, default:0)
-[--color-transform]        Encoder-side reversible colour transform (RCT, Cpih=1) for 3-component
-                            unsubsampled planar input (enabled:1, disabled:0, default:0). Requires
-                            --colour-format rgb or yuv444, and --profile latency.
-                            Recommended for rgb only - measured +5.9dB PSNR at matched bpp on real
-                            footage. yuv444 is accepted (same format check as rgb) but not
-                            recommended - measured -2.9dB PSNR at matched bpp, since the transform
-                            decorrelates RGB-like input into YCbCr-like, which does not help input
-                            that is already YCbCr-like
+[--color-transform]        Encoder-side reversible colour transform (RCT, Cpih=1) (enabled:1,
+                            disabled:0, default:0). Requires --colour-format rgb (planes R, G, B)
+                            and --profile latency; rejected for every other format. Decoders
+                            output R, G, B for Cpih=1 streams
 [--lossless]               True lossless coding, Fq=0 (enabled:1, disabled:0, default:0). Output
                             size is data-dependent instead of the fixed CBR size. Ignores --bpp,
                             --rc and --quantization. Not supported together with
@@ -308,6 +329,20 @@ To measure average frame decoding time (latency) `--limit-fps`  and high enough 
 
 The `--limit-fps` must be lower than the maximum achievable number of frames.
 So that the next frames are not queued (time of waiting frames for processing is included in the latency time).
+
+### Output format
+
+SvtJpegxsDecApp writes each frame as planes, one component after another, in the order the stream
+codes them. It prints the colour format reported by the library (`DecoderColorFormat`):
+
+- Streams with the colour transform (Cpih=1) are reported as `COLOUR_FORMAT_PLANAR_RGB`
+  (`COLOUR_FORMAT_PLANAR_RGBA` for 4 components); the planes are R, G, B(, A).
+- 3-component 4:4:4 streams without it (Cpih=0) are reported as `COLOUR_FORMAT_PLANAR_YUV444`
+  and 4-component 4:4:4:4 streams as `COLOUR_FORMAT_PLANAR_4_COMPONENTS`. A Cpih=0 stream does not
+  signal whether it holds YUV or RGB: the planes are in the order the encoder received them
+  (Y, Cb, Cr(, A) for YUV input, R, G, B(, A) for `rgb`/`rgba` input).
+- Star-Tetrix streams (Cpih=3, 4 components) are reported as `COLOUR_FORMAT_PLANAR_4_COMPONENTS`.
+- Streams encoded from packed `rgbp` input are decoded to planar R, G, B.
 
 ### Available parameters
 
