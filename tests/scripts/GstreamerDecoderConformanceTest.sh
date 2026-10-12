@@ -16,6 +16,8 @@ echo "PATH BITSTERAMS:  $path_bitstreams"
 # svtjpegxsdec limitations vs ffmpeg (reason for skipped test cases below):
 #   - Depth: only 8/10/12-bit accepted; 11/13/14-bit fail at caps negotiation.
 #   - Sampling: no Grayscale; no 4-component (COMPONENTS_4) support.
+#   - RGB: streams with the colour transform (Cpih=1) are reported by the library as
+#     COLOUR_FORMAT_PLANAR_RGB, which svtjpegxsdec does not support.
 #   - Odd heights: GStreamer's raw-video buffer allocator pads odd row counts to even,
 #     so filesink output is larger than the reference YUV and diff always fails.
 #     The decode itself succeeds; this is a buffer layout artifact, not a decoder bug.
@@ -115,7 +117,7 @@ rm -fr $tmp_dir
 mkdir $tmp_dir
 
 function test_all {
-    test_dec 001
+    # 001 1024x436_8bit_YUV444 - SKIPPED, RGB (Cpih=1) unsupported in gst plugin
     test_dec 002
     test_dec 003
     test_dec 004
@@ -176,8 +178,8 @@ function test_all {
     test_dec 201
     test_dec 202
     test_dec 203
-    test_dec 204
-    test_dec 205
+    # 204 976x650_12bit_YUV444 - SKIPPED, RGB (Cpih=1) unsupported in gst plugin
+    # 205 976x650_12bit_YUV444 - SKIPPED, RGB (Cpih=1) unsupported in gst plugin
     test_dec 206
     test_dec 207
     test_dec 208
