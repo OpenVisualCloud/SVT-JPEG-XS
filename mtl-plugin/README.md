@@ -89,7 +89,8 @@ copied.
   which costs performance.
 * An unknown key, an invalid value, a syntax error, or a key the installed SVT-JPEG-XS library does
   not support makes plugin start fail; the error names the key and the allowed values. Invalid
-  combinations (e.g. `rct` with 4:2:2 input) make only the affected session fail.
+  combinations (e.g. `rct` with any input other than `GBRPLANAR*`) make only the affected session
+  fail.
 * With `lossless` the frame size depends on the content; the plugin reports the worst case size to
   MTL. MTL allocates buffers and reserves Tx bandwidth for that size, close to uncompressed, so the
   session may not fit the link. The receiver must set `max_codestream_size` to the worst case size
@@ -118,12 +119,12 @@ The encoder takes and the decoder outputs these MTL pipeline formats:
   it only when built against such a library. The decoder accepts only 10-bit 4:2:2 streams for it.
   `lossless` can't be combined with it.
 * `GBRPLANAR*` frames store the planes G, B, R. The plugin hands them to the codec as components R,
-  G, B, the order the colour transform (`rct`) and other JPEG XS codecs expect. The SVT-JPEG-XS
-  ffmpeg plugin currently passes `gbrp` planes as G, B, R, so RGB streams from it decode with
-  swapped colours here, and the other way round.
-* A 4:4:4 stream doesn't say whether it carries YUV or RGB: it decodes into either
-  `YUV444PLANAR*` or `GBRPLANAR*` of the same bit depth. Sender and receiver must agree on the
-  colour space.
+  G, B (`COLOUR_FORMAT_PLANAR_RGB`), the order the colour transform (`rct`), the SVT-JPEG-XS ffmpeg
+  plugin and other JPEG XS codecs use. `rct` is accepted only for `GBRPLANAR*` input.
+* A 4:4:4 stream without the colour transform doesn't say whether it carries YUV or RGB: it decodes
+  into either `YUV444PLANAR*` or `GBRPLANAR*` of the same bit depth, so sender and receiver must
+  agree on the colour space. A stream with the colour transform (`rct`, Cpih=1) holds R, G, B; it
+  also decodes into either output, `YUV444PLANAR*` then gets the planes R, G, B.
 * 4:2:0 needs `decomp_v` 1 or 2. The MTL quality mode SPEED sets `decomp_v` 0, so a
   `YUV420PLANAR8` session in SPEED mode fails at session create unless the config file sets
   `encoder.decomp_v` 1 or 2; `encoder.decomp_v` 0 fails the same way.
