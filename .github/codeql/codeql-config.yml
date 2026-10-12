@@ -1,0 +1,5 @@
+name: SVT-JPEG-XS CodeQL config
+
+# Vendored dependency: compiled into the library on x86, but not maintained here.
+paths-ignore:
+  - third_party

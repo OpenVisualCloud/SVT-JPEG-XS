@@ -41,7 +41,7 @@ jobs:
            sudo apt-get -y install nasm
 
     - name: 'Run coverity'
-      uses: vapier/coverity-scan-action@2068473c7bdf8c2fb984a6a40ae76ee7facd7a85 # v1.8.0
+      uses: vapier/coverity-scan-action@8fe7b0af23cbbd4eced5f63dcd2384640eaa5d49 # v1.10.0
       with:
         project: 'SVT-JPEG-XS'
         email: ${{ secrets.COVERITY_SCAN_EMAIL }}
@@ -54,4 +54,6 @@ jobs:
     - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: coverity-reports
-        path: '${{ github.workspace }}/cov-int'
+        # cov-build runs in the action's working-directory, so cov-int lands there.
+        path: '${{ github.workspace }}/Build/linux/cov-int'
+        if-no-files-found: error

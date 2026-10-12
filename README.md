@@ -1,6 +1,8 @@
 # Intel&reg; JPEG-XS Library
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/OpenVisualCloud/SVT-JPEG-XS/badge)](https://scorecard.dev/viewer/?uri=github.com/OpenVisualCloud/SVT-JPEG-XS)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15406/badge)](https://www.bestpractices.dev/projects/15406)
+[![Coverity Scan](https://scan.coverity.com/projects/svt-jpeg-xs/badge.svg)](https://scan.coverity.com/projects/SVT-JPEG-XS)
 
 ## License
 
