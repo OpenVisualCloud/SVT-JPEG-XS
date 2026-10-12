@@ -26,6 +26,8 @@ typedef struct svt_jpeg_xs_decoder_common {
     // max_frame_bitstream_size is used only when packetization_mode is enabled
     uint32_t max_frame_bitstream_size;
     uint8_t output_bit_depth_msb_aligned;
+    // Colour format reported to the caller, set by svt_jpeg_xs_dec_init_common()
+    ColourFormat_t format;
 } svt_jpeg_xs_decoder_common_t;
 
 typedef struct svt_jpeg_xs_decoder_thread_context {
@@ -118,6 +120,9 @@ SvtJxsErrorType_t svt_jpeg_xs_decoder_probe(const uint8_t* bitstream_buf, size_t
                                             picture_header_dynamic_t* picture_header_dynamic, uint32_t verbose);
 ColourFormat_t svt_jpeg_xs_get_format_from_params(uint32_t comps_num, uint32_t sx[MAX_COMPONENTS_NUM],
                                                   uint32_t sy[MAX_COMPONENTS_NUM]);
+/* Map a 4:4:4 format to its RGB variant for Cpih=1 streams (the inverse RCT always outputs
+ * R, G, B). Any other format or Cpih value is returned unchanged. */
+ColourFormat_t svt_jpeg_xs_get_rgb_format(ColourFormat_t format, uint8_t hdr_Cpih);
 
 SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_common,
                                               svt_jpeg_xs_image_config_t* out_image_config, proxy_mode_t proxy_mode,

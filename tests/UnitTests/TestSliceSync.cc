@@ -95,7 +95,7 @@ TEST_P(SliceSyncLastSlice, MultithreadedDecodeBitExact) {
     enc.source_width = width;
     enc.source_height = param.height;
     enc.input_bit_depth = param.bit_depth;
-    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    enc.colour_format = param.rct ? COLOUR_FORMAT_PLANAR_RGB : COLOUR_FORMAT_PLANAR_YUV444;
     enc.lossless_enable = 1;
     enc.enable_color_transform = param.rct;
     enc.ndecomp_v = param.ndecomp_v;

@@ -247,15 +247,18 @@ static void set_encoder_colour_format(const char *value, EncoderConfig_t *cfg) {
         cfg->encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV422;
     }
     else if (!strcmp(value, "yuv444")) {
-        cfg->encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+        cfg->encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444;
     }
     else if (!strcmp(value, "rgb")) {
-        cfg->encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+        cfg->encoder.colour_format = COLOUR_FORMAT_PLANAR_RGB;
     }
     else if (!strcmp(value, "rgbp")) {
         cfg->encoder.colour_format = COLOUR_FORMAT_PACKED_YUV444_OR_RGB;
     }
-    else if (!strcmp(value, "rgba") || !strcmp(value, "yuva444")) {
+    else if (!strcmp(value, "rgba")) {
+        cfg->encoder.colour_format = COLOUR_FORMAT_PLANAR_RGBA;
+    }
+    else if (!strcmp(value, "yuva444")) {
         cfg->encoder.colour_format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
     }
     else if (!strcmp(value, "yuva422")) {
@@ -415,7 +418,7 @@ ConfigEntry config_entry[] = {
     {INPUT_OPTIONS, INPUT_FILE_TOKEN,       "Input Filename", 1, 1, set_cfg_input_file},
     {INPUT_OPTIONS, WIDTH_TOKEN,            "Frame width", 1, 1, set_cfg_source_width},
     {INPUT_OPTIONS, HEIGHT_TOKEN,           "Frame height", 1, 1, set_cfg_source_height},
-    {INPUT_OPTIONS, ENCODER_COLOUR_FORMAT,  "Set encoder colour format (yuv420, yuv422) (Experimental: yuv400, yuv444, rgb(planar), rgbp(packed), rgba/yuva444 (4:4:4:4 planar, 4 components), yuva422 (4:2:2:4 planar, YUV422 + alpha))", 1, 1, set_encoder_colour_format},
+    {INPUT_OPTIONS, ENCODER_COLOUR_FORMAT,  "Set encoder colour format and the component order of the input file: yuv420, yuv422 (planes Y, Cb, Cr) (Experimental: yuv400, yuv444 (planes Y, Cb, Cr), rgb (planes R, G, B), rgbp (packed, bytes R, G, B per pixel), yuva444 (planes Y, Cb, Cr, A), rgba (planes R, G, B, A), yuva422 (4:2:2:4, planes Y, Cb, Cr, A)). FFmpeg gbrp/gbrap files hold planes G, B, R(, A): reorder them for rgb/rgba", 1, 1, set_encoder_colour_format},
     {INPUT_OPTIONS, INPUT_DEPTH_TOKEN,      "Input depth", 1, 1, set_input_bit_depth},
     {INPUT_OPTIONS, INPUT_MSB_ALIGNED_TOKEN,"Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit word instead of LSB-aligned (enabled:1, disabled:0, default:0)", 0, 1, set_input_msb_aligned},
     /* param_required=0: --bpp is required unless --lossless 1 is set, checked in read_command_line(). */
@@ -435,7 +438,7 @@ ConfigEntry config_entry[] = {
     {CODING_OPTIONS, CODING_RATE_CONTROL,   "Rate Control mode (CBR: budget per precinct: 0, CBR: budget per precinct with padding movement: 1, CBR: budget per slice: 2, CBR: budget per slice with max size RATE: 3, default 1)", 0, 1, set_rate_control_mode},
     {CODING_OPTIONS, CODING_RAW_TOKEN,      "Packet-based raw-mode coding (enabled:1, disabled:0, default:1). Disabling clears the raw-mode capability bit and never selects raw packet packing.", 0, 1, set_coding_raw},
     {CODING_OPTIONS, CAP_COMPAT_TOKEN,      "Legacy decoder CAP-marker compatibility (full CAP:0, empty CAP when no capability bit set:1, default:0)", 0, 1, set_cap_compat},
-    {CODING_OPTIONS, COLOR_TRANSFORM_TOKEN, "Encoder-side reversible colour transform (RCT, Cpih=1) for 3-component unsubsampled planar input (enabled:1, disabled:0, default:0). Requires --colour-format rgb or yuv444, and --profile latency.", 0, 1, set_color_transform},
+    {CODING_OPTIONS, COLOR_TRANSFORM_TOKEN, "Encoder-side reversible colour transform (RCT, Cpih=1) (enabled:1, disabled:0, default:0). Requires --colour-format rgb (planes R, G, B) and --profile latency; rejected for every other format. Decoders output R, G, B for Cpih=1 streams", 0, 1, set_color_transform},
     {CODING_OPTIONS, LOSSLESS_TOKEN,        "True lossless coding, Fq=0 (enabled:1, disabled:0, default:0). Output size is data-dependent instead of fixed CBR size. Ignores --bpp/--rc/--quantization. Not supported with --input-msb-aligned 1, --packetization-mode 1, or --color-transform 1 at --input-depth 13/14. Use --coding-raw 0 for a strictly MLS.12-conformant stream.", 0, 1, set_lossless},
     {CODING_OPTIONS, STREAM_PROFILE_TOKEN, "Stream profile (Ppih) to declare in the picture header (auto, light422, light444, lightsubline422, main420, main422, main444, main4444, high420, high444, high4444, or raw hex/decimal Ppih value, default:auto)", 0, 1, set_stream_profile},
     {CODING_OPTIONS, STREAM_LEVEL_TOKEN,   "Stream level (Plev) to declare in the picture header (auto, unrestricted, 1k-1, 2k-1, 4k-1, 4k-2, 4k-3, 5k-1, 8k-1, 8k-2, 8k-3, 10k-1, or raw hex/decimal Plev value, default:auto)", 0, 1, set_stream_level},

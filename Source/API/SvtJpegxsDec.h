@@ -65,6 +65,12 @@ typedef struct svt_jpeg_xs_decoder_api {
     uint8_t padding[63];
 } svt_jpeg_xs_decoder_api_t;
 
+/* Init decoder and fill out_image_config from the first frame.
+ * out_image_config->format for 4:4:4 streams:
+ *  - Cpih=1 (colour transform): COLOUR_FORMAT_PLANAR_RGB (3 components) or COLOUR_FORMAT_PLANAR_RGBA
+ *    (4 components), output components in R, G, B(, A) order.
+ *  - Cpih=0: COLOUR_FORMAT_PLANAR_YUV444 or COLOUR_FORMAT_PLANAR_4_COMPONENTS. The stream does not
+ *    signal whether it holds YUV or RGB, so this must come from the container or the user. */
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major, uint64_t version_api_minor,
                                                       svt_jpeg_xs_decoder_api_t* dec_api, const uint8_t* bitstream_buf,
                                                       size_t codestream_size, svt_jpeg_xs_image_config_t* out_image_config);
@@ -87,6 +93,7 @@ PREFIX_API void svt_jpeg_xs_decoder_close(svt_jpeg_xs_decoder_api_t* dec_api);
   * SvtJxsErrorDecoderInvalidBitstream   - when bitstream is invalid and can not be analyzed
   * svt_jpeg_xs_decoder_get_single_frame_size() stays for compatibility with 0.9 version of API
   * svt_jpeg_xs_decoder_get_single_frame_size_with_proxy() shall be used instead, as it allows to specify proxy mode.
+  * out_image_config->format is the same as from svt_jpeg_xs_decoder_init().
   **/
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_single_frame_size(const uint8_t* bitstream_buf, size_t bitstream_buf_size,
                                                                        svt_jpeg_xs_image_config_t* out_image_config,

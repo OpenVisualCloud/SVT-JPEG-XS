@@ -141,8 +141,8 @@ coefficients. The wavelet filtering is done vertically and horizontally. Vertica
 and horizontal decomposition range is [1..5] inclusive.
 
 When the reversible colour transform is enabled (RCT, ISO/IEC 21122-1 Table F.2, signalled as Cpih=1), a forward decorrelation
-step is applied to RGB-like planar 4:4:4 samples immediately before the wavelet transform, mirroring the decoder's inverse RCT
-step. This is only available in the Low latency threading model.
+step is applied to planar R, G, B samples (`COLOUR_FORMAT_PLANAR_RGB`) immediately before the wavelet transform, mirroring
+the decoder's inverse RCT step. This is only available in the Low latency threading model.
 
 Since wavelet transformation runs across slice boundaries and slices are encoded independently, some precalculations are
 done to the first precinct in each slice to be used in the next precinct decomposition.

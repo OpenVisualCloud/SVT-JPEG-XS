@@ -685,7 +685,8 @@ function test_yuv444_rgb_and_rgbp {
     cpu_profile=$3
     packetization_mode=$4
 
-#   yuv444 and rgb are the SAME enum (COLOUR_FORMAT_PLANAR_YUV444_OR_RGB) - both must byte-match
+#   yuv444 (COLOUR_FORMAT_PLANAR_YUV444) and rgb (COLOUR_FORMAT_PLANAR_RGB) are coded the same way
+#   without --color-transform - both must byte-match
     test_enc_rgb_synth 0 2aa52be0dca46b52cf35aa90c22f09a2 "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format yuv444 --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
     test_enc_rgb_synth 0 2aa52be0dca46b52cf35aa90c22f09a2 "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgb    --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
     test_enc_rgb_synth 0 fe53341439e4c38e19ff60196525c5e2 "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgb    --bpp 4 --decomp_v 1 --decomp_h 4 --rc 0 -n $rgb_frames --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
@@ -728,13 +729,12 @@ function test_color_transform {
         test_enc_rgb_synth 0 8f8d9fe0d9efac4c3575344c5e1bbd7a "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgb --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
         test_enc_rgb_synth 0 4e291e86a736c76ffccd0799a07c7ea5 "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgb --bpp 4 --decomp_v 1 --decomp_h 4 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
 
-#       yuv444 shares COLOUR_FORMAT_PLANAR_YUV444_OR_RGB with rgb, so it is accepted too, and (same raw
-#       bytes, same enum) produces the exact same bitstream as the rgb case above - not rejected
-        test_enc_rgb_synth 0 8f8d9fe0d9efac4c3575344c5e1bbd7a "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format yuv444 --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
+#       --color-transform needs input declared as RGB (Cpih=1 is decoded as R, G, B) - yuv444 is rejected
+        test_enc_rgb_synth 5 IGNORE "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format yuv444 --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
     fi
 
-#   --color-transform requires 3-component, unsubsampled planar input (COLOUR_FORMAT_PLANAR_YUV444_OR_RGB,
-#   shared by rgb and yuv444) - rejected for subsampled planar (yuv422) and for packed (rgbp)
+#   --color-transform requires planar RGB input (COLOUR_FORMAT_PLANAR_RGB, --colour-format rgb) -
+#   rejected for subsampled planar (yuv422) and for packed (rgbp)
     test_enc_rgb_synth 5 IGNORE "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format yuv422 --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
     test_enc_rgb_synth 5 IGNORE "-w $rgb_w -h $rgb_h --input-depth 8 --colour-format rgbp   --bpp 3 --decomp_v 2 --decomp_h 5 --rc 0 -n $rgb_frames --color-transform 1 --asm $asm --lp $lp --profile $cpu_profile --packetization-mode $packetization_mode"
 }

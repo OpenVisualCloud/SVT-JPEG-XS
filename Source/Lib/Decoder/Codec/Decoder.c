@@ -53,9 +53,9 @@ ColourFormat_t svt_jpeg_xs_get_format_from_params(uint32_t comps_num, uint32_t s
                                                   uint32_t sy[MAX_COMPONENTS_NUM]) {
     ColourFormat_t format = COLOUR_FORMAT_INVALID;
     if (comps_num == 3) {
-        format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+        format = COLOUR_FORMAT_PLANAR_YUV444;
         if (sx[0] == 1 && sx[1] == 1 && sx[2] == 1 && sy[0] == 1 && sy[1] == 1 && sy[2] == 1) {
-            format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+            format = COLOUR_FORMAT_PLANAR_YUV444;
         }
         else if (sx[0] == 1 && sx[1] == 2 && sx[2] == 2 && sy[0] == 1 && sy[1] == 1 && sy[2] == 1) {
             format = COLOUR_FORMAT_PLANAR_YUV422;
@@ -84,6 +84,18 @@ ColourFormat_t svt_jpeg_xs_get_format_from_params(uint32_t comps_num, uint32_t s
     }
     else {
         format = COLOUR_FORMAT_INVALID;
+    }
+    return format;
+}
+
+ColourFormat_t svt_jpeg_xs_get_rgb_format(ColourFormat_t format, uint8_t hdr_Cpih) {
+    if (hdr_Cpih == 1) {
+        if (format == COLOUR_FORMAT_PLANAR_YUV444) {
+            return COLOUR_FORMAT_PLANAR_RGB;
+        }
+        if (format == COLOUR_FORMAT_PLANAR_4_COMPONENTS) {
+            return COLOUR_FORMAT_PLANAR_RGBA;
+        }
     }
     return format;
 }
@@ -143,6 +155,11 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
         }
     }
 
+    dec_common->format = svt_jpeg_xs_get_rgb_format(
+        svt_jpeg_xs_get_format_from_params(
+            dec_common->pi.comps_num, dec_common->picture_header_const.hdr_Sx, dec_common->picture_header_const.hdr_Sy),
+        dec_common->picture_header_const.hdr_Cpih);
+
     if (out_image_config) {
         pi_t* pi = &dec_common->pi;
         out_image_config->width = pi->width;
@@ -158,8 +175,7 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
                 out_image_config->components[c].height * pixel_size;
         }
 
-        out_image_config->format = svt_jpeg_xs_get_format_from_params(
-            dec_common->pi.comps_num, dec_common->picture_header_const.hdr_Sx, dec_common->picture_header_const.hdr_Sy);
+        out_image_config->format = dec_common->format;
         if (out_image_config->format == COLOUR_FORMAT_INVALID) {
             return SvtJxsErrorDecoderInvalidBitstream;
         }

@@ -248,10 +248,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
     }
 
     if (dec_api_prv->verbose >= VERBOSE_SYSTEM_INFO) {
-        ColourFormat_t format = svt_jpeg_xs_get_format_from_params(dec_api_prv->dec_common.pi.comps_num,
-                                                                   dec_api_prv->dec_common.picture_header_const.hdr_Sx,
-                                                                   dec_api_prv->dec_common.picture_header_const.hdr_Sy);
-        const char* color_format_name = svt_jpeg_xs_get_format_name(format);
+        const char* color_format_name = svt_jpeg_xs_get_format_name(dec_api_prv->dec_common.format);
         SVT_LOG("-------------------------------------------\n");
         SVT_LOG("SVT [config]: Stream Resolution [width x height]     \t: %d x %d\n",
                 dec_api_prv->dec_common.picture_header_const.hdr_width,

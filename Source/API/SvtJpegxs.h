@@ -50,14 +50,28 @@ typedef enum ColourFormat {
     COLOUR_FORMAT_PLANAR_YUV400 = 1,
     COLOUR_FORMAT_PLANAR_YUV420 = 2,        //planar: yuv420p, yuv420p10le etc.
     COLOUR_FORMAT_PLANAR_YUV422 = 3,        //planar: yuv422p, yuv422p10le etc.
-    COLOUR_FORMAT_PLANAR_YUV444_OR_RGB = 4, //planar: yuv444p, rgbp, gbrp, yuv444p10le, gbrp10le etc.
-    COLOUR_FORMAT_PLANAR_4_COMPONENTS = 5,  // planar 4 components, 4:4:4:4 sampling (RGBA, GBRA, YUVA444 etc.)
+    /* Planar 4:4:4, 3 components: yuv444p, yuv444p10le etc.
+     * The decoder also reports it for streams without the colour transform (Cpih=0): such a stream
+     * does not signal whether it holds YUV or RGB. */
+    COLOUR_FORMAT_PLANAR_YUV444 = 4,
+    /* Deprecated alias of COLOUR_FORMAT_PLANAR_YUV444, kept for source compatibility.
+     * Use COLOUR_FORMAT_PLANAR_RGB for RGB input; enable_color_transform is not accepted with
+     * this value. */
+    COLOUR_FORMAT_PLANAR_YUV444_OR_RGB = COLOUR_FORMAT_PLANAR_YUV444,
+    COLOUR_FORMAT_PLANAR_4_COMPONENTS = 5, // planar 4 components, 4:4:4:4 sampling (YUVA444; RGBA without colour transform)
     COLOUR_FORMAT_GRAY = 6,
     COLOUR_FORMAT_PLANAR_YUV422_ALPHA = 7, // planar 4 components, 4:2:2:4 sampling (Y/Cb/Cr at 4:2:2 plus full-resolution alpha)
+    /* Planar 4:4:4, 3 components in R, G, B order: component 0 = R, 1 = G, 2 = B.
+     * FFmpeg gbrp* stores planes as G, B, R, so the caller must reorder the plane pointers.
+     * Required for enable_color_transform (Cpih=1). The decoder reports it for Cpih=1 streams. */
+    COLOUR_FORMAT_PLANAR_RGB = 8,
+    /* Planar 4:4:4:4, 4 components in R, G, B, A order (component 3 = alpha).
+     * The decoder reports it for 4-component Cpih=1 streams. */
+    COLOUR_FORMAT_PLANAR_RGBA = 9,
     COLOUR_FORMAT_PLANAR_MAX,
 
     COLOUR_FORMAT_PACKED_MIN = 20,
-    COLOUR_FORMAT_PACKED_YUV444_OR_RGB, //packed rgb/bgr, 8:8:8, 24bpp, RGBRGB... / BGRBGR...
+    COLOUR_FORMAT_PACKED_YUV444_OR_RGB, //packed 8:8:8, 24bpp, RGBRGB... (R, G, B byte order for RGB input)
     COLOUR_FORMAT_PACKED_MAX
 } ColourFormat_t;
 

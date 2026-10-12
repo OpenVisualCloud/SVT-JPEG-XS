@@ -142,6 +142,23 @@ int32_t main(int32_t argc, char* argv[]) {
 }
 ```
 
+## Output colour format
+
+`out_image_config->format` from `svt_jpeg_xs_decoder_init()` tells how the components are to be
+interpreted. For 4:4:4 streams:
+
+- Streams with the colour transform (Cpih=1) are reported as `COLOUR_FORMAT_PLANAR_RGB`
+  (`COLOUR_FORMAT_PLANAR_RGBA` for 4 components), with the components in R, G, B(, A) order.
+- Streams without it (Cpih=0) are reported as `COLOUR_FORMAT_PLANAR_YUV444`
+  (`COLOUR_FORMAT_PLANAR_4_COMPONENTS`). Such a stream does not signal whether it holds YUV or RGB,
+  so this must come from the container or the user.
+- Star-Tetrix streams (Cpih=3, 4 components) are reported as `COLOUR_FORMAT_PLANAR_4_COMPONENTS`.
+- `svt_jpeg_xs_decoder_get_single_frame_size()` and `_with_proxy()` report the same format as
+  `svt_jpeg_xs_decoder_init()`.
+- Earlier versions reported `COLOUR_FORMAT_PLANAR_YUV444_OR_RGB` (`COLOUR_FORMAT_PLANAR_4_COMPONENTS`)
+  for Cpih=1 streams too; callers that switch on the format need a `COLOUR_FORMAT_PLANAR_RGB`
+  (`COLOUR_FORMAT_PLANAR_RGBA`) case.
+
 ## Notes
 
 The information in this document was compiled at `v0.10` of the code and may not

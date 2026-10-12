@@ -537,14 +537,16 @@ SvtJxsErrorType_t format_get_sampling_factory(ColourFormat_t format, uint32_t* o
         *out_comp_num = 3;
         break;
     }
-    case COLOUR_FORMAT_PLANAR_YUV444_OR_RGB:
+    case COLOUR_FORMAT_PLANAR_YUV444:
+    case COLOUR_FORMAT_PLANAR_RGB:
     case COLOUR_FORMAT_PACKED_YUV444_OR_RGB: {
         out_sx[0] = out_sx[1] = out_sx[2] = 1;
         out_sy[0] = out_sy[1] = out_sy[2] = 1;
         *out_comp_num = 3;
         break;
     }
-    case COLOUR_FORMAT_PLANAR_4_COMPONENTS: {
+    case COLOUR_FORMAT_PLANAR_4_COMPONENTS:
+    case COLOUR_FORMAT_PLANAR_RGBA: {
         out_sx[0] = out_sx[1] = out_sx[2] = out_sx[3] = 1;
         out_sy[0] = out_sy[1] = out_sy[2] = out_sy[3] = 1;
         *out_comp_num = 4;

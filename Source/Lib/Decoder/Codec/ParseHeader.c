@@ -648,6 +648,7 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
     int32_t Sd = 0;
     int32_t decomp_h = -1;
     int32_t decomp_v = -1;
+    uint8_t cpih = 0;
     uint32_t Sx[8] = {99};
     uint32_t Sy[8] = {99};
     int32_t bands_num_exists = -1;
@@ -705,6 +706,7 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
             width = get_16_bits(bitstream_buf + offset_bytes + 12);
             height = get_16_bits(bitstream_buf + offset_bytes + 14);
             comps_num = get_8_bits(bitstream_buf + offset_bytes + 20);
+            cpih = get_8_bits(bitstream_buf + offset_bytes + 25) & 0xF;
             decomp_h = get_8_bits(bitstream_buf + offset_bytes + 26) >> 4;
             decomp_v = get_8_bits(bitstream_buf + offset_bytes + 26) & 0xF;
             offset_bytes += 2 + header_size;
@@ -801,7 +803,8 @@ SvtJxsErrorType_t static_get_single_frame_size(const uint8_t* bitstream_buf, siz
                     out_image_config->height = height;
                     out_image_config->bit_depth = bit_depth;
                     out_image_config->components_num = comps_num;
-                    out_image_config->format = svt_jpeg_xs_get_format_from_params(comps_num, Sx, Sy);
+                    out_image_config->format =
+                        svt_jpeg_xs_get_rgb_format(svt_jpeg_xs_get_format_from_params(comps_num, Sx, Sy), cpih);
                     int32_t c = 0;
                     for (; c < comps_num - Sd; c++) {
                         out_image_config->components[c].width = width >> (Sx[c] - 1);
