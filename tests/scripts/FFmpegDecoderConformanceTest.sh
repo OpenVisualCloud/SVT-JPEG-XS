@@ -36,8 +36,16 @@ function find_bitstream_header_offset {
     LC_ALL=C grep -abo $'\xff\x10\xff\x50' "$1" | head -1 | cut -d: -f1
 }
 
+#(1:bitstream name, without .jxs) (2:optional "rgb3"/"rgb4" for colour transform (Cpih=1) streams)
+#(3:optional decoder AVOptions, placed before -i)
+#Cpih=1 streams decode to gbrp*/gbrap*, whose planes ffmpeg writes as G, B, R(, A). The reference
+#decodes hold the components in stream order R, G, B(, A), so the reference planes are reordered
+#to G, B, R(, A) before comparing (all components are full resolution, so every plane has the
+#same size).
 function test_dec {
     name=$1
+    rgb=$2
+    dec_args=$3
     src_jxs=$path_bitstreams/test_bitsreams/$name.jxs
     stripped_jxs=./$tmp_dir/$name"_stripped.jxs"
 
@@ -55,6 +63,30 @@ function test_dec {
         return
     fi
     out_yuv=./$tmp_dir/$(basename "$ref_yuv")
+    planes=0
+    if [ "$rgb" = "rgb3" ]; then
+        planes=3
+    elif [ "$rgb" = "rgb4" ]; then
+        planes=4
+    fi
+    if [ $planes -ne 0 ]; then
+        ref_size=$(stat -c %s "$ref_yuv")
+        plane_size=$((ref_size / planes))
+#       Single-frame reference only: the reorder below treats the whole file as one frame.
+        if [ $((plane_size * planes)) -ne $ref_size ]; then
+            echo "FAIL $ref_yuv size $ref_size is not $planes equal planes"
+            error=1
+            end
+            return
+        fi
+        ref_gbr=./$tmp_dir/$name"_ref_gbr.yuv"
+        tail -c +$((plane_size + 1)) "$ref_yuv" | head -c $((2 * plane_size)) > "$ref_gbr"
+        head -c $plane_size "$ref_yuv" >> "$ref_gbr"
+        if [ $planes -eq 4 ]; then
+            tail -c +$((3 * plane_size + 1)) "$ref_yuv" >> "$ref_gbr"
+        fi
+        ref_yuv=$ref_gbr
+    fi
 
     offset=$(find_bitstream_header_offset "$src_jxs")
     if [ -z "$offset" ]; then
@@ -65,7 +97,7 @@ function test_dec {
     fi
     tail -c +$((offset+1)) "$src_jxs" > "$stripped_jxs"
 
-    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs -i $stripped_jxs -f rawvideo $out_yuv"
+    cmd="$valgrind$exec_ffmpeg -y -hide_banner -loglevel error $demuxer -c:v libsvtjpegxs $dec_args -i $stripped_jxs -f rawvideo $out_yuv"
     echo "run command: $cmd"
     ${cmd}
     ret=$?
@@ -139,7 +171,7 @@ function test_lossless_decode {
 }
 
 function test_all {
-    test_dec 001
+    test_dec 001 rgb3
     test_dec 002
     test_dec 003
     test_dec 004
@@ -157,18 +189,17 @@ function test_all {
     test_dec 016
     test_dec 017
     test_dec 018
-    # 019 4096x1743_13bit_COMPONENTS_4 (4:4:4:4, SDBQ-3776): verified byte-identical to
-    # reference_decode/019_*.yuv now that the ffmpeg plugin maps COLOUR_FORMAT_PLANAR_4_COMPONENTS
-    # to gbrap14le for bit depths above 12 (no upstream 13/14-bit yuva444p pix_fmt exists).
-    test_dec 019
+    # 019 4096x1743_13bit_COMPONENTS_4 (4:4:4:4, Cpih=1, SDBQ-3776): decodes to gbrap14le (no
+    # upstream 13/14-bit yuva444p pix_fmt exists).
+    test_dec 019 rgb4
     test_dec 020
     test_dec 021
-    test_dec 022
+    test_dec 022 rgb3
     test_dec 023
-    test_dec 024
-    test_dec 025
-    test_dec 026
-    test_dec 027
+    test_dec 024 rgb3
+    test_dec 025 rgb3
+    test_dec 026 rgb3
+    test_dec 027 rgb3
     test_dec 028
     test_dec 029
     test_dec 030
@@ -189,37 +220,37 @@ function test_all {
     test_dec 043
     test_dec 044
     test_dec 045
-    test_dec 046
-    test_dec 047
+    test_dec 046 rgb4
+    test_dec 047 rgb4
     test_dec 048
     test_dec 049
     test_dec 050
     test_dec 051
     test_dec 052
-    test_dec 053
+    test_dec 053 rgb3
     test_dec 054
     test_dec 055
-    test_dec 056
+    test_dec 056 rgb3
     test_dec 057
-    test_dec 058
+    test_dec 058 rgb3
     # 059 4095x1743_10bit_COMPONENTS_4 (4:4:4:4, SDBQ-3776): verified byte-identical to
     # reference_decode/059_*.yuv now that the ffmpeg plugin supports COLOUR_FORMAT_PLANAR_4_COMPONENTS.
-    test_dec 059
+    test_dec 059 rgb4
     test_dec 060
-    test_dec 061
+    test_dec 061 rgb3
     test_dec 062
-    test_dec 063
+    test_dec 063 rgb3
     # 064 4095x1743_10bit_COMPONENTS_4 (4:4:4:4, SDBQ-3776): verified byte-identical to
     # reference_decode/064_*.yuv now that the ffmpeg plugin supports COLOUR_FORMAT_PLANAR_4_COMPONENTS.
-    test_dec 064
+    test_dec 064 rgb4
     test_dec 065
     test_dec 066
     test_dec 200
     test_dec 201
     test_dec 202
     test_dec 203
-    test_dec 204
-    test_dec 205
+    test_dec 204 rgb3
+    test_dec 205 rgb3
     test_dec 206
     test_dec 207
     test_dec 208
@@ -232,9 +263,18 @@ function test_all {
     test_dec 213
     test_dec 214
     test_dec 215
-    test_dec 216
+    # 216 488x325_14bit_COMPONENTS_4 (Star-Tetrix, Cpih=3): 13/14-bit 4-component streams decode to
+    # gbrap14le and are reordered as R, G, B, A by default; "-rgb false" keeps the stream order.
+    test_dec 216 "" "-rgb false"
     test_dec 217
     test_dec 218
+
+    # "rgb" decoder option on Cpih=1 streams: false keeps yuv444p*/yuva444p* output, so the planes
+    # are written in stream order and match the reference without reordering.
+    test_dec 204 "" "-rgb false"
+    test_dec 046 "" "-rgb false"
+    # "rgb" true on a stream without colour transform (Cpih=0): output is gbrp* as well.
+    test_dec 013 rgb3 "-rgb true"
 }
 
 #RUN output_bit_depth_msb_aligned tests: decode the same stripped conformance bitstream twice

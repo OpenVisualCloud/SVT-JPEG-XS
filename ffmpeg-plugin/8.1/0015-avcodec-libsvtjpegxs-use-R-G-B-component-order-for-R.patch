@@ -1,0 +1,439 @@
+From f62573e110738cd05949a567c89bf989ea244aec Mon Sep 17 00:00:00 2001
+From: SVT-JPEG-XS <noreply@example.com>
+Date: Mon, 12 Oct 2026 09:36:25 +0200
+Subject: [PATCH] avcodec/libsvtjpegxs: use R, G, B component order for RGB
+ formats
+
+The library codes components in the order the caller passes them, and
+its colour transform (RCT, Cpih=1) expects R, G, B. FFmpeg gbrp* and
+gbrap* planes are G, B, R(, A), so they were stored in the wrong order,
+and the decoder never reported an RGB pixel format.
+
+Encoder:
+- gbrp* maps to COLOUR_FORMAT_PLANAR_RGB and gbrap* to
+  COLOUR_FORMAT_PLANAR_RGBA, with the planes passed as R, G, B(, A).
+- yuv444p* and yuva444p* map to COLOUR_FORMAT_PLANAR_YUV444 and
+  COLOUR_FORMAT_PLANAR_4_COMPONENTS.
+- color_transform is rejected unless the input is gbrp*.
+- bgr24 is no longer accepted; FFmpeg converts it to a supported format.
+
+Decoder:
+- Streams the library reports as COLOUR_FORMAT_PLANAR_RGB/RGBA
+  (Cpih=1) decode to gbrp*/gbrap* with the planes reordered, and set
+  AVCOL_SPC_RGB.
+- New "rgb" option: auto (default) follows the stream, true also
+  outputs RGB for streams without a colour transform, false always
+  outputs YUV.
+
+Parser:
+- Reads Cpih from the picture header and reports gbrp* for Cpih=1
+  4:4:4 streams.
+
+Streams previously encoded from gbrp*, gbrap* or bgr24 store the
+components in the old order and now decode with swapped colours.
+---
+ libavcodec/jpegxs_parser.c   | 15 +++++--
+ libavcodec/libsvtjpegxsdec.c | 85 +++++++++++++++++++++++++++++++-----
+ libavcodec/libsvtjpegxsenc.c | 74 ++++++++++++++++++++++++-------
+ 3 files changed, 145 insertions(+), 29 deletions(-)
+
+diff --git a/libavcodec/jpegxs_parser.c b/libavcodec/jpegxs_parser.c
+index 4cc51d214d..9de7addc2b 100644
+--- a/libavcodec/jpegxs_parser.c
++++ b/libavcodec/jpegxs_parser.c
+@@ -235,7 +235,7 @@ static int jpegxs_parse_frame(AVCodecParserContext *s, AVCodecContext *avctx,
+     GetByteContext gbc;
+     GetBitContext gb;
+     int8_t bpc[3], log2_chroma_w[3], log2_chroma_h[3];
+-    int size, marker, components;
++    int size, marker, components, cpih;
+     int has_cdt = 0, has_cts = 0, is_rgb = 0;
+ 
+     s->key_frame = 1;
+@@ -277,6 +277,15 @@ static int jpegxs_parse_frame(AVCodecParserContext *s, AVCodecContext *avctx,
+         return 0;
+     size--;
+ 
++    bytestream2_skip(&gbc, 1); // Ng
++    bytestream2_skip(&gbc, 1); // Ss
++    bytestream2_skip(&gbc, 1); // Bw
++    bytestream2_skip(&gbc, 1); // Fq, Br
++    cpih = bytestream2_get_byte(&gbc) & 0xF; // Fslc, Ppoc, Cpih
++    size -= 5;
++    // The inverse RCT (Cpih=1) outputs R, G, B.
++    is_rgb = cpih == 1;
++
+     bytestream2_skip(&gbc, FFMAX(size - 2, 0));
+ 
+     while (bytestream2_get_bytes_left(&gbc) > 0) {
+@@ -310,7 +319,7 @@ static int jpegxs_parse_frame(AVCodecParserContext *s, AVCodecContext *avctx,
+                 int colour_spec = bytestream2_get_byte(&gbc);
+ 
+                 has_cts = 1;
+-                is_rgb = colour_spec == 1;
++                is_rgb |= colour_spec == 1;
+             }
+             bytestream2_skip(&gbc, FFMAX(size - 3, 0));
+             break;
+@@ -326,7 +335,7 @@ static int jpegxs_parse_frame(AVCodecParserContext *s, AVCodecContext *avctx,
+         if (components == 3 &&
+             log2_chroma_w[1] == 1 &&
+             log2_chroma_h[1] == 1 &&
+-            !has_cts)
++            !has_cts && !is_rgb)
+             continue;
+ 
+         switch (bpc[0]) {
+diff --git a/libavcodec/libsvtjpegxsdec.c b/libavcodec/libsvtjpegxsdec.c
+index f0f29a23dd..a6f79047e0 100644
+--- a/libavcodec/libsvtjpegxsdec.c
++++ b/libavcodec/libsvtjpegxsdec.c
+@@ -50,11 +50,60 @@ typedef struct SvtJpegXsDecodeContext {
+     uint8_t* bitstream_buffer;
+     int proxy_mode;
+     int msb_aligned;
++    int rgb;
++    // FFmpeg plane index for each library component (gbrp* planes are G, B, R; the library outputs R, G, B)
++    int plane_map[MAX_COMPONENTS_NUM];
+ } SvtJpegXsDecodeContext;
+ 
++/* Output RGB (gbrp* or gbrap*) or YUV for a 4:4:4 stream. The library reports PLANAR_RGB/RGBA for
++ * Cpih=1 streams; Cpih=0 streams do not signal RGB, so the "rgb" option can override.
++ * 13/14-bit 4-component streams can only be output as gbrap14le (no upstream yuva444p14 exists),
++ * so they are treated as RGB unless the "rgb" option is false, matching the encoder, which takes
++ * gbrap14le planes as R, G, B, A. */
++static int output_is_rgb(const SvtJpegXsDecodeContext* svt_dec, svt_jpeg_xs_image_config_t config) {
++    if (config.format == COLOUR_FORMAT_PLANAR_RGB || config.format == COLOUR_FORMAT_PLANAR_RGBA) {
++        return svt_dec->rgb != 0;
++    }
++    if (config.format == COLOUR_FORMAT_PLANAR_4_COMPONENTS && config.bit_depth > 12) {
++        return svt_dec->rgb != 0;
++    }
++    if (config.format == COLOUR_FORMAT_PLANAR_YUV444 || config.format == COLOUR_FORMAT_PLANAR_4_COMPONENTS) {
++        return svt_dec->rgb == 1;
++    }
++    return 0;
++}
++
+ 
+-static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_image_config_t config) {
+-    if (config.format == COLOUR_FORMAT_PLANAR_YUV420) {
++static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_image_config_t config, int rgb) {
++    if (rgb && config.components_num == 3) {
++        if (config.bit_depth == 8) {
++            avctx->pix_fmt = AV_PIX_FMT_GBRP;
++        }
++        else if (config.bit_depth == 10) {
++            avctx->pix_fmt = AV_PIX_FMT_GBRP10LE;
++        }
++        else if (config.bit_depth == 12) {
++            avctx->pix_fmt = AV_PIX_FMT_GBRP12LE;
++        }
++        else {
++            avctx->pix_fmt = AV_PIX_FMT_GBRP14LE;
++        }
++    }
++    else if (rgb && config.components_num == 4) {
++        if (config.bit_depth == 8) {
++            avctx->pix_fmt = AV_PIX_FMT_GBRAP;
++        }
++        else if (config.bit_depth == 10) {
++            avctx->pix_fmt = AV_PIX_FMT_GBRAP10LE;
++        }
++        else if (config.bit_depth == 12) {
++            avctx->pix_fmt = AV_PIX_FMT_GBRAP12LE;
++        }
++        else {
++            avctx->pix_fmt = AV_PIX_FMT_GBRAP14LE;
++        }
++    }
++    else if (config.format == COLOUR_FORMAT_PLANAR_YUV420) {
+         if (config.bit_depth == 8) {
+             avctx->pix_fmt = AV_PIX_FMT_YUV420P;
+         }
+@@ -82,7 +131,7 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_image_config_t config)
+             avctx->pix_fmt = AV_PIX_FMT_YUV422P14LE;
+         }
+     }
+-    else if (config.format == COLOUR_FORMAT_PLANAR_YUV444_OR_RGB) {
++    else if (config.format == COLOUR_FORMAT_PLANAR_YUV444 || config.format == COLOUR_FORMAT_PLANAR_RGB) {
+         if (config.bit_depth == 8) {
+             avctx->pix_fmt = AV_PIX_FMT_YUV444P;
+         }
+@@ -112,9 +161,7 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_image_config_t config)
+             return AVERROR_INVALIDDATA;
+         }
+     }
+-    else if (config.format == COLOUR_FORMAT_PLANAR_4_COMPONENTS) {
+-        // no bitstream signal distinguishes RGB/YUV colour family, matching the existing
+-        // COLOUR_FORMAT_PLANAR_YUV444_OR_RGB -> AV_PIX_FMT_YUV444P convention above.
++    else if (config.format == COLOUR_FORMAT_PLANAR_4_COMPONENTS || config.format == COLOUR_FORMAT_PLANAR_RGBA) {
+         if (config.bit_depth == 8) {
+             avctx->pix_fmt = AV_PIX_FMT_YUVA444P;
+         }
+@@ -126,6 +173,7 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_image_config_t config)
+         }
+         else {
+             // no upstream YUVA444P14LE exists; GBRAP14LE is the only 14-bit 4-component pix_fmt.
++            // Only reached with the "rgb" option false: planes stay in stream order.
+             avctx->pix_fmt = AV_PIX_FMT_GBRAP14LE;
+         }
+     }
+@@ -164,6 +212,7 @@ static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* g
+     svt_jpeg_xs_frame_t dec_input;
+     svt_jpeg_xs_frame_t dec_output;
+     uint32_t pixel_size;
++    int rgb;
+ 
+     if (!svt_dec->decoder_initialized) {
+         err = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
+@@ -193,11 +242,21 @@ static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* g
+             return err;
+         }
+ 
+-        ret = set_pix_fmt(avctx, svt_dec->config);
++        rgb = output_is_rgb(svt_dec, svt_dec->config);
++        ret = set_pix_fmt(avctx, svt_dec->config, rgb);
+         if (ret < 0) {
+             av_log(NULL, AV_LOG_ERROR, "set_pix_fmt failed, err=%d\n", ret);
+             return ret;
+         }
++        for (int comp = 0; comp < MAX_COMPONENTS_NUM; comp++) {
++            svt_dec->plane_map[comp] = comp;
++        }
++        if (rgb) {
++            svt_dec->plane_map[0] = 2;
++            svt_dec->plane_map[1] = 0;
++            svt_dec->plane_map[2] = 1;
++            avctx->colorspace = AVCOL_SPC_RGB;
++        }
+ 
+         ret = ff_set_dimensions(avctx, svt_dec->config.width, svt_dec->config.height);
+         if (ret < 0) {
+@@ -243,9 +302,10 @@ static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* g
+ 
+     pixel_size = svt_dec->config.bit_depth <= 8 ? 1 : 2;
+     for (int comp = 0; comp < svt_dec->config.components_num; comp++) {
+-        dec_input.image.data_yuv[comp] = picture->data[comp];
+-        dec_input.image.stride[comp] = picture->linesize[comp]/pixel_size;
+-        dec_input.image.alloc_size[comp] = picture->linesize[comp] * svt_dec->config.components[comp].height;
++        const int plane = svt_dec->plane_map[comp];
++        dec_input.image.data_yuv[comp] = picture->data[plane];
++        dec_input.image.stride[comp] = picture->linesize[plane]/pixel_size;
++        dec_input.image.alloc_size[comp] = picture->linesize[plane] * svt_dec->config.components[comp].height;
+     }
+ 
+     err = svt_jpeg_xs_decoder_send_frame(&(svt_dec->decoder), &dec_input, 1 /*blocking*/);
+@@ -339,6 +399,11 @@ static const AVOption svtjpegxs_dec_options[] = {
+     {"proxy-mode", "Resolution scaling mode: 0-full, 1-half, 2-quarter", OFFSET(proxy_mode), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 2, VE},
+     {"msb_aligned", "Non-standard: output 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. "
+                     "Must match the encoder's msb_aligned setting.", OFFSET(msb_aligned), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE},
++    {"rgb", "Output pixel format for 4:4:4 and 4:4:4:4 streams. auto: gbrp*/gbrap* for streams with colour transform (Cpih=1), "
++            "yuv444p*/yuva444p* otherwise. true: always gbrp*/gbrap* (RGB streams coded without colour transform). "
++            "false: always yuv444p*/yuva444p*, planes in stream order. 13/14-bit 4-component streams always output gbrap14le, "
++            "read as R, G, B, A unless false.",
++                    OFFSET(rgb), AV_OPT_TYPE_BOOL, {.i64 = -1}, -1, 1, VE},
+     {NULL},
+ };
+ 
+diff --git a/libavcodec/libsvtjpegxsenc.c b/libavcodec/libsvtjpegxsenc.c
+index 7526a65e1b..344dae2b9e 100644
+--- a/libavcodec/libsvtjpegxsenc.c
++++ b/libavcodec/libsvtjpegxsenc.c
+@@ -57,6 +57,8 @@ typedef struct SvtJpegXsEncodeContext {
+     svt_jpeg_xs_encoder_api_t encoder;
+     svt_jpeg_xs_image_config_t image_config;
+     int bitstream_frame_size;
++    // FFmpeg plane index for each library component (gbrp* planes are G, B, R; the library takes R, G, B)
++    int plane_map[MAX_COMPONENTS_NUM];
+ } SvtJpegXsEncodeContext;
+ 
+ static int svt_jpegxs_enc_encode(AVCodecContext* avctx, AVPacket* pkt, const AVFrame* frame, int* got_packet) {
+@@ -80,9 +82,10 @@ static int svt_jpegxs_enc_encode(AVCodecContext* avctx, AVPacket* pkt, const AVF
+     out_buf.used_size = 0;
+ 
+     for (int comp = 0; comp < svt_enc->image_config.components_num; comp++) {
++        const int plane = svt_enc->plane_map[comp];
+         // svt-jpegxs require stride in pixel's not in bytes, this means that for 10 bit-depth, stride is half the linesize
+-        in_buf.stride[comp] = frame->linesize[comp]/ pixel_size;
+-        in_buf.data_yuv[comp] = frame->data[comp];
++        in_buf.stride[comp] = frame->linesize[plane]/ pixel_size;
++        in_buf.data_yuv[comp] = frame->data[plane];
+         in_buf.alloc_size[comp] = in_buf.stride[comp] * svt_enc->encoder.source_height * pixel_size;
+     }
+ 
+@@ -133,9 +136,12 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_encoder_api_t *encoder
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+         return 0;
+     case AV_PIX_FMT_YUV444P:
++        encoder->input_bit_depth = 8;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444;
++        return 0;
+     case AV_PIX_FMT_GBRP:
+         encoder->input_bit_depth = 8;
+-        encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_RGB;
+         return 0;
+     case AV_PIX_FMT_YUV420P10LE:
+         encoder->input_bit_depth = 10;
+@@ -146,9 +152,12 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_encoder_api_t *encoder
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+         return 0;
+     case AV_PIX_FMT_YUV444P10LE:
++        encoder->input_bit_depth = 10;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444;
++        return 0;
+     case AV_PIX_FMT_GBRP10LE:
+         encoder->input_bit_depth = 10;
+-        encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_RGB;
+         return 0;
+     case AV_PIX_FMT_YUV420P12LE:
+         encoder->input_bit_depth = 12;
+@@ -159,9 +168,12 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_encoder_api_t *encoder
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+         return 0;
+     case AV_PIX_FMT_YUV444P12LE:
++        encoder->input_bit_depth = 12;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444;
++        return 0;
+     case AV_PIX_FMT_GBRP12LE:
+         encoder->input_bit_depth = 12;
+-        encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_RGB;
+         return 0;
+     case AV_PIX_FMT_YUV420P14LE:
+         encoder->input_bit_depth = 14;
+@@ -172,12 +184,14 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_encoder_api_t *encoder
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+         return 0;
+     case AV_PIX_FMT_YUV444P14LE:
++        encoder->input_bit_depth = 14;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444;
++        return 0;
+     case AV_PIX_FMT_GBRP14LE:
+         encoder->input_bit_depth = 14;
+-        encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_RGB;
+         return 0;
+     case AV_PIX_FMT_RGB24:
+-    case AV_PIX_FMT_BGR24:
+         encoder->input_bit_depth = 8;
+         encoder->colour_format = COLOUR_FORMAT_PACKED_YUV444_OR_RGB;
+         return 0;
+@@ -194,24 +208,33 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_encoder_api_t *encoder
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_YUV422_ALPHA;
+         return 0;
+     case AV_PIX_FMT_YUVA444P:
+-    case AV_PIX_FMT_GBRAP:
+         encoder->input_bit_depth = 8;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
+         return 0;
++    case AV_PIX_FMT_GBRAP:
++        encoder->input_bit_depth = 8;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_RGBA;
++        return 0;
+     case AV_PIX_FMT_YUVA444P10LE:
+-    case AV_PIX_FMT_GBRAP10LE:
+         encoder->input_bit_depth = 10;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
+         return 0;
++    case AV_PIX_FMT_GBRAP10LE:
++        encoder->input_bit_depth = 10;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_RGBA;
++        return 0;
+     case AV_PIX_FMT_YUVA444P12LE:
+-    case AV_PIX_FMT_GBRAP12LE:
+         encoder->input_bit_depth = 12;
+         encoder->colour_format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
+         return 0;
++    case AV_PIX_FMT_GBRAP12LE:
++        encoder->input_bit_depth = 12;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_RGBA;
++        return 0;
+     case AV_PIX_FMT_GBRAP14LE:
+         // no upstream YUVA444P14LE exists, so 14-bit 4:4:4:4 is only reachable via GBRA here.
+         encoder->input_bit_depth = 14;
+-        encoder->colour_format = COLOUR_FORMAT_PLANAR_4_COMPONENTS;
++        encoder->colour_format = COLOUR_FORMAT_PLANAR_RGBA;
+         return 0;
+     default:
+         break;
+@@ -255,18 +278,32 @@ static uint32_t default_bpp_numerator(const svt_jpeg_xs_encoder_api_t* encoder)
+         return encoder->input_bit_depth * 3 / 2;
+     case COLOUR_FORMAT_PLANAR_YUV422:
+         return encoder->input_bit_depth * 2;
+-    case COLOUR_FORMAT_PLANAR_YUV444_OR_RGB:
++    case COLOUR_FORMAT_PLANAR_YUV444:
++    case COLOUR_FORMAT_PLANAR_RGB:
+     case COLOUR_FORMAT_PACKED_YUV444_OR_RGB:
+         return encoder->input_bit_depth * 3;
+     case COLOUR_FORMAT_PLANAR_YUV422_ALPHA:
+         return encoder->input_bit_depth * 3;
+     case COLOUR_FORMAT_PLANAR_4_COMPONENTS:
++    case COLOUR_FORMAT_PLANAR_RGBA:
+         return encoder->input_bit_depth * 4;
+     default:
+         return 0;
+     }
+ }
+ 
++// FFmpeg gbrp* and gbrap* planes are G, B, R(, A); the library expects components in R, G, B(, A) order.
++static void set_plane_map(const svt_jpeg_xs_encoder_api_t* encoder, int* plane_map) {
++    for (int comp = 0; comp < MAX_COMPONENTS_NUM; comp++) {
++        plane_map[comp] = comp;
++    }
++    if (encoder->colour_format == COLOUR_FORMAT_PLANAR_RGB || encoder->colour_format == COLOUR_FORMAT_PLANAR_RGBA) {
++        plane_map[0] = 2;
++        plane_map[1] = 0;
++        plane_map[2] = 1;
++    }
++}
++
+ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
+     SvtJpegXsEncodeContext* svt_enc = avctx->priv_data;
+     int ret;
+@@ -284,6 +321,7 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
+     if ((ret = set_pix_fmt(avctx, &(svt_enc->encoder))) < 0) {
+         return ret;
+     }
++    set_plane_map(&(svt_enc->encoder), svt_enc->plane_map);
+ 
+     svt_enc->encoder.threads_num = FFMIN(avctx->thread_count ? avctx->thread_count : av_cpu_count(), 64);
+ 
+@@ -348,6 +386,11 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
+     if (svt_enc->color_transform != -1) {
+         svt_enc->encoder.enable_color_transform = svt_enc->color_transform ? 1 : 0;
+     }
++    if (svt_enc->encoder.enable_color_transform && svt_enc->encoder.colour_format != COLOUR_FORMAT_PLANAR_RGB) {
++        av_log(avctx, AV_LOG_ERROR, "color_transform requires planar RGB input (gbrp, gbrp10le, gbrp12le, gbrp14le), got %s.\n",
++               av_get_pix_fmt_name(avctx->pix_fmt));
++        return AVERROR(EINVAL);
++    }
+     if (svt_enc->cpu_profile != -1) {
+         svt_enc->encoder.cpu_profile = svt_enc->cpu_profile;
+     }
+@@ -417,8 +460,8 @@ static const AVOption svtjpegxs_enc_options[] = {
+       { "no_coeffs",    NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, INT_MIN, INT_MAX, VE, .unit = "coding-vpred" },
+     { "coding-raw",   "Enable packet-based raw-mode coding (disable for legacy-decoder compatibility)", OFFSET(coding_raw),   AV_OPT_TYPE_BOOL, {.i64 = -1 }, -1, 1, VE },
+     { "cap-compat",   "Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required", OFFSET(cap_compat), AV_OPT_TYPE_BOOL, {.i64 = -1 }, -1, 1, VE },
+-    { "color_transform", "Encoder-side reversible colour transform (RCT, Cpih=1) for 3-component unsubsampled planar input "
+-                      "(gbrp/gbrp10le/yuv444p/etc. pixel formats). Rejected unless the input pixel format is planar RGB or planar YUV444.",
++    { "color_transform", "Encoder-side reversible colour transform (RCT, Cpih=1) for planar RGB input "
++                      "(gbrp/gbrp10le/gbrp12le/gbrp14le). Rejected for any other pixel format.",
+                                                                             OFFSET(color_transform), AV_OPT_TYPE_BOOL, {.i64 = -1 }, -1, 1, VE },
+     { "cpu_profile",  "Encoder internal threading model", OFFSET(cpu_profile), AV_OPT_TYPE_INT, {.i64 = -1 }, -1, 1, VE, .unit = "cpu_profile" },
+       { "latency",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, .unit = "cpu_profile" },
+@@ -487,8 +530,7 @@ const FFCodec ff_libsvtjpegxs_encoder = {
+                                                 AV_PIX_FMT_GBRP12LE,
+                                                 AV_PIX_FMT_GBRP14LE,
+                                                 AV_PIX_FMT_RGB24,
+-                                                AV_PIX_FMT_BGR24,
+-                                                AV_PIX_FMT_YUVA422P,
++                                                                              AV_PIX_FMT_YUVA422P,
+                                                 AV_PIX_FMT_YUVA422P10LE,
+                                                 AV_PIX_FMT_YUVA422P12LE,
+                                                 AV_PIX_FMT_YUVA444P,
+-- 
+2.53.0
+

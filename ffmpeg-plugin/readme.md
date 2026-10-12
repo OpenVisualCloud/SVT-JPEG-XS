@@ -224,11 +224,66 @@ Name|Bit depths|Notes
 --|--|--
 yuv420p(le)|8, 10, 12, 14|-
 yuv422p(le)|8, 10, 12, 14|-
-yuv444p(le), gbrp(le)|8, 10, 12, 14|-
+yuv444p(le), gbrp(le)|8, 10, 12, 14|gbrp planes are passed to the library in R, G, B order. Decoder output depends on the `rgb` option, see "RGB formats" below
 gray(le)|8, 9, 10, 12, 14|decode only
-rgb24, bgr24|8|packed
+rgb24|8|packed, encode only. bgr24 is not supported: ffmpeg converts it to a supported format
 yuva422p(le)|8, 10, 12|4:2:2:4 (YUV422 + alpha)
-yuva444p(le), gbrap(le)|8, 10, 12, 14|4:4:4:4 (RGBA/GBRA/YUVA444). No upstream ffmpeg `yuva444p14`/`yuva422p14` pix_fmt exists, so 14-bit 4:4:4:4 is only reachable via `gbrap14le`, and 14-bit 4:2:2:4 is not reachable through this plugin at all.
+yuva444p(le), gbrap(le)|8, 10, 12, 14|4:4:4:4 (RGBA/YUVA444), gbrap planes are passed to the library in R, G, B, A order. Decoder output depends on the `rgb` option, see "RGB formats" below. No upstream ffmpeg `yuva444p14`/`yuva422p14` pix_fmt exists, so 14-bit 4:4:4:4 is only reachable via `gbrap14le`, and 14-bit 4:2:2:4 is not reachable through this plugin at all.
+
+## RGB formats
+
+The library codes components in the order it receives them. RGB input must reach it as R, G, B(, A)
+(`COLOUR_FORMAT_PLANAR_RGB`/`COLOUR_FORMAT_PLANAR_RGBA`), which is also the order the colour
+transform (`color_transform`, RCT, Cpih=1) expects. FFmpeg `gbrp*`/`gbrap*` frames hold the planes
+as G, B, R(, A), so the plugin reorders the plane pointers in both directions (no copy).
+
+### Encoding
+
+Input pixel format|Coded components, in order|color_transform
+--|--|--
+yuv444p*|Y, Cb, Cr|rejected
+gbrp*|R, G, B (planes reordered)|accepted
+rgb24|R, G, B|rejected (packed input)
+yuva444p*|Y, Cb, Cr, A|rejected
+gbrap*|R, G, B, A (planes reordered)|rejected (3 components only)
+yuv420p*, yuv422p*, yuva422p*|Y, Cb, Cr(, A)|rejected
+
+`bgr24` is not accepted: ffmpeg converts it to a supported format before encoding.
+
+### Decoding
+
+A stream with the colour transform (Cpih=1) is known to hold R, G, B(, A). A stream without it
+(Cpih=0) does not signal whether it holds YUV or RGB, so the output depends on the decoder `rgb`
+option. Pass decoder options before `-i`.
+
+Stream|rgb auto (default)|rgb true|rgb false
+--|--|--|--
+3 components 4:4:4, Cpih=1|gbrp*|gbrp*|yuv444p*, planes R, G, B in stream order
+3 components 4:4:4, Cpih=0|yuv444p*, planes in stream order|gbrp* (components read as R, G, B)|yuv444p*, planes in stream order
+4 components 4:4:4:4, 8-12 bit, Cpih=1|gbrap*|gbrap*|yuva444p*, planes R, G, B, A in stream order
+4 components 4:4:4:4, 8-12 bit, Cpih=0 or Cpih=3|yuva444p*, planes in stream order|gbrap* (components read as R, G, B, A)|yuva444p*, planes in stream order
+4 components 4:4:4:4, 13/14 bit, any Cpih|gbrap14le (components read as R, G, B, A)|gbrap14le (components read as R, G, B, A)|gbrap14le, planes in stream order
+4:2:0, 4:2:2, 4:2:2:4, gray|not affected|not affected|not affected
+
+13/14-bit 4-component streams always decode to `gbrap14le` because no upstream `yuva444p14`
+exists. They are read as R, G, B, A by default, which matches the encoder's `gbrap14le` input; use
+`-rgb false` for YUVA or Star-Tetrix (Cpih=3) streams to keep the stream order.
+
+Typical use:
+
+- Stream encoded from `gbrp*` with `-color_transform 1`: decode with default options.
+- Stream encoded from `gbrp*`, `rgb24` or 8-12-bit `gbrap*` without the colour transform: decode
+  with `-rgb true`.
+- Stream encoded from `gbrap14le`: decode with default options.
+- Stream encoded from `yuv444p*` or `yuva444p*`: decode with default options.
+
+Streams encoded from `gbrp*`, `gbrap*` or `bgr24` by earlier plugin versions store the components
+in the wrong order (G, B, R or B, G, R) and decode with wrong colours. A stream encoded from `gbrp*`
+(stored G, B, R) can be relabelled without converting sample values (set the matching bit depth):
+
+```text
+./ffmpeg -rgb false -i <old_gbrp_stream> -vf "mergeplanes=map0s=0:map0p=0:map1s=0:map1p=1:map2s=0:map2p=2:format=gbrp" <output>
+```
 
 ## libsvtjpegxs encoder available params
 
@@ -245,7 +300,7 @@ coding-sigf|optional|(default:on), 0(off), 1(on)|Coding feature: Significance co
 coding-vpred|optional|(default:off), 0(off), 1(on)|Coding feature: Vertical-prediction
 coding-raw|optional|(default:auto/enabled), true(enabled), false(disable for legacy-decoder compatibility)|Coding feature: packet-based raw-mode coding
 cap-compat|optional|(default:auto/disabled), true(enabled), false(disabled)|Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required
-color_transform|optional|(default:auto/disabled), true(enabled), false(disabled)|Encoder-side reversible colour transform (RCT, Cpih=1). Only valid for 3-component unsubsampled planar input (gbrp/gbrp10le/yuv444p/etc.) - rejected otherwise. Recommended for RGB-like formats only (measured +5.9dB PSNR at matched bpp on real footage) - yuv444p is accepted (same format check) but not recommended (measured -2.9dB PSNR: the transform decorrelates RGB-like input into YCbCr-like, which does not help input that is already YCbCr-like)
+color_transform|optional|(default:auto/disabled), true(enabled), false(disabled)|Encoder-side reversible colour transform (RCT, Cpih=1). Only valid for planar RGB input (gbrp, gbrp10le, gbrp12le, gbrp14le) - rejected otherwise, including yuv444p: YUV input is already decorrelated, and Cpih=1 streams are decoded as RGB
 cpu_profile|optional|(default:auto/latency), latency, cpu|Encoder internal threading model
 msb_aligned|optional|(default:false), true, false|Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. Must match the decoder's msb_aligned setting
 lossless|optional|(default:false), true, false|True lossless coding (Fq=0): decoded output is bit-exact with the input. Output size is data-dependent instead of the usual fixed CBR size; `-bpp` is not required and is ignored, as is `quantization`. Unless `-profile:v`/`-level:v` are set, the stream is declared as MLS.12 (Ppih=0x6EC0) with an unrestricted sublevel; add `-coding-raw false` for a strictly MLS.12-conformant stream (MLS.12 requires Rl=0). Rejected together with `-msb_aligned true`, or with `-color_transform true` at 13/14-bit input
@@ -290,6 +345,7 @@ Name|mandatory/optional|Accepted values|description
 threads|optional|Any integer in range< 1;64>|Number of threads decoder can create
 proxy-mode|optional|(default:full), 0(full), 1(half), 2(quarter)|Specify resolution scaling mode
 msb_aligned|optional|(default:false), true, false|Non-standard: output 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. Must match the encoder's msb_aligned setting
+rgb|optional|(default:auto), auto, true, false|Output pixel format for 4:4:4 and 4:4:4:4 streams, see the decoding table in "RGB formats". auto: gbrp*/gbrap* for streams with the colour transform (Cpih=1), yuv444p*/yuva444p* otherwise (13/14-bit 4-component streams: always gbrap14le, read as R, G, B, A). true: always gbrp*/gbrap*; use for RGB streams coded without the colour transform. false: always yuv444p*/yuva444p* with the planes in stream order (13/14-bit 4-component streams: gbrap14le in stream order)
 
 Note: private decoder options (e.g. `-msb_aligned`, `-threads`) must be placed BEFORE `-i`, not
 after - placed after `-i` they are silently ignored (ffmpeg only logs a warning, no error).

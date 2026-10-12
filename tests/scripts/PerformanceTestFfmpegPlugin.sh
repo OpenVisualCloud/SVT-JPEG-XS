@@ -94,8 +94,8 @@ if [ -f "$SYNTH_SRC" ]; then
     dd if="$SYNTH_SRC" iflag=skip_bytes,count_bytes skip="$((SYNTH_Y_SIZE + SYNTH_C_SIZE))" count="$SYNTH_C_SIZE" status=none > "${SYNTH_YUVA422}.cr"
     cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr" "${SYNTH_YUVA422}.y" > "$SYNTH_YUVA422"
     cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" > "$SYNTH_YUVA444"
-    # yuv444p (3-component, unsubsampled, no alpha) - the shape -color_transform (encoder-side
-    # reversible colour transform, RCT, Cpih=1) requires.
+    # 3 identical full-resolution planes, no alpha - the shape -color_transform (encoder-side
+    # reversible colour transform, RCT, Cpih=1) requires; the RCT rows feed it as gbrp.
     cat "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.y" > "$SYNTH_YUV444"
     rm -f "${SYNTH_YUVA422}.y" "${SYNTH_YUVA422}.cb" "${SYNTH_YUVA422}.cr"
     if [ ! -s "$SYNTH_YUVA422" ] || [ ! -s "$SYNTH_YUVA444" ] || [ ! -s "$SYNTH_YUV444" ]; then
@@ -151,13 +151,13 @@ MATRIX=(
     # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output.
     "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|422|605|-msb_aligned 1|-msb_aligned 1"
 
-    # 1080p yuv444p (3-component, unsubsampled) 8-bit - 4.0 BPP Thread Scaling, encoder-side
+    # 1080p gbrp (3-component, unsubsampled) 8-bit - 4.0 BPP Thread Scaling, encoder-side
     # reversible colour transform enabled (-color_transform 1, RCT, Cpih=1). Plugin rejects it
-    # unless the input pixel format is planar RGB or planar YUV444. The decoder applies the
+    # unless the input pixel format is planar RGB (gbrp*). The decoder applies the
     # inverse RCT per precinct in the --threads slice workers, so decode scales with threads like
     # non-RCT decode.
-    "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|1|SYNTH|62|104|-color_transform 1 -cpu_profile latency"
-    "1080p60_yuv444p8_rct|1920|1080|8|yuv444|60|4.0|8|SYNTH|324|472|-color_transform 1 -cpu_profile latency"
+    "1080p60_gbrp8_rct|1920|1080|8|rgb|60|4.0|1|SYNTH|62|104|-color_transform 1 -cpu_profile latency"
+    "1080p60_gbrp8_rct|1920|1080|8|rgb|60|4.0|8|SYNTH|324|472|-color_transform 1 -cpu_profile latency"
 
     # 1080p 422p 10-bit true lossless (-lossless 1, Fq=0) Thread Scaling. -bpp is passed but
     # ignored by the encoder in this mode (kept only for CSV-column consistency with the other
@@ -178,6 +178,7 @@ function get_ffmpeg_pix_fmt() {
     case "$colour_format" in
         yuv420) echo "yuv420p${suffix}" ;;
         yuv444) echo "yuv444p${suffix}" ;;
+        rgb) echo "gbrp${suffix}" ;;
         yuva422) echo "yuva422p${suffix}" ;;
         rgba) echo "gbrap${suffix}" ;;
         yuv422|*) echo "yuv422p${suffix}" ;;
@@ -253,7 +254,7 @@ for test_case in "${MATRIX[@]}"; do
             case "$fmt" in
                 yuva422) source_path="$SYNTH_YUVA422" ;;
                 rgba) source_path="$SYNTH_YUVA444" ;;
-                yuv444) source_path="$SYNTH_YUV444" ;;
+                yuv444|rgb) source_path="$SYNTH_YUV444" ;;
             esac
             ;;
         *) source_path="$SAMPLES_DIR/$file" ;;
