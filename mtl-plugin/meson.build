@@ -44,6 +44,11 @@ if cc.has_member('svt_jpeg_xs_decoder_api_t', 'output_bit_depth_msb_aligned',
                  prefix : '#include <SvtJpegxsDec.h>', dependencies : jpegxs_dep)
   plugins_c_args += ['-DHAVE_DEC_OUTPUT_BIT_DEPTH_MSB_ALIGNED']
 endif
+# separate planar RGB colour format (components R, G, B), required for the colour transform (rct);
+# older libraries have one COLOUR_FORMAT_PLANAR_YUV444_OR_RGB for YUV and RGB 4:4:4
+if cc.has_header_symbol('SvtJpegxs.h', 'COLOUR_FORMAT_PLANAR_RGB', dependencies : jpegxs_dep)
+  plugins_c_args += ['-DHAVE_COLOUR_FORMAT_PLANAR_RGB']
+endif
 #enable warning as error
 plugins_c_args += ['-Werror']
 plugins_c_args += ['-Wall']

@@ -60,6 +60,15 @@ static uint32_t codec_threads_num(uint32_t width, uint32_t codec_thread_cnt) {
   return codec_thread_cnt;
 }
 
+#ifdef HAVE_COLOUR_FORMAT_PLANAR_RGB
+#define PLUGIN_CF_YUV444 COLOUR_FORMAT_PLANAR_YUV444
+#define PLUGIN_CF_RGB COLOUR_FORMAT_PLANAR_RGB
+#else
+/* older libraries: one 4:4:4 colour format for YUV and RGB */
+#define PLUGIN_CF_YUV444 COLOUR_FORMAT_PLANAR_YUV444_OR_RGB
+#define PLUGIN_CF_RGB COLOUR_FORMAT_PLANAR_YUV444_OR_RGB
+#endif
+
 /* the same list for encoder input and decoder output */
 #define PLUGIN_FMT(f, cf, depth) .fmt = (f), .colour_format = (cf), .bit_depth = (depth)
 static const struct st22_svt_jpeg_xs_fmt plugin_fmts[] = {
@@ -67,10 +76,10 @@ static const struct st22_svt_jpeg_xs_fmt plugin_fmts[] = {
     {PLUGIN_FMT(ST_FRAME_FMT_YUV422PLANAR8, COLOUR_FORMAT_PLANAR_YUV422, 8)},
     {PLUGIN_FMT(ST_FRAME_FMT_YUV422PLANAR12LE, COLOUR_FORMAT_PLANAR_YUV422, 12)},
     {PLUGIN_FMT(ST_FRAME_FMT_YUV420PLANAR8, COLOUR_FORMAT_PLANAR_YUV420, 8)},
-    {PLUGIN_FMT(ST_FRAME_FMT_YUV444PLANAR10LE, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 10)},
-    {PLUGIN_FMT(ST_FRAME_FMT_YUV444PLANAR12LE, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12)},
-    {PLUGIN_FMT(ST_FRAME_FMT_GBRPLANAR10LE, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 10), .gbr = true},
-    {PLUGIN_FMT(ST_FRAME_FMT_GBRPLANAR12LE, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12), .gbr = true},
+    {PLUGIN_FMT(ST_FRAME_FMT_YUV444PLANAR10LE, PLUGIN_CF_YUV444, 10)},
+    {PLUGIN_FMT(ST_FRAME_FMT_YUV444PLANAR12LE, PLUGIN_CF_YUV444, 12)},
+    {PLUGIN_FMT(ST_FRAME_FMT_GBRPLANAR10LE, PLUGIN_CF_RGB, 10), .gbr = true},
+    {PLUGIN_FMT(ST_FRAME_FMT_GBRPLANAR12LE, PLUGIN_CF_RGB, 12), .gbr = true},
 #if defined(HAVE_ENC_INPUT_BIT_DEPTH_MSB_ALIGNED) && defined(HAVE_DEC_OUTPUT_BIT_DEPTH_MSB_ALIGNED)
     /* MTL: 10-bit with 6-bit padding in the least significant bits */
     {PLUGIN_FMT(ST_FRAME_FMT_YUV422PLANAR16LE, COLOUR_FORMAT_PLANAR_YUV422, 10),
@@ -90,6 +99,15 @@ static uint64_t plugin_fmt_caps(void) {
   for (size_t i = 0; i < sizeof(plugin_fmts) / sizeof(plugin_fmts[0]); i++)
     caps |= MTL_BIT64(plugin_fmts[i].fmt);
   return caps;
+}
+
+/* a 4:4:4 stream decodes into either YUV444 or GBR output: the library reports PLANAR_RGB only for
+ * streams with the colour transform (Cpih=1), and a stream without it doesn't say YUV or RGB */
+static bool plugin_fmt_stream_matches(const struct st22_svt_jpeg_xs_fmt* f,
+                                      ColourFormat_t stream_format) {
+  if (f->colour_format == PLUGIN_CF_YUV444 || f->colour_format == PLUGIN_CF_RGB)
+    return stream_format == PLUGIN_CF_YUV444 || stream_format == PLUGIN_CF_RGB;
+  return stream_format == f->colour_format;
 }
 
 /* MTL frame plane holding codec component comp: GBR planes are G, B, R, the codec
@@ -540,9 +558,8 @@ static void* decode_thread_send(void* arg) {
       } else {
         /* an interlaced stream codes each field as its own picture */
         const uint32_t height = s->req.interlaced ? s->req.height / 2 : s->req.height;
-        /* a 4:4:4 stream doesn't say YUV or RGB, it decodes into either output */
         stream_ok = s->image_config.bit_depth == s->fmt->bit_depth &&
-                    s->image_config.format == s->fmt->colour_format &&
+                    plugin_fmt_stream_matches(s->fmt, s->image_config.format) &&
                     s->image_config.width == s->req.width && s->image_config.height == height;
         if (!stream_ok && s->init_fail_cnt == 0)
           err("%s(%d), stream mismatch: %ux%u bit_depth %u format %u, expect %ux%u%s %s\n",
