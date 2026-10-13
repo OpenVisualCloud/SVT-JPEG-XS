@@ -32,6 +32,28 @@ argument-hint: 'Sanitizer type (address|memory|thread|undefined|integer) and bui
    - `AddressSanitizer` / `MemorySanitizer` / `ThreadSanitizer` / `UndefinedBehaviorSanitizer` — sanitizer errors
    - `[  FAILED  ]` — test failures
 
+## CI Entry Point (`sanitize.sh`)
+
+The Sanitizer CI workflow (`.github/workflows/sanitizer_tests.yaml`) runs
+`tests/scripts/sanitize.sh`, which builds with the sanitizer, runs the conformance test scripts
+sequentially (not the gtest unit tests) and gates on the findings report (`integer` is report-only). Reproduce a CI run with:
+
+```bash
+tests/scripts/sanitize.sh <address|thread|undefined|integer|memory> [--samples DIR] [--no-build]
+```
+
+- `--samples DIR`: conformance input files (default: `$INPUT_FILES_PATH`, else `/opt/samples`, else
+  `<repo>/Conformance-tests`)
+- `--no-build`: reuse existing binaries, skip the build step
+- `--help`: print help and exit
+
+Logs are written to `<repo>/sanitizer-logs/` (`<sanitizer>-encoder.log`, `<sanitizer>-decoder.log`,
+`<sanitizer>-multiframe.log`) and summarized by `tests/scripts/sanitizer_summary.sh`. `address`,
+`thread`, `undefined` and `integer` build Release and run `EncoderTest.sh`,
+`DecoderConformanceTest.sh` and `DecoderMultiFramesTest.sh` in full. `memory` builds Debug, exports
+`SANITIZER_ASM=avx2` (the test scripts force `--asm avx2` on every encoder/decoder command), runs only the first 50
+`EncoderTest.sh` cases (`range:0-50`) and runs both decoder scripts with `fast`.
+
 ## Sanitizer Notes
 
 | Sanitizer | Detects | Flag |
@@ -71,8 +93,9 @@ These are correct standard library behavior (C/C++ defines unsigned overflow as 
 
 ### Running MSan Tests
 
-Unit tests (`SvtJpegxsUnitTests`) CANNOT run under MSan — googletest triggers a false positive in
-libc++ `ios_base::precision` during global init. Instead, test using the encoder/decoder apps:
+Unit tests (`SvtJpegxsUnitTests`) CANNOT run under MSan — the build links the system C++ standard
+library (libstdc++), which is not MSan-instrumented, so googletest aborts on false positives from
+uninstrumented code. Instead, test using the encoder/decoder apps:
 
 ```bash
 cd Build/linux
