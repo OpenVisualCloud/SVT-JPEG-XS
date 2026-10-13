@@ -14,11 +14,16 @@ PLUGIN_DIR="$(dirname "$TESTS_DIR")"
 REPO_DIR="$(dirname "$PLUGIN_DIR")"
 HOST_ENV="$TESTS_DIR/.host.env"
 
-# ports and CPU sets written by setup_host.sh; a variable already set in the environment wins
+# ports and CPU sets written by setup_host.sh; a variable already set in the environment wins.
+# The CPU sets are taken as a pair: with TX_CPUS or RX_CPUS set, neither is read from the file,
+# so the other one is picked next to it instead of possibly overlapping it.
+CPUS_FROM_USER=0
+[ -z "${TX_CPUS:-}" ] && [ -z "${RX_CPUS:-}" ] || CPUS_FROM_USER=1
 if [ -f "$HOST_ENV" ]; then
     while IFS='=' read -r key value; do
         case "$key" in
             '' | '#'*) continue ;;
+            TX_CPUS | RX_CPUS) [ "$CPUS_FROM_USER" = 0 ] || continue ;;
         esac
         [ -n "${!key:-}" ] || export "$key=$value"
     done <"$HOST_ENV"
@@ -46,6 +51,10 @@ TEST_HEIGHT="${TEST_HEIGHT:-1080}"
 TEST_SECONDS="${TEST_SECONDS:-10}"
 [ "$TEST_SECONDS" -ge 5 ] 2>/dev/null || { echo "ERROR: TEST_SECONDS must be a number of seconds, at least 5" >&2; exit 125; }
 TEST_FPS="${TEST_FPS:-p59}"
+case "$TEST_FPS" in
+    p23 | p24 | p25 | p29 | p30 | p50 | p59 | p60 | p100 | p119 | p120) ;;
+    *) echo "ERROR: TEST_FPS $TEST_FPS: expected p23, p24, p25, p29, p30, p50, p59, p60, p100, p119 or p120" >&2; exit 125 ;;
+esac
 RUNS="${RUNS:-10}"
 KEEP_FILES="${KEEP_FILES:-0}"
 if [ -z "${OUT_DIR:-}" ]; then
@@ -443,8 +452,7 @@ sample_fps() {
         p59) echo 59.94 ;;
         p29) echo 29.97 ;;
         p23) echo 23.98 ;;
-        p*) echo "${TEST_FPS#p}" ;;
-        *) die "TEST_FPS $TEST_FPS: expected p23, p24, p25, p29, p30, p50, p59, p60, p100, p119 or p120" ;;
+        *) echo "${TEST_FPS#p}" ;; # checked at the top
     esac
 }
 

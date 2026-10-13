@@ -174,7 +174,9 @@ if [ "$DRY_RUN" = 1 ]; then
     echo "dry-run: would write $HOST_ENV (TX_PORT=$TX_PORT RX_PORT=$RX_PORT NUMA_NODE=$node)"
     exit 0
 fi
-unset TX_CPUS RX_CPUS
+# CPU sets given on the command line are stored; ones read from an earlier .host.env are picked
+# again for the ports found now
+[ "$CPUS_FROM_USER" = 1 ] || unset TX_CPUS RX_CPUS
 default_cpu_sets
 
 cat >"$HOST_ENV" <<EOF

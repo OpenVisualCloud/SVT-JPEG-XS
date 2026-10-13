@@ -15,7 +15,7 @@ set -eo pipefail
 # shellcheck source=common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
-init_test formats "progressive loopback of every format" "$(loopback_minutes 27)"
+init_test formats "progressive loopback of every format" "$(loopback_minutes 28)"
 require_plugin
 require_mtl
 require_ports
@@ -25,6 +25,7 @@ write_env_info
 
 LOSSLESS="$(write_config lossless '{"encoder": {"lossless": true}}')"
 LOSSLESS_RCT="$(write_config lossless_rct '{"encoder": {"lossless": true, "rct": true}}')"
+RCT="$(write_config rct '{"encoder": {"rct": true}}')"
 DECOMP_V0="$(write_config decomp_v0 '{"encoder": {"decomp_v": 0}}')"
 DECOMP_V1="$(write_config decomp_v1 '{"encoder": {"decomp_v": 1}}')"
 
@@ -159,9 +160,14 @@ if [ "$HAS_16LE" = 1 ]; then
     else
         fail yuv422p16le_equals_10le "$(tr '\n' ' ' <<<"$out")"
     fi
+elif [ -z "$ENC_IN_CAPS" ]; then
+    # no caps line: a changed MTL log format must not hide the 16LE cases as skipped
+    for c in lossy_YUV422PLANAR16LE yuv422p16le_equals_10le reject_12bit_to_16le reject_lossless_16le; do
+        fail "$c" "encoder caps not found in the TX log, can't tell whether the plugin offers YUV422PLANAR16LE"
+    done
 else
     for c in lossy_YUV422PLANAR16LE yuv422p16le_equals_10le reject_12bit_to_16le reject_lossless_16le; do
-        skip "$c" "plugin does not offer YUV422PLANAR16LE (encoder caps ${ENC_IN_CAPS:-not logged})"
+        skip "$c" "plugin does not offer YUV422PLANAR16LE (encoder caps $ENC_IN_CAPS)"
     done
 fi
 
@@ -176,6 +182,8 @@ if [ "$HAS_16LE" = 1 ]; then
     reject reject_lossless_16le YUV422PLANAR16LE YUV422PLANAR16LE "$LOSSLESS" \
         'svt_jpeg_xs_encoder_init err'
 fi
+# the colour transform takes R, G, B: YUV 4:4:4 has the same sampling but must be refused
+reject reject_rct_yuv444 YUV444PLANAR10LE YUV444PLANAR10LE "$RCT" 'rct needs GBRPLANAR\* input'
 # 4:2:0 needs vertical decomposition: the samples' QUALITY mode with decomp_v 0 from the config
 reject reject_420_decomp_v0 YUV420PLANAR8 YUV420PLANAR8 "$DECOMP_V0" 'needs decomp_v 1 or 2'
 
