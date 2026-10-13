@@ -8,6 +8,10 @@ on:
         description: Branch to run the scans on
         default: main
         type: string
+
+permissions:
+  contents: read
+
 jobs:
   super-linter:
     name: super-linter
@@ -16,8 +20,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-      # To report GitHub Actions status checks
-      statuses: write
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -40,7 +42,8 @@ jobs:
           BASH_SEVERITY: "error"
           LINTER_RULES_PATH: ".github/config"
           GITHUB_COMMENT_ON_PR: false
-          GITHUB_STATUS_UPDATES: true
+          # Per-language status checks need 'statuses: write'; the job summary covers it.
+          MULTI_STATUS: false
           VALIDATE_BASH_EXEC: true
           VALIDATE_BASH: true
           # VALIDATE_CPP: true
