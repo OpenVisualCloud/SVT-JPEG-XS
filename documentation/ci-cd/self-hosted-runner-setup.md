@@ -13,8 +13,11 @@ not describe any particular deployment.
 
 | `runs-on` | Used by |
 | -- | -- |
-| `['self-hosted', 'linux', 'x64', 'jpeg-xs']` | Build, unit, conformance, fuzzing, sanitizer and plugin test jobs |
-| `['self-hosted', 'linux', 'x64', 'performance']` | Performance jobs only |
+| `['self-hosted', 'linux', 'x64', 'jpeg-xs']` | Linux library build, unit, conformance, fuzzing, OOMify, sanitizer, GStreamer plugin build/test and FFmpeg plugin test jobs |
+| `['self-hosted', 'linux', 'x64', 'performance']` | Performance jobs only (`base_build.yaml` `performance-tests`, `gstreamer_plugin_build.yaml` `gstreamer-performance-tests`, `ffmpeg_plugin_build.yaml` `ffmpeg-9-0-performance-tests`) |
+
+The FFmpeg plugin's source fetch, library and Linux build jobs, the `changes` path-filter jobs, the sanitizer `gate` job
+and all Windows jobs run on GitHub-hosted runners.
 
 Several runners may share the `jpeg-xs` label, and a job is dispatched to whichever one is idle.
 Jobs must therefore target the shared label and never a label identifying one individual runner.
@@ -31,9 +34,12 @@ build.
 ```sh
 sudo apt-get update
 sudo apt-get -y install \
-    bison clang cmake flex g++ gcc libglib2.0-dev llvm make nasm \
-    ninja-build numactl pkg-config python3-venv valgrind
+    bison clang cmake flex g++ gcc git libglib2.0-dev llvm make nasm \
+    ninja-build numactl pkg-config python3 python3-venv valgrind
 ```
+
+`git` is used by the GStreamer build job (to fetch GStreamer) and the OOMify job (to fetch oomify), and `make` by the
+OOMify job to build oomify.
 
 Self-hosted jobs assert the resulting binaries are present with a `Verify host toolchain` step:
 
@@ -54,12 +60,37 @@ The runner's service account must be able to run the following through `sudo` wi
 password prompt; a prompt blocks the job until it times out. Grant only these commands (for
 example with a dedicated `sudoers.d` drop-in) rather than blanket `NOPASSWD: ALL`:
 
-- `chown` and `chmod` on paths under the runner's own `_work` directory, used by the build, fuzzing,
-  sanitizer and plugin jobs to repair workspace ownership and permissions.
-- On `performance` runners only: `mkdir`, `rmdir`, `mount -t tmpfs` and `umount` for the
-  per-run ramdisk the performance scripts create, and `tee` to
+- `chown` and `chmod` on paths under the runner's own `_work` directory, used by the unit-test,
+  conformance, fuzzing, OOMify, sanitizer and plugin jobs, including the GStreamer and FFmpeg
+  performance jobs on `performance` runners, to repair workspace ownership and permissions.
+- On `performance` runners only, for the per-run ramdisk the performance scripts create under
+  `/mnt/svt_jpegxs_perf_*ramdisk_*`:
+  - `mkdir -p <dir>` and `rmdir <dir>`
+  - `mount -t tmpfs -o size=3G,mode=1777,mpol=bind:<N> tmpfs <dir>`, where `<N>` is the NUMA
+    node selected by `tests/scripts/perf_numa.sh`
+  - `umount <dir>` and `umount -l <dir>`
+- On `performance` runners only: `tee` to
   `/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor` to pin the CPU frequency governor for
   the duration of a run.
+
+Sudoers rules that restrict arguments must match these argument lists; `,`, `:`, `=` and `\` in
+command arguments must be escaped with `\`. For example:
+
+```text
+<runner-user> ALL=(root) NOPASSWD: /usr/bin/mount -t tmpfs -o size\=3G\,mode\=1777\,mpol\=bind\:* tmpfs /mnt/svt_jpegxs_perf_*
+<runner-user> ALL=(root) NOPASSWD: /usr/bin/umount /mnt/svt_jpegxs_perf_*, /usr/bin/umount -l /mnt/svt_jpegxs_perf_*
+```
+
+## Network access
+
+Besides GitHub itself (checkout, artifacts, actions), self-hosted jobs fetch from:
+
+- `pypi.org` / `files.pythonhosted.org`: `.github/scripts/build_gstreamer_plugin.sh` installs a
+  pinned Meson with `pip` into a venv.
+- `gitlab.freedesktop.org`: `.github/scripts/build_gstreamer_plugin.sh` fetches the pinned
+  GStreamer commit.
+- `github.com`: the OOMify job fetches the pinned oomify commit from
+  `github.com/tavianator/oomify`.
 
 ## Test assets
 

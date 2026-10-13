@@ -9,12 +9,17 @@
 // encoder/decoder session of the process.
 // An unknown key, an invalid value, or a key the installed SVT-JPEG-XS library
 // does not support makes plugin start fail.
-// Invalid combinations (e.g. rct with 4:2:2 input) are rejected by the library
+// Invalid combinations (e.g. rct with input other than GBRPLANAR*) are rejected
 // when a session is created; only that session fails.
 //
-// Option names follow SvtJpegxsEncApp / SvtJpegxsDecApp; values tuned with the
-// apps can be copied. Choice values also accept the apps' numbers, e.g.
-// "quantization": 1.
+// Keys correspond to SvtJpegxsEncApp / SvtJpegxsDecApp options, written with
+// underscores (slice_height, stream_profile, ...); cpu_profile is the apps'
+// --profile, rct their --color-transform. App option names are unknown keys.
+// quantization, coding_signs, coding_vpred, rc, stream_profile and
+// stream_level also accept the apps' numbers, e.g. "quantization": 1; asm and
+// cpu_profile take names only, on/off keys true or false.
+// lossless, coding_raw, cap_compat, rct, stream_profile and stream_level need
+// a recent library; remove those the installed library lacks.
 //
 // The values below are the defaults. Keys preset by MTL's quality mode are
 // commented out: setting them here overrides the preset.
@@ -82,8 +87,8 @@
     // capability bit is needed, for strict third-party decoders that reject a
     // non-empty one. A full CAP is still written when required (e.g. 4:2:0).
     "cap_compat": false,
-    // Reversible colour transform (RCT, Cpih=1). Only for 4:4:4 / RGB planar
-    // input with cpu_profile "latency".
+    // Reversible colour transform (RCT, Cpih=1). Only for GBRPLANAR* input with
+    // cpu_profile "latency".
     "rct": false,
     // Profile (Ppih) declared in the picture header.
     //   "auto" = derived from the input format (Main 420.12 / 422.10 / 444.12 /

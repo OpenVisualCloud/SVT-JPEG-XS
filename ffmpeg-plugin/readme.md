@@ -45,7 +45,7 @@ cd ffmpeg
 git checkout release/(6.1, 7.0, 7.1, 8.0, 8.1, 9.0)
 ```
 
-### c) copy files - ONLY for ffmpeg 6.0, 7.0, 7.1, 8.0
+### c) copy files - ONLY for ffmpeg 6.1, 7.0, 7.1, 8.0
 
 ```text
 cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
@@ -101,7 +101,7 @@ export https_proxy=<https>
 ### b) Install packages
 
 ```text
-pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm mingw-w64-x86_64-diffutils
+pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-yasm diffutils mingw-w64-x86_64-winpthreads mingw-w64-x86_64-toolchain
 ```
 
 ## 4. Create installation directory and export env variable
@@ -140,7 +140,7 @@ cd ffmpeg
 git checkout release/(6.1, 7.0, 7.1, 8.0, 8.1, 9.0)
 ```
 
-### c) copy files - ONLY for ffmpeg 6.0, 7.0, 7.1, 8.0
+### c) copy files - ONLY for ffmpeg 6.1, 7.0, 7.1, 8.0
 
 ```text
 cp <jpeg-xs-repo>/ffmpeg-plugin/libsvtjpegxs* libavcodec/
@@ -195,15 +195,20 @@ Adding a new one requires touching all of these:
 
 - `.github/scripts/build_ffmpeg_plugin.sh` and `.github/scripts/build_ffmpeg_plugin_msys.sh`:
   add the new version to the `FFMPEG_VERSION` validation list (`if [[ "$FFMPEG_VERSION" != ... ]]`),
-  and to the `COPY_FILES` auto-disable check if the new version ships `libsvtjpegxs*` natively
-  upstream (like 8.1/9.0 do - no `cp .../libsvtjpegxs*` needed for those).
+  to the version lists in the usage comment and usage messages, and to the `COPY_FILES`
+  auto-disable check if the new version ships `libsvtjpegxs*` natively upstream (like 8.1/9.0 do -
+  no `cp .../libsvtjpegxs*` needed for those).
 - `.github/workflows/ffmpeg_plugin_build.yaml`:
   - `ffmpeg-source-fetch` job: add the new version to the `for v in 6.1 7.0 7.1 8.0 8.1 9.0; do ...`
     loop - this is the stage that clones/fetches and checks out each supported FFmpeg release
     branch once, shared by every build job (see
-    [documentation/ci-cd/README.md](../documentation/ci-cd/README.md)).
-  - Add a new `ffmpeg-X-Y-linux-build` job (copy an existing one, update the version/patch args
-    passed to `build_ffmpeg_plugin.sh`) and its matching `ffmpeg-X-Y-linux-tests` job.
+    [documentation/ci-cd/README.md](../documentation/ci-cd/README.md)). Also update the
+    hard-coded count in that step's name (`Fetch: all 6 FFmpeg release branches ...`).
+  - Add a new `ffmpeg-X-Y-linux-build` job (copy an existing one, update the version passed to
+    `build_ffmpeg_plugin.sh`, which takes `<version> <install: y|n> <copy-files: y|n>` and picks
+    the patches from `ffmpeg-plugin/<version>/`) and its matching `ffmpeg-X-Y-linux-tests` job.
+  - Add the new `ffmpeg-X-Y-linux-tests` job to the `needs` list of the
+    `ffmpeg-9-0-performance-tests` job.
   - Add a new `ffmpeg-X-Y-windows-build` job (copy an existing one, update the version passed to
     `build_ffmpeg_plugin_msys.sh`).
   - Add new `LINUX_ARTIFACTS_X_Y`/`WINDOWS_ARTIFACTS_X_Y` entries to the workflow's `env:` block.
@@ -213,8 +218,8 @@ Adding a new one requires touching all of these:
   the 8.1/9.0 pattern) or `libsvtjpegxs*` copy-file pattern (6.1-8.0 pattern).
 - `tests/scripts/FFmpeg*.sh` and `tests/scripts/PerformanceTestFfmpegPlugin.sh`: update if the new
   version needs different test coverage or performance baselines.
-- `documentation/ci-cd/README.md`: update the version list mentioned in the workflow description
-  table.
+- `documentation/ci-cd/README.md`: update the version list and count in the workflow description
+  table, and the per-version job counts (e.g. "all 6 `ffmpeg-*-windows-build` jobs").
 
 # How to use ffmpeg with jpeg-xs
 
@@ -225,10 +230,29 @@ Name|Bit depths|Notes
 yuv420p(le)|8, 10, 12, 14|-
 yuv422p(le)|8, 10, 12, 14|-
 yuv444p(le), gbrp(le)|8, 10, 12, 14|gbrp planes are passed to the library in R, G, B order. Decoder output depends on the `rgb` option, see "RGB formats" below
-gray(le)|8, 9, 10, 12, 14|decode only
-rgb24|8|packed, encode only. bgr24 is not supported: ffmpeg converts it to a supported format
+gray(le), gray16le|8, 9, 10, 12, 14, 16|decode only. gray16le is used for bit depths above 14. Other bit depths, see "Decoder output for other bit depths" below
+rgb24|8|packed, encode only. Rejected with `-cpu_profile cpu`. bgr24 is not supported: ffmpeg converts it to a supported format
 yuva422p(le)|8, 10, 12|4:2:2:4 (YUV422 + alpha)
 yuva444p(le), gbrap(le)|8, 10, 12, 14|4:4:4:4 (RGBA/YUVA444), gbrap planes are passed to the library in R, G, B, A order. Decoder output depends on the `rgb` option, see "RGB formats" below. No upstream ffmpeg `yuva444p14`/`yuva422p14` pix_fmt exists, so 14-bit 4:4:4:4 is only reachable via `gbrap14le`, and 14-bit 4:2:2:4 is not reachable through this plugin at all.
+
+### Decoder output for other bit depths
+
+The decoder library accepts streams with any bit depth from 8 to 16, but the plugin only has
+correctly labelled output formats for the bit depths in the table above. For other bit depths the
+decoded samples are not rescaled: they are written unchanged into the next output format listed
+below, so the values do not use the full range that the output format declares.
+
+- 4:2:0, 4:2:2 and 4:4:4 (3 components), 9, 11, 13, 15 or 16 bit: output as the matching `*p14le`
+  format (`yuv420p14le`, `yuv422p14le`, `yuv444p14le` or `gbrp14le`). 15/16-bit samples do not fit
+  the declared 14-bit range.
+- 4:4:4:4 (4 components), 9 or 11 bit: output as `gbrap14le` (planes in stream order unless the
+  stream is decoded as RGB, see "RGB formats"). 13-bit 4-component streams are also output as
+  `gbrap14le`, holding 13-bit values.
+- 4:2:2:4, any bit depth other than 8, 10 or 12: rejected.
+- gray: 9-bit maps to `gray9le`. 11-bit maps to `gray12le` for ffmpeg 6.1, 7.0, 7.1, 8.0 and to
+  `gray14le` for ffmpeg 8.1, 9.0. 13-bit maps to `gray14le` and 15-bit to `gray16le`.
+
+Only 8, 10, 12 and 14-bit streams (and 9 and 16-bit gray) are labelled correctly.
 
 ## RGB formats
 
@@ -278,30 +302,46 @@ Typical use:
 - Stream encoded from `yuv444p*` or `yuva444p*`: decode with default options.
 
 Streams encoded from `gbrp*`, `gbrap*` or `bgr24` by earlier plugin versions store the components
-in the wrong order (G, B, R or B, G, R) and decode with wrong colours. A stream encoded from `gbrp*`
-(stored G, B, R) can be relabelled without converting sample values (set the matching bit depth):
+in the wrong order (G, B, R(, A) or B, G, R) and decode with wrong colours. Decode them with
+`-rgb false` and relabel the planes without converting sample values (set the matching bit depth in
+`format`):
 
-```text
-./ffmpeg -rgb false -i <old_gbrp_stream> -vf "mergeplanes=map0s=0:map0p=0:map1s=0:map1p=1:map2s=0:map2p=2:format=gbrp" <output>
-```
+- `gbrp*` (stored G, B, R):
+
+  ```text
+  ./ffmpeg -rgb false -i <old_gbrp_stream> -vf "mergeplanes=map0s=0:map0p=0:map1s=0:map1p=1:map2s=0:map2p=2:format=gbrp" <output>
+  ```
+
+- 8-12-bit `gbrap*` (stored G, B, R, A):
+
+  ```text
+  ./ffmpeg -rgb false -i <old_gbrap_stream> -vf "mergeplanes=map0s=0:map0p=0:map1s=0:map1p=1:map2s=0:map2p=2:map3s=0:map3p=3:format=gbrap" <output>
+  ```
+
+- `gbrap14le` (stored G, B, R, A): `-rgb false` alone gives the right output, no relabelling needed.
+- `bgr24` (stored B, G, R):
+
+  ```text
+  ./ffmpeg -rgb false -i <old_bgr24_stream> -vf "mergeplanes=map0s=0:map0p=1:map1s=0:map1p=0:map2s=0:map2p=2:format=gbrp" <output>
+  ```
 
 ## libsvtjpegxs encoder available params
 
 Name|mandatory/optional|Accepted values|description
 --|--|--|--
 bpp|optional|any integer/float greater than 0 (example: 0.5, 3, 3.75, 5 etc.)|Bits Per Pixel. If not set, defaults to an uncompressed-equivalent value based on the input pixel format (a warning is logged with the auto-selected value)
-decomp_v|optional|0, 1, 2(default)|Number of Vertical decompositions
+decomp_v|optional|0, 1, 2(default)|Number of Vertical decompositions. 0 is rejected for yuv420p* input
 decomp_h|optional|0, 1, 2, 3, 4, 5(default)|Number of Horizontal decompositions, have to be greater or equal to decomp_v
 threads|optional|Any integer in range< 1;64>|Number of threads encoder can create
 slice_height|optional|(default:16), Any integer in range <1;source_height>, also it have to be multiple of 2^(decomp_v))|Coding feature: Specify slice height in units of picture luma pixels
 quantization|optional|(default:deadzone), 0(deadzone), 1(uniform)|Coding feature: Quantization method
-coding-signs|optional|(default:off), 0(off), 1(fast), 2(full)|Coding feature: Sign handling strategy
+coding-signs|optional|(default:disable), 0(disable), 1(fast), 2(full)|Coding feature: Sign handling strategy
 coding-sigf|optional|(default:on), 0(off), 1(on)|Coding feature: Significance coding
-coding-vpred|optional|(default:off), 0(off), 1(on)|Coding feature: Vertical-prediction
+coding-vpred|optional|(default:disable), 0(disable), 1(no_residuals), 2(no_coeffs)|Coding feature: Vertical-prediction
 coding-raw|optional|(default:auto/enabled), true(enabled), false(disable for legacy-decoder compatibility)|Coding feature: packet-based raw-mode coding
 cap-compat|optional|(default:auto/disabled), true(enabled), false(disabled)|Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required
-color_transform|optional|(default:auto/disabled), true(enabled), false(disabled)|Encoder-side reversible colour transform (RCT, Cpih=1). Only valid for planar RGB input (gbrp, gbrp10le, gbrp12le, gbrp14le) - rejected otherwise, including yuv444p: YUV input is already decorrelated, and Cpih=1 streams are decoded as RGB
-cpu_profile|optional|(default:auto/latency), latency, cpu|Encoder internal threading model
+color_transform|optional|(default:auto/disabled), true(enabled), false(disabled)|Encoder-side reversible colour transform (RCT, Cpih=1). Only valid for planar RGB input (gbrp, gbrp10le, gbrp12le, gbrp14le) with `cpu_profile` latency - rejected otherwise, including yuv444p: YUV input is already decorrelated, and Cpih=1 streams are decoded as RGB
+cpu_profile|optional|(default:auto/latency), latency, cpu|Encoder internal threading model. `color_transform` and rgb24 input require latency
 msb_aligned|optional|(default:false), true, false|Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. Must match the decoder's msb_aligned setting
 lossless|optional|(default:false), true, false|True lossless coding (Fq=0): decoded output is bit-exact with the input. Output size is data-dependent instead of the usual fixed CBR size; `-bpp` is not required and is ignored, as is `quantization`. Unless `-profile:v`/`-level:v` are set, the stream is declared as MLS.12 (Ppih=0x6EC0) with an unrestricted sublevel; add `-coding-raw false` for a strictly MLS.12-conformant stream (MLS.12 requires Rl=0). Rejected together with `-msb_aligned true`, or with `-color_transform true` at 13/14-bit input
 
@@ -330,11 +370,11 @@ Notes:
 - Leaving `-profile`/`-level` unset (the default) keeps the existing auto-derive behavior: the
   encoder always signals a validly-defined ISO/IEC 21122-2 Annex A codeword based on the actual
   encoder configuration.
-- Named values only cover the "Main" profile family and the resolution/level portion of Plev (bits
-  [15:10]); use a raw hex/decimal value instead of a name for Light/High family profiles or to also
-  set an explicit sublevel/FBB-level.
+- Named level values only cover the resolution/level portion of Plev (bits [15:10]); use a raw
+  hex/decimal value instead of a name to also set an explicit sublevel/FBB-level, or for a profile
+  not in the named list.
 - These names and values mirror the SvtJpegxsEncApp's `--stream-profile`/`--stream-level` CLI options
-  (see [documentation/encoder/EncoderSnippets.md](../documentation/encoder/EncoderSnippets.md) and
+  (see the encoder "Available parameters" in [README.md](../README.md#available-parameters) and
   `Source/App/EncApp/EncAppConfig.c`) and `Source/Lib/Encoder/Codec/ProfileLevel.h`.
 - Out-of-range values (outside 0-65535) are rejected with an error at encoder init.
 
@@ -347,8 +387,9 @@ proxy-mode|optional|(default:full), 0(full), 1(half), 2(quarter)|Specify resolut
 msb_aligned|optional|(default:false), true, false|Non-standard: output 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. Must match the encoder's msb_aligned setting
 rgb|optional|(default:auto), auto, true, false|Output pixel format for 4:4:4 and 4:4:4:4 streams, see the decoding table in "RGB formats". auto: gbrp*/gbrap* for streams with the colour transform (Cpih=1), yuv444p*/yuva444p* otherwise (13/14-bit 4-component streams: always gbrap14le, read as R, G, B, A). true: always gbrp*/gbrap*; use for RGB streams coded without the colour transform. false: always yuv444p*/yuva444p* with the planes in stream order (13/14-bit 4-component streams: gbrap14le in stream order)
 
-Note: private decoder options (e.g. `-msb_aligned`, `-threads`) must be placed BEFORE `-i`, not
-after - placed after `-i` they are silently ignored (ffmpeg only logs a warning, no error).
+Note: decoder options (private ones such as `-msb_aligned`, and the generic ffmpeg `-threads`)
+must be placed BEFORE `-i`, not after - placed after `-i` they are silently ignored (ffmpeg only
+logs a warning, no error).
 
 ### Encoding raw video
 
@@ -368,7 +409,31 @@ after - placed after `-i` they are silently ignored (ffmpeg only logs a warning,
 ./ffplay.exe encoded_file.mov -threads 4
 ```
 
-Bitstream can be stored in .mkv, .mp4, .mov containers
+Bitstream can be stored in .mkv, .mp4, .mov, .ts (MPEG-TS) containers.
+
+MPEG-TS support differs between versions:
+
+- ffmpeg 6.1, 7.0, 7.1, 8.0: only stream_type 0x32 is set, no JPEG XS descriptor is written into the
+  PMT.
+- ffmpeg 8.1, 9.0: the muxer also writes the JPEG XS video descriptor (`JXS_video_descriptor`) into
+  the PMT, and the demuxer's parsing of the descriptor's `schar` field is fixed (4:2:0 subsampling
+  and RGB detection).
+
+### Decoding raw .jxs codestreams
+
+ffmpeg 8.1 and 9.0 have the `jpegxs_pipe` demuxer (with a patched JPEG XS parser), which reads a
+file holding one or more concatenated codestreams:
+
+```text
+./ffmpeg.exe -f jpegxs_pipe -c:v libsvtjpegxs -i <stream.jxs> -f rawvideo <output.yuv>
+```
+
+ffmpeg 6.1, 7.0, 7.1 and 8.0 have no `jpegxs_pipe` demuxer. Use `-f image2`, which reads only one
+frame (codestream) per file:
+
+```text
+./ffmpeg.exe -f image2 -c:v libsvtjpegxs -i <single_frame.jxs> -f rawvideo <output.yuv>
+```
 
 ### Decoding jpegxs streams to raw video
 

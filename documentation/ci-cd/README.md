@@ -8,18 +8,32 @@ rebuilds.
 
 | Workflow file | Name | Trigger | Purpose |
 | -- | -- | -- | -- |
-| `base_build.yaml` | Base Build | `push` (main), `pull_request` | Builds the core library (Linux gcc + Windows MSVC), runs unit/conformance/performance tests, and calls the 4 reusable workflows below as jobs. |
-| `ffmpeg_plugin_build.yaml` | ffmpeg Plugin Build | `workflow_call` (from Base Build), `workflow_dispatch` | Builds and tests the ffmpeg plugin against 6 ffmpeg versions (6.1, 7.0, 7.1, 8.0, 8.1, 9.0), on Linux and Windows. |
-| `gstreamer_plugin_build.yaml` | GStreamer Plugin Build | `workflow_call` (from Base Build), `workflow_dispatch` | Builds and tests the GStreamer plugin. |
-| `fuzzy-tests.yaml` | Fuzzy Tests | `workflow_call` (from Base Build), `workflow_dispatch` | Runs libFuzzer-based encoder/decoder fuzzing. |
+| `base_build.yaml` | Base Build | `push` (main), `pull_request`, `workflow_dispatch` | Builds the core library (Linux gcc + Windows MSVC), runs unit/conformance/performance tests, and calls the 4 reusable workflows below as jobs. |
+| `ffmpeg_plugin_build.yaml` | ffmpeg Plugin Build | `workflow_call` (from Base Build), `workflow_dispatch` | Builds the ffmpeg plugin against 6 ffmpeg versions (6.1, 7.0, 7.1, 8.0, 8.1, 9.0) on Linux and Windows; tests run on Linux only. Source fetch, library and Linux build jobs run on GitHub-hosted `ubuntu-22.04`; only the Linux test jobs run self-hosted. `ffmpeg-9-0-performance-tests` measures the ffmpeg 9.0 build on the `performance` runner. |
+| `gstreamer_plugin_build.yaml` | GStreamer Plugin Build | `workflow_call` (from Base Build), `workflow_dispatch` | Builds and tests the GStreamer plugin; `gstreamer-performance-tests` measures it on the `performance` runner. |
+| `fuzzy-tests.yaml` | Fuzzy Tests | `workflow_call` (from Base Build), `workflow_dispatch` | Runs libFuzzer-based encoder/decoder fuzzing. No crash inputs or fuzzer logs are uploaded as artifacts; `crash-*` and `fuzz-*.log` files stay in `tests/FuzzyTests/` of the runner's workspace (see [tests/FuzzyTests/readme.md](../../tests/FuzzyTests/readme.md)). |
 | `oomify_tests.yaml` | OOMify Tests | `workflow_call` (from Base Build), `workflow_dispatch` | Injects a `malloc()` failure at every allocation point in the encoder and decoder and verifies each failure exits cleanly rather than crashing. Covers 7 codec configurations (yuv422/yuv444/yuv420, 8-bit/10-bit, production decomposition, vertical prediction). |
+| `sanitizer_tests.yaml` | Sanitizer Tests | scheduled, `workflow_dispatch` | Nightly sanitizer runs (address, thread, undefined, integer, memory) via `tests/scripts/sanitize.sh`. The matrix runs one sanitizer at a time (`max-parallel: 1`) on `jpeg-xs` runners with a per-job timeout, uploads `sanitizer-logs-<sanitizer>-<run>` artifacts, and a GitHub-hosted `gate` job reports the overall result. |
 | `coverity.yaml` | Coverity Build | scheduled, `workflow_dispatch` | Nightly Coverity static analysis scan. |
-| `linter.yaml` | - | `push`, `pull_request` | super-linter checks (bash, markdown, etc.). |
+| `codeql.yml` | CodeQL | `push` (main), `pull_request`, scheduled | CodeQL static analysis (C/C++). |
+| `scorecard.yml` | Scorecard supply-chain security | `push` (main), `branch_protection_rule`, scheduled | OpenSSF Scorecard supply-chain security analysis. |
+| `linter.yaml` | Linter | `pull_request`, `workflow_call`, `workflow_dispatch` | super-linter checks (bash, markdown, etc.). |
+
+## Manual runs (`workflow_dispatch` inputs)
+
+| Workflow | Inputs |
+| -- | -- |
+| `base_build.yaml`, `ffmpeg_plugin_build.yaml`, `gstreamer_plugin_build.yaml`, `oomify_tests.yaml` | `force`: run even if no relevant paths changed (skips the path filter) |
+| `fuzzy-tests.yaml` | `branch`: branch to build (default `main`); `timeout`: fuzzing time in seconds (default 60) |
+| `coverity.yaml`, `linter.yaml` | `branch`: branch to check out |
+| `sanitizer_tests.yaml` | none |
 
 ## Self-hosted runners
 
 Most Linux jobs run on self-hosted runners (`runs-on: ['self-hosted', 'linux', 'x64', 'jpeg-xs']`,
-or `'performance'` for the performance jobs). Those runners are pre-provisioned: their jobs do not
+or `'performance'` for the performance jobs), including the OOMify job. The `changes` path-filter
+jobs, the FFmpeg source fetch/library/Linux build jobs, the sanitizer `gate` job, Coverity, CodeQL,
+Scorecard, the linter and all Windows jobs run on GitHub-hosted runners. Self-hosted runners are pre-provisioned: their jobs do not
 install packages, they only verify the expected toolchain is present and fail fast if it is not.
 See [self-hosted-runner-setup.md](self-hosted-runner-setup.md) for what a runner must provide and
 the constraints a job targeting one has to respect.
@@ -85,9 +99,9 @@ the original clone-with-retry logic if the pre-fetched artifact is unavailable.
 
 ## Path filters
 
-`base_build`, `ffmpeg_plugin_build` and `gstreamer_plugin_build` each have a `changes` job using
-`dorny/paths-filter` against `.github/config/path_filters.yaml` to skip work when nothing relevant
-changed. `ffmpeg_plugin_build`/`gstreamer_plugin_build`'s filters include `Source/Lib/**` (the
+`base_build`, `ffmpeg_plugin_build`, `gstreamer_plugin_build` and `oomify_tests` each have a
+`changes` job using `dorny/paths-filter` against `.github/config/path_filters.yaml` to skip work
+when nothing relevant changed. `ffmpeg_plugin_build`/`gstreamer_plugin_build`'s filters include `Source/Lib/**` (the
 actual codec) as well as their own plugin-specific paths, so a core codec change always exercises
 the plugin integration tests too.
 

@@ -2,15 +2,22 @@
 
 param | description | mandatory/optional | default | Accepted values
 -- | -- | -- | -- | --
-use_cpu_flags | Performance: limit assembly instruction set used by decoder,   please refer to CPU_FLAGS | optional | CPU_FLAGS_ALL | CPU_FLAGS_C, CPU_FLAGS_MMX, CPU_FLAGS_SSE ,CPU_FLAGS_SSE2 ,CPU_FLAGS_SSE3 ,CPU_FLAGS_SSSE3 ,CPU_FLAGS_SSE4_1 ,CPU_FLAGS_SSE4_2 ,CPU_FLAGS_AVX ,CPU_FLAGS_AVX2 ,CPU_FLAGS_ALL (avx512)
+use_cpu_flags | Performance: limit assembly instruction set used by decoder,   please refer to CPU_FLAGS | optional | CPU_FLAGS_C (0) | CPU_FLAGS_C, CPU_FLAGS_MMX, CPU_FLAGS_SSE ,CPU_FLAGS_SSE2 ,CPU_FLAGS_SSE3 ,CPU_FLAGS_SSSE3 ,CPU_FLAGS_SSE4_1 ,CPU_FLAGS_SSE4_2 ,CPU_FLAGS_AVX ,CPU_FLAGS_AVX2 ,CPU_FLAGS_NEON ,CPU_FLAGS_ALL (all flags, including avx512, POPCNT, BMI2 and NEON)
 threads_num | Performance: Number of thread decoder can create, 0 mean   minimum number of threads is created | optional | 0 | <0;N/A>
-verbose | Limit number of logs in console, please refer to VerboseMessages enum | optional | VERBOSE_SYSTEM_INFO | VERBOSE_NONE, VERBOSE_ERRORS, VERBOSE_SYSTEM_INFO, VERBOSE_SYSTEM_INFO_ALL, VERBOSE_WARNINGS, VERBOSE_INFO_MULTITHREADING,VERBOSE_INFO_FULL
-packetization_mode | Specify how bitstream is passed to decoder | optional | 0 | 1(multiple packets per frame), 0(single packet per frame)
+verbose | Limit number of logs in console, please refer to VerboseMessages enum | optional | VERBOSE_NONE (0) | VERBOSE_NONE, VERBOSE_ERRORS, VERBOSE_SYSTEM_INFO, VERBOSE_SYSTEM_INFO_ALL, VERBOSE_WARNINGS, VERBOSE_INFO_MULTITHREADING,VERBOSE_INFO_FULL
+packetization_mode | Specify how bitstream is passed to decoder. 1 is rejected by `svt_jpeg_xs_decoder_init()` (SvtJxsErrorBadParameter) for variable bitrate (Lcod=0) and lossless (Fq=0) streams | optional | 0 | 1(multiple packets per frame, `svt_jpeg_xs_decoder_send_packet()`), 0(single packet per frame, `svt_jpeg_xs_decoder_send_frame()`)
+proxy_mode | Decode the stream at reduced resolution, please refer to proxy_mode_t enum | optional | proxy_mode_full (0) | proxy_mode_full (full resolution), proxy_mode_half (1/2 width and height), proxy_mode_quarter (1/4 width and height). Half needs every component's decomposition >= 1, quarter >= 2, otherwise `svt_jpeg_xs_decoder_init()` returns SvtJxsErrorBadParameter: quarter never works for 4:2:0, and neither works with Sd>0. `svt_jpeg_xs_decoder_get_single_frame_size_with_proxy()` does not check this
 output_bit_depth_msb_aligned | Non-standard, host-side only (not signalled in bitstream): when set, 10/12-bit output samples are MSB-aligned in each 16-bit word (`v << (16-output_bit_depth)`) instead of LSB-aligned (`v`). Must match the encoder's input_bit_depth_msb_aligned setting. Not applied to streams whose colour transform is done on the whole frame (for example Star-Tetrix, Cpih=3), which are always output LSB-aligned. | optional | 0 | 0(LSB-aligned), 1(MSB-aligned)
-callback_send_data_available | Callback invoked when the decoder can accept new input data | optional | NULL | function pointer
+callback_send_data_available | Callback invoked when the decoder can accept new input data (after init and per frame taken from the input queue). Never called with packetization_mode=1 | optional | NULL | function pointer
 callback_send_data_available_context | User context pointer passed to callback_send_data_available | optional | NULL | N/A
 callback_get_data_available | Callback invoked when a decoded frame is available | optional | NULL | function pointer
 callback_get_data_available_context | User context pointer passed to callback_get_data_available | optional | NULL | N/A
+
+There is no function that loads decoder defaults; the defaults above are the values of a zero-initialised structure
+(`svt_jpeg_xs_decoder_api_t dec = {0};`).
+
+`svt_jpeg_xs_decoder_init()` only parses the headers of the passed bitstream; that first frame must still be
+sent for decoding. `out_image_config` may be NULL, but then the check for an unsupported output format is skipped.
 
 ## Decoder simplified usage
 
@@ -42,6 +49,7 @@ int32_t main(int32_t argc, char* argv[]) {
     dec.verbose = VERBOSE_SYSTEM_INFO;
     dec.threads_num = 10;
     dec.use_cpu_flags = CPU_FLAGS_ALL;
+    dec.proxy_mode = proxy_mode_full;
 
     svt_jpeg_xs_bitstream_buffer_t bitstream;
     // 1000 bytes is enough to obtain single encoded frame size when fast_search option is enabled
@@ -56,8 +64,8 @@ int32_t main(int32_t argc, char* argv[]) {
     fseek(input_file, 0, SEEK_SET);
 
     uint32_t frame_size = 0;
-    SvtJxsErrorType_t err = svt_jpeg_xs_decoder_get_single_frame_size(
-        (uint8_t*)bitstream.buffer, (uint32_t)read_size, NULL, &frame_size, 1);
+    SvtJxsErrorType_t err = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
+        (uint8_t*)bitstream.buffer, (uint32_t)read_size, NULL, &frame_size, 1, dec.proxy_mode);
     if (err) {
         return err;
     }

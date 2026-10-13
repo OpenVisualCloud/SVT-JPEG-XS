@@ -50,14 +50,15 @@ typedef struct svt_jpeg_xs_frame_pool svt_jpeg_xs_frame_pool_t;
  * @ bitstream_size - Bitstream buffers size. If 0, then bitstream buffer will not be allocated for frames.
  * @ count - number of buffers to allocate
  * Return:
- *  Pointer to allocated structure with buffers, or NULL - when allocation fail
+ *  Pointer to allocated structure with buffers, or NULL - when allocation fail,
+ *  count == 0, or image_config == NULL and bitstream_size == 0
  **/
 PREFIX_API svt_jpeg_xs_frame_pool_t* svt_jpeg_xs_frame_pool_alloc(const svt_jpeg_xs_image_config_t* image_config,
                                                                   uint32_t bitstream_size, uint32_t count);
 
 /*Free pool of image YUV and bitstream buffers
  * Parameters:
- * @ image_buffer_pool - Pointer on allocated pool of frames, have to be that same pointer as allocated by svt_jpeg_xs_frame_pool_alloc()
+ * @ frame_pool - Pointer on allocated pool of frames, have to be that same pointer as allocated by svt_jpeg_xs_frame_pool_alloc()
  **/
 PREFIX_API void svt_jpeg_xs_frame_pool_free(svt_jpeg_xs_frame_pool_t* frame_pool);
 
@@ -73,17 +74,19 @@ PREFIX_API void svt_jpeg_xs_frame_pool_free(svt_jpeg_xs_frame_pool_t* frame_pool
   * @ blocking_flag - If set to 1, then function is blocked until buffer will be available (different thread release used buffer), otherwise "buffer not ready try again later" error code can be returned.
  * Return non-fatal:
   *  SvtJxsErrorNone - on success,
-  *  SvtJxsErrorNoErrorEmptyQueue - (warning), Pool is empty, try again later after some release frame by svt_jpeg_xs_image_buffer_pool_release() happen only when blocking_flag == 0
+  *  SvtJxsErrorNoErrorEmptyQueue - (warning), Pool is empty, try again later after some release frame by svt_jpeg_xs_frame_pool_release() happen only when blocking_flag == 0
   * Return fatal:
   *  SvtJxsErrorBadParameter - Invalid NULL parameters
   **/
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_frame_pool_get(svt_jpeg_xs_frame_pool_t* frame_pool, svt_jpeg_xs_frame_t* frame,
                                                         uint8_t blocking_flag);
 
-/* Return image YUV buffer to pool. Pointer svt_jpeg_xs_image_buffer_pool_t::release_ctx_ptr can not be overwritten because it will be used to release
+/* Return frame buffers to pool. Pointers svt_jpeg_xs_frame_t::*::release_ctx_ptr can not be overwritten because they will be used to release
   * Parameters:
   * @ frame_pool - Frame pool
-  * @ image_buffer - Image buffer to release
+  * @ frame - Frame with image buffer and bitstream buffer to release
+  * Each buffer is returned only if its ready_to_release == 1 (set by encoder/decoder).
+  * Buffers fresh from svt_jpeg_xs_frame_pool_get() have ready_to_release == 0 and are silently not returned.
   **/
 PREFIX_API void svt_jpeg_xs_frame_pool_release(svt_jpeg_xs_frame_pool_t* frame_pool, svt_jpeg_xs_frame_t* frame);
 

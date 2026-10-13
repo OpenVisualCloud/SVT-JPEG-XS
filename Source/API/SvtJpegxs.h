@@ -71,7 +71,7 @@ typedef enum ColourFormat {
     COLOUR_FORMAT_PLANAR_MAX,
 
     COLOUR_FORMAT_PACKED_MIN = 20,
-    COLOUR_FORMAT_PACKED_YUV444_OR_RGB, //packed 8:8:8, 24bpp, RGBRGB... (R, G, B byte order for RGB input)
+    COLOUR_FORMAT_PACKED_YUV444_OR_RGB, //packed 4:4:4, RGBRGB... (R, G, B order for RGB input), 8-bit: 1 byte per sample, 10-14 bit: 16-bit samples
     COLOUR_FORMAT_PACKED_MAX
 } ColourFormat_t;
 
@@ -85,22 +85,25 @@ enum VerboseMessages {
     VERBOSE_INFO_FULL = 6
 };
 
+/* Decoder: sizes are after proxy_mode scaling.
+ * Packed format (COLOUR_FORMAT_PACKED_YUV444_OR_RGB): components_num = 1, components[0].width/height in pixels,
+ * components[0].byte_size covers all 3 interleaved samples per pixel. */
 typedef struct svt_jpeg_xs_image_config {
-    uint32_t width;
-    uint32_t height;
+    uint32_t width;  /*Luma width in pixels*/
+    uint32_t height; /*Luma height in pixels*/
     uint8_t bit_depth;
     ColourFormat_t format;
-    uint8_t components_num;
+    uint8_t components_num; /*Number of planes in svt_jpeg_xs_image_buffer_t*/
     struct {
-        uint32_t width;
-        uint32_t height;
-        uint32_t byte_size;
+        uint32_t width;     /*Plane width in samples (in pixels for packed format)*/
+        uint32_t height;    /*Plane height in lines*/
+        uint32_t byte_size; /*width * height * bytes per sample (1 for 8-bit, else 2), times 3 for packed format*/
     } components[MAX_COMPONENTS_NUM];
 } svt_jpeg_xs_image_config_t;
 
 typedef struct svt_jpeg_xs_image_buffer {
     void *data_yuv[MAX_COMPONENTS_NUM];      /*Allocated Data buffer for components*/
-    uint32_t stride[MAX_COMPONENTS_NUM];     /*Greater than or equal to width. Not supported in decoder yet.*/
+    uint32_t stride[MAX_COMPONENTS_NUM];     /*In samples, not bytes. Greater than or equal to width (width * 3 for packed format).*/
     uint32_t alloc_size[MAX_COMPONENTS_NUM]; /*Used by Encoder and Decoder to validate that the buffer size is enough.*/
     void *release_ctx_ptr;                   /*Used by pool allocator, for different allocation free to use.*/
     /*Set by encoder/decoder,
@@ -115,8 +118,8 @@ typedef struct svt_jpeg_xs_bitstream_buffer {
     for deallocation please use *release_ctx_ptr
     */
     uint8_t *buffer;
-    uint32_t allocation_size; /* Bitstream buffer size */
-    uint32_t used_size;       /* Bitstream buffer used size */
+    uint32_t allocation_size; /* Bitstream buffer size, encoder requires >= bytes_per_frame, ignored by decoder */
+    uint32_t used_size;       /* Bitstream buffer used size, decoder input length */
     /*
     Encoder/decoder does not modify this pointer,
     Used by pool allocator, for different allocation free to use.

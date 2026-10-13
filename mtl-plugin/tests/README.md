@@ -15,7 +15,8 @@ No test content is stored in the repository: every case generates its pictures i
   `tests/tools/RxTxApp/build/RxTxApp` from that tree.
 * SVT-JPEG-XS installed and the plugin built (`mtl-plugin/build.sh`, or `./build.sh build-only`).
 * Two VFs of one PF bound to vfio-pci, and hugepages (`setup_host.sh` can do both).
-* `sudo` (the MTL processes run as root), `cc`, `cmp`, `taskset`, `fuser`, `pkg-config`.
+* `sudo` (the MTL processes run as root), `cc`, `cmp`, `taskset`, `fuser`, `pkg-config`, `md5sum`,
+  `ldd`, and with `SVT_PREFIX` `meson` and `ninja`.
 * For `test_perf.sh`: `bpftrace` (`apt install bpftrace`), and MTL built with its USDT probes
   (meson option `enable_usdt`, on by default). The test stops if either is missing.
 
@@ -27,8 +28,8 @@ export MTL_ROOT=<mtl-repo>
 PF_PORT=0000:15:00.0 ./run_all.sh
 ```
 
-With `PF_PORT` set, `run_all.sh` first runs `setup_host.sh`, which finds or creates two VFs and
-writes `.host.env`. Later runs read the ports from `.host.env`, so `PF_PORT` can be left out. Or
+With `PF_PORT` set, `run_all.sh` first runs `setup_host.sh` unless `setup_host.sh --check` finds
+`.host.env` still valid; setup finds or creates two VFs and writes `.host.env`. Later runs read the ports from `.host.env`, so `PF_PORT` can be left out. Or
 skip the setup and name the VFs yourself:
 
 ```bash
@@ -94,7 +95,7 @@ are needed; everything else has a default that suits a 1080p test on one host.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `PLUGIN_SO` | `mtl-plugin/build/libst_plugin_st22_svt_jpeg_xs.so` | The plugin library that is tested. The default is the output of `mtl-plugin/build.sh`; point it at another build to test that one. Can't be combined with `SVT_PREFIX`. |
-| `PLUGIN_BUILD_DIR` | `mtl-plugin/build` | Meson build directory of the plugin. `test_config.sh` compiles the config loader with the flags recorded there (`compile_commands.json`), and `PLUGIN_SO` defaults to the plugin in it. Set automatically with `SVT_PREFIX`. |
+| `PLUGIN_BUILD_DIR` | `mtl-plugin/build` | Meson build directory of the plugin. `test_config.sh` compiles the config loader with the flags recorded there (`compile_commands.json`), and `PLUGIN_SO` defaults to the plugin in it. Set automatically with `SVT_PREFIX`; setting it together with `SVT_PREFIX` exits with 125. |
 | `PLUGIN_SO_B` | none | A second plugin build, only for `test_perf.sh`: every perf run is done once with `PLUGIN_SO` (variant a) and once with `PLUGIN_SO_B` (variant b), alternating, so the two can be compared under the same host conditions. |
 | `SVT_PREFIX` | none | Directory an SVT-JPEG-XS build was installed into with `cmake --install <build> --prefix <dir>`. The tests then build the plugin against that library and fail if anything loads a different `libSvtJpegxs`; see [Which plugin and SVT-JPEG-XS library are tested](#which-plugin-and-svt-jpeg-xs-library-are-tested). |
 
@@ -104,7 +105,7 @@ are needed; everything else has a default that suits a 1080p test on one host.
 | --- | --- | --- |
 | `TEST_WIDTH`, `TEST_HEIGHT` | `1920`, `1080` | Picture size in pixels of every stream; both must be even. The lossy packet budget is computed from it. |
 | `TEST_FPS` | `p59` | Frame rate of every stream, in RxTxApp notation: `p23` (23.98), `p24`, `p25`, `p29` (29.97), `p30`, `p50`, `p59` (59.94), `p60`, `p100`, `p119` (119.88), `p120`. |
-| `TEST_SECONDS` | `10` | How many seconds the TX side runs in each loopback case of `test_formats.sh` and `test_interlaced.sh`, at least 5. The RX side starts 4 s earlier and stops about 2 s later, so one case takes about `TEST_SECONDS` + 6 s: a full `test_formats.sh` (25 loopbacks and 2 RxTxApp runs) takes about 7 min with the default, about 5 min with `TEST_SECONDS=5`. Starting MTL takes about 2 s of that time; a case fails if TX sends less than half the frames the remaining time at `TEST_FPS` allows. |
+| `TEST_SECONDS` | `10` | How many seconds the TX side runs in each loopback case of `test_formats.sh` and `test_interlaced.sh`, at least 5. The RX side starts 4 s earlier and stops about 2 s later, so one case takes about `TEST_SECONDS` + 6 s: a full `test_formats.sh` (25 loopbacks and 2 RxTxApp runs) takes about 7 min with the default, about 5 min with `TEST_SECONDS=5`. Starting MTL takes about 3 s of that time; a case fails if TX sends less than half the frames the remaining time at `TEST_FPS` allows. |
 | `SOURCE_YUV` | none | A raw picture file to derive the test content from instead of the generated gradients: planar 4:2:2 10-bit little-endian (ffmpeg `yuv422p10le`), `TEST_WIDTH` x `TEST_HEIGHT`, only the first frame is used, e.g. `ffmpeg -i in.mkv -frames:v 1 -pix_fmt yuv422p10le -f rawvideo src.yuv`. Lossless content must compress to less than the raw size (half of it for interlaced), so noisy pictures can make the lossless cases fail. |
 
 ### Performance test
@@ -113,7 +114,7 @@ These only affect `test_perf.sh`.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `RUNS` | `10` | Number of perf runs per plugin variant (and of codec-only runs with `CODEC_TIER=1`). The summary drops the fastest and the slowest run when there are at least 3. |
+| `RUNS` | `10` | Number of perf runs per plugin variant (and of codec-only runs with `CODEC_TIER=1`). The summary drops the lowest and the highest value of each metric (fps, latency) separately when there are at least 3 runs, so they can come from different runs. |
 | `PERF_SECONDS` | `15` | How many seconds RX measures in each perf run (RxTxApp `--test_time`). One run takes about `PERF_SECONDS` + 7 s, so 10 runs about 4 min. |
 | `PERF_MODE` | `split` | `split`: TX and RX run as two RxTxApp processes, each pinned to its own CPU set (`TX_CPUS`, `RX_CPUS`), like two separate devices. `single`: one RxTxApp process runs both, pinned to both CPU sets; useful to cross-check the latency. |
 | `PERF_CONFIG` | none | Path to a plugin config file (see `mtl-plugin/sample_config.json`) used by both sides in the perf runs, e.g. to measure a setting. Without it the plugin runs with its built-in defaults. |
@@ -159,7 +160,8 @@ library doesn't support (the harness rebuilt without `HAVE_ENC_LOSSLESS_ENABLE`)
 
 Progressive loopback with the MTL pipeline samples, for every plugin format:
 
-* lossless (`encoder.lossless`): every received frame is bit-exact with the source;
+* lossless (`encoder.lossless`): the last 3 received frames (the ones RX dumps) are bit-exact with
+  the source;
 * `GBRPLANAR10LE` / `12LE` decoded as `YUV444PLANAR*`: output planes are R, G, B (source planes
   2, 0, 1), and GBR with `rct` stays lossless;
 * lossy (the samples' QUALITY mode, 3 bpp): RX gets the frames TX encoded, the logs have no
@@ -178,8 +180,9 @@ plugin registers.
 
 Interlaced loopback (`--interlaced`). The plugin codes each field as its own picture:
 
-* lossless for `YUV422PLANAR10LE`, `YUV420PLANAR8`, `YUV444PLANAR10LE` and `GBRPLANAR10LE`: each
-  received field is bit-exact with one of the two source fields, and both fields arrive;
+* lossless for `YUV422PLANAR10LE`, `YUV420PLANAR8`, `YUV444PLANAR10LE` and `GBRPLANAR10LE`: each of
+  the last 3 received fields (the ones RX dumps) is bit-exact with one of the two source fields,
+  and both fields are among them;
 * lossy: packets per field are 45-55% of the packets per progressive frame.
 
 ### test_perf.sh
@@ -187,7 +190,7 @@ Interlaced loopback (`--interlaced`). The plugin codes each field as its own pic
 RxTxApp loopback of `YUV422PLANAR10LE` in SPEED mode, `RUNS` times. TX and RX run as two
 RxTxApp processes, each pinned with `taskset` to its own CPU set (`PERF_MODE=single`: one
 process). The CPU frequency governor is set to `performance` for the run
-(`tests/scripts/perf_governor.sh`). Every run prints:
+(`tests/scripts/perf_governor.sh` of the repository, `../../tests/scripts/` from here). Every run prints:
 
 ```text
    run  1/3  variant a  OK        rx  59.976 fps  rx latency  19.536 ms  838 frames
@@ -279,16 +282,16 @@ Failed and skipped cases are listed there with their reason. The results dir
   `perf/stages.txt`, `perf/run<n>_<variant>.stages.log` (bpftrace), `perf/governor.log`, and
   with `CODEC_TIER=1` `perf/codec.csv`.
 
-Every script exits with the number of failed cases, or 125 when it can't run at all (missing
-`MTL_ROOT`, ports, plugin).
+Every script exits with the number of failed cases (at most 124), 125 when it can't run at all
+(missing `MTL_ROOT`, ports, plugin), or 130 when interrupted (Ctrl+C).
 
 ## Known limits
 
 * MTL logs `st22_encoder_get_frame(0), invalid type 0` (also for the decoder) at the start of
   some sessions: the plugin asks for a frame before MTL has finished creating the session. It is
   harmless and not counted as an error.
-* MTL halves an interlaced receiver's codestream buffer twice, so a lossless field must compress
-  to half its raw size. The generated content compresses about 5 times; a `SOURCE_YUV` with
+* MTL halves an interlaced receiver's codestream buffer once more, to half the raw field size, so
+  a lossless field must compress to half its raw size. The generated content compresses about 5 times; a `SOURCE_YUV` with
   noisy content can lose fields in the lossless interlaced cases.
 * The receivers keep the default codestream buffer (raw frame size), so lossless content must
   compress at all; the same holds for `SOURCE_YUV`.

@@ -21,11 +21,18 @@ This library is implementation of ISO/IEC 21122 protocol.
 
 Encoder/Decoder sample app and libraries requirements:
 
-- Any CPU that support x86-64 instruction set
+- Any CPU that supports the x86-64 instruction set
+- AArch64 (NEON) is community-maintained, see [AArch64 support](#aarch64-support)
 
 Unit Tests requirements (SvtJpegxsUnitTests):
 
-- Any CPU that support x86-64 and AVX2 instruction set
+- Any CPU that supports the x86-64 and AVX2 instruction sets
+- AArch64 (NEON) is community-maintained, see [AArch64 support](#aarch64-support)
+
+### AArch64 support
+
+The AArch64 (NEON) port was contributed by the community. It is not built or tested in CI, and
+issues on AArch64 are handled on a best-effort basis. Fixes are welcome.
 
 Supported OS versions:
 
@@ -38,19 +45,29 @@ Supported OS versions:
 
 - __Build Requirements__
   - Visual Studio* 2022 or 2019 (older version were not tested)
-  - CMake 3.16 or later
+  - CMake 3.10 or later (3.13 or later when building unit tests)
   - YASM Assembler version 1.2.0 or later
     - Download the yasm executable from [https://yasm.tortall.net/Download.html](https://yasm.tortall.net/Download.html)
     - Rename `yasm-*-win64.exe` to `yasm.exe`
     - Copy `yasm.exe` into a location that is in the `PATH` environment variable (for example: `%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\`)
+    - NASM 2.14 or later can be used instead, see [Assembler](#assembler)
 
 - __Build Instructions__
   - Build the project by following the steps below
     - using terminal, cd into `<repo dir>\Build\windows`
-    - run `build.bat <2022|2019>`, which will generate the Solution files (`*.sln`) and build the project
+    - run `build.bat <2022|2019> release`, which will generate the Solution files (`*.sln`) and build the project
+  - `build.bat` builds `Debug` unless `release` is passed
+
+- __Build options__
+  - `release` / `debug` - build type (default: `debug`)
+  - `test` - also build the unit tests (`SvtJpegxsUnitTests.exe`)
+  - `static` / `shared` - static or shared library (default: `shared`)
+  - `nobuild` - only generate the Solution files
+  - `lto` / `nolto` - enable/disable Link-Time Optimization (on by default with MSVC)
+  - PGO is not supported with MSVC (`pgo` only prints a note); see [Profile-Guided Optimization](#profile-guided-optimization-pgo)
 
 - __Binaries and libraries Location__
-  - Binaries can be found under `<repo dir>/Bin/Release` or `<repo dir>/Bin/Debug`, depending on whether `Debug` or `Release` were selected in the build mode.
+  - Binaries can be found under `<repo dir>/Bin/Release` (`release`) or `<repo dir>/Bin/Debug` (`debug`, the default).
 
 - __API headers location__
   - API headers can be found under `Source/API`
@@ -59,30 +76,72 @@ Supported OS versions:
 
 - __Build Requirements__
   - GCC 9.4.0 or later
-  - CMake 3.16 or later
-  - YASM Assembler version 1.2.0 or later
+  - CMake 3.10 or later (3.13 or later when building unit tests)
+  - YASM Assembler version 1.2.0 or later, or NASM 2.14 or later (see [Assembler](#assembler))
 
 - __Build Instructions__
   - `cd Build/linux`
-  - `./build.sh <release | debug>`
+  - `./build.sh <release | debug>` (no argument builds `release`)
 
-- __Build options__
-  - Link-Time Optimization (LTO) is on by default for Release builds; disable with `./build.sh release --lto=off`
-  - Profile-Guided Optimization (PGO) is off by default; enable with `./build.sh release --pgo=on` (Release builds only, requires the apps to be built to train against)
-    - Training data: seed stills committed under `Build/linux/PGO/` (one single frame per
-      resolution/bit-depth/colour-format combination) are each repeated to a short multi-frame clip,
-      encoded, and the encoder's own output is immediately decoded - this self-contained
-      encode-then-decode pass needs nothing beyond a plain `git clone` and is what every build trains on
-    - If a `test_bitsreams/` conformance corpus is present under the samples root passed to RunPGO, an
-      additional decode-only pass also runs over it for extra profile/level/format coverage the seed
-      stills don't reach - this is a separate, optional addition, skipped gracefully (no error) when
-      that corpus isn't available
+- __Build options__ (`./build.sh help` lists all of them)
+  - `release`, `debug`, `all` - build type(s)
+  - `test` - also build the unit tests (`SvtJpegxsUnitTests`)
+  - `install` - install the build after building; `prefix=<dir>` sets the installation prefix
+  - `static` / `shared` - static or shared library
+  - `cc=<compiler>`, `cxx=<compiler>` - C and C++ compilers (for example `cc=clang cxx=clang++`)
+  - `asm=<assembler>` - assembler (for example `asm=nasm`)
+  - `sanitizer=<name>` - build with a sanitizer (`Address`, `Memory`, `Thread`, `Undefined`, `Integer`)
+  - `no-app` - build the library only, without SvtJpegxsEncApp/SvtJpegxsDecApp (also disables PGO)
+  - `lto=on|off`, `pgo=on|off` - see [Link-Time Optimization](#link-time-optimization-lto) and
+    [Profile-Guided Optimization](#profile-guided-optimization-pgo)
+  - Arguments after `--` are passed to CMake unchanged, for example
+    `./build.sh release -- -DJPEGXS_PGO_SAMPLES_DIR=/path/to/samples`
 
 - __Binaries and libraries location__
   - Binaries can be found under `Bin/Release` and/or `Bin/Debug`
 
 - __API headers location__
   - API headers can be found under `Source/API`
+
+### Assembler
+
+- An assembler is only needed for x86-64 builds. AArch64 builds need no assembler.
+- YASM is used if it is found. NASM 2.14 or later is used if YASM is not found, or when it is
+  selected with `./build.sh asm=nasm` or the CMake option `-DENABLE_NASM=ON`. Older NASM versions
+  stop the configure step with an error.
+- On a processor that is neither x86-64 nor AArch64, CMake prints a warning and builds the portable
+  C implementations only.
+
+### Link-Time Optimization (LTO)
+
+- The CMake option `JPEGXS_LTO` is on by default for GCC 9 or later, Clang 12 or later and MSVC, in
+  every build type (Debug too), and off for other compilers.
+- Linux: `./build.sh release lto=off` (or `--lto=off`). Windows: `build.bat 2022 release nolto`.
+
+### Profile-Guided Optimization (PGO)
+
+- Off by default; enable with `./build.sh release pgo=on` (or `--pgo=on`). Release builds only;
+  requires the apps to be built to train against.
+- Not supported with MSVC: `JPEGXS_PGO` is forced off. On Windows use MinGW-w64 GCC under MSYS2
+  with `Build/linux/build.sh`.
+- Clang needs `llvm-profdata` (or `llvm-profdata-<clang major version>`); if neither is found, CMake
+  prints a warning and disables PGO.
+- Training data: seed stills committed under `Build/linux/PGO/` (one single frame per
+  resolution/bit-depth/colour-format combination) are each repeated to a short multi-frame clip,
+  encoded, and the encoder's own output is immediately decoded - this self-contained
+  encode-then-decode pass needs nothing beyond a plain `git clone` and is what every build trains on
+- If a `test_bitsreams/` conformance corpus is present under the samples root (CMake cache variable
+  `JPEGXS_PGO_SAMPLES_DIR`, default `/opt/samples`), an additional decode-only pass also runs over
+  it for extra profile/level/format coverage the seed stills don't reach - this is a separate,
+  optional addition, skipped gracefully (no error) when that corpus isn't available. Set the root
+  with `./build.sh release pgo=on -- -DJPEGXS_PGO_SAMPLES_DIR=/path/to/samples`.
+
+### Unit tests
+
+- Linux: `./build.sh release test`, then run `Bin/Release/SvtJpegxsUnitTests`.
+- Windows: `build.bat 2022 release test`, then run `Bin\Release\SvtJpegxsUnitTests.exe`.
+- See [Testing](documentation/tests/Readme.md) for the conformance and encoder test scripts and
+  parallel runs.
 
 ## Encoder
 
@@ -182,13 +241,14 @@ To encode a mathematically lossless stream (decoded output is bit-exact with the
 - Unless overridden with `--stream-profile`/`--stream-level`, the stream is declared as the MLS.12
   profile (Ppih=0x6EC0, ISO/IEC 21122-2 Table A.4) with an unrestricted sublevel. MLS.12 requires
   raw-mode to be disabled (Rl=0), so pass `--coding-raw 0` for a strictly conformant stream. MLS.12
-  only covers 8/10/12-bit input; 13/14-bit lossless input is supported, but the encoder warns that
-  no defined profile matches it.
+  only covers 8/10/12-bit input; 13/14-bit lossless input is supported, but no defined profile matches
+  it (the encoder warns about it at `-v 4` or higher).
 - `--color-transform 1` (requires `--colour-format rgb` and `--profile latency`) can be combined with `--lossless 1`, since
   RCT is reversible, for 8-12-bit input only; at 13/14 bits the colour-transformed coefficients
   would exceed the coded magnitude range, so this combination is rejected.
 - Not supported together with `--input-msb-aligned 1` or `--packetization-mode 1`; encoder
-  initialization fails for these combinations.
+  initialization fails for these combinations. The decoder also rejects `--packetization-mode 1`
+  for lossless streams (SvtJpegxsDecApp falls back to mode 0, see the decoder input options).
 
 #### Latency measurement
 
@@ -206,6 +266,28 @@ So that the next frames are not queued (time of waiting frames for processing is
 To encode an interlaced stream, please provide a height that is half of the original.
 For example, for a 1080i stream, use ```-w 1920 -h 540``` instead of ```-w 1920 -h 1080```
 
+#### Benchmarking
+
+`-b` is optional. Without it the frames are encoded but nothing is written, which is useful for
+speed measurements.
+
+### Input constraints
+
+Encoder initialization fails unless:
+
+- `--input-depth` is 8 to 14.
+- The width is at least 4, and even for `yuv420`, `yuv422` and `yuva422`.
+- The height is even for `yuv420`, and `yuv420` uses `--decomp_v` 1 or 2.
+- `--slice-height` is not 0 and is a multiple of 2^`--decomp_v`. A value equal to or larger than
+  the frame height is clamped to the frame height.
+- The frame is large enough for the selected decomposition (otherwise use a lower `--decomp_h` or
+  `--decomp_v`).
+
+Width and height must not exceed 65535: the picture header stores them in 16-bit fields, and the
+encoder does not check this limit.
+
+`--decomp_v 0` always uses `--profile latency`; `--profile cpu` is switched to it without a message.
+
 ### Available parameters
 
 Options:
@@ -214,7 +296,7 @@ Options:
 [--help]                   Show usage options and exit
 [--show-bands]             Print detailed informations about bands
                             (enabled:1, disable:0, default:0)
-[-v]                       Verbose Encoder internal level (disabled:0, errors:1,
+[-v]                       Verbose encoder internal level (disabled:0, errors:1,
                             system info:2, system info full:3, warnings:4, ... all:6,
                             default: 2)
 ```
@@ -226,84 +308,92 @@ Input Options:
 -w                         Frame width
 -h                         Frame height
 --colour-format            Set encoder colour format and the component order of the input file:
-                            yuv420, yuv422, yuv444 (planes Y, Cb, Cr),
-                            rgb (planes R, G, B), rgbp (packed, bytes R, G, B per pixel),
-                            yuva444 (planes Y, Cb, Cr, A), rgba (planes R, G, B, A),
-                            yuva422 (4:2:2:4, planes Y, Cb, Cr, A)
-                            (Experimental: yuv400)
+                            yuv420, yuv422, yuv444 (planes Y, Cb, Cr), rgb (planes R, G, B),
+                            rgbp (packed, bytes R, G, B per pixel), yuva444 (planes Y, Cb, Cr, A),
+                            rgba (planes R, G, B, A), yuva422 (4:2:2:4, planes Y, Cb, Cr, A)
+                            (Experimental: yuv400).
                             FFmpeg gbrp/gbrap files hold planes G, B, R(, A): reorder them for rgb/rgba
-                            Only rgb is compatible with --color-transform
 --input-depth              Input depth
 [--input-msb-aligned]      Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit
                             word instead of LSB-aligned (enabled:1, disabled:0, default:0)
---bpp                      Bits Per Pixel, can be passed as integer or float
+[--bpp]                    Bits Per Pixel, can be passed as integer or float
                             (example: 0.5, 3, 3.75, 5 etc.). Required unless --lossless 1 is set
 [-n]                       Number of frames to encode
 [--limit-fps]              Limit number of frames per second
                             (disabled: 0, enabled [1-240])
 ```
 
+`-n 0` (the default) encodes every frame in the input file. A value larger than the number of frames
+in the file loops over the input from the start.
+
 Output Options:
 
 ```text
 [-b]                       Output filename
 [--no-progress]            Do not print out progress (no print:1, print:0, default:0)
-[--packetization-mode]     Specify how encoded stream is returned (multiple packets per frame:1, single packet per frame:0, default:0),
-                           for details please refer to Codestream/Slice packetization mode
-                           https://datatracker.ietf.org/doc/html/rfc9134
+[--packetization-mode]     Specify how encoded stream is returned (multiple packets per frame:1, single packet per frame:0, default:0)
 ```
 
-Coding features used during Rate Calculation (quality/speed tradeoff):
+Coding features used during Rate Calculation (quality/speed trade-off):
 
 ```text
 [--decomp_v]               Vertical decomposition (0, 1, 2, default: 2)
 [--decomp_h]               Horizontal decomposition have to be greater or equal to
                             decomp_v (1, 2, 3, 4, 5, default: 5)
-[--quantization]           Quantization method(deadzone:0, uniform:1, default:0)
-[--slice-height]           The height of each slice in units of picture luma pixels (default:16, any value that is multiple of 2^(decomp_v))
+[--quantization]           Quantization algorithm (deadzone:0, uniform:1, default:0)
+[--slice-height]           Slice height(default:16)
 [--coding-signs]           Enable Signs handling strategy (full:2, fast:1, disable:0, default:0)
-[--coding-sigf]            Enable signification coding (enabled:1, disable:0, default:1)
+[--coding-sigf]            Enable Significance coding (enabled:1, disable:0, default:1)
 [--coding-vpred]           Enable Vertical Prediction coding (disable:0, zero prediction residuals:1, zero coefficients:2, default: 0)
-[--coding-raw]             Enable packet-based raw-mode coding (enabled:1, disable for legacy-decoder compatibility:0, default:1)
-[--cap-compat]             Emit an empty CAP marker for legacy-decoder compatibility when no capability bit is required (enabled:1, disable:0, default:0)
+[--rc]                     Rate Control mode (
+                            CBR: budget per precinct: 0,
+                            CBR: budget per precinct with padding movement: 1,
+                            CBR: budget per slice: 2,
+                            CBR: budget per slice with max size RATE: 3,
+                            default 1)
+[--coding-raw]             Packet-based raw-mode coding (enabled:1, disabled:0, default:1).
+                            Disabling clears the raw-mode capability bit and never selects raw
+                            packet packing.
+[--cap-compat]             Legacy decoder CAP-marker compatibility (full CAP:0, empty CAP when no
+                            capability bit set:1, default:0)
 [--color-transform]        Encoder-side reversible colour transform (RCT, Cpih=1) (enabled:1,
                             disabled:0, default:0). Requires --colour-format rgb (planes R, G, B)
                             and --profile latency; rejected for every other format. Decoders
                             output R, G, B for Cpih=1 streams
 [--lossless]               True lossless coding, Fq=0 (enabled:1, disabled:0, default:0). Output
-                            size is data-dependent instead of the fixed CBR size. Ignores --bpp,
-                            --rc and --quantization. Not supported together with
+                            size is data-dependent instead of fixed CBR size. Ignores
+                            --bpp/--rc/--quantization. Not supported with
                             --input-msb-aligned 1, --packetization-mode 1, or --color-transform 1
                             at --input-depth 13/14. Use --coding-raw 0 for a strictly
-                            MLS.12-conformant stream. See "Lossless coding" above
+                            MLS.12-conformant stream.
 [--stream-profile]         Stream profile (Ppih) to declare in the picture header (auto, light422,
                             light444, lightsubline422, main420, main422, main444, main4444, high420,
                             high444, high4444, or raw hex/decimal Ppih value, default:auto)
 [--stream-level]           Stream level (Plev) to declare in the picture header (auto, unrestricted,
                             1k-1, 2k-1, 4k-1, 4k-2, 4k-3, 5k-1, 8k-1, 8k-2, 8k-3, 10k-1, or raw
                             hex/decimal Plev value, default:auto)
-[--rc]                     Rate Control mode (
-                            CBR: budget per precinct: 0,
-                            CBR: budget per precinct with padding movement: 1,
-                            CBR: budget per slice: 2,
-                            CBR: budget per slice with nax size RATE: 3,
-                            default 1)
 ```
+
+- `--lossless`: see [Lossless coding](#lossless-coding).
+- `--stream-profile auto` picks the profile from the colour format and the input depth (Main 420.12,
+  Main 422.10, Main 444.12 or Main 4444.12; MLS.12 for `--lossless 1`). `--stream-level auto` picks
+  the smallest level that fits the resolution, and the sublevel from `--bpp` (unrestricted for
+  `--lossless 1`).
 
 Threading, performance:
 
 ```text
 [--asm]                    Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2,
-                            sse3, ssse3, sse4_1, sse4_2, avx, avx2, avx512, max], by default
-                            highest level supported by CPU
-[--profile]                Threading model type, can be passed as digit (0, 1) or string
-                            (latency, cpu) 0:latency (Low Latency mode), 1:cpu (Low CPU use
-                            mode), default is 0. --color-transform requires latency (0);
-                            rejected under cpu (1)
+                            sse3, ssse3, sse4_1, sse4_2, avx, avx2, avx512, neon (AArch64 only),
+                            max], by default highest level supported by CPU
+[--profile]                Profile of CPU use: latency (Low Latency mode),
+                            cpu (Low CPU use mode), default: latency
 [--lp]                     Thread Scaling parameter, the higher the value the more threads
                             are created and thus lower latency and/or higher FPS can be
                             achieved (default: 0, which means lowest possible number of threads is created)
 ```
+
+`--color-transform 1` requires `--profile latency` and is rejected with `--profile cpu`.
 
 ## Decoder
 
@@ -335,16 +425,25 @@ So that the next frames are not queued (time of waiting frames for processing is
 ### Output format
 
 SvtJpegxsDecApp writes each frame as planes, one component after another, in the order the stream
-codes them. It prints the colour format reported by the library (`DecoderColorFormat`):
+codes them. The library reports the colour format in `out_image_config->format` and, at `-v 2` (the
+default) or higher, logs it as `DecoderColorFormat`:
 
-- Streams with the colour transform (Cpih=1) are reported as `COLOUR_FORMAT_PLANAR_RGB`
-  (`COLOUR_FORMAT_PLANAR_RGBA` for 4 components); the planes are R, G, B(, A).
+- Streams with the colour transform (Cpih=1) are reported as `COLOUR_FORMAT_PLANAR_RGB`, logged as
+  `PLANAR RGB` (`COLOUR_FORMAT_PLANAR_RGBA`, `PLANAR RGBA` for 4 components); the planes are
+  R, G, B(, A).
 - 3-component 4:4:4 streams without it (Cpih=0) are reported as `COLOUR_FORMAT_PLANAR_YUV444`
-  and 4-component 4:4:4:4 streams as `COLOUR_FORMAT_PLANAR_4_COMPONENTS`. A Cpih=0 stream does not
-  signal whether it holds YUV or RGB: the planes are in the order the encoder received them
-  (Y, Cb, Cr(, A) for YUV input, R, G, B(, A) for `rgb`/`rgba` input).
-- Star-Tetrix streams (Cpih=3, 4 components) are reported as `COLOUR_FORMAT_PLANAR_4_COMPONENTS`.
+  (`PLANAR YUV444`) and 4-component 4:4:4:4 streams as `COLOUR_FORMAT_PLANAR_4_COMPONENTS`
+  (`PLANAR 4:4:4:4 (RGBA/YUVA444)`). A Cpih=0 stream does not signal whether it holds YUV or RGB:
+  the planes are in the order the encoder received them (Y, Cb, Cr(, A) for YUV input, R, G, B(, A)
+  for `rgb`/`rgba` input).
+- Star-Tetrix streams (Cpih=3, 4 components) are reported as `COLOUR_FORMAT_PLANAR_4_COMPONENTS`
+  (`PLANAR 4:4:4:4 (RGBA/YUVA444)`).
 - Streams encoded from packed `rgbp` input are decoded to planar R, G, B.
+- 4:2:0 and 4:2:2 streams are reported as `COLOUR_FORMAT_PLANAR_YUV420` (`PLANAR YUV420`) and
+  `COLOUR_FORMAT_PLANAR_YUV422` (`PLANAR YUV422`).
+- 4:2:2:4 streams are reported as `COLOUR_FORMAT_PLANAR_YUV422_ALPHA`
+  (`PLANAR YUV422 + ALPHA (4:2:2:4)`); the planes are Y, Cb, Cr, A.
+- 1-component streams are reported as `COLOUR_FORMAT_GRAY` (`UNKNOWN GRAY`).
 
 ### Available parameters
 
@@ -355,7 +454,7 @@ Options:
 [-v]                       Verbose decoder internal level (disabled:0, errors:1,
                             system info:2, system info full:3, warnings:4, ... all:6,
                             default: 2)
-[--force-decode]           Force decode first frame
+[--force-decode]           Force decode first frame (enabled:1, disabled:0, default:0)
 ```
 
 Input Options:
@@ -368,28 +467,39 @@ Input Options:
                             (disabled: 0, enabled [1-240])
 [--packetization-mode]     Specify how bitstream is passed to decoder
                             (multiple packets per frame:1, single packet per frame:0, default:0)
+```
+
+- `-n 0` (the default) decodes every frame in the input file. A value larger than the number of
+  frames in the file loops over the input from the start.
+- `--find-bitstream-header` takes no value. It scans the input for the first SOC and CAP markers
+  (`FF10 FF50`) and starts decoding there; the decoder fails if they are not found.
+- `--packetization-mode 1` is rejected by the library for lossless (Fq=0) streams and for streams
+  with Lcod=0 (variable bitrate). SvtJpegxsDecApp then prints a message and retries with
+  `--packetization-mode 0`.
+
+Output Options:
+
+```text
+[-o]                       Output Filename
 [--proxy-mode]             Resolution scaling mode(disabled: 0, scale 1/2: 1, scale 1/4: 2, default: 0)
 [--output-msb-aligned]     Non-standard: 10/12-bit output samples are MSB-aligned in each 16-bit
                             word instead of LSB-aligned (enabled:1, disabled:0, default:0)
 ```
+
+`-o` is optional. Without it the frames are decoded but nothing is written, which is useful for
+speed measurements.
 
 `--output-msb-aligned` is not applied to streams whose colour transform is done on the whole frame (for example
 Star-Tetrix, Cpih=3); they are always output LSB-aligned. Streams with the reversible colour transform (RCT, Cpih=1) from
 the SVT-JPEGXS encoder support it, and their inverse RCT is done per precinct, so it scales with `--lp`. See
 [Final Stage](documentation/decoder/svt-jpegxs-decoder-design.md#final-stage).
 
-Output Options:
-
-```text
-[-o]                       Output Filename
-```
-
 Threading, performance:
 
 ```text
 [--asm]                    Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2, sse3,
-                            ssse3, sse4_1, sse4_2, avx, avx2, avx512, max], by default highest
-                            level supported by CPU
+                            ssse3, sse4_1, sse4_2, avx, avx2, avx512, neon (AArch64 only), max],
+                            by default highest level supported by CPU
 [--lp]                     Thread Scaling parameter, the higher the value the more threads are
                             created and thus lower latency and/or higher FPS can be achieved
                             (default: 0, which means lowest possible number of threads is created)
@@ -448,20 +558,51 @@ Please see [Decoder snippet](documentation/decoder/DecoderSnippets.md) for decod
 Please see [CI/CD](documentation/ci-cd/README.md) for an overview of the GitHub Actions workflows
 and how the core library build is shared across them.
 
+## Plugins and further documentation
+
+- [FFmpeg plugin](ffmpeg-plugin/readme.md) - patches and sources that add SVT-JPEG-XS encoding and
+  decoding to FFmpeg
+- [Media Transport Library plugin](mtl-plugin/README.md) and its [tests](mtl-plugin/tests/README.md)
+- GStreamer: the `svtjpegxsenc`/`svtjpegxsdec` elements are part of the upstream gst-plugins-bad
+  `svtjpegxs` plugin, not of this repository. CI builds it from a pinned commit of the GStreamer
+  `main` branch ([build script](.github/scripts/build_gstreamer_plugin.sh)).
+- [Testing](documentation/tests/Readme.md), [CI/CD](documentation/ci-cd/README.md)
+- [Encoder design](documentation/encoder/svt-jpegxs-encoder-design.md),
+  [Decoder design](documentation/decoder/svt-jpegxs-decoder-design.md)
+- [Encoder snippet](documentation/encoder/EncoderSnippets.md),
+  [Decoder snippet](documentation/decoder/DecoderSnippets.md)
+- [Security policy](security.md)
+
 ## Logging
 
-By default, library log messages (errors, warnings, info) are printed to `stderr`. This can be
-controlled with two environment variables:
+By default, library log messages (errors, warnings, info) are printed to `stderr`. Which messages
+the library emits at all is set by the verbose level (`-v` in the apps). The default logger then
+filters them with two environment variables:
 
-- `SVT_LOG` - minimum log level to print: `-1`(all), `0`(fatal), `1`(error), `2`(warn), `3`(info,
-  default), `4`(debug). Out-of-range values are ignored and the default is kept.
-- `SVT_LOG_FILE` - path to a file to write log messages to instead of `stderr`.
+- `SVT_LOG` - highest level to print: `0`(fatal), `1`(error), `2`(warn), `3`(info, default),
+  `4`(debug). Each value prints its own level and all lower ones. `-1` hides all tagged messages
+  (fatal, error, warn, info, debug). Out-of-range values are ignored and the default is kept. A
+  non-numeric value is read as `0`(fatal).
+- `SVT_LOG_FILE` - path to a file to write log messages to instead of `stderr`. The file is
+  truncated when it is opened. If it cannot be opened, messages go to `stderr`.
+
+Untagged lines (for example the configuration summary) are not filtered by `SVT_LOG`; only `-v`
+controls them.
 
 Host applications can also register a callback to intercept all log messages (e.g. to route them
 into an application-specific logger) via `svt_jpeg_xs_set_log_callback()`, declared in
 [Source/API/SvtJpegxs.h](Source/API/SvtJpegxs.h). This is a global, process-wide setting shared by
 all encoder/decoder instances, and must be called before the first log call happens (i.e. before any
-encoder/decoder init) to take effect.
+encoder/decoder init) to take effect. When a callback is registered, `SVT_LOG` and `SVT_LOG_FILE`
+are ignored and the callback receives messages of every level; it must filter them itself. A `NULL`
+callback is ignored.
+
+## Thread priority
+
+On Linux the apps try to run their threads with `SCHED_FIFO` priority 99. Without the required
+privileges (for example when not run as root) this fails and the apps print
+`Failed to set thread priority`. The message is harmless: the threads run with the default
+priority.
 
 ## Notes
 
