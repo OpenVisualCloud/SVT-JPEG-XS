@@ -19,7 +19,7 @@ extern "C" {
  * transforms or component-dependent decomposition, so Bayer/TDC profiles are out of scope, and
  * Light/High family membership additionally implies encoder-complexity guarantees that cannot be
  * safely inferred from configuration alone. Light/High/other values are only reachable via the
- * profile_override_enable/profile_ppih_override API fields. */
+ * profile_ppih_override API field. */
 typedef enum StreamProfilePpih {
     JXS_PPIH_LIGHT_422_10 = 0x1500,
     JXS_PPIH_LIGHT_444_12 = 0x1A00,
