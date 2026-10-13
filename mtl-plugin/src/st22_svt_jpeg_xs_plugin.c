@@ -353,6 +353,16 @@ static int encoder_init_session(struct st22_encoder_session* session,
     return -EINVAL;
   }
 
+#ifdef HAVE_ENC_ENABLE_COLOR_TRANSFORM
+  /* older libraries have one 4:4:4 colour format for YUV and RGB and can't reject rct for YUV */
+  if (session->codec_ctx->enable_color_transform && !session->fmt->gbr) {
+    err("%s(%d), rct needs GBRPLANAR* input, got %s\n", __func__, idx,
+        st_frame_fmt_name(req->input_fmt));
+    encoder_uinit_session(session);
+    return -EINVAL;
+  }
+#endif
+
   if (req->codestream_size > UINT32_MAX / 8) {
     err("%s(%d), codestream_size %zu too large for bpp calculation\n", __func__, idx,
         req->codestream_size);
