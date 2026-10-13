@@ -14,6 +14,8 @@ set -eo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 init_test interlaced "interlaced loopback, one field at a time" "$(loopback_minutes 6)"
+# each field is a picture of its own and needs an even height
+[ $((TEST_HEIGHT % 4)) = 0 ] || die "TEST_HEIGHT $TEST_HEIGHT: interlaced needs a multiple of 4"
 require_plugin
 require_mtl
 require_ports

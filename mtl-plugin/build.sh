@@ -35,8 +35,12 @@ fi
 WORKSPACE=$PWD
 PLUGINS_CPU_BUILD_DIR=${WORKSPACE}/build
 
-# build plugins
-meson "${PLUGINS_CPU_BUILD_DIR}" -Dbuildtype=$buildtype
+# build plugins; an existing build dir is reconfigured, so the build type takes effect
+if [ -d "${PLUGINS_CPU_BUILD_DIR}/meson-private" ]; then
+    meson configure "${PLUGINS_CPU_BUILD_DIR}" -Dbuildtype=$buildtype
+else
+    meson "${PLUGINS_CPU_BUILD_DIR}" -Dbuildtype=$buildtype
+fi
 pushd "${PLUGINS_CPU_BUILD_DIR}"
 ninja
 if [ $build_only -eq 0 ]; then
