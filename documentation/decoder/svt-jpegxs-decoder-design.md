@@ -66,13 +66,18 @@ of the decoder is also explained in detail in a separate section.
 
 The architecture is simplistic and flexible enough to support an implementation in which
 one slice at a time is decoded through the entire pipeline with a small delay due to synchronization between slices.
-Precincts from slice (s+1) are used to inverse transform precincts (p+n+1) and (p+n+2) from slice (s) if vertical
-decomposition is > 0.
+If vertical decomposition is > 0, the vertical inverse transform of the first 2 precinct lines of slice (s+1) needs the
+last precinct line of slice (s), see [Final Stage](#final-stage).
 
 In the SVT-JPEGXS decoder, a picture is divided into slices.
 Parallelism in the decoder is achieved at the slice level.
 Multiple slices from the same picture could be processed simultaneously, where each process could, for example, be
 performing a different task in the decoding pipeline.
+
+The decoder creates one init thread, one final thread and `threads_num - 2` universal threads (at least 1). The input
+and output queues hold `2 * universal_threads + 10` frames, the universal task queue holds `universal_threads` slice
+tasks and the output reorder ring buffer holds `universal_threads + 20` frames. Each frame in flight uses one of 3
+internal decoder instances (one in the init stage, one in the universal stage and one in the final stage).
 
 A high-level diagram of the decoder pipeline is shown in Figure 3.
 
@@ -82,19 +87,26 @@ A high-level diagram of the decoder pipeline is shown in Figure 3.
 
 ## Initialization Stage
 
-The initialization stage is a single threaded process. It is where picture header parsing is done along with picture
-buffers allocation.
+The initialization stage is a single threaded process. The decoder does not allocate output pictures, the application
+passes the output buffer with each frame (`dec_input.image`). For each frame the init stage:
+
+1. takes a free decoder instance from the internal pool,
+2. waits for a free place in the output reorder ring buffer,
+3. parses the picture header,
+4. finds the size of each slice in the bitstream and posts one universal stage task per slice.
+
+Figure 3 shows the default `packetization_mode = 0`, where the application sends whole frames. With
+`packetization_mode = 1` the application sends the bitstream in parts with `svt_jpeg_xs_decoder_send_packet()`. There is
+no init thread in this mode. The init stage work is done in `svt_jpeg_xs_decoder_send_packet()` on the application thread,
+which posts a universal task as soon as a whole slice is received. Packetization mode needs constant slice sizes, so
+`svt_jpeg_xs_decoder_init()` rejects it with `SvtJxsErrorBadParameter` for variable bitrate (`Lcod = 0`) and lossless
+(`Fq = 0`) streams.
 
 ### Universal Stage
 
 Universal stage kernel is where the main decode modules are executed.
 This stage is slice based. It reads the slice header, loops over precincts to unpack precinct, inverse quantize it and
 inverse transform it. Precinct decoding is described in details in the decoder algorithms section.
-
-### Final Stage
-
-The final process is where all the synchronization is done: Releasing objects and reordering queues. Slices are properly
-aligned with corresponding picture to properly reconstruct the picture from slices.
 
 The reversible colour transform (RCT, Cpih=1) is applied per precinct, in the same stage as the IDWT. After the IDWT of
 a precinct, each finished line of components 0-2 is copied to a scratch buffer, the inverse RCT is applied there and the
@@ -103,11 +115,16 @@ IDWT of the next precinct. This needs components 0-2 to be wavelet transformed a
 levels and precinct height. RCT streams from the SVT-JPEGXS encoder always meet these conditions. The output components
 are R, G, B(, A), and the decoder reports such streams as `COLOUR_FORMAT_PLANAR_RGB` (`COLOUR_FORMAT_PLANAR_RGBA`).
 
-The other colour transforms (Star-Tetrix, Cpih=3), and RCT on components that do not meet the conditions above, are applied
-to the whole frame. In that case "unpack precinct" and "precinct calculate data" are still performed in the universal
-stage, but the IDWT, the colour transform and the output scaling (NLT) are performed in the final stage, after all slices
-of the frame are decoded. This path does not scale with the number of threads and does not support
-`output_bit_depth_msb_aligned`.
+### Final Stage
+
+The final process is where all the synchronization is done: Releasing objects and reordering queues. Slices are properly
+aligned with corresponding picture to properly reconstruct the picture from slices.
+
+Unlike the per-precinct RCT described in the Universal Stage section, the other colour transforms (Star-Tetrix, Cpih=3),
+and RCT on components that do not meet the per-precinct conditions, are applied to the whole frame. In that case
+"unpack precinct" and "precinct calculate data" are still performed in the universal stage, but the IDWT, the colour
+transform and the output scaling (NLT) are performed in the final stage, after all slices of the frame are decoded. This path
+does not scale with the number of threads and does not support `output_bit_depth_msb_aligned`.
 
 If vertical decomposition is > 0, the first 2 precinct lines of each slice need the last precincts of the previous slice
 for the IDWT. When there is more than one universal thread and a slice has more than 2 precinct lines, the thread that
@@ -218,15 +235,17 @@ The process is done at the sub-packet level for every band.
 After the unpack stage, coefficients are being inverse quantized in the data calculation stage.
 Inverse quantization type can be either uniform or deadzone.
 
-After dequantization inv_image_shift is performed, this stage prepares dequantized coefficients for inverse transform by 2 steps:
-
-1. Left-shift each coefficient by number of bits specified in bitstream header(IDWT use fixed-point arithmetic, left-shift increase precision)
-2. Change coefficient coding from signbit(most significant bit) + abs(dwt) to U2.
+After dequantization the coefficient coding is changed from sign bit (most significant bit) + magnitude to two's
+complement (`inv_sign`).
 
 ### IDWT [Inverse transform Precinct]
 
-Inverse transform is performed for every component per precinct.
-As there is a dependency between slices, a recalculation of two previous precinct is needed.
+Inverse transform is performed for every component per precinct. The IDWT uses fixed-point arithmetic. Before filtering,
+each coefficient is shifted left by the number of fractional bits `Fq` from the picture header. Components without
+wavelet decomposition (the last `Sd` components) are not wavelet transformed, their coefficients are only shifted left
+by `Fq`. As there is a dependency between slices, if vertical decomposition is > 0, the slice thread skips the first 2
+precinct lines of each slice (except the first slice) and only initialises the IDWT state from them. These lines are transformed later, see
+[Final Stage](#final-stage).
 
 ### MCT [Multiple component transformations]
 
@@ -239,6 +258,32 @@ in the final stage, see [Final Stage](#final-stage).
 
 This stage uses intermediate picture sample values from MCT or IDWT (if MCT is not present) and reconstructs final picture.
 Reconstruction is done by reducing bit precision (fixed point) and applying scaling method (Linear, Quadratic or Extended)
+
+For bit depths above 8, output samples are stored in 16-bit words, LSB-aligned by default. With
+`output_bit_depth_msb_aligned = 1` the samples are shifted left by `16 - bit_depth`, so they are MSB-aligned. This is
+done only on the per-precinct path. On the whole-frame colour transform path (see [Final Stage](#final-stage)) the option
+is silently ignored and the output stays LSB-aligned.
+
+## Stream Features and Decoder Options
+
+- Formats: 1 component (`COLOUR_FORMAT_GRAY`), 3 components (`COLOUR_FORMAT_PLANAR_YUV444`, `_YUV422`, `_YUV420`) and
+  4 components (`COLOUR_FORMAT_PLANAR_4_COMPONENTS` with all components at full resolution, or
+  `COLOUR_FORMAT_PLANAR_YUV422_ALPHA` with components 1-2 at half horizontal resolution and the alpha component at full
+  resolution). With RCT (Cpih=1) the 3 and 4 component 4:4:4 formats are reported as `COLOUR_FORMAT_PLANAR_RGB` and
+  `COLOUR_FORMAT_PLANAR_RGBA`.
+- `Sd` components: the last `Sd` components have no wavelet decomposition (1 band). See
+  [IDWT](#idwt-inverse-transform-precinct).
+- Lossless (`Fq = 0`): there are no fractional bits, so the coefficients are not shifted before the IDWT. Packetization
+  mode is not supported for such streams, see [Initialization Stage](#initialization-stage).
+- Proxy mode (`proxy_mode`): decodes the stream at half (`proxy_mode_half`) or quarter (`proxy_mode_quarter`) width and
+  height. The decoder removes 1 or 2 levels of horizontal and vertical decomposition from the picture and from every
+  component, decodes only the first packets of each precinct and skips the rest. The stream must have at least that many
+  horizontal and vertical decomposition levels in the picture and in every component, otherwise
+  `svt_jpeg_xs_decoder_init()` fails with `SvtJxsErrorBadParameter`. So proxy mode is not possible for streams with
+  `Sd` components or with 4:2:0 components that have too few vertical levels.
+- Profile and level: the decoder does not check them. With verbose level `VERBOSE_SYSTEM_INFO` or higher,
+  `svt_jpeg_xs_decoder_init()` logs the stream profile (Ppih) and level (Plev), together with resolution, format,
+  packetization mode, colour transform and lossless coding.
 
 ## Notes
 

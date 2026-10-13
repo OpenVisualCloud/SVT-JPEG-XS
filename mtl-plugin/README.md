@@ -15,16 +15,21 @@ cd <jpeg-xs-repo>/Build/linux
 
 ### 1.3 Build and install mtl-plugin
 
-Requires json-c (already a dependency of Media Transport Library).
+Requires SVT-JPEG-XS 0.10 or newer and json-c 0.15 or newer (already a dependency of Media
+Transport Library).
 
 ```bash
 cd <jpeg-xs-repo>/mtl-plugin
 ./build.sh
 ```
 
+`./build.sh` builds a release build into `build/` and installs it with `sudo ninja install`.
+`./build.sh debug` or `./build.sh plain` selects that meson build type instead;
+`./build.sh build-only` builds a release build without installing it.
+
 ## 2. Test
 
-### 2.1 Prepare a yuv422p8le file
+### 2.1 Prepare a yuv422p file
 
 ```bash
 wget https://www.larmoire.info/jellyfish/media/jellyfish-3-mbps-hd-hevc.mkv
@@ -74,9 +79,12 @@ export SVT_JXS_MTL_PLUGIN_CONFIG=<jpeg-xs-repo>/mtl-plugin/sample_config.json
 ```
 
 `sample_config.json` lists every key with its allowed values and default; comments are allowed in
-the file. Key names follow `SvtJpegxsEncApp` / `SvtJpegxsDecApp` options (`--lp`, `--asm`,
-`--decomp_v`, `--rc`, `--lossless`, `--stream-profile`, ...), so settings tuned with the apps can be
-copied.
+the file. Keys correspond to `SvtJpegxsEncApp` / `SvtJpegxsDecApp` options, but are written with
+underscores (`slice_height`, `coding_signs`, `stream_profile`, ...), and two have other names:
+`cpu_profile` is the apps' `--profile`, `rct` their `--color-transform`. App option names are
+unknown keys. Choice values are names (`"uniform"`); `quantization`, `coding_signs`,
+`coding_vpred`, `rc`, `stream_profile` and `stream_level` also take the apps' numbers, `asm` and
+`cpu_profile` don't. On/off keys take `true` / `false`, not 1 / 0.
 
 * All keys are optional. A missing key keeps the built-in default, or the value set by the MTL
   quality mode: SPEED sets `decomp_v` 0, QUALITY sets `quantization` uniform and `slice_height` 64.
@@ -88,13 +96,15 @@ copied.
   builds without the decoder slice size fix, then log a false warning for every decoded slice,
   which costs performance.
 * An unknown key, an invalid value, a syntax error, or a key the installed SVT-JPEG-XS library does
-  not support makes plugin start fail; the error names the key and the allowed values. Invalid
-  combinations (e.g. `rct` with any input other than `GBRPLANAR*`) make only the affected session
-  fail.
+  not support makes plugin start fail; the error names the key and the allowed values.
+  `sample_config.json` sets `lossless`, `coding_raw`, `cap_compat`, `rct`, `stream_profile` and
+  `stream_level`; remove those the installed library lacks before using it. Invalid
+  combinations (e.g. `rct` with any input other than `GBRPLANAR*`, or `rct` without `cpu_profile`
+  `latency`) make only the affected session fail.
 * With `lossless` the frame size depends on the content; the plugin reports the worst case size to
-  MTL. MTL allocates buffers and reserves Tx bandwidth for that size, close to uncompressed, so the
-  session may not fit the link. The receiver must set `max_codestream_size` to the worst case size
-  too, larger frames are dropped otherwise.
+  MTL. MTL allocates buffers and reserves Tx bandwidth for that size, above the raw frame size, so
+  the session may not fit the link. The receiver must set `max_codestream_size` to the worst case
+  size too: its default, the raw frame size, drops frames above it.
 
 Resolution, pixel format, bit depth, bpp (from the MTL codestream size) and packetization are set by
 MTL and can't be configured.
@@ -119,8 +129,9 @@ The encoder takes and the decoder outputs these MTL pipeline formats:
   it only when built against such a library. The decoder accepts only 10-bit 4:2:2 streams for it.
   `lossless` can't be combined with it.
 * `GBRPLANAR*` frames store the planes G, B, R. The plugin hands them to the codec as components R,
-  G, B (`COLOUR_FORMAT_PLANAR_RGB`), the order the colour transform (`rct`), the SVT-JPEG-XS ffmpeg
-  plugin and other JPEG XS codecs use. `rct` is accepted only for `GBRPLANAR*` input.
+  G, B (`COLOUR_FORMAT_PLANAR_RGB`; `COLOUR_FORMAT_PLANAR_YUV444_OR_RGB` with libraries that lack
+  it), the order the colour transform (`rct`), the SVT-JPEG-XS ffmpeg plugin and other JPEG XS codecs
+  use. `rct` is accepted only for `GBRPLANAR*` input with `cpu_profile` `latency`.
 * A 4:4:4 stream without the colour transform doesn't say whether it carries YUV or RGB: it decodes
   into either `YUV444PLANAR*` or `GBRPLANAR*` of the same bit depth, so sender and receiver must
   agree on the colour space. A stream with the colour transform (`rct`, Cpih=1) holds R, G, B; it
@@ -133,10 +144,12 @@ The encoder takes and the decoder outputs these MTL pipeline formats:
   interlaced receiver's codestream buffer once more, to half the raw field size by default, so
   fields above that (e.g. with `lossless`) are dropped unless the receiver sets
   `max_codestream_size` to twice the size it needs.
-* The decoder fails a session whose stream doesn't match the output format in sampling, bit
-  depth or resolution (the field height for interlaced sessions).
-* With `lossless`, 8-bit frames can exceed the raw frame size: a receiver must set
-  `max_codestream_size` to the worst case, the default (raw frame size) drops such frames.
+* The decoder drops frames whose stream doesn't match the output format in sampling, bit depth or
+  resolution (the field height for interlaced sessions), and fails the session after 60 such
+  frames in a row.
+* 4:2:0 frames with padded chroma lines (a line size above the minimum, e.g. user frames) are
+  refused by the encoder and the decoder; each such frame fails.
+* The plugin runs at most 8 encoder and 8 decoder sessions at a time.
 
 ## 5. Notes
 

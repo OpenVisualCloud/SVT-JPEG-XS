@@ -56,9 +56,10 @@ Where:
 1. Prepare a corpus directory with encoded streams
    - Create a directory named `CORPUS_DIR` and copy multiple encoded streams to it. It is recommended to use a variety of encoded
      streams with different configurations and sizes to ensure comprehensive testing.
-   - `.github/scripts/fuzzy_tests.sh -td` does this automatically: it copies the conformance streams from `INPUT_FILES_PATH`
-     (if set) and adds small streams generated with `SvtJpegxsEncApp` covering lossless (8/10/12-bit), RCT, 4:2:2:4 and 4:4:4:4
-     formats, raw mode and slice packetization.
+   - Alternatively `.github/scripts/fuzzy_tests.sh -td` prepares the corpus and runs the fuzzer (see
+     [Running with fuzzy_tests.sh](#running-with-fuzzy_testssh)): it copies the conformance streams from
+     `INPUT_FILES_PATH` (if set) and adds small streams generated with `SvtJpegxsEncApp` covering lossless (8/10/12-bit),
+     RCT, 4:2:2:4 and 4:4:4:4 formats, raw mode and slice packetization.
 2. Run the fuzzer with the corpus directory:
    - `./SvtJxsDecFuzzer CORPUS_DIR -rss_limit_mb=15000 -max_total_time=60 -jobs=20`
 
@@ -69,9 +70,44 @@ Where:
 - `-max_total_time` is the maximum time in seconds the fuzzer will run
 - `-jobs` is the number of parallel jobs to run the fuzzer
 
+## Running with fuzzy_tests.sh
+
+`.github/scripts/fuzzy_tests.sh` is the script used by the Fuzzy Tests CI workflow. It accepts:
+
+- `-b` builds and installs SVT-JPEG-XS (skipped if `SvtJpegxs.pc` is already installed under the install prefix) and builds
+  both fuzzers in `tests/FuzzyTests`
+- `-te` runs the encoder fuzzer
+- `-td` prepares the decoder corpus and runs the decoder fuzzer
+
+The fuzzers must be built (`-b`) before `-te` or `-td` is used. The script reads these environment variables:
+
+- `JOBS_NUM` and `TIMEOUT_SECONDS` (required for `-te`/`-td`): values passed to `-jobs` and `-max_total_time`
+- `SVT_INSTALL_DIR` (optional, default `/usr/local`): install prefix of SVT-JPEG-XS, used for the headers, the library and
+  `bin/SvtJpegxsEncApp` (which generates the extra decoder seed streams)
+- `INPUT_FILES_PATH` (optional): directory whose contents are copied into the decoder corpus. It must point directly at the
+  directory holding the conformance `.jxs` streams (`<samples>/test_bitsreams`), not at the samples root used by
+  [the test scripts](../../documentation/tests/Readme.md)
+- `DECODER_SAMPLES` (optional, default `tests/FuzzyTests/decoder_corpus`): decoder corpus directory
+
+Example:
+
+```bash
+export JOBS_NUM=20 TIMEOUT_SECONDS=60
+export INPUT_FILES_PATH=/opt/samples/test_bitsreams
+.github/scripts/fuzzy_tests.sh -b
+.github/scripts/fuzzy_tests.sh -td
+```
+
 ## Notes
 
 If Fuzzy Test crashes, it will print the error message and store the input data that caused the crash in a file named `crash-*` in the current directory.
-To reproduce the crash, you can use the `crash-*` file with the fuzzer executable as in example below:
+To reproduce the crash, you can use the `crash-*` file with the fuzzer executable as in examples below:
 
 - `./SvtJxsEncFuzzer crash-*`
+- `./SvtJxsDecFuzzer crash-*`
+
+With `-jobs`, libFuzzer also writes the output of each job to `fuzz-*.log` in the current directory.
+
+The Fuzzy Tests CI workflow does not upload `crash-*` or `fuzz-*.log` files as artifacts. They remain in
+`tests/FuzzyTests/` of the self-hosted runner's workspace, where a later checkout on that runner may remove them; the
+job log contains the fuzzer output.
