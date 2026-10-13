@@ -15,8 +15,9 @@ No test content is stored in the repository: every case generates its pictures i
   `tests/tools/RxTxApp/build/RxTxApp` from that tree.
 * SVT-JPEG-XS installed and the plugin built (`mtl-plugin/build.sh`, or `./build.sh build-only`).
 * Two VFs of one PF bound to vfio-pci, and hugepages (`setup_host.sh` can do both).
-* `sudo` (the MTL processes run as root), `cc`, `cmp`, `taskset`, `fuser`, `pkg-config`, `md5sum`,
-  `ldd`, and with `SVT_PREFIX` `meson` and `ninja`.
+* `sudo` (the MTL processes run as root), `cc`, `cmp`, `taskset`, `fuser`, `pkg-config` with the
+  json-c development files (`test_config.sh` links the config loader with json-c), `md5sum`,
+  `ldd`, `timeout`, `pkill`, `sysctl`, `flock`, and with `SVT_PREFIX` `meson` and `ninja`.
 * For `test_perf.sh`: `bpftrace` (`apt install bpftrace`), and MTL built with its USDT probes
   (meson option `enable_usdt`, on by default). The test stops if either is missing.
 
@@ -103,9 +104,9 @@ are needed; everything else has a default that suits a 1080p test on one host.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `TEST_WIDTH`, `TEST_HEIGHT` | `1920`, `1080` | Picture size in pixels of every stream; both must be even. The lossy packet budget is computed from it. |
-| `TEST_FPS` | `p59` | Frame rate of every stream, in RxTxApp notation: `p23` (23.98), `p24`, `p25`, `p29` (29.97), `p30`, `p50`, `p59` (59.94), `p60`, `p100`, `p119` (119.88), `p120`. |
-| `TEST_SECONDS` | `10` | How many seconds the TX side runs in each loopback case of `test_formats.sh` and `test_interlaced.sh`, at least 5. The RX side starts 4 s earlier and stops about 2 s later, so one case takes about `TEST_SECONDS` + 6 s: a full `test_formats.sh` (25 loopbacks and 2 RxTxApp runs) takes about 7 min with the default, about 5 min with `TEST_SECONDS=5`. Starting MTL takes about 3 s of that time; a case fails if TX sends less than half the frames the remaining time at `TEST_FPS` allows. |
+| `TEST_WIDTH`, `TEST_HEIGHT` | `1920`, `1080` | Picture size in pixels of every stream; both must be even, `TEST_HEIGHT` a multiple of 4 for `test_interlaced.sh` (each field needs an even height). The lossy packet budget is computed from it. |
+| `TEST_FPS` | `p59` | Frame rate of every stream, in RxTxApp notation: `p23` (23.98), `p24`, `p25`, `p29` (29.97), `p30`, `p50`, `p59` (59.94), `p60`, `p100`, `p119` (119.88), `p120`. Any other value exits with 125. |
+| `TEST_SECONDS` | `10` | How many seconds the TX side runs in each loopback case of `test_formats.sh` and `test_interlaced.sh`, at least 5. The RX side starts 4 s earlier and stops about 2 s later, so one case takes about `TEST_SECONDS` + 6 s: a full `test_formats.sh` (26 loopbacks and 2 RxTxApp runs) takes about 7 min with the default, about 5 min with `TEST_SECONDS=5`. Starting MTL takes about 3 s of that time; a case fails if the TX encoder returns less than half the frames the remaining time at `TEST_FPS` allows, or RX gets more than 3 frames fewer than TX encoded. |
 | `SOURCE_YUV` | none | A raw picture file to derive the test content from instead of the generated gradients: planar 4:2:2 10-bit little-endian (ffmpeg `yuv422p10le`), `TEST_WIDTH` x `TEST_HEIGHT`, only the first frame is used, e.g. `ffmpeg -i in.mkv -frames:v 1 -pix_fmt yuv422p10le -f rawvideo src.yuv`. Lossless content must compress to less than the raw size (half of it for interlaced), so noisy pictures can make the lossless cases fail. |
 
 ### Performance test
@@ -126,7 +127,7 @@ These only affect `test_perf.sh`.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `TX_CPUS`, `RX_CPUS` | 2 x 8 cores on the NIC's NUMA node | CPUs the TX and the RX processes are pinned to with `taskset`, as a list with ranges, e.g. `TX_CPUS=1-4 RX_CPUS=5-8`. The two sets must not overlap, and each needs at least 3 CPUs: MTL runs its packet threads on the first two, the encoder and decoder threads use the others (4 or more is better). Without them the tests pick 16 physical cores (one hardware thread per core, CPU 0 left out) on the NUMA node of `TX_PORT`; with only one of them set, the other gets 8 of the remaining cores of that node. `setup_host.sh` stores its choice in `.host.env`. |
+| `TX_CPUS`, `RX_CPUS` | 2 x 8 cores on the NIC's NUMA node | CPUs the TX and the RX processes are pinned to with `taskset`, as a list with ranges, e.g. `TX_CPUS=1-4 RX_CPUS=5-8`. The two sets must not overlap, and each needs at least 3 CPUs: MTL runs its packet threads on the first two, the encoder and decoder threads use the others (4 or more is better). Without them the tests use the sets stored in `.host.env`, or pick 16 physical cores (one hardware thread per core, CPU 0 left out) on the NUMA node of `TX_PORT`; with only one of them set, the other gets up to 8 (at least 3) of the remaining cores of that node, and `.host.env` is not used for either. `setup_host.sh` stores the sets given to it, or else its own choice, in `.host.env`. |
 
 ### Results and temporary files
 
@@ -165,16 +166,17 @@ Progressive loopback with the MTL pipeline samples, for every plugin format:
 * `GBRPLANAR10LE` / `12LE` decoded as `YUV444PLANAR*`: output planes are R, G, B (source planes
   2, 0, 1), and GBR with `rct` stays lossless;
 * lossy (the samples' QUALITY mode, 3 bpp): RX gets the frames TX encoded, the logs have no
-  errors, and every frame fits the codestream budget in packets;
+  errors, and the average packets per frame of MTL's TX session stats fit the codestream budget;
 * `YUV422PLANAR16LE`: the same picture sent as 10LE and as 16LE (10LE << 6) decodes to the same
   samples (16LE >> 6, low 6 bits 0);
 * rejected combinations: a 4:2:2 stream into a 4:4:4 receiver, a 12-bit stream into a 16LE
-  receiver, lossless with 16LE, and 4:2:0 with `decomp_v` 0 (the samples with a config file,
+  receiver, lossless with 16LE, `rct` with `YUV444PLANAR10LE` input, and 4:2:0 with `decomp_v` 0
+  (the samples with a config file,
   RxTxApp in SPEED mode), which passes with `decomp_v` 1.
 
 The 16LE cases are skipped when the plugin doesn't offer the format (built against a library
 without MSB-aligned input/output). The tests read that from the encoder caps MTL logs when the
-plugin registers.
+plugin registers; when the TX log has no caps line, the 16LE cases fail instead.
 
 ### test_interlaced.sh
 
@@ -190,7 +192,10 @@ Interlaced loopback (`--interlaced`). The plugin codes each field as its own pic
 RxTxApp loopback of `YUV422PLANAR10LE` in SPEED mode, `RUNS` times. TX and RX run as two
 RxTxApp processes, each pinned with `taskset` to its own CPU set (`PERF_MODE=single`: one
 process). The CPU frequency governor is set to `performance` for the run
-(`tests/scripts/perf_governor.sh` of the repository, `../../tests/scripts/` from here). Every run prints:
+(`tests/scripts/perf_governor.sh` of the repository, `../../tests/scripts/` from here), where the
+host allows it: without a cpufreq interface or a `performance` governor it is left as it is, with
+an `INFO` or `WARN` line, and when another script already holds it, that script restores it.
+`env.txt` records the governor found before the run. Every run prints:
 
 ```text
    run  1/3  variant a  OK        rx  59.976 fps  rx latency  19.536 ms  838 frames
@@ -222,7 +227,8 @@ process). The CPU frequency governor is set to `performance` for the run
 | rx handover | frame decoded | RX application gets it |
 | total | TX application hands over the raw frame | RX application gets the decoded frame |
 
-The stages add up to `total`. The encoder and decoder stages are the time a frame spends in the
+The stages add up to about `total`: each stage is averaged over the frames it has, so the sum can
+differ slightly. The encoder and decoder stages are the time a frame spends in the
 codec, waiting for the previous one included; `CODEC_TIER=1` measures the codec alone, at full
 speed. The "tx send" / "rx receive" boundary is when MTL frees the frame's packet buffers, which
 depends on the NIC and driver; their sum is the time from the transport taking the codestream to
@@ -246,10 +252,10 @@ with the reason (shortened to the terminal width). `run_all.sh` ends with a summ
 == summary
    test          passed  failed  skipped    time
    config            29       0        0    0:00
-   formats           28       0        0    7:02
+   formats           29       0        0    7:18
    interlaced         5       0        0    1:38
    perf               1       0        0    4:21
-   total             63       0        0   13:01
+   total             64       0        0   13:17
 
    perf pipeline_a fps 59.954 (min 59.924 max 59.983), latency ms 19.460 (min 19.381 max 19.623), 10/10 OK
 
@@ -269,7 +275,7 @@ with the reason (shortened to the terminal width). `run_all.sh` ends with a summ
    skipped cases: none
    details  /tmp/TEST_000/summary.txt, logs per test in /tmp/TEST_000/<test>/
 
-RESULT: PASS (63 cases)
+RESULT: PASS (64 cases)
 ```
 
 Failed and skipped cases are listed there with their reason. The results dir
@@ -282,8 +288,12 @@ Failed and skipped cases are listed there with their reason. The results dir
   `perf/stages.txt`, `perf/run<n>_<variant>.stages.log` (bpftrace), `perf/governor.log`, and
   with `CODEC_TIER=1` `perf/codec.csv`.
 
-Every script exits with the number of failed cases (at most 124), 125 when it can't run at all
-(missing `MTL_ROOT`, ports, plugin), or 130 when interrupted (Ctrl+C).
+Every `test_*.sh` exits with the number of failed cases (at most 124), 125 when it can't run at
+all (missing `MTL_ROOT`, ports, plugin), or 130 when interrupted (Ctrl+C). `run_all.sh` counts a
+test that exits with 125, or stops early, as one failed case (`not_started` / `not_finished`) and
+goes on with the next; it exits with the total number of failed cases, 125 only when the host
+setup fails or the ports are missing or busy, and 130 when interrupted. `setup_host.sh` exits with
+0 on success, 125 on an error, and with `--check` 1 when `.host.env` is missing or stale.
 
 ## Known limits
 
@@ -311,7 +321,11 @@ PF_PORT=0000:15:00.0 ./setup_host.sh             # set up, or reuse what is ther
 Setup reuses the first two VFs of the PF when they are bound to vfio-pci. It creates VFs (with
 `$MTL_ROOT/script/nicctl.sh create_vf`) only when the PF has none, and stops otherwise rather than
 rewrite `sriov_numvfs`. It raises `vm.nr_hugepages` to `HUGEPAGES` if lower, never lowers it.
-What it changed is stored in `.host.state`; `--undo` reverts only that.
+What it changed is stored in `.host.state`; `--undo` reverts only that, setting the hugepages back
+to the recorded count, and deletes `.host.env`. Without `.host.state` it changes nothing.
+
+Setup picks the CPU sets last. On a NUMA node with fewer than 16 usable cores it stops there,
+after any VF and hugepage changes; run it again with `TX_CPUS` and `RX_CPUS` set, it reuses them.
 
 **Warning:** `--undo` after setup created the VFs removes all VFs of the PF. Any other
 application using them, on this host or in a VM, loses its port.
