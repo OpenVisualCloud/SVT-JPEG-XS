@@ -21,7 +21,7 @@ uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_de
         if (bit_depth > 12 && verbose >= VERBOSE_WARNINGS) {
             SVT_WARN(
                 "Warning: bit depth %u exceeds the maximum (12) defined by the ISO/IEC 21122-2 lossless (MLS) "
-                "profile; declaring the closest MLS profile (Ppih=0x%04X). Use profile_override_enable if a "
+                "profile; declaring the closest MLS profile (Ppih=0x%04X). Use profile_ppih_override if a "
                 "different declaration is required.\n",
                 bit_depth,
                 JXS_PPIH_MLS_12);
@@ -60,7 +60,7 @@ uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_de
     if (bit_depth > 12 && verbose >= VERBOSE_WARNINGS) {
         SVT_WARN(
             "Warning: bit depth %u exceeds the maximum (12) defined by any ISO/IEC 21122-2 lossy profile; "
-            "declaring the closest Main profile (Ppih=0x%04X). Use profile_override_enable if a different "
+            "declaring the closest Main profile (Ppih=0x%04X). Use profile_ppih_override if a different "
             "declaration is required.\n",
             bit_depth,
             ppih);

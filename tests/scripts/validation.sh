@@ -21,7 +21,7 @@ function run_unit_tests() {
     TEST_BINARY=$(find ${UNIT_TESTS_BINARY_DIR} -name "*UnitTests" )
     echo "Run UT: ${TEST_BINARY}"
     cd ${CONFORMANCE_TEST_SCRIPT}
-    ./ParallelUT.sh ${TEST_BINARY} $NUM_JOBS $PARAM
+    ./parrallelUT.sh ${TEST_BINARY} $NUM_JOBS $PARAM
     ret=$?
     if [[ $ret -ne 0 ]]; then
         echo "******************* Validation fail *******************"
@@ -55,7 +55,7 @@ function run_confornance_tests() {
     fi
 }
 
-function build_project_binaries() 
+function build_project_binaries()
 {
 echo "*******************building project ${OS}*******************"
 cd ${ROOT_DIRECTORY}/Build/${OS}
@@ -90,13 +90,13 @@ then
     build_project_binaries
 
     for VALGRIND_PARAM in "${VALGRIND_PARAMS[@]}"
-    do 
+    do
         echo "******************* Valgrind enabled ${VALGRIND_PARAM} *******************"
         LOG_FILE_SUFFIX=""
         if [ "${VALGRIND_PARAM}" == "true" ]; then LOG_FILE_SUFFIX="Valgrind";  fi
 
         for BUILD_TYPE in "${BUILD_CONFIGS[@]}"
-        do      
+        do
             BINARIES_DIR="${ROOT_DIRECTORY}/Bin/${BUILD_TYPE}"
             BUILD_SCRIPT_DIR="${ROOT_DIRECTORY}/Build/${OS}"
             if [ "${RUN_UNIT_TESTS}" == "true" ]
@@ -108,17 +108,17 @@ then
                                  ${UNIT_TESTS_BUILD_PARAMS}\
                                  ${BUILD_TYPE}\
                                  ${BINARIES_DIR}\
-                                 ${ROOT_DIRECTORY}/tests/FunctionalTests \
+                                 ${ROOT_DIRECTORY}/tests/scripts \
                                  ${VALGRIND_PARAM}
 
                 cd ${ROOT_DIRECTORY}/tests
             fi
             if [ "${RUN_CONFORMANCE_TESTS}" == "true" ]
             then
-                echo "******************* Running conformance tests ${OS} ${BUILD_TYPE} *******************"       
+                echo "******************* Running conformance tests ${OS} ${BUILD_TYPE} *******************"
                 run_confornance_tests ${BINARIES_DIR}\
                                       ${INPUT_FILES_PATH}\
-                                      ${ROOT_DIRECTORY}/tests/FunctionalTests \
+                                      ${ROOT_DIRECTORY}/tests/scripts \
                                       ${VALGRIND_PARAM}
                 cd ${ROOT_DIRECTORY}/tests
             fi

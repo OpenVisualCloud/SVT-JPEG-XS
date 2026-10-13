@@ -418,7 +418,7 @@ ConfigEntry config_entry[] = {
     {INPUT_OPTIONS, INPUT_FILE_TOKEN,       "Input Filename", 1, 1, set_cfg_input_file},
     {INPUT_OPTIONS, WIDTH_TOKEN,            "Frame width", 1, 1, set_cfg_source_width},
     {INPUT_OPTIONS, HEIGHT_TOKEN,           "Frame height", 1, 1, set_cfg_source_height},
-    {INPUT_OPTIONS, ENCODER_COLOUR_FORMAT,  "Set encoder colour format and the component order of the input file: yuv420, yuv422 (planes Y, Cb, Cr) (Experimental: yuv400, yuv444 (planes Y, Cb, Cr), rgb (planes R, G, B), rgbp (packed, bytes R, G, B per pixel), yuva444 (planes Y, Cb, Cr, A), rgba (planes R, G, B, A), yuva422 (4:2:2:4, planes Y, Cb, Cr, A)). FFmpeg gbrp/gbrap files hold planes G, B, R(, A): reorder them for rgb/rgba", 1, 1, set_encoder_colour_format},
+    {INPUT_OPTIONS, ENCODER_COLOUR_FORMAT,  "Set encoder colour format and the component order of the input file: yuv420, yuv422, yuv444 (planes Y, Cb, Cr), rgb (planes R, G, B), rgbp (packed, bytes R, G, B per pixel), yuva444 (planes Y, Cb, Cr, A), rgba (planes R, G, B, A), yuva422 (4:2:2:4, planes Y, Cb, Cr, A) (Experimental: yuv400). FFmpeg gbrp/gbrap files hold planes G, B, R(, A): reorder them for rgb/rgba", 1, 1, set_encoder_colour_format},
     {INPUT_OPTIONS, INPUT_DEPTH_TOKEN,      "Input depth", 1, 1, set_input_bit_depth},
     {INPUT_OPTIONS, INPUT_MSB_ALIGNED_TOKEN,"Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit word instead of LSB-aligned (enabled:1, disabled:0, default:0)", 0, 1, set_input_msb_aligned},
     /* param_required=0: --bpp is required unless --lossless 1 is set, checked in read_command_line(). */
@@ -450,7 +450,7 @@ ConfigEntry config_entry[] = {
                                             " avx, avx2, avx512, max], by default highest level supported by CPU", 0, 1,
 #endif
                                             set_asm_type},
-    {THREAD_PERF_OPTIONS, PROFILE_TYPE_TOKEN,"Profile of CPU use. 0:latency Low Latency mode, 1:cpu Low CPU use mode [latency:0, cpu:1, default: 0]", 0, 1, set_profile_type},
+    {THREAD_PERF_OPTIONS, PROFILE_TYPE_TOKEN,"Profile of CPU use: latency (Low Latency mode), cpu (Low CPU use mode), default: latency", 0, 1, set_profile_type},
     {THREAD_PERF_OPTIONS, THREAD_MGMNT,     "Thread Scaling parameter, the higher the value the more threads are created and thus lower latency and/or higher FPS can be achieved (default: 0, which means lowest possible number of threads is created)", 0, 1, set_num_thread},
     // Termination
     {NULL_OPTIONS, NULL, NULL, 0, 0, NULL}
@@ -517,7 +517,7 @@ SvtJxsErrorType_t verify_settings(EncoderConfig_t *config) {
     }
 
     if (config->encoder.cpu_profile != 0 && config->encoder.cpu_profile != 1) {
-        fprintf(stderr, "Error: Invalid profile [latency:0, cpu:1], your input: %d\n", config->encoder.cpu_profile);
+        fprintf(stderr, "Error: Invalid profile, use latency or cpu\n");
         return_error = SvtJxsErrorBadParameter;
     }
 
