@@ -237,10 +237,7 @@ static void set_stream_level(const char *value, EncoderConfig_t *cfg) {
 }
 
 static void set_encoder_colour_format(const char *value, EncoderConfig_t *cfg) {
-    if (!strcmp(value, "yuv400")) {
-        cfg->encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV400;
-    }
-    else if (!strcmp(value, "yuv420")) {
+    if (!strcmp(value, "yuv420")) {
         cfg->encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV420;
     }
     else if (!strcmp(value, "yuv422")) {
@@ -418,7 +415,7 @@ ConfigEntry config_entry[] = {
     {INPUT_OPTIONS, INPUT_FILE_TOKEN,       "Input Filename", 1, 1, set_cfg_input_file},
     {INPUT_OPTIONS, WIDTH_TOKEN,            "Frame width", 1, 1, set_cfg_source_width},
     {INPUT_OPTIONS, HEIGHT_TOKEN,           "Frame height", 1, 1, set_cfg_source_height},
-    {INPUT_OPTIONS, ENCODER_COLOUR_FORMAT,  "Set encoder colour format and the component order of the input file: yuv420, yuv422, yuv444 (planes Y, Cb, Cr), rgb (planes R, G, B), rgbp (packed, bytes R, G, B per pixel), yuva444 (planes Y, Cb, Cr, A), rgba (planes R, G, B, A), yuva422 (4:2:2:4, planes Y, Cb, Cr, A) (Experimental: yuv400). FFmpeg gbrp/gbrap files hold planes G, B, R(, A): reorder them for rgb/rgba", 1, 1, set_encoder_colour_format},
+    {INPUT_OPTIONS, ENCODER_COLOUR_FORMAT,  "Set encoder colour format and the component order of the input file: yuv420, yuv422, yuv444 (planes Y, Cb, Cr), rgb (planes R, G, B), rgbp (packed, bytes R, G, B per pixel), yuva444 (planes Y, Cb, Cr, A), rgba (planes R, G, B, A), yuva422 (4:2:2:4, planes Y, Cb, Cr, A). FFmpeg gbrp/gbrap files hold planes G, B, R(, A): reorder them for rgb/rgba", 1, 1, set_encoder_colour_format},
     {INPUT_OPTIONS, INPUT_DEPTH_TOKEN,      "Input depth", 1, 1, set_input_bit_depth},
     {INPUT_OPTIONS, INPUT_MSB_ALIGNED_TOKEN,"Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit word instead of LSB-aligned (enabled:1, disabled:0, default:0)", 0, 1, set_input_msb_aligned},
     /* param_required=0: --bpp is required unless --lossless 1 is set, checked in read_command_line(). */

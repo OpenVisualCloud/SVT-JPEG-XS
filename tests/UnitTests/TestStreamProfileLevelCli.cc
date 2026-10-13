@@ -124,3 +124,18 @@ TEST(StreamProfileLevelCli, ProfileAndLevelCanBeOverriddenTogether) {
     EXPECT_EQ(result.cfg.encoder.profile_ppih_override, 0x4A40);
     EXPECT_EQ(result.cfg.encoder.level_plev_override, (uint16_t)(0x000C << 10));
 }
+
+TEST(ColourFormatCli, Yuv400IsRejected) {
+    // The encoder has no single-component support, so EncApp must not offer yuv400.
+    // run_cli() already passes --colour-format, and the parser rejects repeated options.
+    EncoderConfig_t cfg;
+    memset(&cfg, 0, sizeof(cfg));
+    ASSERT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &cfg.encoder),
+              SvtJxsErrorNone);
+    std::vector<const char *> argv = {"SvtJpegxsEncApp", "-i", "dummy_input.yuv", "-w", "256", "-h", "256",
+                                      "--colour-format", "yuv400", "--input-depth", "8", "--bpp", "8"};
+    argv.push_back(nullptr);
+    ASSERT_EQ(read_command_line((int32_t)argv.size() - 1, const_cast<char *const *>(argv.data()), &cfg), SvtJxsErrorNone);
+    EXPECT_EQ(cfg.encoder.colour_format, COLOUR_FORMAT_INVALID);
+    EXPECT_NE(verify_settings(&cfg), SvtJxsErrorNone);
+}

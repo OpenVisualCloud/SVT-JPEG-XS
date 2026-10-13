@@ -332,6 +332,46 @@ TEST(DecoderPacketMode, LcodSmallerThanHeaderDoesNotStall) {
     svt_jpeg_xs_image_buffer_free(out_buf);
 }
 
+TEST(DecoderFrameMode, SendPacketReturnsError) {
+    // Mirror of send_frame() in packetization_mode=1: send_packet() on a decoder initialized for
+    // whole frames has no frame buffer to copy into (it is sized from Lcod only in packet mode), so it
+    // used to return SvtJxsErrorNone with bytes_used=0 and queue an error frame on every call.
+    std::vector<uint8_t> bitstream;
+    encode_cbr_packet_mode_base(bitstream);
+    ASSERT_FALSE(HasFatalFailure());
+
+    svt_jpeg_xs_decoder_api_t decoder;
+    memset(&decoder, 0, sizeof(decoder));
+    decoder.verbose = VERBOSE_NONE;
+    decoder.packetization_mode = 0;
+    svt_jpeg_xs_image_config_t image_config;
+    ASSERT_EQ(svt_jpeg_xs_decoder_init(
+                  SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &decoder, bitstream.data(), bitstream.size(), &image_config),
+              SvtJxsErrorNone);
+    svt_jpeg_xs_image_buffer_t* out_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
+    ASSERT_NE(out_buf, nullptr);
+
+    svt_jpeg_xs_frame_t dec_input;
+    memset(&dec_input, 0, sizeof(dec_input));
+    dec_input.image = *out_buf;
+    dec_input.bitstream.buffer = bitstream.data();
+    dec_input.bitstream.used_size = (uint32_t)bitstream.size();
+    dec_input.bitstream.allocation_size = (uint32_t)bitstream.size();
+    uint32_t bytes_used = 0;
+    // Stop on failure: once send_packet() has queued its error frame, mixing it with send_frame()
+    // can hang the decoder.
+    ASSERT_EQ(svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used), SvtJxsErrorUndefined);
+    EXPECT_EQ(bytes_used, 0u);
+
+    // The rejected call leaves the decoder usable for whole frames.
+    ASSERT_EQ(svt_jpeg_xs_decoder_send_frame(&decoder, &dec_input, 1 /*blocking*/), SvtJxsErrorNone);
+    svt_jpeg_xs_frame_t dec_output;
+    EXPECT_EQ(svt_jpeg_xs_decoder_get_frame(&decoder, &dec_output, 1 /*blocking*/), SvtJxsErrorNone);
+
+    svt_jpeg_xs_decoder_close(&decoder);
+    svt_jpeg_xs_image_buffer_free(out_buf);
+}
+
 TEST(DecoderPacketMode, CloseWithPartiallySentFrameDoesNotHang) {
     // Found by the decoder fuzzer: with IDWT synchronized between slices, a slice thread waits for
     // the next slice to be decoded. When a frame is only partially sent in packet mode, that next
@@ -481,6 +521,106 @@ TEST(EncoderInit, InvalidSlicePacketizationModeReturnsError) {
     ASSERT_NE(ret, SvtJxsErrorNone);
     // After failed init, private_ptr should be cleaned up
     ASSERT_EQ(encoder.private_ptr, nullptr);
+}
+
+/* Single-component input is decode-only: the encoder has no weight tables for it. */
+TEST(EncoderInit, SingleComponentFormatsReturnError) {
+    for (ColourFormat_t format : {COLOUR_FORMAT_PLANAR_YUV400, COLOUR_FORMAT_GRAY}) {
+        svt_jpeg_xs_encoder_api_t encoder;
+        svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+        encoder.verbose = VERBOSE_NONE;
+        encoder.source_width = 64;
+        encoder.source_height = 64;
+        encoder.input_bit_depth = 8;
+        encoder.colour_format = format;
+        encoder.bpp_numerator = 3;
+        EXPECT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder), SvtJxsErrorBadParameter)
+            << "format=" << (int)format;
+        EXPECT_EQ(encoder.private_ptr, nullptr);
+    }
+}
+
+/* The picture header stores Wf and Hf as 16-bit fields, so larger frames can't be signalled. */
+static SvtJxsErrorType_t init_encoder_with_size(uint32_t width, uint32_t height) {
+    svt_jpeg_xs_encoder_api_t encoder;
+    svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    encoder.verbose = VERBOSE_NONE;
+    encoder.source_width = width;
+    encoder.source_height = height;
+    encoder.input_bit_depth = 8;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444;
+    encoder.bpp_numerator = 3;
+    SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    svt_jpeg_xs_encoder_close(&encoder);
+    return ret;
+}
+
+TEST(EncoderInit, WidthAbove65535ReturnsError) {
+    EXPECT_EQ(init_encoder_with_size(65536, 64), SvtJxsErrorBadParameter);
+}
+
+TEST(EncoderInit, HeightAbove65535ReturnsError) {
+    EXPECT_EQ(init_encoder_with_size(64, 65536), SvtJxsErrorBadParameter);
+}
+
+TEST(EncoderInit, MaximumWidthAndHeightInitialize) {
+    EXPECT_EQ(init_encoder_with_size(65535, 64), SvtJxsErrorNone);
+    EXPECT_EQ(init_encoder_with_size(64, 65535), SvtJxsErrorNone);
+}
+
+/* Packed input holds 3 interleaved samples per pixel in data_yuv[0], so the last row needs
+ * width * 3 samples, not width. */
+static void check_packed_alloc_size(uint8_t bit_depth) {
+    const uint32_t width = 256;
+    const uint32_t height = 64;
+    svt_jpeg_xs_encoder_api_t encoder;
+    svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder);
+    encoder.verbose = VERBOSE_NONE;
+    encoder.source_width = width;
+    encoder.source_height = height;
+    encoder.input_bit_depth = bit_depth;
+    encoder.colour_format = COLOUR_FORMAT_PACKED_YUV444_OR_RGB;
+    encoder.bpp_numerator = 3;
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder), SvtJxsErrorNone);
+
+    svt_jpeg_xs_image_config_t image_config;
+    uint32_t bytes_per_frame = 0;
+    ASSERT_EQ(svt_jpeg_xs_encoder_get_image_config(
+                  SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder, &image_config, &bytes_per_frame),
+              SvtJxsErrorNone);
+    svt_jpeg_xs_image_buffer_t* image = svt_jpeg_xs_image_buffer_alloc(&image_config);
+    ASSERT_NE(image, nullptr);
+    memset(image->data_yuv[0], 0, image->alloc_size[0]);
+    std::vector<uint8_t> bitstream(bytes_per_frame);
+
+    const uint32_t pixel_size = bit_depth <= 8 ? 1 : 2;
+    const uint32_t full_size = image->stride[0] * pixel_size * (height - 1) + width * 3 * pixel_size;
+    for (int short_last_row = 1; short_last_row >= 0; --short_last_row) {
+        svt_jpeg_xs_frame_t enc_input;
+        memset(&enc_input, 0, sizeof(enc_input));
+        enc_input.image = *image;
+        enc_input.image.alloc_size[0] = short_last_row ? full_size - 1 : full_size;
+        enc_input.bitstream.buffer = bitstream.data();
+        enc_input.bitstream.allocation_size = bytes_per_frame;
+        SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_send_picture(&encoder, &enc_input, 1 /*blocking*/);
+        if (ret == SvtJxsErrorNone) {
+            svt_jpeg_xs_frame_t enc_output;
+            EXPECT_EQ(svt_jpeg_xs_encoder_get_packet(&encoder, &enc_output, 1 /*blocking*/), SvtJxsErrorNone);
+        }
+        EXPECT_EQ(ret, short_last_row ? SvtJxsErrorBadParameter : SvtJxsErrorNone)
+            << "bit_depth=" << (int)bit_depth << " alloc_size=" << enc_input.image.alloc_size[0];
+    }
+
+    svt_jpeg_xs_encoder_close(&encoder);
+    svt_jpeg_xs_image_buffer_free(image);
+}
+
+TEST(EncoderSendPicture, PackedInputRejectsBufferShorterThanLastRow8Bit) {
+    check_packed_alloc_size(8);
+}
+
+TEST(EncoderSendPicture, PackedInputRejectsBufferShorterThanLastRow10Bit) {
+    check_packed_alloc_size(10);
 }
 
 TEST(EncoderInit, ColorTransformRequiresLowLatencyProfileReturnsError) {

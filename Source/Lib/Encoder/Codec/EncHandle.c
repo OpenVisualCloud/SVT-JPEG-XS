@@ -447,9 +447,25 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     //Set flags 0 or 1
     enc_common->coding_significance = !!enc_common->coding_significance;
 
+    /* Single-component input is decode-only: there are no weight tables for it. */
+    if (enc_common->colour_format == COLOUR_FORMAT_GRAY) {
+        if (config_struct->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Error: COLOUR_FORMAT_GRAY is not supported by the encoder!\n");
+        }
+        return SvtJxsErrorBadParameter;
+    }
+
     if (config_struct->source_width < 4) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
             SVT_ERROR("Error: Minimum Width is 4!\n");
+        }
+        return SvtJxsErrorBadParameter;
+    }
+
+    /* Wf and Hf are 16-bit picture header fields. */
+    if (config_struct->source_width > UINT16_MAX || config_struct->source_height > UINT16_MAX) {
+        if (config_struct->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Error: Maximum Width and Height is 65535!\n");
         }
         return SvtJxsErrorBadParameter;
     }
@@ -1239,8 +1255,8 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_send_picture(svt_jpeg_xs_encode
     uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     //Packed format uses a single interleaved data_yuv[0] buffer (see svt_jpeg_xs_image_buffer_alloc()) -
     //data_yuv[1]/[2] are intentionally never allocated/used for it, unlike planar formats.
-    const uint8_t comps_to_check = (enc_api_prv->enc_common.colour_format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) ? 1
-                                                                                                                 : pi->comps_num;
+    const uint8_t packed = enc_api_prv->enc_common.colour_format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB;
+    const uint8_t comps_to_check = packed ? 1 : pi->comps_num;
     for (uint8_t c = 0; c < comps_to_check; ++c) {
         if (enc_input->image.data_yuv[c] == NULL) {
             SVT_ERROR("Invalid input: data_yuv[%u] is NULL\n", c);
@@ -1253,7 +1269,8 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_send_picture(svt_jpeg_xs_encode
         // encodes every second row, but the last row of the second field would only have a single row
         // of data left in it (half the stride in that case).
         min_size = enc_input->image.stride[c] * pixel_size * (pi->components[c].height - 1);
-        min_size += pi->components[c].width * pixel_size;
+        //Packed format holds 3 interleaved samples per pixel in data_yuv[0].
+        min_size += pi->components[c].width * pixel_size * (packed ? 3 : 1);
         if (enc_input->image.alloc_size[c] < min_size) {
             return SvtJxsErrorBadParameter;
         }

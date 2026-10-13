@@ -336,7 +336,7 @@ The profile (Ppih) and level (Plev) are written verbatim into the picture header
 `profile_ppih_override` (0 means auto) and `level_plev_override` (0xFFFF means auto), they are derived in ProfileLevel.c:
 
 - `derive_stream_profile_ppih()` selects MLS.12 for lossless coding. Otherwise it selects Main 420.12 for YUV420,
-  Main 4444.12 for 4-component formats, Main 444.12 for 4:4:4 and packed input, and Main 422.10 for YUV422 and YUV400
+  Main 4444.12 for 4-component formats, Main 444.12 for 4:4:4 and packed input, and Main 422.10 for YUV422
   (Main 444.12 above 10 bit). A warning is printed for bit depths above 12, which no profile covers.
 - `derive_stream_level_plev()` selects the smallest level whose width, height and pixel count limits fit the picture, and
   the sublevel from the bpp (2, 3, 4, 6, 9 or 12 bpp, unrestricted above and for lossless coding).
