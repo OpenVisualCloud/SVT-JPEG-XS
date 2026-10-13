@@ -24,8 +24,9 @@ cd <jpeg-xs-repo>/mtl-plugin
 ```
 
 `./build.sh` builds a release build into `build/` and installs it with `sudo ninja install`.
-`./build.sh debug` or `./build.sh plain` selects that meson build type instead;
-`./build.sh build-only` builds a release build without installing it.
+`./build.sh debug` or `./build.sh plain` selects that meson build type instead (an existing
+`build/` is reconfigured to it); `./build.sh build-only` builds a release build without installing
+it.
 
 ## 2. Test
 
@@ -37,9 +38,12 @@ ffmpeg -i jellyfish-3-mbps-hd-hevc.mkv -vframes 3 -c:v rawvideo yuv420p8le.yuv
 ffmpeg -s 1920x1080 -pix_fmt yuv420p -i yuv420p8le.yuv -pix_fmt yuv422p test_planar8.yuv
 ```
 
-### 2.2 Edit "MTL-repo/kahawai.json" to enable the st22 svt jpeg xs plugin
+### 2.2 Edit kahawai.json to enable the st22 svt jpeg xs plugin
 
-You can also copy kahawai.json from ```<jpeg-xs-repo>/mtl-plugin/kahawai.json```
+MTL reads the plugin list from `kahawai.json` in the current directory, or from the file the
+`KAHAWAI_CFG_PATH` environment variable names. Edit `<MTL-repo>/kahawai.json` and run the samples
+from `<MTL-repo>`, or copy ```<jpeg-xs-repo>/mtl-plugin/kahawai.json``` and point
+`KAHAWAI_CFG_PATH` at it.
 
 ```json
         {
@@ -96,7 +100,8 @@ unknown keys. Choice values are names (`"uniform"`); `quantization`, `coding_sig
   builds without the decoder slice size fix, then log a false warning for every decoded slice,
   which costs performance.
 * An unknown key, an invalid value, a syntax error, or a key the installed SVT-JPEG-XS library does
-  not support makes plugin start fail; the error names the key and the allowed values.
+  not support makes plugin start fail; the error names the key, for an invalid value also the
+  allowed values.
   `sample_config.json` sets `lossless`, `coding_raw`, `cap_compat`, `rct`, `stream_profile` and
   `stream_level`; remove those the installed library lacks before using it. Invalid
   combinations (e.g. `rct` with any input other than `GBRPLANAR*`, or `rct` without `cpu_profile`
