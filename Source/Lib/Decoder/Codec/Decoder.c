@@ -252,7 +252,7 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
                 if (ret) {
                     /*When any error, destroy all previous created Condition Variables*/
                     for (uint32_t i = 0; i < slice_idx; i++) {
-                        svt_jxs_free_cond_var(&ctx->map_slices_decode_done[slice_idx]);
+                        svt_jxs_free_cond_var(&ctx->map_slices_decode_done[i]);
                     }
                     SVT_FREE(ctx->map_slices_decode_done);
                     break;

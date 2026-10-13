@@ -163,8 +163,7 @@ Supported OS versions:
 | YUV 422 + Alpha (4:2:2:4) 10/12/14-bit | yuva422 + 10/12/14 | yuva422p{10/12}le (no 14-bit) | Tested, working properly |
 | RGBA/YUVA444 (4:4:4:4) 8-bit | rgba/yuva444 + 8 | gbrap (planes G, B, R, A) / yuva444p | Tested, working properly. rgba planes in R, G, B, A order |
 | RGBA/YUVA444 (4:4:4:4) 10/12/14-bit | rgba/yuva444 + 10/12/14 | gbrap{10/12/14}le (planes G, B, R, A) / yuva444p{10/12}le | Tested, working properly. rgba planes in R, G, B, A order |
-| YUV 400 8-bit | yuv400 + 8 | - | Unsupported |
-| YUV 400 10-bit | yuv400 + 10/12/14 | - | Unsupported |
+| Gray (1 component) | - | gray* (decode only) | Not supported by the encoder; 1-component streams are decoded |
 
 #### PACKED
 
@@ -182,7 +181,6 @@ only for `rgb`; decoders treat Cpih=1 output as R, G, B.
 
 | `--colour-format` | Library `colour_format` | Components per frame, in file order | FFmpeg plugin pixel format | `--color-transform 1` |
 | -- | -- | -- | -- | -- |
-| yuv400 (unsupported) | `COLOUR_FORMAT_PLANAR_YUV400` | Y | gray* (decode only) | rejected |
 | yuv420 | `COLOUR_FORMAT_PLANAR_YUV420` | Y, Cb, Cr | yuv420p* | rejected |
 | yuv422 | `COLOUR_FORMAT_PLANAR_YUV422` | Y, Cb, Cr | yuv422p* | rejected |
 | yuv444 | `COLOUR_FORMAT_PLANAR_YUV444` | Y, Cb, Cr | yuv444p* | rejected |
@@ -310,8 +308,7 @@ Input Options:
 --colour-format            Set encoder colour format and the component order of the input file:
                             yuv420, yuv422, yuv444 (planes Y, Cb, Cr), rgb (planes R, G, B),
                             rgbp (packed, bytes R, G, B per pixel), yuva444 (planes Y, Cb, Cr, A),
-                            rgba (planes R, G, B, A), yuva422 (4:2:2:4, planes Y, Cb, Cr, A)
-                            (Experimental: yuv400).
+                            rgba (planes R, G, B, A), yuva422 (4:2:2:4, planes Y, Cb, Cr, A).
                             FFmpeg gbrp/gbrap files hold planes G, B, R(, A): reorder them for rgb/rgba
 --input-depth              Input depth
 [--input-msb-aligned]      Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit

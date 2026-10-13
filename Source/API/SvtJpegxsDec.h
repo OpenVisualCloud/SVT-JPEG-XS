@@ -155,6 +155,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
   * SvtJxsErrorDecoderBitstreamTooShort - data was consumed but not enough to decode the entire image
   * Return fatal:
   *  SvtJxsErrorDecoderInvalidPointer - when dec_input, bytes_used or decoder handle is null or decoder is not initialized
+  *  SvtJxsErrorUndefined - when decoder is initialized with packetization_mode = 0 (bytes_used is set to 0)
   * or an internal queue error.
   * Header and slice errors are not returned here; they are reported for the frame by svt_jpeg_xs_decoder_get_frame().
   **/

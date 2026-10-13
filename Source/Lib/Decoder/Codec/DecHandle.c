@@ -81,9 +81,9 @@ PREFIX_API void svt_jpeg_xs_decoder_close(svt_jpeg_xs_decoder_api_t* dec_api) {
                 SVT_FREE(dec_api_prv->dec_common.buffer_tmp_cpih[c]);
             }
             SVT_FREE(dec_api->private_ptr);
+            svt_jxs_decrease_component_count();
         }
         dec_api->private_ptr = NULL;
-        svt_jxs_decrease_component_count();
     }
 }
 
@@ -475,6 +475,15 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_packet(svt_jpeg_xs_decoder
         return SvtJxsErrorDecoderInvalidPointer;
     }
     svt_jpeg_xs_decoder_api_prv_t* dec_api_prv = (svt_jpeg_xs_decoder_api_prv_t*)dec_api->private_ptr;
+    *bytes_used = 0;
+
+    if (!dec_api_prv->packetization_mode) {
+        if (dec_api->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("\nDecoder initialized for frame-based input, but svt_jpeg_xs_decoder_send_packet() is called\n");
+            SVT_ERROR("Please use svt_jpeg_xs_decoder_send_frame() instead\n");
+        }
+        return SvtJxsErrorUndefined;
+    }
     return internal_svt_jpeg_xs_decoder_send_packet(dec_api_prv, dec_input, bytes_used);
 }
 

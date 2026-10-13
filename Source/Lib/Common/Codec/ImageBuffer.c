@@ -178,7 +178,7 @@ PREFIX_API svt_jpeg_xs_frame_pool_t* svt_jpeg_xs_frame_pool_alloc(const svt_jpeg
         frame_pool->pool_image_buffer_resource_ptr = NULL;
         frame_pool->pool_image_buffer_fifo_ptr = NULL;
         frame_pool->pool_bitstream_resource_ptr = NULL;
-        frame_pool->pool_image_buffer_fifo_ptr = NULL;
+        frame_pool->pool_bitstream_fifo_ptr = NULL;
 
         if (image_config == NULL) {
             frame_pool->use_image_buffer = 0;
