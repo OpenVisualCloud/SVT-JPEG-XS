@@ -14,6 +14,8 @@ project(svt-jpegxs VERSION 0.10.0
     LANGUAGES C CXX)
 
 set(CMAKE_C_VISIBILITY_PRESET hidden)
+# -fPIC for libraries, -fPIE for executables (linked with -pie below)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Default build type to release if the generator does not has its own set of build types
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release)
@@ -212,6 +214,7 @@ endif()
 
 if(UNIX AND NOT APPLE)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie -z noexecstack -z relro -z now")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -z noexecstack -z relro -z now")
 endif()
 
 function(check_flag lang flag)
@@ -293,12 +296,25 @@ else()
     message(STATUS "LTO/IPO: disabled (JPEGXS_LTO=OFF)")
 endif()
 
-check_both_flags_add(PREPEND -Wextra -Wformat -Wformat-security)
+check_both_flags_add(PREPEND -Wextra -Wformat -Wformat-security -Wimplicit-fallthrough)
 
 if(MSVC)
     check_both_flags_add(PREPEND /W3)
     check_both_flags_add(/MP)
     check_both_flags_add(TYPE DEBUG /Od)
+    # /GS, /DYNAMICBASE and /NXCOMPAT are MSVC defaults; they are spelled out so the
+    # hardening set is visible in the build.
+    check_both_flags_add(/GS /sdl /guard:cf)
+    # /sdl turns C4996 into an error. C4996 flags standard C functions (fopen, getenv,
+    # strerror, ...) in favour of the Microsoft-specific _s variants, not a defect; the code
+    # uses the portable functions on every platform.
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_WARNINGS)
+    set(MSVC_HARDENING_LINKER_FLAGS "/guard:cf /DYNAMICBASE /NXCOMPAT")
+    if(ARCH_X86_64)
+        string(APPEND MSVC_HARDENING_LINKER_FLAGS " /CETCOMPAT")
+    endif()
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MSVC_HARDENING_LINKER_FLAGS}")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${MSVC_HARDENING_LINKER_FLAGS}")
 else()
     check_both_flags_add(PREPEND -Wall)
     option(NATIVE "Build for native performance (march=native)")
@@ -312,7 +328,8 @@ else()
     if(MINGW)
         check_both_flags_add(-mxsave -fno-asynchronous-unwind-tables)
     else()
-        check_both_flags_add(-fstack-protector-strong)
+        # -fcf-protection is x86 only; check_both_flags_add drops it where unsupported.
+        check_both_flags_add(-fstack-protector-strong -fstack-clash-protection -fcf-protection=full)
     endif()
 endif()
 
@@ -320,8 +337,11 @@ if(CMAKE_C_FLAGS MATCHES ".*-march=native.*" OR CMAKE_CXX_FLAGS MATCHES ".*-marc
     check_both_flags_add(-mno-avx)
 endif()
 
-if(CMAKE_C_FLAGS MATCHES "-O" AND NOT CMAKE_C_FLAGS MATCHES "-O0" AND NOT MINGW)
-    add_definitions(-D_FORTIFY_SOURCE=2)
+# The optimization level lives in CMAKE_C_FLAGS_<CONFIG>, not CMAKE_C_FLAGS, so key off the
+# configuration instead. _FORTIFY_SOURCE needs optimization, and Debug builds are -O0.
+# Sanitizer builds are left alone: the sanitizers do their own checking of these calls.
+if(NOT MINGW AND NOT SANITIZER)
+    set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=3>)
 endif()
 
 if(CMAKE_ASM_NASM_OBJECT_FORMAT MATCHES "win")

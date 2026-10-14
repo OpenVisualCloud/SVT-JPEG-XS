@@ -10,8 +10,6 @@
  * https://www.aomedia.org/license/patent-license.
  */
 #include "SvtLog.h"
-// for getenv and fopen on windows
-#define _CRT_SECURE_NO_WARNINGS
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
