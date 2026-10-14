@@ -78,23 +78,24 @@ foreach(simd_part COMMON ENCODER DECODER)
 endforeach()
 
 if(ARCH_X86_64)
-    find_program(YASM_EXE yasm)
-    option(ENABLE_NASM "Use nasm if available (Uses yasm by default if found)" OFF)
-    if(YASM_EXE AND NOT CMAKE_ASM_NASM_COMPILER MATCHES "yasm" AND NOT ENABLE_NASM)
-        set(CMAKE_ASM_NASM_COMPILER "${YASM_EXE}" CACHE FILEPATH "Path to nasm compatible compiler" FORCE)
-    else()
-        set(NASM_VERSION "0.0.0")
-        include(CheckLanguage)
-        check_language(ASM_NASM)
+    # Unless CMAKE_ASM_NASM_COMPILER or the ASM_NASM environment variable picks one, CMake looks
+    # for nasm first and falls back to yasm. NASM is preferred because it can mark the assembly
+    # objects as CET-compatible (.note.gnu.property, see x64inc.asm); yasm cannot, so a yasm
+    # build links a library without the CET marking.
+    include(CheckLanguage)
+    check_language(ASM_NASM)
+    if(CMAKE_ASM_NASM_COMPILER)
+        # stderr too: yasm does not know -v and only names itself in the warning about it
         execute_process(COMMAND ${CMAKE_ASM_NASM_COMPILER} -v
-            OUTPUT_VARIABLE NASM_VERSION
-            ERROR_QUIET
+            OUTPUT_VARIABLE ASM_NASM_VERSION_OUTPUT
+            ERROR_VARIABLE ASM_NASM_VERSION_OUTPUT
             OUTPUT_STRIP_TRAILING_WHITESPACE)
-        string(REGEX MATCH "([.0-9])+" NASM_VERSION "${NASM_VERSION}")
-        # NASM_VERSION should now contain something like 2.14.02
-        # Needs to error out on a version less than 2.14
-        if(NASM_VERSION VERSION_LESS "2.14" AND CMAKE_ASM_NASM_COMPILER MATCHES "nasm")
-            message(FATAL_ERROR "Found nasm is too old (requires at least 2.14, found ${NASM_VERSION})!")
+        if(ASM_NASM_VERSION_OUTPUT MATCHES "NASM version ([0-9.]+)")
+            if(CMAKE_MATCH_1 VERSION_LESS "2.14")
+                message(FATAL_ERROR "Found nasm is too old (requires at least 2.14, found ${CMAKE_MATCH_1})!")
+            endif()
+        elseif(ASM_NASM_VERSION_OUTPUT MATCHES "yasm" AND UNIX AND NOT APPLE)
+            message(STATUS "Assembler is yasm: the library will not be marked as CET-compatible")
         endif()
     endif()
     enable_language(ASM_NASM)
