@@ -328,6 +328,14 @@ else()
     endif()
     if(MINGW)
         check_both_flags_add(-mxsave -fno-asynchronous-unwind-tables)
+        # mingw-w64 11 and later provide the stack protector runtime in the CRT, no -lssp needed.
+        # -fcf-protection is left out: GNU ld cannot mark PE images as CET-compatible.
+        check_both_flags_add(-fstack-protector-strong)
+        # ASLR, DEP and high-entropy ASLR are binutils defaults since 2.36, spelled out so older
+        # linkers apply them too.
+        set(MINGW_HARDENING_LINKER_FLAGS "-Wl,--dynamicbase -Wl,--nxcompat -Wl,--high-entropy-va")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MINGW_HARDENING_LINKER_FLAGS}")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${MINGW_HARDENING_LINKER_FLAGS}")
     else()
         # -fcf-protection is x86 only; check_both_flags_add drops it where unsupported.
         check_both_flags_add(-fstack-protector-strong -fstack-clash-protection -fcf-protection=full)
@@ -341,8 +349,10 @@ endif()
 # The optimization level lives in CMAKE_C_FLAGS_<CONFIG>, not CMAKE_C_FLAGS, so key off the
 # configuration instead. _FORTIFY_SOURCE needs optimization, and Debug builds are -O0.
 # Sanitizer builds are left alone: the sanitizers do their own checking of these calls.
-if(NOT MINGW AND NOT SANITIZER)
-    set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=3>)
+# Some toolchains (e.g. Ubuntu's GCC) predefine _FORTIFY_SOURCE at a different level, so undefine
+# it first; a plain redefinition is a warning, and -Werror makes it fatal.
+if(NOT SANITIZER)
+    add_compile_options("$<$<NOT:$<CONFIG:Debug>>:-U_FORTIFY_SOURCE;-D_FORTIFY_SOURCE=3>")
 endif()
 
 if(CMAKE_ASM_NASM_OBJECT_FORMAT MATCHES "win")
