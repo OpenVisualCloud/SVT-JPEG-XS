@@ -46,11 +46,10 @@ Supported OS versions:
 - __Build Requirements__
   - Visual Studio* 2022 or 2019 (older version were not tested)
   - CMake 3.10 or later (3.13 or later when building unit tests)
-  - YASM Assembler version 1.2.0 or later
-    - Download the yasm executable from [https://yasm.tortall.net/Download.html](https://yasm.tortall.net/Download.html)
-    - Rename `yasm-*-win64.exe` to `yasm.exe`
-    - Copy `yasm.exe` into a location that is in the `PATH` environment variable (for example: `%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\`)
-    - NASM 2.14 or later can be used instead, see [Assembler](#assembler)
+  - NASM 2.14 or later
+    - Download the `nasm-*-win64.zip` archive from [https://www.nasm.us/pub/nasm/releasebuilds/](https://www.nasm.us/pub/nasm/releasebuilds/)
+    - Copy `nasm.exe` from the archive into a location that is in the `PATH` environment variable (for example: `%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\`)
+    - YASM 1.2.0 or later can be used instead, see [Assembler](#assembler)
 
 - __Build Instructions__
   - Build the project by following the steps below
