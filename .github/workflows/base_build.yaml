@@ -372,7 +372,7 @@ jobs:
     runs-on: 'windows-2022'
     timeout-minutes: 120
     env:
-      YASM_PATH: C:\Yasm
+      NASM_PATH: C:\Nasm
     steps:
     - name: 'Harden Runner'
       uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
@@ -391,7 +391,7 @@ jobs:
       working-directory: Build/windows
       shell: cmd
       env:
-        ASM_NASM: ${{ env.YASM_PATH }}\yasm.exe
+        ASM_NASM: ${{ env.NASM_PATH }}\nasm.exe
       run: |
         call .\build.bat 2022 release test
         call .\build.bat 2022 debug  test
