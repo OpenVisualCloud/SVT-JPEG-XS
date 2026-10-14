@@ -37,6 +37,25 @@
      %define FORMAT_MACHO 1
 %endif
 
+; Mark the object as compatible with Intel CET (IBT and shadow stack). The linker only marks
+; the library when every object carries this property, so a single unmarked object drops it
+; for the whole library. yasm cannot emit the SHT_NOTE section type, hence NASM only.
+%ifdef FORMAT_ELF
+    %ifdef __NASM_VERSION_ID__
+        %if __NASM_VERSION_ID__ >= 0x020e0300
+            section .note.gnu.property note alloc noexec nowrite align=8
+                dd 4            ; n_namesz
+                dd 16           ; n_descsz
+                dd 5            ; n_type: NT_GNU_PROPERTY_TYPE_0
+                db "GNU", 0
+                dd 0xc0000002   ; GNU_PROPERTY_X86_FEATURE_1_AND
+                dd 4            ; pr_datasz
+                dd 3            ; GNU_PROPERTY_X86_FEATURE_1_IBT | GNU_PROPERTY_X86_FEATURE_1_SHSTK
+                dd 0            ; padding to 8 bytes
+        %endif
+    %endif
+%endif
+
 %ifdef FORMAT_ELF
     %undef PREFIX
 %elif WIN64
@@ -59,6 +78,11 @@
     %endif
     global %1
     %1:
+    %ifdef FORMAT_ELF
+    ; endbr64: indirect branch target for IBT (functions are reached through the RTCD
+    ; function pointers). A NOP on CPUs without CET. Raw bytes because yasm lacks the mnemonic.
+    db 0xf3, 0x0f, 0x1e, 0xfa
+    %endif
 %endmacro
 
 %macro cextern 1

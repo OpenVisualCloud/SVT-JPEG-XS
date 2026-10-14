@@ -77,7 +77,7 @@ Supported OS versions:
 - __Build Requirements__
   - GCC 9.4.0 or later
   - CMake 3.10 or later (3.13 or later when building unit tests)
-  - YASM Assembler version 1.2.0 or later, or NASM 2.14 or later (see [Assembler](#assembler))
+  - NASM 2.14 or later, or YASM Assembler version 1.2.0 or later (see [Assembler](#assembler))
 
 - __Build Instructions__
   - `cd Build/linux`
@@ -106,9 +106,11 @@ Supported OS versions:
 ### Assembler
 
 - An assembler is only needed for x86-64 builds. AArch64 builds need no assembler.
-- YASM is used if it is found. NASM 2.14 or later is used if YASM is not found, or when it is
-  selected with `./build.sh asm=nasm` or the CMake option `-DENABLE_NASM=ON`. Older NASM versions
-  stop the configure step with an error.
+- NASM 2.14 or later is used if it is found. YASM is used if NASM is not found, or when it is
+  selected with `./build.sh asm=yasm` or the CMake option `-DCMAKE_ASM_NASM_COMPILER=yasm`. Older
+  NASM versions stop the configure step with an error.
+- On Linux, only NASM marks the assembly objects as compatible with Intel CET (Control-flow
+  Enforcement Technology). With YASM the library is built without the CET marking.
 - On a processor that is neither x86-64 nor AArch64, CMake prints a warning and builds the portable
   C implementations only.
 

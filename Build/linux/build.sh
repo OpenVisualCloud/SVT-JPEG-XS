@@ -217,10 +217,7 @@ parse_options() {
         all) build_debug=true build_release=true && shift ;;
         asm=*)
             check_executable "${1#*=}" &&
-                CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DCMAKE_ASM_NASM_COMPILER=$(check_executable -p "${1#*=}")" &&
-                case $1 in
-                *nasm*) CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DENABLE_NASM=ON" ;;
-                esac
+                CMAKE_EXTRA_FLAGS="$CMAKE_EXTRA_FLAGS -DCMAKE_ASM_NASM_COMPILER=$(check_executable -p "${1#*=}")"
             shift
             ;;
         bindir=*)
