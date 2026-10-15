@@ -191,6 +191,11 @@ API version: 0.10 (`SVT_JPEGXS_API_VER_MINOR` raised from 9 to 10).
 - Fixed a shutdown hang: `svt_shutdown_process()` was missing for the
   output queue, and `get_empty_object()` now handles the quit signal.
 - Fixed input image `alloc_size` checks.
+- The minimum input plane size is computed in 64 bits. A large stride or
+  height wrapped it, so an input buffer smaller than the rows addressed
+  by the stride was accepted and read past its end.
+- The CPU profile keeps the input stride in 32 bits. A stride above 65535
+  was cut to 16 bits and the wrong rows were encoded.
 
 ### Decoder
 
@@ -201,10 +206,22 @@ API version: 0.10 (`SVT_JPEGXS_API_VER_MINOR` raised from 9 to 10).
   - Fixed an endless loop when Lcod is smaller than the header.
   - `send_packet()` on a decoder initialized in frame mode now returns
     an error instead of reporting success.
+  - `send_packet()` now checks the output image of the first packet of a
+    frame, like `send_frame()`.
+  - An empty packet (`used_size` 0) returns
+    `SvtJxsErrorDecoderBitstreamTooShort` and no longer starts a frame
+    with its image.
+- `send_frame()` and `send_packet()` return `SvtJxsErrorBadParameter`
+  for a NULL bitstream buffer instead of reading from it.
+- `svt_jpeg_xs_decoder_init()` rejects headers whose coefficient count or
+  component byte size does not fit in 32 bits. A 65535x65535 4:4:4
+  header used to get an undersized coefficient buffer.
 - Fixed a slice-overlap IDWT hang for slices with one precinct line.
 - Fixed proxy mode 1/2 when `decomp_v` is 1.
 - Fixed bitstream parsing.
-- Fixed output image `alloc_size` checks.
+- Fixed output image `alloc_size` checks. The minimum output plane size
+  is computed in 64 bits, so a large stride or height no longer wraps it.
+- Slice decode errors no longer log buffer addresses.
 - Removed the false "Unexpected size of frame" warning, and log lines
   from different threads no longer interleave.
 - Fixed cleanup of condition variables when decoder instance allocation
@@ -220,6 +237,9 @@ API version: 0.10 (`SVT_JPEGXS_API_VER_MINOR` raised from 9 to 10).
   with SVT-AV1 when both are linked into one binary.
 - `svt_jpeg_xs_frame_pool_alloc()` now initializes the bitstream FIFO
   pointer.
+- Errors about invalid input buffers passed to `send_frame()`,
+  `send_packet()` and `send_picture()` are printed only at
+  `verbose >= VERBOSE_ERRORS`.
 
 ### Apps
 
@@ -228,6 +248,15 @@ API version: 0.10 (`SVT_JPEGXS_API_VER_MINOR` raised from 9 to 10).
   output.
 - Corrected the `SvtJpegxsEncApp` help text, including the `--rc`
   default, the `--profile` values and the list of supported formats.
+- `SvtJpegxsEncApp` no longer exits with 0 on Linux when the library
+  fails with an error whose low byte is 0, such as
+  `SvtJxsErrorInsufficientResources`; it exits with 1. Both apps now
+  exit with an error when the send thread cannot be created, and
+  `SvtJpegxsDecApp` when `--limit-fps` is above 240.
+- `SvtJpegxsEncApp` rejects an input smaller than one frame instead of
+  hanging. Input from a pipe requires `--frames`.
+- `SvtJpegxsDecApp --find-bitstream-header` no longer reads past an
+  input shorter than 4 bytes.
 
 ### Build
 
