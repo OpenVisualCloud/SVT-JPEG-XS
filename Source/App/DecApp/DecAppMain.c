@@ -335,7 +335,9 @@ int32_t main(int32_t argc, char* argv[]) {
 
     if (config_dec.autodetect_bitstream_header) {
         int find = 0;
-        for (size_t i = 0; i < config_dec.bitstream_buf_size - 4; ++i) {
+        // i + 4 <= size instead of i < size - 4: size is unsigned and the subtraction would wrap for a file shorter
+        // than the 4 marker bytes, reading past the buffer. It also checks the last position, i == size - 4.
+        for (size_t i = 0; i + 4 <= config_dec.bitstream_buf_size; ++i) {
             if ((config_dec.bitstream_buf_ref[i] == 0xff) && (config_dec.bitstream_buf_ref[i + 1] == 0x10) &&
                 (config_dec.bitstream_buf_ref[i + 2] == 0xff) && (config_dec.bitstream_buf_ref[i + 3] == 0x50)) {
                 config_dec.bitstream_offset = i;
