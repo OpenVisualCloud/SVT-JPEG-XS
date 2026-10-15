@@ -114,6 +114,14 @@ API version: 0.10 (`SVT_JPEGXS_API_VER_MINOR` raised from 9 to 10).
   of the `.pc` file.
 - New `JPEGXS_PGO` option and `RunPGO` target. `build.sh` enables LTO
   and PGO by default; use `--lto=off` or `--pgo=off` to disable them.
+- Compiler and linker hardening per the Intel Secure Coding Standard:
+  full RELRO, BIND_NOW and a non-executable stack for the shared
+  library, `_FORTIFY_SOURCE=3`, `-fstack-clash-protection` and
+  `-fcf-protection=full`; Control Flow Guard and CET compatibility for
+  MSVC; stack protector and FORTIFY for MinGW.
+- NASM is now the preferred assembler, and yasm is the fallback. The
+  assembly objects are CET-marked (IBT, SHSTK) only when built with
+  NASM 2.14.03 or newer.
 
 ### FFmpeg plugin
 
