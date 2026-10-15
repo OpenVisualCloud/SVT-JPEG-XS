@@ -5,6 +5,7 @@
 
 #include <string.h>
 #include <chrono>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -233,6 +234,107 @@ TEST(DecoderInit, InvalidApiVersionReturnsError) {
     SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_init(
         999, 999, &decoder, Frame_Sample_1_16x16_8bit_422_bitstream, Frame_Sample_1_16x16_8bit_422_bitstream_size, &image_config);
     ASSERT_EQ(ret, SvtJxsErrorInvalidApiVersion);
+}
+
+/* Encodes one frame of the given geometry with a fixed sample pattern. */
+static void encode_frame(uint32_t width, uint32_t height, uint8_t bit_depth, ColourFormat_t format,
+                         std::vector<uint8_t>& bitstream) {
+    svt_jpeg_xs_encoder_api_t enc;
+    ASSERT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
+              SvtJxsErrorNone);
+    enc.verbose = VERBOSE_NONE;
+    enc.source_width = width;
+    enc.source_height = height;
+    enc.input_bit_depth = bit_depth;
+    enc.colour_format = format;
+    enc.bpp_numerator = 3;
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc), SvtJxsErrorNone);
+
+    svt_jpeg_xs_image_config_t image_config;
+    uint32_t bytes_per_frame = 0;
+    ASSERT_EQ(svt_jpeg_xs_encoder_get_image_config(
+                  SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc, &image_config, &bytes_per_frame),
+              SvtJxsErrorNone);
+    svt_jpeg_xs_image_buffer_t* in_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
+    ASSERT_NE(in_buf, nullptr);
+    for (int32_t c = 0; c < image_config.components_num; ++c) {
+        uint8_t* plane = (uint8_t*)in_buf->data_yuv[c];
+        for (uint32_t i = 0; i < in_buf->alloc_size[c]; ++i) {
+            plane[i] = (uint8_t)(i * 7 + c * 31);
+        }
+    }
+
+    std::vector<uint8_t> out(bytes_per_frame);
+    svt_jpeg_xs_frame_t enc_input;
+    enc_input.bitstream.buffer = out.data();
+    enc_input.bitstream.allocation_size = bytes_per_frame;
+    enc_input.bitstream.used_size = 0;
+    enc_input.image = *in_buf;
+    enc_input.user_prv_ctx_ptr = NULL;
+    ASSERT_EQ(svt_jpeg_xs_encoder_send_picture(&enc, &enc_input, 1 /*blocking*/), SvtJxsErrorNone);
+    svt_jpeg_xs_frame_t enc_output;
+    memset(&enc_output, 0, sizeof(enc_output));
+    ASSERT_EQ(svt_jpeg_xs_encoder_get_packet(&enc, &enc_output, 1 /*blocking*/), SvtJxsErrorNone);
+    bitstream.assign(enc_output.bitstream.buffer, enc_output.bitstream.buffer + enc_output.bitstream.used_size);
+
+    svt_jpeg_xs_encoder_close(&enc);
+    svt_jpeg_xs_image_buffer_free(in_buf);
+}
+
+/* Overwrites Wf and Hf in the picture header. They follow the PIH marker, Lpih, Lcod, Ppih and Plev. */
+static void patch_frame_size(std::vector<uint8_t>& bitstream, uint16_t width, uint16_t height) {
+    size_t pih = 0;
+    while (pih + 1 < bitstream.size() && !(bitstream[pih] == 0xff && bitstream[pih + 1] == 0x12)) {
+        pih++;
+    }
+    ASSERT_LT(pih + 16, bitstream.size());
+    bitstream[pih + 12] = (uint8_t)(width >> 8);
+    bitstream[pih + 13] = (uint8_t)width;
+    bitstream[pih + 14] = (uint8_t)(height >> 8);
+    bitstream[pih + 15] = (uint8_t)height;
+}
+
+/* Expects decoder init to reject the stream and log the given error message. */
+static void expect_init_rejected(const std::vector<uint8_t>& bitstream, const char* message) {
+    svt_jpeg_xs_decoder_api_t decoder;
+    memset(&decoder, 0, sizeof(decoder));
+    decoder.verbose = VERBOSE_ERRORS;
+    svt_jpeg_xs_image_config_t image_config;
+    testing::internal::CaptureStderr();
+    SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_init(
+        SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &decoder, bitstream.data(), bitstream.size(), &image_config);
+    std::string log = testing::internal::GetCapturedStderr();
+    if (ret == SvtJxsErrorNone) {
+        svt_jpeg_xs_decoder_close(&decoder);
+        ADD_FAILURE() << "decoder init accepted the stream";
+        return;
+    }
+    EXPECT_EQ(ret, SvtJxsErrorDecoderInvalidBitstream);
+    EXPECT_EQ(decoder.private_ptr, nullptr);
+    EXPECT_NE(log.find(message), std::string::npos) << log;
+}
+
+TEST(DecoderInit, CoeffSizeOverflowReturnsError) {
+    // A 65535x65535 8-bit 4:4:4 header passes the per-plane byte_size check, but its coefficient
+    // count for the 3 components exceeds UINT32_MAX. The decoder used to compute it in uint32,
+    // allocate a wrapped (undersized) coefficient buffer and accept the stream.
+    std::vector<uint8_t> bitstream;
+    encode_frame(64, 64, 8, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, bitstream);
+    ASSERT_FALSE(HasFatalFailure());
+    patch_frame_size(bitstream, 65535, 65535);
+    ASSERT_FALSE(HasFatalFailure());
+    expect_init_rejected(bitstream, "coefficient buffer size overflow");
+}
+
+TEST(DecoderInit, ByteSizeOverflowReturnsError) {
+    // 65535x36000 10-bit 4:2:0: the coefficient count fits in uint32, but the 2-byte luma plane
+    // byte_size does not.
+    std::vector<uint8_t> bitstream;
+    encode_frame(64, 64, 10, COLOUR_FORMAT_PLANAR_YUV420, bitstream);
+    ASSERT_FALSE(HasFatalFailure());
+    patch_frame_size(bitstream, 65535, 36000);
+    ASSERT_FALSE(HasFatalFailure());
+    expect_init_rejected(bitstream, "byte_size overflow");
 }
 
 /* Encodes one 256x64 8-bit 4:2:2 CBR frame (4 slices of 16 lines, 4 precincts each), used as a
