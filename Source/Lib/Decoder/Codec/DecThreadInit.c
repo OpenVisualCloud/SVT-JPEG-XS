@@ -254,10 +254,10 @@ void* thread_init_stage_kernel(void* input_ptr) {
                 dec_api_prv->proxy_mode);
             if ((ret != SvtJxsErrorNone) && input_buffer_ptr->dec_input.bitstream.used_size != read_size) {
                 //TODO: Hard to test this case and in future this problem should be removed
-                SVT_WARN("[%s] %p, %i Invalid frame, HOW TO HANDLE ERROR????\n",
+                SVT_WARN("[%s] Invalid frame: codestream parse failed (error 0x%x), bitstream size %u\n",
                          __FUNCTION__,
-                         input_buffer_ptr->dec_input.bitstream.buffer,
-                         (int32_t)input_buffer_ptr->dec_input.bitstream.used_size);
+                         (uint32_t)ret,
+                         input_buffer_ptr->dec_input.bitstream.used_size);
             }
         }
 
