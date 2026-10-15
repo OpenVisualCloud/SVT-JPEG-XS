@@ -422,6 +422,13 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
         return SvtJxsErrorUndefined;
     }
 
+    if (dec_input->bitstream.buffer == NULL) {
+        if (dec_api->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Invalid input: bitstream buffer is NULL\n");
+        }
+        return SvtJxsErrorBadParameter;
+    }
+
     pi_t* pi = &dec_api_prv->dec_common.pi;
     uint8_t input_bit_depth = dec_api_prv->dec_common.picture_header_const.hdr_bit_depth[0];
     uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
@@ -483,6 +490,14 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_packet(svt_jpeg_xs_decoder
             SVT_ERROR("Please use svt_jpeg_xs_decoder_send_frame() instead\n");
         }
         return SvtJxsErrorUndefined;
+    }
+
+    // An empty packet consumes nothing, so only a buffer with data to copy must be valid.
+    if (dec_input->bitstream.buffer == NULL && dec_input->bitstream.used_size != 0) {
+        if (dec_api->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Invalid input: bitstream buffer is NULL\n");
+        }
+        return SvtJxsErrorBadParameter;
     }
     return internal_svt_jpeg_xs_decoder_send_packet(dec_api_prv, dec_input, bytes_used);
 }
