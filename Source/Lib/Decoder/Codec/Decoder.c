@@ -14,6 +14,8 @@
 
 #include "NltDec.h"
 
+#include <inttypes.h>
+
 SvtJxsErrorType_t svt_jpeg_xs_decoder_probe(const uint8_t* bitstream_buf, size_t codestream_size,
                                             picture_header_const_t* picture_header_const,
                                             picture_header_dynamic_t* picture_header_dynamic, uint32_t verbose) {
@@ -88,6 +90,18 @@ ColourFormat_t svt_jpeg_xs_get_format_from_params(uint32_t comps_num, uint32_t s
     return format;
 }
 
+// Coefficients in the whole-frame buffer, see coeff_buff_ptr_16bit layout in Decoder.h.
+// Computed in 64 bits: maximum-size headers (65535x65535, several components) exceed uint32.
+static uint64_t frame_coeff_size_get(const pi_t* pi) {
+    uint64_t precincts_line_coeff_size = 0;
+    for (uint32_t c = 0; c < pi->comps_num; c++) {
+        for (uint32_t b = 0; b < pi->components[c].bands_num; b++) {
+            precincts_line_coeff_size += (uint64_t)pi->components[c].bands[b].width * pi->components[c].bands[b].height_lines_num;
+        }
+    }
+    return precincts_line_coeff_size * pi->precincts_line_num;
+}
+
 ColourFormat_t svt_jpeg_xs_get_rgb_format(ColourFormat_t format, uint8_t hdr_Cpih) {
     if (hdr_Cpih == 1) {
         if (format == COLOUR_FORMAT_PLANAR_YUV444) {
@@ -134,6 +148,15 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
         return ret;
     }
 
+    // Coefficient offsets in the decoder are uint32, so the frame buffer must not exceed UINT32_MAX elements.
+    const uint64_t frame_coeff_size = frame_coeff_size_get(&dec_common->pi);
+    if (frame_coeff_size > UINT32_MAX) {
+        if (verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Frame coefficient buffer size overflow: %" PRIu64 " exceeds uint32 max\n", frame_coeff_size);
+        }
+        return SvtJxsErrorDecoderInvalidBitstream;
+    }
+
     dec_common->rct_per_precinct = 0;
     if (dec_common->picture_header_const.hdr_Cpih == 1) {
         // Per-line RCT needs components 0-2 to be wavelet transformed and to share the frame geometry,
@@ -171,8 +194,15 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
             out_image_config->components[c].width = pi->components[c].width;
             out_image_config->components[c].height = pi->components[c].height;
             uint32_t pixel_size = out_image_config->bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
-            out_image_config->components[c].byte_size = out_image_config->components[c].width *
+            const uint64_t byte_size64 = (uint64_t)out_image_config->components[c].width *
                 out_image_config->components[c].height * pixel_size;
+            if (byte_size64 > UINT32_MAX) {
+                if (verbose >= VERBOSE_ERRORS) {
+                    SVT_ERROR("Image component %d byte_size overflow: %" PRIu64 " exceeds uint32 max\n", c, byte_size64);
+                }
+                return SvtJxsErrorDecoderInvalidBitstream;
+            }
+            out_image_config->components[c].byte_size = (uint32_t)byte_size64;
         }
 
         out_image_config->format = dec_common->format;
@@ -195,18 +225,25 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
     pi_t* pi = &dec_common->pi;
     int ret = 0;
 
-    ctx->precincts_line_coeff_size = 0;
+    uint64_t precincts_line_coeff_size = 0;
     for (uint32_t c = 0; c < pi->comps_num; c++) {
-        ctx->precincts_line_coeff_comp_offset[c] = ctx->precincts_line_coeff_size;
+        ctx->precincts_line_coeff_comp_offset[c] = (uint32_t)precincts_line_coeff_size;
         for (uint32_t b = 0; b < pi->components[c].bands_num; b++) {
-            ctx->precincts_line_coeff_size += pi->components[c].bands[b].width * pi->components[c].bands[b].height_lines_num;
+            precincts_line_coeff_size += (uint64_t)pi->components[c].bands[b].width * pi->components[c].bands[b].height_lines_num;
         }
     }
 
-    uint32_t frame_coeff_size = ctx->precincts_line_coeff_size * pi->precincts_line_num;
+    // svt_jpeg_xs_dec_init_common() rejects larger frames, recheck before sizing the buffer.
+    // The offsets above are not larger than the frame size, so they did not truncate if it fits.
+    const uint64_t frame_coeff_size = precincts_line_coeff_size * pi->precincts_line_num;
+    if (frame_coeff_size > UINT32_MAX) {
+        svt_jpeg_xs_dec_instance_free(ctx);
+        return NULL;
+    }
+    ctx->precincts_line_coeff_size = (uint32_t)precincts_line_coeff_size;
 
     // Zero-initialize: IDWT may read padding/boundary elements before they are written
-    SVT_NO_THROW_CALLOC(ctx->coeff_buff_ptr_16bit, 1, frame_coeff_size * sizeof(int16_t));
+    SVT_NO_THROW_CALLOC(ctx->coeff_buff_ptr_16bit, (size_t)frame_coeff_size, sizeof(int16_t));
     if (!ctx->coeff_buff_ptr_16bit) {
         ret |= 1;
     }
