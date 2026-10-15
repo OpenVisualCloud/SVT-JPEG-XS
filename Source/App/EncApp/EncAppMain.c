@@ -283,6 +283,7 @@ int32_t main(int32_t argc, char *argv[]) {
 
     thread_send_handle = app_create_thread(thread_send, &config_enc);
     if (thread_send_handle == NULL) {
+        return_error = SvtJxsErrorInsufficientResources;
         goto fail;
     }
 
@@ -423,5 +424,11 @@ fail:
         config_enc.out_file = NULL;
     }
 
+#ifndef _WIN32
+    // On POSIX only the low 8 bits of the exit status survive, do not let an error exit with 0.
+    if (return_error != SvtJxsErrorNone && ((uint32_t)return_error & 0xFF) == 0) {
+        return 1;
+    }
+#endif
     return return_error;
 }

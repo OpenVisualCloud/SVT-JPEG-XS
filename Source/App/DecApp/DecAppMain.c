@@ -308,6 +308,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
     if (config_dec.limit_fps > 240) {
         fprintf(stderr, "Error The fps limit is 240 fps \n");
+        return_error = DEC_INVALID_PARAMETER;
         goto fail;
     }
 
@@ -434,6 +435,7 @@ int32_t main(int32_t argc, char* argv[]) {
         thread_send_handle = app_create_thread(thread_send, &config_dec);
     }
     if (thread_send_handle == NULL) {
+        return_error = DEC_CAN_NOT_DECODE;
         goto fail;
     }
 
