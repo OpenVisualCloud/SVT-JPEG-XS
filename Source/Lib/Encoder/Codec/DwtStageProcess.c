@@ -115,7 +115,7 @@ void* dwt_stage_kernel(void* input_ptr) {
         svt_jpeg_xs_image_buffer_t* image_buffer = &pcs_ptr->enc_input.image;
 
         const uint8_t* plane_buffer_in = image_buffer->data_yuv[component_id];
-        uint16_t plane_stride = image_buffer->stride[component_id];
+        uint32_t plane_stride = image_buffer->stride[component_id];
 
         uint8_t input_bit_depth = (uint8_t)enc_common->bit_depth;
         const uint32_t pixel_size = input_bit_depth == 8 ? sizeof(uint8_t) : sizeof(uint16_t);

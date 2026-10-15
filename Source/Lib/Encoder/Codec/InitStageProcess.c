@@ -97,7 +97,7 @@ static int32_t validate_yuv_range(pi_t *pi, svt_jpeg_xs_image_buffer_t *image_bu
 
         for (uint32_t component_id = 0; component_id < comps_num; ++component_id) {
             uint16_t *plane_buffer_in = (uint16_t *)image_buffer->data_yuv[component_id];
-            uint16_t plane_stride = image_buffer->stride[component_id];
+            uint32_t plane_stride = image_buffer->stride[component_id];
             for (uint32_t y = 0; y < pi->components[component_id].height; ++y) {
                 uint32_t width = pi->components[component_id].width;
                 if (format > COLOUR_FORMAT_PACKED_MIN && format < COLOUR_FORMAT_PACKED_MAX) {

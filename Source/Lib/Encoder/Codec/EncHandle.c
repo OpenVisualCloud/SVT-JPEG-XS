@@ -1243,10 +1243,17 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_send_picture(svt_jpeg_xs_encode
     svt_jpeg_xs_encoder_api_prv_t* enc_api_prv = (svt_jpeg_xs_encoder_api_prv_t*)enc_api->private_ptr;
 
     if (enc_input->bitstream.allocation_size < enc_api_prv->enc_common.picture_header_dynamic.hdr_Lcod) {
+        if (enc_api->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Invalid input: bitstream allocation_size %u is smaller than frame size %u\n",
+                      enc_input->bitstream.allocation_size,
+                      enc_api_prv->enc_common.picture_header_dynamic.hdr_Lcod);
+        }
         return SvtJxsErrorBadParameter;
     }
     if (enc_input->bitstream.buffer == NULL) {
-        SVT_ERROR("Invalid input: bitstream buffer is NULL\n");
+        if (enc_api->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Invalid input: bitstream buffer is NULL\n");
+        }
         return SvtJxsErrorBadParameter;
     }
 
@@ -1259,19 +1266,28 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_send_picture(svt_jpeg_xs_encode
     const uint8_t comps_to_check = packed ? 1 : pi->comps_num;
     for (uint8_t c = 0; c < comps_to_check; ++c) {
         if (enc_input->image.data_yuv[c] == NULL) {
-            SVT_ERROR("Invalid input: data_yuv[%u] is NULL\n", c);
+            if (enc_api->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Invalid input: data_yuv[%u] is NULL\n", c);
+            }
             return SvtJxsErrorBadParameter;
         }
-        uint32_t min_size;
+        // Computed in 64 bits: a large stride or height would wrap uint32 and pass an undersized buffer.
+        uint64_t min_size;
         // The last row might be shorter than the stride, e.g. in case the application is encoding
         // an interlaced image with fields interleaved row by row, but feeding each field individually
         // to the encoder. In that case the stride would be double the usual stride so the encoder only
         // encodes every second row, but the last row of the second field would only have a single row
         // of data left in it (half the stride in that case).
-        min_size = enc_input->image.stride[c] * pixel_size * (pi->components[c].height - 1);
+        min_size = (uint64_t)enc_input->image.stride[c] * pixel_size * (pi->components[c].height - 1);
         //Packed format holds 3 interleaved samples per pixel in data_yuv[0].
-        min_size += pi->components[c].width * pixel_size * (packed ? 3 : 1);
+        min_size += (uint64_t)pi->components[c].width * pixel_size * (packed ? 3 : 1);
         if (enc_input->image.alloc_size[c] < min_size) {
+            if (enc_api->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Invalid input: alloc_size[%u] %u is smaller than %" PRIu64 " required by stride and height\n",
+                          c,
+                          enc_input->image.alloc_size[c],
+                          min_size);
+            }
             return SvtJxsErrorBadParameter;
         }
     }

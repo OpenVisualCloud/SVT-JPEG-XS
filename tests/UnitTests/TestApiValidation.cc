@@ -258,9 +258,18 @@ static void encode_frame(uint32_t width, uint32_t height, uint8_t bit_depth, Col
     svt_jpeg_xs_image_buffer_t* in_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
     ASSERT_NE(in_buf, nullptr);
     for (int32_t c = 0; c < image_config.components_num; ++c) {
-        uint8_t* plane = (uint8_t*)in_buf->data_yuv[c];
-        for (uint32_t i = 0; i < in_buf->alloc_size[c]; ++i) {
-            plane[i] = (uint8_t)(i * 7 + c * 31);
+        if (bit_depth <= 8) {
+            uint8_t* plane = (uint8_t*)in_buf->data_yuv[c];
+            for (uint32_t i = 0; i < in_buf->alloc_size[c]; ++i) {
+                plane[i] = (uint8_t)(i * 7 + c * 31);
+            }
+        }
+        else {
+            // Samples above bit_depth bits are invalid input.
+            uint16_t* plane = (uint16_t*)in_buf->data_yuv[c];
+            for (uint32_t i = 0; i < in_buf->alloc_size[c] / 2; ++i) {
+                plane[i] = (uint16_t)((i * 7 + c * 31) & ((1u << bit_depth) - 1));
+            }
         }
     }
 
@@ -807,6 +816,155 @@ TEST(EncoderSendPicture, PackedInputRejectsBufferShorterThanLastRow8Bit) {
 
 TEST(EncoderSendPicture, PackedInputRejectsBufferShorterThanLastRow10Bit) {
     check_packed_alloc_size(10);
+}
+
+/* Geometry whose minimum plane size, stride * 2 * (height - 1) + width * 2 bytes, exceeds uint32. */
+static const uint32_t overflow_width = 64;
+static const uint32_t overflow_height = 40000;
+static const uint32_t overflow_stride = 80000;
+
+/* The minimum plane size as it wraps in uint32. A packed plane holds 3 samples per pixel. */
+static uint32_t overflow_wrapped_min_size(uint32_t samples_per_pixel = 1) {
+    return (uint32_t)((uint64_t)overflow_stride * 2 * (overflow_height - 1) + overflow_width * 2 * samples_per_pixel);
+}
+
+static void check_encoder_stride_overflow(ColourFormat_t format) {
+    // The minimum input plane size used to be computed in uint32, so this stride wrapped it and an
+    // alloc_size far smaller than the rows addressed by the stride was accepted.
+    const bool packed = format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB;
+    svt_jpeg_xs_encoder_api_t encoder;
+    ASSERT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder),
+              SvtJxsErrorNone);
+    encoder.verbose = VERBOSE_NONE;
+    encoder.source_width = overflow_width;
+    encoder.source_height = overflow_height;
+    encoder.input_bit_depth = 10;
+    encoder.colour_format = format;
+    encoder.bpp_numerator = 3;
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder), SvtJxsErrorNone);
+
+    svt_jpeg_xs_image_config_t image_config;
+    uint32_t bytes_per_frame = 0;
+    ASSERT_EQ(svt_jpeg_xs_encoder_get_image_config(
+                  SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder, &image_config, &bytes_per_frame),
+              SvtJxsErrorNone);
+    svt_jpeg_xs_image_buffer_t* image = svt_jpeg_xs_image_buffer_alloc(&image_config);
+    ASSERT_NE(image, nullptr);
+    std::vector<uint8_t> bitstream(bytes_per_frame);
+
+    svt_jpeg_xs_frame_t enc_input;
+    memset(&enc_input, 0, sizeof(enc_input));
+    enc_input.image = *image;
+    enc_input.image.stride[0] = overflow_stride;
+    enc_input.image.alloc_size[0] = overflow_wrapped_min_size(packed ? 3 : 1);
+    enc_input.bitstream.buffer = bitstream.data();
+    enc_input.bitstream.allocation_size = bytes_per_frame;
+    // Stop on failure: an accepted frame would read far past the image buffer.
+    ASSERT_EQ(svt_jpeg_xs_encoder_send_picture(&encoder, &enc_input, 1 /*blocking*/), SvtJxsErrorBadParameter);
+
+    svt_jpeg_xs_encoder_close(&encoder);
+    svt_jpeg_xs_image_buffer_free(image);
+}
+
+TEST(EncoderSendPicture, StrideOverflowRejected) {
+    check_encoder_stride_overflow(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB);
+}
+
+TEST(EncoderSendPicture, PackedStrideOverflowRejected) {
+    check_encoder_stride_overflow(COLOUR_FORMAT_PACKED_YUV444_OR_RGB);
+}
+
+/* Encodes one 8-bit 4:4:4 64x64 frame with the CPU profile, rows placed stride samples apart. */
+static void encode_cpu_profile_with_stride(uint32_t stride, std::vector<uint8_t>& bitstream) {
+    const uint32_t width = 64;
+    const uint32_t height = 64;
+    svt_jpeg_xs_encoder_api_t encoder;
+    ASSERT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder),
+              SvtJxsErrorNone);
+    encoder.verbose = VERBOSE_NONE;
+    encoder.source_width = width;
+    encoder.source_height = height;
+    encoder.input_bit_depth = 8;
+    encoder.colour_format = COLOUR_FORMAT_PLANAR_YUV444_OR_RGB;
+    encoder.bpp_numerator = 3;
+    encoder.cpu_profile = 1; //CPU_PROFILE_CPU
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder), SvtJxsErrorNone);
+
+    svt_jpeg_xs_image_config_t image_config;
+    uint32_t bytes_per_frame = 0;
+    ASSERT_EQ(svt_jpeg_xs_encoder_get_image_config(
+                  SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &encoder, &image_config, &bytes_per_frame),
+              SvtJxsErrorNone);
+
+    const uint32_t plane_size = stride * (height - 1) + width;
+    std::vector<std::vector<uint8_t>> planes(3, std::vector<uint8_t>(plane_size, 0xee));
+    svt_jpeg_xs_frame_t enc_input;
+    memset(&enc_input, 0, sizeof(enc_input));
+    for (uint32_t c = 0; c < 3; ++c) {
+        for (uint32_t y = 0; y < height; ++y) {
+            for (uint32_t x = 0; x < width; ++x) {
+                planes[c][y * stride + x] = (uint8_t)(x * 3 + y * 5 + c * 31);
+            }
+        }
+        enc_input.image.data_yuv[c] = planes[c].data();
+        enc_input.image.stride[c] = stride;
+        enc_input.image.alloc_size[c] = plane_size;
+    }
+    std::vector<uint8_t> out(bytes_per_frame);
+    enc_input.bitstream.buffer = out.data();
+    enc_input.bitstream.allocation_size = bytes_per_frame;
+    ASSERT_EQ(svt_jpeg_xs_encoder_send_picture(&encoder, &enc_input, 1 /*blocking*/), SvtJxsErrorNone);
+    svt_jpeg_xs_frame_t enc_output;
+    memset(&enc_output, 0, sizeof(enc_output));
+    ASSERT_EQ(svt_jpeg_xs_encoder_get_packet(&encoder, &enc_output, 1 /*blocking*/), SvtJxsErrorNone);
+    bitstream.assign(enc_output.bitstream.buffer, enc_output.bitstream.buffer + enc_output.bitstream.used_size);
+
+    svt_jpeg_xs_encoder_close(&encoder);
+}
+
+TEST(EncoderSendPicture, CpuProfileStrideAbove65535) {
+    // The CPU profile DWT stage used to keep the stride in uint16_t, so a padded stride above 65535
+    // was cut to stride mod 65536 and the wrong rows were encoded.
+    std::vector<uint8_t> reference;
+    encode_cpu_profile_with_stride(64, reference);
+    ASSERT_FALSE(HasFatalFailure());
+    std::vector<uint8_t> padded;
+    encode_cpu_profile_with_stride(70000, padded);
+    ASSERT_FALSE(HasFatalFailure());
+    EXPECT_EQ(padded, reference);
+}
+
+TEST(DecoderFrameMode, StrideOverflowRejected) {
+    // The minimum output plane size used to be computed in uint32, so this stride wrapped it and an
+    // alloc_size far smaller than the rows addressed by the stride was accepted.
+    std::vector<uint8_t> bitstream;
+    encode_frame(overflow_width, overflow_height, 10, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, bitstream);
+    ASSERT_FALSE(HasFatalFailure());
+
+    svt_jpeg_xs_decoder_api_t decoder;
+    memset(&decoder, 0, sizeof(decoder));
+    decoder.verbose = VERBOSE_NONE;
+    svt_jpeg_xs_image_config_t image_config;
+    ASSERT_EQ(
+        svt_jpeg_xs_decoder_init(
+            SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &decoder, bitstream.data(), bitstream.size(), &image_config),
+        SvtJxsErrorNone);
+    svt_jpeg_xs_image_buffer_t* out_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
+    ASSERT_NE(out_buf, nullptr);
+
+    svt_jpeg_xs_frame_t dec_input;
+    memset(&dec_input, 0, sizeof(dec_input));
+    dec_input.image = *out_buf;
+    dec_input.image.stride[0] = overflow_stride;
+    dec_input.image.alloc_size[0] = overflow_wrapped_min_size();
+    dec_input.bitstream.buffer = bitstream.data();
+    dec_input.bitstream.used_size = (uint32_t)bitstream.size();
+    dec_input.bitstream.allocation_size = (uint32_t)bitstream.size();
+    // Stop on failure: an accepted frame would write far past the image buffer.
+    ASSERT_EQ(svt_jpeg_xs_decoder_send_frame(&decoder, &dec_input, 1 /*blocking*/), SvtJxsErrorBadParameter);
+
+    svt_jpeg_xs_decoder_close(&decoder);
+    svt_jpeg_xs_image_buffer_free(out_buf);
 }
 
 TEST(EncoderInit, ColorTransformRequiresLowLatencyProfileReturnsError) {
