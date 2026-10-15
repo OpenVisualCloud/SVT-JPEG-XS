@@ -111,12 +111,12 @@ void* thread_universal_stage_kernel(void* input_ptr) {
 
         if (ret_decode < 0) {
             if (dec_api_prv->verbose >= VERBOSE_ERRORS) {
-                SVT_ERROR("[%s:Process ID: %i] %i, %p, %i HANDLE ERROR!!!\n",
+                SVT_ERROR("[%s:Process ID: %i] frame %i slice %u decode failed, slice size %u\n",
                           __FUNCTION__,
                           universal_ctx->process_idx,
                           (int)dec_ctx->frame_num,
-                          input_buffer_ptr->bitstream_buf,
-                          (int)input_buffer_ptr->bitstream_buf_size);
+                          input_buffer_ptr->slice_id,
+                          (uint32_t)input_buffer_ptr->bitstream_buf_size);
             }
         }
 

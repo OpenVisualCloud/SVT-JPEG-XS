@@ -157,6 +157,19 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
         return SvtJxsErrorDecoderInvalidBitstream;
     }
 
+    // Reported to the caller as uint32 byte_size, checked before any frame-sized allocation.
+    const uint32_t pixel_size = dec_common->picture_header_const.hdr_bit_depth[0] <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
+    uint64_t byte_size64[MAX_COMPONENTS_NUM] = {0};
+    for (uint32_t c = 0; c < dec_common->pi.comps_num; c++) {
+        byte_size64[c] = (uint64_t)dec_common->pi.components[c].width * dec_common->pi.components[c].height * pixel_size;
+        if (byte_size64[c] > UINT32_MAX) {
+            if (verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Image component %u byte_size overflow: %" PRIu64 " exceeds uint32 max\n", c, byte_size64[c]);
+            }
+            return SvtJxsErrorDecoderInvalidBitstream;
+        }
+    }
+
     dec_common->rct_per_precinct = 0;
     if (dec_common->picture_header_const.hdr_Cpih == 1) {
         // Per-line RCT needs components 0-2 to be wavelet transformed and to share the frame geometry,
@@ -193,16 +206,7 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
         for (int32_t c = 0; c < out_image_config->components_num; c++) {
             out_image_config->components[c].width = pi->components[c].width;
             out_image_config->components[c].height = pi->components[c].height;
-            uint32_t pixel_size = out_image_config->bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
-            const uint64_t byte_size64 = (uint64_t)out_image_config->components[c].width *
-                out_image_config->components[c].height * pixel_size;
-            if (byte_size64 > UINT32_MAX) {
-                if (verbose >= VERBOSE_ERRORS) {
-                    SVT_ERROR("Image component %d byte_size overflow: %" PRIu64 " exceeds uint32 max\n", c, byte_size64);
-                }
-                return SvtJxsErrorDecoderInvalidBitstream;
-            }
-            out_image_config->components[c].byte_size = (uint32_t)byte_size64;
+            out_image_config->components[c].byte_size = (uint32_t)byte_size64[c];
         }
 
         out_image_config->format = dec_common->format;
