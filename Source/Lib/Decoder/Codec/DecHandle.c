@@ -6,6 +6,7 @@
 #include "DecHandle.h"
 
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "Decoder.h"
 #include "Definitions.h"
@@ -434,10 +435,13 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
     uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     for (uint8_t c = 0; c < pi->comps_num; ++c) {
         if (dec_input->image.data_yuv[c] == NULL) {
-            SVT_ERROR("Invalid input: data_yuv[%u] is NULL\n", c);
+            if (dec_api->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Invalid input: data_yuv[%u] is NULL\n", c);
+            }
             return SvtJxsErrorBadParameter;
         }
-        uint32_t min_size;
+        // Computed in 64 bits: a large stride or height would wrap uint32 and pass an undersized buffer.
+        uint64_t min_size;
         // The last row might be shorter than the stride, e.g. in case the application is decoding
         // an interlaced image (represented by two codestreams, one for each field) into an output
         // image where the fields in memory are interleaved row by row. When feeding each field
@@ -446,9 +450,15 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
         // into every second row. The last row of the second field which is the last row of the
         // output image would only have a single row of data left in it then though (at most half
         // the specified rowstride in that case).
-        min_size = dec_input->image.stride[c] * pixel_size * (pi->components[c].height - 1);
-        min_size += pi->components[c].width * pixel_size;
+        min_size = (uint64_t)dec_input->image.stride[c] * pixel_size * (pi->components[c].height - 1);
+        min_size += (uint64_t)pi->components[c].width * pixel_size;
         if (dec_input->image.alloc_size[c] < min_size) {
+            if (dec_api->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Invalid input: alloc_size[%u] %u is smaller than %" PRIu64 " required by stride and height\n",
+                          c,
+                          dec_input->image.alloc_size[c],
+                          min_size);
+            }
             return SvtJxsErrorBadParameter;
         }
     }
