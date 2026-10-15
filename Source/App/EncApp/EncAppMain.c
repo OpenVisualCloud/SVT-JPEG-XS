@@ -257,6 +257,19 @@ int32_t main(int32_t argc, char *argv[]) {
     }
 #endif
 
+    //The send thread sends nothing from an input without one whole frame, and the receive loop would wait for its
+    //packets forever. A size of 0 is also reported for a pipe, which is valid with an explicit --frames count.
+    const uint64_t file_size = get_file_size(config_enc.in_file);
+    const uint32_t single_frame_size = get_single_frame_size(&config_enc.image_config);
+    if (file_size < single_frame_size && (config_enc.frames_count == 0 || file_size > 0)) {
+        fprintf(stderr,
+                "Input file %s is smaller than one frame (%u bytes) or its size is unknown, use --frames for a pipe\n",
+                config_enc.in_filename,
+                single_frame_size);
+        return_error = SvtJxsErrorBadParameter;
+        goto fail;
+    }
+
     config_enc.frame_pool = svt_jpeg_xs_frame_pool_alloc(
         &config_enc.image_config, bitstream_size, 5); //Allocate 5 output YUV buffers
     if (!config_enc.frame_pool) {
@@ -274,8 +287,6 @@ int32_t main(int32_t argc, char *argv[]) {
 
     //Calculate number of frames in file if user does not specify any
     if (config_enc.frames_count == 0) {
-        int64_t file_size = get_file_size(config_enc.in_file);
-        uint32_t single_frame_size = get_single_frame_size(&config_enc.image_config);
         config_enc.frames_count = (uint32_t)(file_size / single_frame_size);
     }
 
