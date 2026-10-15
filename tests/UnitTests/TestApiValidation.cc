@@ -474,6 +474,90 @@ TEST(DecoderFrameMode, SendPacketReturnsError) {
     svt_jpeg_xs_image_buffer_free(out_buf);
 }
 
+TEST(DecoderFrameMode, NullBitstreamBufferReturnsError) {
+    // send_frame() used to accept a NULL bitstream buffer with a non-zero used_size and the decoder
+    // thread then parsed the header from the NULL pointer.
+    std::vector<uint8_t> bitstream;
+    encode_cbr_packet_mode_base(bitstream);
+    ASSERT_FALSE(HasFatalFailure());
+
+    svt_jpeg_xs_decoder_api_t decoder;
+    memset(&decoder, 0, sizeof(decoder));
+    decoder.verbose = VERBOSE_NONE;
+    decoder.packetization_mode = 0;
+    svt_jpeg_xs_image_config_t image_config;
+    ASSERT_EQ(
+        svt_jpeg_xs_decoder_init(
+            SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &decoder, bitstream.data(), bitstream.size(), &image_config),
+        SvtJxsErrorNone);
+    svt_jpeg_xs_image_buffer_t* out_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
+    ASSERT_NE(out_buf, nullptr);
+
+    svt_jpeg_xs_frame_t dec_input;
+    memset(&dec_input, 0, sizeof(dec_input));
+    dec_input.image = *out_buf;
+    dec_input.bitstream.buffer = NULL;
+    dec_input.bitstream.used_size = (uint32_t)bitstream.size();
+    dec_input.bitstream.allocation_size = (uint32_t)bitstream.size();
+    // Stop on failure: a queued NULL buffer would crash the decoder thread.
+    ASSERT_EQ(svt_jpeg_xs_decoder_send_frame(&decoder, &dec_input, 1 /*blocking*/), SvtJxsErrorBadParameter);
+
+    // The rejected call leaves the decoder usable.
+    dec_input.bitstream.buffer = bitstream.data();
+    ASSERT_EQ(svt_jpeg_xs_decoder_send_frame(&decoder, &dec_input, 1 /*blocking*/), SvtJxsErrorNone);
+    svt_jpeg_xs_frame_t dec_output;
+    EXPECT_EQ(svt_jpeg_xs_decoder_get_frame(&decoder, &dec_output, 1 /*blocking*/), SvtJxsErrorNone);
+
+    svt_jpeg_xs_decoder_close(&decoder);
+    svt_jpeg_xs_image_buffer_free(out_buf);
+}
+
+TEST(DecoderPacketMode, NullBitstreamBufferReturnsError) {
+    // send_packet() used to copy used_size bytes from a NULL bitstream buffer.
+    std::vector<uint8_t> bitstream;
+    encode_cbr_packet_mode_base(bitstream);
+    ASSERT_FALSE(HasFatalFailure());
+
+    svt_jpeg_xs_decoder_api_t decoder;
+    memset(&decoder, 0, sizeof(decoder));
+    decoder.verbose = VERBOSE_NONE;
+    decoder.packetization_mode = 1;
+    svt_jpeg_xs_image_config_t image_config;
+    ASSERT_EQ(
+        svt_jpeg_xs_decoder_init(
+            SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &decoder, bitstream.data(), bitstream.size(), &image_config),
+        SvtJxsErrorNone);
+    svt_jpeg_xs_image_buffer_t* out_buf = svt_jpeg_xs_image_buffer_alloc(&image_config);
+    ASSERT_NE(out_buf, nullptr);
+
+    svt_jpeg_xs_frame_t dec_input;
+    memset(&dec_input, 0, sizeof(dec_input));
+    dec_input.image = *out_buf;
+    dec_input.bitstream.buffer = NULL;
+    dec_input.bitstream.used_size = (uint32_t)bitstream.size();
+    dec_input.bitstream.allocation_size = (uint32_t)bitstream.size();
+    uint32_t bytes_used = 1;
+    ASSERT_EQ(svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used), SvtJxsErrorBadParameter);
+    EXPECT_EQ(bytes_used, 0u);
+
+    // An empty packet without a buffer is still accepted and consumes nothing.
+    dec_input.bitstream.used_size = 0;
+    bytes_used = 1;
+    EXPECT_NE(svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used), SvtJxsErrorBadParameter);
+    EXPECT_EQ(bytes_used, 0u);
+
+    // The rejected call leaves the decoder usable.
+    dec_input.bitstream.buffer = bitstream.data();
+    dec_input.bitstream.used_size = (uint32_t)bitstream.size();
+    ASSERT_EQ(svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used), SvtJxsErrorNone);
+    EXPECT_EQ(bytes_used, (uint32_t)bitstream.size());
+    svt_jpeg_xs_frame_t dec_output;
+    EXPECT_EQ(svt_jpeg_xs_decoder_get_frame(&decoder, &dec_output, 1 /*blocking*/), SvtJxsErrorNone);
+
+    svt_jpeg_xs_decoder_close(&decoder);
+    svt_jpeg_xs_image_buffer_free(out_buf);
+}
+
 TEST(DecoderPacketMode, CloseWithPartiallySentFrameDoesNotHang) {
     // Found by the decoder fuzzer: with IDWT synchronized between slices, a slice thread waits for
     // the next slice to be decoded. When a frame is only partially sent in packet mode, that next

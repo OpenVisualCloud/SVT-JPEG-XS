@@ -134,7 +134,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_single_frame_size_with_prox
   *  SvtJxsErrorNoErrorEmptyQueue - (warning), Frame not ready, try again later
   * Return fatal:
   *  SvtJxsErrorDecoderInvalidPointer - when dec_input or decoder handle is null or decoder is not initialized
-  *  SvtJxsErrorBadParameter - when image.data_yuv[c] is null or image.alloc_size[c] is too small for stride and height
+  *  SvtJxsErrorBadParameter - when bitstream.buffer or image.data_yuv[c] is null or image.alloc_size[c] is too small for stride and height
   *  SvtJxsErrorUndefined - when decoder is initialized with packetization_mode = 1
   * or any other from SvtJxsErrorType_t enum
   **/
@@ -155,6 +155,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
   * SvtJxsErrorDecoderBitstreamTooShort - data was consumed but not enough to decode the entire image
   * Return fatal:
   *  SvtJxsErrorDecoderInvalidPointer - when dec_input, bytes_used or decoder handle is null or decoder is not initialized
+  *  SvtJxsErrorBadParameter - when bitstream.buffer is null and bitstream.used_size is not 0 (bytes_used is set to 0)
   *  SvtJxsErrorUndefined - when decoder is initialized with packetization_mode = 0 (bytes_used is set to 0)
   * or an internal queue error.
   * Header and slice errors are not returned here; they are reported for the frame by svt_jpeg_xs_decoder_get_frame().
