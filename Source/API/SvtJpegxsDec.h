@@ -146,7 +146,8 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
   * @ *dec_api - Decoder handle.
   * @ *dec_input - Structure with frame info: pointers on yuv and bitstream, frame context. Structure will be copied internally and received by svt_jpeg_xs_decoder_get_frame().
   *                 bitstream.used_size bytes are copied internally. The image buffer and user_prv_ctx_ptr are taken
-  *                 only from the first packet of a frame; the image buffer size is not checked.
+  *                 only from the first packet of a frame, the image buffer is checked on that packet.
+  *                 A packet with bitstream.used_size = 0 consumes nothing and returns SvtJxsErrorDecoderBitstreamTooShort.
   *                 bitstream.ready_to_release and image.ready_to_release are written into this structure.
   * @ *bytes_used - Bytes consumed: min(bytes still missing in current frame, bitstream.used_size).
   *                 The caller must send the remaining bytes again (they belong to the next frame).
@@ -155,7 +156,9 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
   * SvtJxsErrorDecoderBitstreamTooShort - data was consumed but not enough to decode the entire image
   * Return fatal:
   *  SvtJxsErrorDecoderInvalidPointer - when dec_input, bytes_used or decoder handle is null or decoder is not initialized
-  *  SvtJxsErrorBadParameter - when bitstream.buffer is null and bitstream.used_size is not 0 (bytes_used is set to 0)
+  *  SvtJxsErrorBadParameter - when bitstream.buffer is null and bitstream.used_size is not 0, or, on the first packet of
+  *                            a frame, image.data_yuv[c] is null or image.alloc_size[c] is too small for stride and height
+  *                            (bytes_used is set to 0)
   *  SvtJxsErrorUndefined - when decoder is initialized with packetization_mode = 0 (bytes_used is set to 0)
   * or an internal queue error.
   * Header and slice errors are not returned here; they are reported for the frame by svt_jpeg_xs_decoder_get_frame().

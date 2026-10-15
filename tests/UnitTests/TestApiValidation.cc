@@ -549,17 +549,28 @@ TEST(DecoderPacketMode, NullBitstreamBufferReturnsError) {
     ASSERT_EQ(svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used), SvtJxsErrorBadParameter);
     EXPECT_EQ(bytes_used, 0u);
 
-    // An empty packet without a buffer is still accepted and consumes nothing.
-    dec_input.bitstream.used_size = 0;
+    // An empty packet consumes nothing and does not start a frame with its (missing) image.
+    svt_jpeg_xs_frame_t empty_input;
+    memset(&empty_input, 0, sizeof(empty_input));
     bytes_used = 1;
-    EXPECT_NE(svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used), SvtJxsErrorBadParameter);
+    EXPECT_EQ(svt_jpeg_xs_decoder_send_packet(&decoder, &empty_input, &bytes_used), SvtJxsErrorDecoderBitstreamTooShort);
     EXPECT_EQ(bytes_used, 0u);
+    EXPECT_EQ(empty_input.bitstream.ready_to_release, 1);
 
-    // The rejected call leaves the decoder usable.
+    // The rejected and empty calls leave the decoder usable, with the image of the next packet.
+    // An empty packet in the middle of a frame does not complete it either.
+    const uint32_t first_part = (uint32_t)bitstream.size() / 2;
     dec_input.bitstream.buffer = bitstream.data();
-    dec_input.bitstream.used_size = (uint32_t)bitstream.size();
+    dec_input.bitstream.used_size = first_part;
+    ASSERT_EQ(svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used), SvtJxsErrorDecoderBitstreamTooShort);
+    EXPECT_EQ(bytes_used, first_part);
+    bytes_used = 1;
+    EXPECT_EQ(svt_jpeg_xs_decoder_send_packet(&decoder, &empty_input, &bytes_used), SvtJxsErrorDecoderBitstreamTooShort);
+    EXPECT_EQ(bytes_used, 0u);
+    dec_input.bitstream.buffer = bitstream.data() + first_part;
+    dec_input.bitstream.used_size = (uint32_t)bitstream.size() - first_part;
     ASSERT_EQ(svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used), SvtJxsErrorNone);
-    EXPECT_EQ(bytes_used, (uint32_t)bitstream.size());
+    EXPECT_EQ(bytes_used, (uint32_t)bitstream.size() - first_part);
     svt_jpeg_xs_frame_t dec_output;
     EXPECT_EQ(svt_jpeg_xs_decoder_get_frame(&decoder, &dec_output, 1 /*blocking*/), SvtJxsErrorNone);
 
@@ -934,16 +945,16 @@ TEST(EncoderSendPicture, CpuProfileStrideAbove65535) {
     EXPECT_EQ(padded, reference);
 }
 
-TEST(DecoderFrameMode, StrideOverflowRejected) {
-    // The minimum output plane size used to be computed in uint32, so this stride wrapped it and an
-    // alloc_size far smaller than the rows addressed by the stride was accepted.
+/* Sends a frame whose output image has a wrapping stride, or a NULL plane, and expects it rejected. */
+static void check_decoder_image_rejected(uint8_t packetization_mode, bool null_plane) {
     std::vector<uint8_t> bitstream;
     encode_frame(overflow_width, overflow_height, 10, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, bitstream);
-    ASSERT_FALSE(HasFatalFailure());
+    ASSERT_FALSE(testing::Test::HasFatalFailure());
 
     svt_jpeg_xs_decoder_api_t decoder;
     memset(&decoder, 0, sizeof(decoder));
     decoder.verbose = VERBOSE_NONE;
+    decoder.packetization_mode = packetization_mode;
     svt_jpeg_xs_image_config_t image_config;
     ASSERT_EQ(
         svt_jpeg_xs_decoder_init(
@@ -955,16 +966,43 @@ TEST(DecoderFrameMode, StrideOverflowRejected) {
     svt_jpeg_xs_frame_t dec_input;
     memset(&dec_input, 0, sizeof(dec_input));
     dec_input.image = *out_buf;
-    dec_input.image.stride[0] = overflow_stride;
-    dec_input.image.alloc_size[0] = overflow_wrapped_min_size();
+    if (null_plane) {
+        dec_input.image.data_yuv[1] = NULL;
+    }
+    else {
+        dec_input.image.stride[0] = overflow_stride;
+        dec_input.image.alloc_size[0] = overflow_wrapped_min_size();
+    }
     dec_input.bitstream.buffer = bitstream.data();
     dec_input.bitstream.used_size = (uint32_t)bitstream.size();
     dec_input.bitstream.allocation_size = (uint32_t)bitstream.size();
-    // Stop on failure: an accepted frame would write far past the image buffer.
-    ASSERT_EQ(svt_jpeg_xs_decoder_send_frame(&decoder, &dec_input, 1 /*blocking*/), SvtJxsErrorBadParameter);
+    // Stop on failure: an accepted frame would write past the image buffer or through the NULL plane.
+    if (packetization_mode) {
+        uint32_t bytes_used = 1;
+        ASSERT_EQ(svt_jpeg_xs_decoder_send_packet(&decoder, &dec_input, &bytes_used), SvtJxsErrorBadParameter);
+        EXPECT_EQ(bytes_used, 0u);
+    }
+    else {
+        ASSERT_EQ(svt_jpeg_xs_decoder_send_frame(&decoder, &dec_input, 1 /*blocking*/), SvtJxsErrorBadParameter);
+    }
 
     svt_jpeg_xs_decoder_close(&decoder);
     svt_jpeg_xs_image_buffer_free(out_buf);
+}
+
+TEST(DecoderFrameMode, StrideOverflowRejected) {
+    // The minimum output plane size used to be computed in uint32, so this stride wrapped it and an
+    // alloc_size far smaller than the rows addressed by the stride was accepted.
+    check_decoder_image_rejected(0, false);
+}
+
+TEST(DecoderPacketMode, StrideOverflowRejected) {
+    // send_packet() used to take the output image from the first packet of a frame without any check.
+    check_decoder_image_rejected(1, false);
+}
+
+TEST(DecoderPacketMode, NullImagePlaneRejected) {
+    check_decoder_image_rejected(1, true);
 }
 
 TEST(EncoderInit, ColorTransformRequiresLowLatencyProfileReturnsError) {

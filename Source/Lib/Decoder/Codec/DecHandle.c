@@ -407,6 +407,44 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
     return SvtJxsErrorNone;
 }
 
+/* Checks that every plane of the output image exists and is large enough for its stride and height. */
+static SvtJxsErrorType_t validate_output_image(svt_jpeg_xs_decoder_api_prv_t* dec_api_prv,
+                                               const svt_jpeg_xs_image_buffer_t* image, uint32_t verbose) {
+    pi_t* pi = &dec_api_prv->dec_common.pi;
+    uint8_t input_bit_depth = dec_api_prv->dec_common.picture_header_const.hdr_bit_depth[0];
+    uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
+    for (uint32_t c = 0; c < pi->comps_num; ++c) {
+        if (image->data_yuv[c] == NULL) {
+            if (verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Invalid input: data_yuv[%u] is NULL\n", c);
+            }
+            return SvtJxsErrorBadParameter;
+        }
+        // Computed in 64 bits: a large stride or height would wrap uint32 and pass an undersized buffer.
+        uint64_t min_size;
+        // The last row might be shorter than the stride, e.g. in case the application is decoding
+        // an interlaced image (represented by two codestreams, one for each field) into an output
+        // image where the fields in memory are interleaved row by row. When feeding each field
+        // codestream individually to the decoder, the stride will be double the usual rowstride
+        // so that the decoder skips a row in the output image and only splats the field pixels
+        // into every second row. The last row of the second field which is the last row of the
+        // output image would only have a single row of data left in it then though (at most half
+        // the specified rowstride in that case).
+        min_size = (uint64_t)image->stride[c] * pixel_size * (pi->components[c].height - 1);
+        min_size += (uint64_t)pi->components[c].width * pixel_size;
+        if (image->alloc_size[c] < min_size) {
+            if (verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Invalid input: alloc_size[%u] %u is smaller than %" PRIu64 " required by stride and height\n",
+                          c,
+                          image->alloc_size[c],
+                          min_size);
+            }
+            return SvtJxsErrorBadParameter;
+        }
+    }
+    return SvtJxsErrorNone;
+}
+
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_api_t* dec_api, svt_jpeg_xs_frame_t* dec_input,
                                                             uint8_t blocking_flag) {
     if (dec_api == NULL || dec_api->private_ptr == NULL || dec_input == NULL) {
@@ -430,41 +468,12 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_frame(svt_jpeg_xs_decoder_
         return SvtJxsErrorBadParameter;
     }
 
-    pi_t* pi = &dec_api_prv->dec_common.pi;
-    uint8_t input_bit_depth = dec_api_prv->dec_common.picture_header_const.hdr_bit_depth[0];
-    uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
-    for (uint8_t c = 0; c < pi->comps_num; ++c) {
-        if (dec_input->image.data_yuv[c] == NULL) {
-            if (dec_api->verbose >= VERBOSE_ERRORS) {
-                SVT_ERROR("Invalid input: data_yuv[%u] is NULL\n", c);
-            }
-            return SvtJxsErrorBadParameter;
-        }
-        // Computed in 64 bits: a large stride or height would wrap uint32 and pass an undersized buffer.
-        uint64_t min_size;
-        // The last row might be shorter than the stride, e.g. in case the application is decoding
-        // an interlaced image (represented by two codestreams, one for each field) into an output
-        // image where the fields in memory are interleaved row by row. When feeding each field
-        // codestream individually to the decoder, the stride will be double the usual rowstride
-        // so that the decoder skips a row in the output image and only splats the field pixels
-        // into every second row. The last row of the second field which is the last row of the
-        // output image would only have a single row of data left in it then though (at most half
-        // the specified rowstride in that case).
-        min_size = (uint64_t)dec_input->image.stride[c] * pixel_size * (pi->components[c].height - 1);
-        min_size += (uint64_t)pi->components[c].width * pixel_size;
-        if (dec_input->image.alloc_size[c] < min_size) {
-            if (dec_api->verbose >= VERBOSE_ERRORS) {
-                SVT_ERROR("Invalid input: alloc_size[%u] %u is smaller than %" PRIu64 " required by stride and height\n",
-                          c,
-                          dec_input->image.alloc_size[c],
-                          min_size);
-            }
-            return SvtJxsErrorBadParameter;
-        }
+    SvtJxsErrorType_t ret = validate_output_image(dec_api_prv, &dec_input->image, dec_api->verbose);
+    if (ret != SvtJxsErrorNone) {
+        return ret;
     }
 
     ObjectWrapper_t* input_wrapper_ptr;
-    SvtJxsErrorType_t ret = SvtJxsErrorNone;
     if (blocking_flag) {
         ret = svt_jxs_get_empty_object(dec_api_prv->input_producer_fifo_ptr, &input_wrapper_ptr);
     }
@@ -502,12 +511,25 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_send_packet(svt_jpeg_xs_decoder
         return SvtJxsErrorUndefined;
     }
 
-    // An empty packet consumes nothing, so only a buffer with data to copy must be valid.
-    if (dec_input->bitstream.buffer == NULL && dec_input->bitstream.used_size != 0) {
+    // An empty packet consumes nothing and never completes a frame. Return before it would start a new
+    // frame with its image.
+    if (dec_input->bitstream.used_size == 0) {
+        dec_input->bitstream.ready_to_release = 1;
+        dec_input->image.ready_to_release = 0;
+        return SvtJxsErrorDecoderBitstreamTooShort;
+    }
+    if (dec_input->bitstream.buffer == NULL) {
         if (dec_api->verbose >= VERBOSE_ERRORS) {
             SVT_ERROR("Invalid input: bitstream buffer is NULL\n");
         }
         return SvtJxsErrorBadParameter;
+    }
+    // The output image is taken from the first packet of a frame only.
+    if (dec_api_prv->slice_scheduler_ctx.wrapper_ptr_decoder_ctx == NULL) {
+        SvtJxsErrorType_t ret = validate_output_image(dec_api_prv, &dec_input->image, dec_api->verbose);
+        if (ret != SvtJxsErrorNone) {
+            return ret;
+        }
     }
     return internal_svt_jpeg_xs_decoder_send_packet(dec_api_prv, dec_input, bytes_used);
 }
