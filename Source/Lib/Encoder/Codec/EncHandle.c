@@ -913,10 +913,6 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_init(uint64_t version_api_major
         return SvtJxsErrorBadParameter;
     }
     enc_api->private_ptr = NULL;
-    if (enc_api->verbose >= VERBOSE_ERRORS) {
-        SVT_LOG("-------------------------------------------\n");
-	    svt_jxs_log_init();
-	}
     // Init Component OS objects (threads, semaphores, etc.)
     // also links the various Component control functions
     return_error = encoder_allocate_handle(enc_api);
@@ -1217,6 +1213,8 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_init(uint64_t version_api_major
     SVT_CREATE_THREAD(enc_api_prv->final_stage_thread_handle, final_stage_kernel, enc_api_prv->final_stage_context_ptr);
 
     if (enc_api->verbose >= VERBOSE_ERRORS) {
+        SVT_LOG("-------------------------------------------\n");
+	    svt_jxs_log_init();
 	    svt_jxs_print_memory_usage();
 	}
     return return_error;
