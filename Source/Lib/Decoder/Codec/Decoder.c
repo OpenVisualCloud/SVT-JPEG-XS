@@ -282,24 +282,15 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
         }
     }
 
-    if (!ret) {
-        SVT_NO_THROW_MALLOC(ctx->map_slices_decode_done, pi->slice_num * sizeof(CondVar));
-        if (!ctx->map_slices_decode_done) {
+    SVT_NO_THROW_CALLOC(ctx->slices_decoded, pi->slice_num, sizeof(uint32_t));
+    if (!ctx->slices_decoded) {
+        ret |= 1;
+    }
+
+    if (pi->slice_num > 1) {
+        SVT_NO_THROW_CALLOC(ctx->sync_boundary_arrivals, pi->slice_num - 1, sizeof(uint32_t));
+        if (!ctx->sync_boundary_arrivals) {
             ret |= 1;
-        }
-        else {
-            for (uint32_t slice_idx = 0; slice_idx < pi->slice_num; slice_idx++) {
-                ret = svt_jxs_create_cond_var(&ctx->map_slices_decode_done[slice_idx]);
-                if (ret) {
-                    /*When any error, destroy all previous created Condition Variables*/
-                    for (uint32_t i = 0; i < slice_idx; i++) {
-                        svt_jxs_free_cond_var(&ctx->map_slices_decode_done[i]);
-                    }
-                    SVT_FREE(ctx->map_slices_decode_done);
-                    break;
-                }
-                ctx->map_slices_decode_done[slice_idx].timed_wait = 1;
-            }
         }
     }
 
@@ -329,12 +320,8 @@ void svt_jpeg_xs_dec_instance_free(svt_jpeg_xs_decoder_instance_t* ctx) {
     }
     SVT_FREE(ctx->rct_tmp_buffer);
 
-    if (ctx->map_slices_decode_done) {
-        for (uint32_t slice_idx = 0; slice_idx < ctx->dec_common->pi.slice_num; slice_idx++) {
-            svt_jxs_free_cond_var(&ctx->map_slices_decode_done[slice_idx]);
-        }
-    }
-    SVT_FREE(ctx->map_slices_decode_done);
+    SVT_FREE(ctx->slices_decoded);
+    SVT_FREE(ctx->sync_boundary_arrivals);
     SVT_FREE(ctx->frame_bitstream_ptr);
     SVT_FREE(ctx);
 }
@@ -652,6 +639,55 @@ static void transform_precinct_all(const pi_t* pi, svt_jpeg_xs_decoder_instance_
     }
 }
 
+/* The first precinct lines of slice next_slice (two, or fewer when the slice is shorter) need the
+ * end of the previous slice in the vertical IDWT, so they are computed once both slices got far
+ * enough - by whichever of the two threads gets there second (see sync_boundary_arrivals).
+ *
+ * With recalc == 0 the caller is the thread of the previous slice: its IDWT buffers still hold the
+ * state left by the last lines of that slice, and the transform simply goes on. With recalc == 1
+ * the caller is the thread of next_slice itself, and the state is first rebuilt from the
+ * coefficients of the two preceding precinct lines - the same as svt_jpeg_xs_decode_final_slice_overlap
+ * does when the slices are not synchronized, which gives the same result. */
+static void decode_slice_boundary(const pi_t* pi, svt_jpeg_xs_decoder_instance_t* ctx,
+                                  svt_jpeg_xs_decoder_thread_context* thread_ctx, uint32_t next_slice, int recalc,
+                                  svt_jpeg_xs_image_buffer_t* out) {
+    const uint8_t shift = ctx->picture_header_dynamic.hdr_Fq;
+    const uint32_t lines_per_slice_last = pi->precincts_line_num - (pi->slice_num - 1) * pi->precincts_per_slice;
+    const uint32_t next_slice_lines = (next_slice == (pi->slice_num - 1)) ? lines_per_slice_last : pi->precincts_per_slice;
+    const uint32_t first_line_idx = next_slice * pi->precincts_per_slice;
+
+    if (recalc) {
+        for (uint32_t c = 0; c < pi->comps_num; c++) {
+            transform_precinct_initialize(pi,
+                                          ctx,
+                                          c,
+                                          first_line_idx,
+                                          thread_ctx->precinct_components_tmp_buffer[c],
+                                          thread_ctx->precinct_idwt_tmp_buffer[c],
+                                          shift);
+        }
+    }
+    for (uint32_t line = 0; line < MIN(2, next_slice_lines); line++) {
+        transform_precinct_all(pi,
+                               ctx,
+                               first_line_idx + line,
+                               thread_ctx->precinct_components_tmp_buffer,
+                               thread_ctx->precinct_idwt_tmp_buffer,
+                               thread_ctx->rct_tmp_buffer,
+                               out,
+                               shift);
+    }
+}
+
+/* One side of the boundary between slices boundary and boundary + 1 is done. Returns 1 when the
+ * other side was already done too, that is when the caller is the one to compute the boundary.
+ * The counter orders both ways, so the coefficients written by the other side are visible. */
+static INLINE int slice_boundary_arrive(svt_jpeg_xs_decoder_instance_t* ctx, uint32_t boundary) {
+    const uint32_t before = SVT_ATOMIC_FETCH_ADD32(&ctx->sync_boundary_arrivals[boundary], 1);
+    assert(before <= 1);
+    return before == 1;
+}
+
 //Return size of used bitstream or return ERROR
 SvtJxsErrorType_t svt_jpeg_xs_decode_slice(svt_jpeg_xs_decoder_instance_t* ctx, svt_jpeg_xs_decoder_thread_context* thread_ctx,
                                            const uint8_t* bitstream_buf, size_t bitstream_buf_size, uint32_t slice,
@@ -727,9 +763,13 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_slice(svt_jpeg_xs_decoder_instance_t* ctx, 
             thread_ctx->precincts_top[column] = precinct;
         }
 
-        //when 2nd line is unpacked set flag to true (a 1-line last slice signals after its only line)
-        if (ctx->sync_slices_idwt && line == MIN(1, lines_per_slice - 1)) {
-            svt_jxs_set_cond_var(&ctx->map_slices_decode_done[slice], SYNC_OK);
+        //Once the 2nd line is unpacked (the only line of a 1-line last slice) this slice's side of the
+        //boundary with the previous slice is done; if that slice is done as well, compute the boundary here.
+        //It goes before this slice's own IDWT state is set up below, as both use the same buffers.
+        if (ctx->sync_slices_idwt && slice && line == MIN(1, lines_per_slice - 1)) {
+            if (slice_boundary_arrive(ctx, slice - 1)) {
+                decode_slice_boundary(pi, ctx, thread_ctx, slice, 1, out);
+            }
         }
 
         //The whole-frame colour transform path does the IDWT in svt_jpeg_xs_decode_final(), the slice only unpacks
@@ -783,24 +823,13 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_slice(svt_jpeg_xs_decoder_instance_t* ctx, 
 
     *out_slice_size = bitstream_reader_get_used_bytes(&bitstream);
 
+    //This slice's side of the boundary with the next slice is done. If the next slice has already
+    //unpacked its first lines, compute the boundary here with the IDWT state left by this slice;
+    //otherwise the next slice's thread does it, so nobody waits. If either slice fails before it
+    //gets here, the boundary is not computed, but that frame is reported as failed anyway.
     if (ctx->sync_slices_idwt && !is_last_slice && (lines_per_slice > 2)) {
-        svt_jxs_wait_cond_var(&ctx->map_slices_decode_done[slice + 1], SYNC_INIT);
-        if (ctx->map_slices_decode_done[slice + 1].val == SYNC_ERROR) {
-            return SvtJxsErrorDecoderInternal;
-        }
-
-        //The next slice can be the last one with fewer than 2 precinct lines; it then has only 1 to compute here
-        const uint32_t next_slice_lines = ((slice + 1) == (pi->slice_num - 1)) ? lines_per_slice_last : pi->precincts_per_slice;
-        for (uint32_t line = 0; line < MIN(2, next_slice_lines); line++) {
-            uint32_t precinct_line_idx = (slice + 1) * pi->precincts_per_slice + line;
-            transform_precinct_all(pi,
-                                   ctx,
-                                   precinct_line_idx,
-                                   thread_ctx->precinct_components_tmp_buffer,
-                                   thread_ctx->precinct_idwt_tmp_buffer,
-                                   thread_ctx->rct_tmp_buffer,
-                                   out,
-                                   picture_header_dynamic->hdr_Fq);
+        if (slice_boundary_arrive(ctx, slice)) {
+            decode_slice_boundary(pi, ctx, thread_ctx, slice + 1, 0, out);
         }
     }
 

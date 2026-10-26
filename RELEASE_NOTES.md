@@ -165,6 +165,18 @@ API version: 0.10 (`SVT_JPEGXS_API_VER_MINOR` raised from 9 to 10).
   are spread with PEXT/PDEP.
 - **AVX2+BMI2 fast path.** CPUs with AVX2 and BMI2 but without AVX-512
   now use the PDEP/PEXT GCLI path.
+- **GCLI unary codes (decoder).** On AVX-512 the GCLIs of the zero
+  prediction mode without significance coding are decoded sixteen at a
+  time from a 64-bit window with PDEP, instead of one code after another.
+- **GCLI unary codes (encoder).** The GCLI value above GTLI is computed
+  without a branch.
+- **Slice boundaries without waiting (decoder).** A slice thread no
+  longer waits for the next slice to compute the IDWT across their
+  boundary: whichever of the two slice threads gets there second
+  computes it.
+- **Slice task queue (decoder).** The universal task queue holds twice
+  as many slice tasks as there are universal threads, so the init
+  thread can prepare the next slices while all threads are busy.
 - **Inverse RCT inside the slice threads (decoder).** For Cpih=1
   streams, the IDWT, the inverse RCT and the output conversion now run
   per precinct in the slice threads instead of as a serial whole-frame
@@ -232,8 +244,6 @@ API version: 0.10 (`SVT_JPEGXS_API_VER_MINOR` raised from 9 to 10).
 - Slice decode errors no longer log buffer addresses.
 - Removed the false "Unexpected size of frame" warning, and log lines
   from different threads no longer interleave.
-- Fixed cleanup of condition variables when decoder instance allocation
-  fails.
 
 ### Common
 

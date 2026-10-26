@@ -12,8 +12,6 @@
 
 #define MAX_PRECINCT_IN_LINE (130)
 
-enum UniversalThreadStatus { SYNC_INIT = 0, SYNC_OK = 1, SYNC_ERROR = 2 };
-
 typedef struct svt_jpeg_xs_decoder_common {
     pi_t pi; /* Picture Information */
     picture_header_const_t picture_header_const;
@@ -98,8 +96,19 @@ precinct X |  comp-n, band6        |
     uint64_t frame_num;
     svt_jpeg_xs_frame_t dec_input;
 
-    uint8_t sync_slices_idwt;        /*Calculation slice before IDWT wait to finish decode next slice.*/
-    CondVar* map_slices_decode_done; /*When sync_slices_idwt use as array of Condition Variable, else use as array of "val"*/
+    /* Slice threads compute the IDWT across slice boundaries themselves (see
+     * sync_boundary_arrivals). Otherwise the final thread does it once the slices on both
+     * sides are decoded (see slices_decoded). */
+    uint8_t sync_slices_idwt;
+    /* Without sync_slices_idwt, one flag per slice, set by the final thread when it receives
+     * the slice. Reset per frame. */
+    uint32_t* slices_decoded;
+    /* With sync_slices_idwt, one counter per slice boundary (slice_num - 1 of them, none
+     * for a single slice): entry s is the boundary between slices s and s+1. Slice s
+     * arrives when its own lines are done, slice s+1 once its first lines are unpacked;
+     * whichever arrives second computes the IDWT of the first lines of slice s+1 (see
+     * svt_jpeg_xs_decode_slice). Reset per frame. */
+    uint32_t* sync_boundary_arrivals;
 
     //TODO: Used only by Final Thread. Can be moved to Final Thread context, or to Slice thread context in future solution.
     // Only index 0 is allocated unless rct_per_precinct, which needs one per component.

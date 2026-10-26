@@ -75,8 +75,9 @@ Multiple slices from the same picture could be processed simultaneously, where e
 performing a different task in the decoding pipeline.
 
 The decoder creates one init thread, one final thread and `threads_num - 2` universal threads (at least 1). The input
-and output queues hold `2 * universal_threads + 10` frames, the universal task queue holds `universal_threads` slice
-tasks and the output reorder ring buffer holds `universal_threads + 20` frames. Each frame in flight uses one of 3
+and output queues hold `2 * universal_threads + 10` frames, the universal task queue holds `2 * universal_threads` slice
+tasks, so the init stage can prepare the next slices while all universal threads are busy, and the output reorder ring
+buffer holds `universal_threads + 20` frames. Each frame in flight uses one of 3
 internal decoder instances (one in the init stage, one in the universal stage and one in the final stage).
 
 A high-level diagram of the decoder pipeline is shown in Figure 3.
@@ -127,10 +128,12 @@ transform and the output scaling (NLT) are performed in the final stage, after a
 does not scale with the number of threads and does not support `output_bit_depth_msb_aligned`.
 
 If vertical decomposition is > 0, the first 2 precinct lines of each slice need the last precincts of the previous slice
-for the IDWT. When there is more than one universal thread and a slice has more than 2 precinct lines, the thread that
-decodes slice (s) waits until slice (s+1) has unpacked its first 2 precinct lines (or its only line, if it is the last
-slice and has just one) and calculates them itself. Otherwise, for example when the slice height is 2 precinct lines or
-less, these lines are calculated in the final stage.
+for the IDWT. When there is more than one universal thread and a slice has more than 2 precinct lines, the universal
+threads calculate these lines themselves and no thread waits for another. The thread that decodes slice (s) reaches the
+boundary with slice (s+1) when its own precinct lines are done, and the thread that decodes slice (s+1) reaches it once
+it has unpacked its first 2 precinct lines (or its only line, if it is the last slice and has just one). Whichever of
+the two threads reaches the boundary second calculates the first 2 precinct lines of slice (s+1). Otherwise, for example
+when the slice height is 2 precinct lines or less, these lines are calculated in the final stage.
 
 ## Thread wake-up (timed wait)
 
@@ -224,6 +227,10 @@ An illustration of slice-based modules of the SVT-JPEGXS decoder and slices sync
 ![image4](./decoder-slice-sync.png)
 
 ### Figure 4. Modules of the SVT-JPEGXS decoder and slices synchronization
+
+Figure 4 shows the order of the modules in each slice. The "Wait/synchronize" step no longer blocks: as described in
+[Final Stage](#final-stage), slice (s) and slice (s+1) each mark the boundary between them as reached, and the IDWT of
+the boundary precinct lines is calculated by whichever of the two slices reaches it second.
 
 ### Unpack Precinct
 

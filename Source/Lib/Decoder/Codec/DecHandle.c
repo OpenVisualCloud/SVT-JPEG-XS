@@ -42,22 +42,6 @@ PREFIX_API void svt_jpeg_xs_decoder_close(svt_jpeg_xs_decoder_api_t* dec_api) {
     if (dec_api) {
         svt_jpeg_xs_decoder_api_prv_t* dec_api_prv = (svt_jpeg_xs_decoder_api_prv_t*)dec_api->private_ptr;
         if (dec_api_prv) {
-            //Slice threads doing the IDWT between slices block until the next slice is decoded. That
-            //slice may never be: it was not sent (packet-based mode, truncated bitstream), or it is
-            //still queued and the queue shutdown below drops it. Mark every slice of every frame
-            //context as failed to wake them up before joining; nothing is output after close anyway.
-            //Only with sync_slices_idwt: otherwise nobody waits on these, and the final thread reads a
-            //nonzero value as "slice decoded" and would run the IDWT overlap on slices never received.
-            SystemResource_t* pool = dec_api_prv->internal_pool_decoder_instance_resource_ptr;
-            for (uint32_t i = 0; pool && pool->wrapper_ptr_pool && i < pool->object_total_count; i++) {
-                svt_jpeg_xs_decoder_instance_t* dec_ctx = pool->wrapper_ptr_pool[i] ? pool->wrapper_ptr_pool[i]->object_ptr
-                                                                                    : NULL;
-                if (dec_ctx && dec_ctx->sync_slices_idwt && dec_ctx->map_slices_decode_done) {
-                    for (uint32_t slice_idx = 0; slice_idx < dec_ctx->dec_common->pi.slice_num; slice_idx++) {
-                        svt_jxs_set_cond_var(&dec_ctx->map_slices_decode_done[slice_idx], SYNC_ERROR);
-                    }
-                }
-            }
             svt_jxs_shutdown_process(dec_api_prv->input_buffer_resource_ptr);
             svt_jxs_shutdown_process(dec_api_prv->universal_buffer_resource_ptr);
             svt_jxs_shutdown_process(dec_api_prv->final_buffer_resource_ptr);
@@ -317,9 +301,15 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
                                                                                          0);
     }
 
+    /* Twice as many slice tasks as workers: with exactly one per worker, every
+     * task is either being decoded or on its way back, so the init thread can
+     * never have the next slice ready - each one waits for a full hand-off
+     * (worker releases, init thread wakes and fills the task, a worker wakes and
+     * takes it). The extra ones let the init thread work ahead. A task is only a
+     * small descriptor of a slice; the number of worker threads is unchanged. */
     SVT_NEW(dec_api_prv->universal_buffer_resource_ptr,
             svt_jxs_system_resource_ctor,
-            dec_api_prv->universal_threads_num,
+            2 * dec_api_prv->universal_threads_num,
             1,
             dec_api_prv->universal_threads_num,
             universal_frame_task_creator,

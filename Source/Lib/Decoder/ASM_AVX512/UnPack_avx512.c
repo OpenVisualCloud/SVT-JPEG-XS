@@ -135,3 +135,60 @@ SvtJxsErrorType_t unpack_data_avx512(bitstream_reader_t* bitstream, uint16_t* bu
                               unpack_n_groups_avx512,
                               unpack_n_groups_nosign_avx512);
 }
+
+/* A run of GCLI unary codes, sixteen at a time.
+ *
+ * The scalar reader finds the end of a code with a leading-zero count and
+ * shifts the register by it before it can look for the next one, so every code
+ * waits for the previous one, and a line decodes at the latency of that chain.
+ *
+ * Here a 64-bit window is loaded and inverted, so that every set bit is the
+ * terminating zero of one code. The k-th code from the top ends at the k-th
+ * set bit counted from the top, which PDEP finds directly: depositing a single
+ * bit at index popcount - 1 - k of the window's set bits leaves only that one.
+ * The sixteen positions do not depend on each other, the only chain left is
+ * the advance from one window to the next.
+ *
+ * The window is shifted by up to seven positions to start on the current bit,
+ * so it holds at least fifty-seven valid ones. A valid code is at most
+ * thirty-two bits long, so a window without any terminator, or a gap above
+ * thirty-one, means a corrupt stream - the same condition under which the
+ * scalar reader fails. All sixteen outputs are written, even when the window
+ * holds fewer codes; the ones past the last decoded code are overwritten by the
+ * next window or by the scalar reader that finishes the line, which is why the
+ * loop stops sixteen codes before the end.
+ *
+ * Loads stay within byte_limit; what remains of the line is left to the
+ * caller. Returns the number of codes decoded, bit_pos is advanced past them. */
+uint32_t unpack_gclis_unary_run_avx512(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out,
+                                       uint32_t count, int8_t gtli, int32_t* error) {
+    uint32_t pos = *bit_pos;
+    uint32_t done = 0;
+    int32_t err = 0;
+    while (done + 16 <= count && (pos >> 3) + 8 <= byte_limit) {
+        uint64_t word;
+        memcpy(&word, mem + (pos >> 3), sizeof(word));
+        const uint64_t w = ~UNPACK_BSWAP64(word) << (pos & 7);
+        const uint32_t n = (uint32_t)_mm_popcnt_u64(w);
+        if (!n) {
+            err = 1;
+            break;
+        }
+        const uint32_t m = MIN(n, 16u);
+        /* bit indices from the bottom: the code k ends at index p_k, the one before it at p_(k-1) */
+        uint32_t prev = 64;
+        for (uint32_t k = 0; k < 16; k++) {
+            /* Bit 63 only keeps the index defined once k runs past the codes in the window */
+            const uint32_t p = svt_first_set_bit(_pdep_u64((uint64_t)1 << ((n - 1 - k) & 63), w) | ((uint64_t)1 << 63));
+            const uint32_t v = prev - p - 1;
+            out[done + k] = (uint8_t)(gtli + (int32_t)v);
+            err |= (k < m) & (v > 31);
+            prev = p;
+        }
+        pos += 64 - svt_first_set_bit(_pdep_u64((uint64_t)1 << (n - m), w));
+        done += m;
+    }
+    *bit_pos = pos;
+    *error = err;
+    return done;
+}

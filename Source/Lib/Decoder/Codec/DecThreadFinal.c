@@ -54,14 +54,9 @@ void* thread_final_stage_kernel(void* input_ptr) {
 
         OutItem* item = &sync_output_ringbuffer[dec_ctx->sync_output_frame_idx];
 
-        //If Slice thread exited with error, release thread that is waiting for it to be done
+        //Without sync_slices_idwt the IDWT between slices is done below, once the slices on both sides are decoded
         if (!dec_ctx->sync_slices_idwt) {
-            svt_jxs_set_cond_var(&dec_ctx->map_slices_decode_done[input_buffer_ptr->slice_id], SYNC_OK);
-        }
-        else {
-            if (input_buffer_ptr->frame_error) {
-                svt_jxs_set_cond_var(&dec_ctx->map_slices_decode_done[input_buffer_ptr->slice_id], SYNC_ERROR);
-            }
+            SVT_ATOMIC_STORE32(&dec_ctx->slices_decoded[input_buffer_ptr->slice_id], 1);
         }
 
         if (item->in_use == 0) {
@@ -96,7 +91,7 @@ void* thread_final_stage_kernel(void* input_ptr) {
             if (item->frame_error == 0) {
                 // Atomic: init thread may reduce sync_num_slices_to_receive on error concurrently
                 while ((item->slice_next_to_recalc < SVT_ATOMIC_LOAD32(&dec_ctx->sync_num_slices_to_receive)) &&
-                       dec_ctx->map_slices_decode_done[item->slice_next_to_recalc].val) {
+                       SVT_ATOMIC_LOAD32(&dec_ctx->slices_decoded[item->slice_next_to_recalc])) {
                     SvtJxsErrorType_t error = svt_jpeg_xs_decode_final_slice_overlap(
                         dec_ctx, &item->dec_input.image, item->slice_next_to_recalc);
                     if (error) {

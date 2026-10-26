@@ -10,6 +10,7 @@
 #include "BitstreamWriter.h"
 #include "PackPrecinct.h"
 #include "Packing.h"
+#include "decoder_dsp_rtcd.h"
 
 #define SILENT_OUTPUT 1
 #if SILENT_OUTPUT
@@ -237,6 +238,7 @@ TEST(VLC, DISABLED_VariableLenghtCodingPrintMatrix) {
 
 TEST(VLC, VariableLenghtCoding) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 200;
     uint8_t buff[buffer_size + 10] = {0};
@@ -315,6 +317,7 @@ TEST(VLC, VariableLenghtCoding) {
 
 TEST(VLC, unpack_pred_zero_gclis_no_significance_compare_old) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
@@ -377,6 +380,7 @@ TEST(VLC, unpack_pred_zero_gclis_no_significance_compare_old) {
 
 TEST(VLC, unpack_pred_zero_gclis_no_significance_invalid_Read_FF) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
@@ -401,6 +405,7 @@ TEST(VLC, unpack_pred_zero_gclis_no_significance_invalid_Read_FF) {
 
 TEST(VLC, unpack_pred_zero_gclis_no_significance_11_short_bitstream_error) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
@@ -458,8 +463,96 @@ TEST(VLC, unpack_pred_zero_gclis_no_significance_11_short_bitstream_error) {
     free(band_test.gcli_data);
 }
 
+/* Puts the decoder RTCD back on the best kernels when the test leaves, also through a
+ * failed ASSERT, so the tests after it do not run on the C ones. */
+struct DecoderRtcdRestore {
+    ~DecoderRtcdRestore() {
+        setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
+    }
+};
+
+/* unpack_pred_zero_gclis_no_significance with the AVX-512 run decoder against the C
+ * build, which leaves the whole line to the scalar reader: random codes, every start
+ * offset inside a byte, line lengths around the sixteen-code run size, and corrupted
+ * streams, where the GCLIs left behind and the error must match as well. The
+ * significance variant does not use the run decoder, so it is not covered here. */
+TEST(VLC, unpack_pred_zero_gclis_no_significance_run_vs_c) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT;
+    if ((get_cpu_flags() & required) != required) {
+        GTEST_SKIP();
+    }
+    setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    DecoderRtcdRestore restore;
+
+    const uint32_t buffer_size = 4096;
+    uint8_t buff[buffer_size + 16] = {0};
+    const uint32_t max_count = 600;
+    uint8_t gclis_c[max_count];
+    uint8_t gclis_run[max_count];
+    svt_jxs_test_tool::SVTRandom rnd_val(0, 15, 123);
+    svt_jxs_test_tool::SVTRandom rnd_long(0, 31, 321);
+    svt_jxs_test_tool::SVTRandom rnd_pick(0, 99, 7);
+
+    const uint32_t counts[] = {1, 7, 8, 9, 15, 16, 17, 31, 32, 33, 100, 255, 600};
+    for (uint32_t count : counts) {
+        for (uint8_t offset = 0; offset < 8; ++offset) {
+            for (int corrupt = 0; corrupt < 2; ++corrupt) {
+                bitstream_writer bitstream_write;
+                bitstream_writer_init(&bitstream_write, buff, buffer_size);
+                if (offset) {
+                    write_N_bits(&bitstream_write, 0, offset);
+                }
+                for (uint32_t i = 0; i < count; ++i) {
+                    /* mostly short codes, now and then a long one */
+                    const uint8_t v = (uint8_t)(rnd_pick.random() < 5 ? rnd_long.random() : rnd_val.random());
+                    vlc_encode_pack_bits(&bitstream_write, v);
+                }
+                const uint32_t write_bits = bitstream_writer_get_used_bits(&bitstream_write);
+                if (corrupt) {
+                    /* a run of ones longer than any valid code, somewhere inside the line */
+                    const uint32_t at = (write_bits / 8) * (uint32_t)rnd_pick.random() / 100;
+                    memset(buff + at, 0xFF, MIN(8u, buffer_size - at));
+                }
+
+                SvtJxsErrorType_t ret[2];
+                int32_t bits_left[2];
+                uint32_t offset_after[2], bits_used_after[2];
+                uint8_t* out[2] = {gclis_c, gclis_run};
+                for (int pass = 0; pass < 2; ++pass) {
+                    setup_decoder_rtcd_internal(pass ? CPU_FLAGS_ALL : 0);
+                    precinct_band_info_t b_info;
+                    b_info.gcli_width = count;
+                    precinct_band_t band;
+                    band.gtli = 2;
+                    band.gcli_data = out[pass];
+                    memset(out[pass], 0, max_count);
+                    bitstream_reader_t bitstream_read;
+                    bitstream_reader_init(&bitstream_read, buff, buffer_size);
+                    bitstream_reader_skip_bits(&bitstream_read, offset);
+                    bits_left[pass] = (int32_t)(write_bits - offset);
+                    ret[pass] = unpack_pred_zero_gclis_no_significance(&bitstream_read, &band, &b_info, 0, &bits_left[pass]);
+                    offset_after[pass] = bitstream_read.offset;
+                    bits_used_after[pass] = bitstream_read.bits_used;
+                }
+                SCOPED_TRACE(testing::Message() << "count " << count << " offset " << (int)offset << " corrupt " << corrupt);
+                ASSERT_EQ(ret[0], ret[1]);
+                if (!corrupt) {
+                    ASSERT_EQ(ret[1], SvtJxsErrorNone);
+                }
+                if (ret[0] == SvtJxsErrorNone) {
+                    ASSERT_EQ(bits_left[0], bits_left[1]);
+                    ASSERT_EQ(offset_after[0], offset_after[1]);
+                    ASSERT_EQ(bits_used_after[0], bits_used_after[1]);
+                }
+                ASSERT_EQ(0, memcmp(gclis_c, gclis_run, count));
+            }
+        }
+    }
+}
+
 TEST(VLC, unpack_pred_zero_gclis_significance_compare_old) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
@@ -546,6 +639,7 @@ TEST(VLC, unpack_pred_zero_gclis_significance_compare_old) {
 
 TEST(VLC, unpack_pred_zero_gclis_significance_invalid_Read_FF) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
@@ -575,6 +669,7 @@ TEST(VLC, unpack_pred_zero_gclis_significance_invalid_Read_FF) {
 
 TEST(VLC, unpack_pred_zero_gclis_significance_11_short_bitstream_error) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
@@ -720,6 +815,7 @@ static int8_t test_vpred_run_mode(int run_mode, precinct_band_t* b_data, precinc
 
 TEST(VLC, unpack_verical_pred_gclis_no_significance_compare_old) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
@@ -788,6 +884,7 @@ TEST(VLC, unpack_verical_pred_gclis_no_significance_compare_old) {
 
 TEST(VLC, unpack_verical_pred_gclis_no_significance_invalid_Read_FF) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
@@ -824,6 +921,7 @@ TEST(VLC, unpack_verical_pred_gclis_no_significance_invalid_Read_FF) {
 
 TEST(VLC, unpack_verical_pred_gclis_no_significance_11_short_bitstream_error) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
@@ -900,6 +998,7 @@ TEST(VLC, unpack_verical_pred_gclis_no_significance_11_short_bitstream_error) {
 
 TEST(VLC, unpack_verical_pred_gclis_significance_compare_old) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
@@ -1016,6 +1115,7 @@ TEST(VLC, unpack_verical_pred_gclis_significance_compare_old) {
 
 TEST(VLC, unpack_verical_pred_gclis_significance_invalid_Read_FF) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
@@ -1074,6 +1174,7 @@ TEST(VLC, unpack_verical_pred_gclis_significance_invalid_Read_FF) {
 
 TEST(VLC, unpack_verical_pred_gclis_significance_11_short_bitstream_error) {
     setup_common_rtcd_internal(CPU_FLAGS_ALL);
+    setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
 
     const uint32_t buffer_size = 700;
     uint8_t buff[buffer_size + 10] = {0};
