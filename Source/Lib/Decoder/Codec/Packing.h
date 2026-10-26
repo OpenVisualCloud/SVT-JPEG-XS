@@ -33,6 +33,8 @@ SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* pre
                                   const picture_header_dynamic_t* picture_header_dynamic, uint32_t verbose);
 SvtJxsErrorType_t unpack_data_c(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis, uint32_t group_size,
                                 uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num, int32_t* precinct_bits_left);
+uint32_t unpack_gclis_unary_run_c(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out, uint32_t count,
+                                  int8_t gtli, int32_t* error);
 int32_t unpack_sign(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint32_t group_size, uint8_t leftover_signs_num,
                     int32_t* precinct_bits_left);
 

@@ -7,9 +7,10 @@
  *
  * With decom_v > 0, more than one universal thread and more than 2 precincts per slice the decoder
  * runs in sync_slices_idwt mode: each slice thread finishes the vertical IDWT across the boundary
- * with the next slice itself, which needs the next slice's first 2 precinct lines and waits on that
- * slice's map_slices_decode_done flag. A slice raised that flag only after unpacking its 2nd line,
- * so a last slice holding a single precinct line never raised it and the frame deadlocked.
+ * with the next slice itself, which needs the next slice's first 2 precinct lines. It used to wait
+ * for a flag that a slice raised only after unpacking its 2nd line, so a last slice holding a single
+ * precinct line never raised it and the frame deadlocked. Now nobody waits: whichever of the two
+ * slice threads reaches the boundary second computes it, and this test keeps covering that case.
  *
  * Lossless coding makes the round trip bit-exact, so a wrong overlap is caught as well as a hang.
  * get_frame() is polled with a deadline instead of blocking, so a deadlock fails the test instead

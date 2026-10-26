@@ -37,16 +37,26 @@ extern "C" {
 // Atomic load/store for 32-bit values shared between threads without a mutex.
 // Uses compiler intrinsics to suppress ThreadSanitizer false positives and
 // ensure proper memory ordering on weakly-ordered architectures.
+// SVT_ATOMIC_FETCH_ADD32 returns the value before the addition and orders both ways
+// (acquire and release). Other compilers get it from C11 <stdatomic.h>; a plain increment
+// would silently break the callers, so without C11 atomics they fail to build instead.
 #if defined(__GNUC__) || defined(__clang__)
-#define SVT_ATOMIC_LOAD32(ptr)       __atomic_load_n((ptr), __ATOMIC_ACQUIRE)
-#define SVT_ATOMIC_STORE32(ptr, val) __atomic_store_n((ptr), (val), __ATOMIC_RELEASE)
+#define SVT_ATOMIC_LOAD32(ptr)            __atomic_load_n((ptr), __ATOMIC_ACQUIRE)
+#define SVT_ATOMIC_STORE32(ptr, val)      __atomic_store_n((ptr), (val), __ATOMIC_RELEASE)
+#define SVT_ATOMIC_FETCH_ADD32(ptr, val)  __atomic_fetch_add((ptr), (val), __ATOMIC_ACQ_REL)
 #elif defined(_WIN32)
 #include <intrin.h>
-#define SVT_ATOMIC_LOAD32(ptr)       (*(volatile uint32_t *)(ptr))
-#define SVT_ATOMIC_STORE32(ptr, val) _InterlockedExchange((volatile long *)(ptr), (long)(val))
+#define SVT_ATOMIC_LOAD32(ptr)            (*(volatile uint32_t *)(ptr))
+#define SVT_ATOMIC_STORE32(ptr, val)      _InterlockedExchange((volatile long *)(ptr), (long)(val))
+#define SVT_ATOMIC_FETCH_ADD32(ptr, val)  ((uint32_t)_InterlockedExchangeAdd((volatile long *)(ptr), (long)(val)))
 #else
 #define SVT_ATOMIC_LOAD32(ptr)       (*(volatile uint32_t *)(ptr))
 #define SVT_ATOMIC_STORE32(ptr, val) (*(volatile uint32_t *)(ptr) = (val))
+#if !defined(__cplusplus) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
+#include <stdatomic.h>
+#define SVT_ATOMIC_FETCH_ADD32(ptr, val) \
+    ((uint32_t)atomic_fetch_add_explicit((_Atomic uint32_t *)(ptr), (uint32_t)(val), memory_order_acq_rel))
+#endif
 #endif
 
 #if (defined(__GNUC__) && __GNUC__) || defined(__SUNPRO_C)

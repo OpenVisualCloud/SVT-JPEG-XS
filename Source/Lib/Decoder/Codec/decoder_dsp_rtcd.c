@@ -160,6 +160,7 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
     }
 #endif /* ARCH_X86_64 */
     SET_NEON(unpack_data, unpack_data_neon);
+    SET_AVX2_AVX512(unpack_gclis_unary_run, unpack_gclis_unary_run_c, NULL, unpack_gclis_unary_run_avx512);
     SET_AVX2_AVX512(idwt_horizontal_line_lf16_hf16,
                     idwt_horizontal_line_lf16_hf16_c,
                     idwt_horizontal_line_lf16_hf16_avx2,

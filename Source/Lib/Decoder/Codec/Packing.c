@@ -463,22 +463,32 @@ SvtJxsErrorType_t unpack_verical_pred_gclis_no_significance(bitstream_reader_t* 
     return SvtJxsErrorNone;
 }
 
-/*Return 0 if read success, Negative when return error.
-  Pointer to precinct_bits_left, if success subtract number of reads bits.*/
-SvtJxsErrorType_t unpack_pred_zero_gclis_no_significance(bitstream_reader_t* bitstream, precinct_band_t* b_data,
-                                                         precinct_band_info_t* b_info, const int ypos,
-                                                         int32_t* precinct_bits_left) {
-    const int8_t gtli = b_data->gtli;
-    const uint32_t gcli_width = b_info->gcli_width;
-    uint8_t* gclis = b_data->gcli_data + ypos * gcli_width;
+/* The C version decodes nothing and is never called: unpack_gclis_unary sees it
+ * in the RTCD slot and goes to the scalar reader directly. It exists only
+ * because every slot needs a C entry. The AVX-512 one (see UnPack_avx512.c)
+ * takes the bulk of the line in runs of sixteen codes and leaves only the tail. */
+uint32_t unpack_gclis_unary_run_c(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out, uint32_t count,
+                                  int8_t gtli, int32_t* error) {
+    UNUSED(mem);
+    UNUSED(bit_pos);
+    UNUSED(byte_limit);
+    UNUSED(out);
+    UNUSED(count);
+    UNUSED(gtli);
+    *error = 0;
+    return 0;
+}
 
+/* count codes one at a time with the scalar reader. */
+static SvtJxsErrorType_t unpack_gclis_unary_scalar(bitstream_reader_t* bitstream, uint8_t* out, uint32_t count, int8_t gtli,
+                                                   int32_t* precinct_bits_left) {
     vlc_reader_t vlc_reader;
     vlc_reader_init(&vlc_reader, bitstream, *precinct_bits_left);
     int8_t error = 0;
-    for (uint32_t i = 0; i < gcli_width; i++) {
+    for (uint32_t i = 0; i < count; i++) {
         int8_t res = vlc_reader_get_next_value(&vlc_reader);
         error |= res;
-        gclis[i] = gtli + res;
+        out[i] = gtli + res;
     }
 
     /*Check only error at the end.*/
@@ -487,6 +497,49 @@ SvtJxsErrorType_t unpack_pred_zero_gclis_no_significance(bitstream_reader_t* bit
     }
     *precinct_bits_left -= vlc_reader_end(&vlc_reader, bitstream);
     return SvtJxsErrorNone;
+}
+
+/* count codes: the bulk through unpack_gclis_unary_run, the rest - and all of
+ * them on a build without a fast version - with the scalar reader.
+ *
+ * On a corrupt stream the line is redone from its start with the scalar reader
+ * alone, so the output, the error and the reader state it leaves behind stay
+ * exactly what they were before the fast path existed. */
+static SvtJxsErrorType_t unpack_gclis_unary(bitstream_reader_t* bitstream, uint8_t* out, uint32_t count, int8_t gtli,
+                                            int32_t* precinct_bits_left) {
+    /* No fast version: skip the indirect call and the reader state copy */
+    if (unpack_gclis_unary_run == unpack_gclis_unary_run_c || *precinct_bits_left <= 0) {
+        return unpack_gclis_unary_scalar(bitstream, out, count, gtli, precinct_bits_left);
+    }
+    const bitstream_reader_t start = *bitstream;
+    const int32_t start_bits_left = *precinct_bits_left;
+    /* Positions are counted from the start of the current byte, so the load limit covers the
+     * bits of this byte that were already consumed as well. */
+    uint32_t pos = bitstream->bits_used;
+    const uint32_t byte_limit = (bitstream->bits_used + (uint32_t)*precinct_bits_left) >> 3;
+    int32_t err = 0;
+    const uint32_t done = unpack_gclis_unary_run(bitstream->mem + bitstream->offset, &pos, byte_limit, out, count, gtli, &err);
+    if (!err) {
+        *precinct_bits_left -= (int32_t)(pos - bitstream->bits_used);
+        bitstream->offset += pos >> 3;
+        bitstream->bits_used = pos & 7;
+        if (unpack_gclis_unary_scalar(bitstream, out + done, count - done, gtli, precinct_bits_left) == SvtJxsErrorNone) {
+            return SvtJxsErrorNone;
+        }
+        *bitstream = start;
+        *precinct_bits_left = start_bits_left;
+    }
+    return unpack_gclis_unary_scalar(bitstream, out, count, gtli, precinct_bits_left);
+}
+
+/*Return 0 if read success, Negative when return error.
+  Pointer to precinct_bits_left, if success subtract number of reads bits.*/
+SvtJxsErrorType_t unpack_pred_zero_gclis_no_significance(bitstream_reader_t* bitstream, precinct_band_t* b_data,
+                                                         precinct_band_info_t* b_info, const int ypos,
+                                                         int32_t* precinct_bits_left) {
+    const uint32_t gcli_width = b_info->gcli_width;
+    uint8_t* gclis = b_data->gcli_data + ypos * gcli_width;
+    return unpack_gclis_unary(bitstream, gclis, gcli_width, b_data->gtli, precinct_bits_left);
 }
 
 /*Return 0 if read success, Negative when return error.

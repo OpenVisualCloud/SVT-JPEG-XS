@@ -12,6 +12,16 @@
 #include "encoder_dsp_rtcd.h"
 #include "SvtLog.h"
 
+/* How far a GCLI sits above the truncation level, zero when it does not.
+ *
+ * Written without a branch: whether a group is above GTLI changes from one
+ * group to the next with no pattern, and the conditional the compiler made of
+ * "gcli > gtli ? gcli - gtli : 0" was mispredicted often. */
+static INLINE uint8_t gcli_above_gtli(uint8_t gcli, int8_t gtli) {
+    const int32_t d = (int32_t)gcli - gtli;
+    return (uint8_t)(d & ~(d >> 31));
+}
+
 /* Significance flags go out in thirty-two bit words.
  *
  * Every flag is a single bit, and write_1_bit spent a call on it: a byte load,
@@ -63,7 +73,7 @@ static void pack_bitplane_count_no_significance(bitstream_writer_t* bitstream, u
     bit_writer_t writer;
     bitw_init(&writer, bitstream);
     for (uint32_t i = 0; i < width; i++) {
-        vlc_put_unary(&writer, bitplane[i] > gtli ? (uint8_t)(bitplane[i] - gtli) : 0);
+        vlc_put_unary(&writer, gcli_above_gtli(bitplane[i], gtli));
     }
     bitw_finish(&writer, bitstream);
 }
@@ -112,7 +122,7 @@ static void pack_bitplane_count_significance(bitstream_writer_t* bitstream, uint
     for (uint32_t g = 0; g < groups; ++g) {
         if (significance_data_max_ptr[g] > gtli) {
             for (uint32_t i = 0; i < SIGNIFICANCE_GROUP_SIZE; ++i) {
-                vlc_put_unary(&writer, bitplane[i] > gtli ? (uint8_t)(bitplane[i] - gtli) : 0);
+                vlc_put_unary(&writer, gcli_above_gtli(bitplane[i], gtli));
             }
         }
         bitplane += SIGNIFICANCE_GROUP_SIZE;
@@ -120,7 +130,7 @@ static void pack_bitplane_count_significance(bitstream_writer_t* bitstream, uint
     if (leftover) {
         if (significance_data_max_ptr[groups] > gtli) {
             for (uint32_t i = 0; i < leftover; i++) {
-                vlc_put_unary(&writer, bitplane[i] > gtli ? (uint8_t)(bitplane[i] - gtli) : 0);
+                vlc_put_unary(&writer, gcli_above_gtli(bitplane[i], gtli));
             }
         }
     }
