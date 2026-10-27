@@ -194,6 +194,60 @@ API version: 0.10 (`SVT_JPEGXS_API_VER_MINOR` raised from 9 to 10).
 - Fixed a decoder throughput regression in the IDWT and VLC inner loops
   that the IntSan fixes had introduced.
 
+### Compared with v0.9.0
+
+- The decoder is 3.9 to 4.6 times faster with `--lp 8` and 3.3 to 3.5
+  times faster with `--lp 1`.
+- The encoder is 1.5 to 1.7 times faster.
+- Both now hold 1080p at 60 fps with any `--lp` value. With `--lp 1`,
+  v0.9.0 dropped below 60 fps in five of the six cases below.
+- At 60 fps the frame latency is 19% to 94% lower and the CPU load is
+  about one third lower.
+
+Test machine:
+
+| Component | Details |
+| --- | --- |
+| CPU | Intel Xeon 6 (Granite Rapids-D, family 6 model 174), 1 socket, 38 cores / 76 threads, up to 3.5 GHz |
+| Cache | 2 MiB L2 per core, 152 MiB L3 |
+| Instruction set | AVX-512 (the library picks the highest level the CPU supports) |
+| Memory | 384 GB DDR5-4800 (4 DIMMs), 1 NUMA node |
+| OS | Ubuntu 26.04 (development branch), Linux 6.19 |
+| Build | CMake Release, GCC 15.2, no PGO; both versions built the same way |
+
+Test setup: 1080p `touchdown` clip, `SvtJpegxsEncApp` and
+`SvtJpegxsDecApp`, `--rc 1`. The apps were pinned to one thread per
+physical core (38 CPUs), and the CPU governor was set to `performance`.
+Each value comes from one run per version.
+
+#### Throughput in fps (no frame rate limit, higher is better)
+
+| Format | Encoder `--lp 1` | Encoder `--lp 8` | Decoder `--lp 1` | Decoder `--lp 8` |
+| --- | --- | --- | --- | --- |
+| YUV 4:2:2 10-bit, 3 bpp | 63 → 102 (**+63%**) | 363 → 534 (**+47%**) | 53 → 188 (**+251%**) | 203 → 798 (**+294%**) |
+| YUV 4:4:4 8-bit, 4 bpp | 49 → 78 (**+58%**) | 295 → 437 (**+48%**) | 44 → 148 (**+233%**) | 152 → 691 (**+356%**) |
+| RGB 8-bit, 4 bpp | 42 → 72 (**+73%**) | 249 → 416 (**+67%**) | 38 → 129 (**+237%**) | 139 → 598 (**+330%**) |
+
+#### Average frame latency in ms at 60 fps (`--limit-fps 60`, lower is better)
+
+| Format | Encoder `--lp 1` | Encoder `--lp 8` | Decoder `--lp 1` | Decoder `--lp 8` |
+| --- | --- | --- | --- | --- |
+| YUV 4:2:2 10-bit, 3 bpp | 16.6 → 11.2 (**-32%**) | 3.6 → 2.9 (**-19%**) | 96.2\* → 5.8 (**-94%**) | 7.2 → 1.8 (**-75%**) |
+| YUV 4:4:4 8-bit, 4 bpp | 98.5\* → 14.1 (**-86%**) | 4.2 → 3.2 (**-24%**) | 108.0\* → 7.5 (**-93%**) | 7.6 → 2.1 (**-72%**) |
+| RGB 8-bit, 4 bpp | 117.4\* → 14.8 (**-87%**) | 4.9 → 3.3 (**-33%**) | 130.4\* → 8.3 (**-94%**) | 8.1 → 2.3 (**-72%**) |
+
+\* v0.9.0 did not reach 60 fps (38 to 51 fps), so frames queued up and
+the latency includes the queueing time. v0.10.0 holds 60 fps in every
+case.
+
+#### CPU load at 60 fps with `--lp 8` (100% = one core fully busy, lower is better)
+
+| Format | Encoder | Decoder |
+| --- | --- | --- |
+| YUV 4:2:2 10-bit, 3 bpp | 113% → 75% (**-34%**) | 90% → 58% (**-35%**) |
+| YUV 4:4:4 8-bit, 4 bpp | 136% → 91% (**-33%**) | 105% → 70% (**-34%**) |
+| RGB 8-bit, 4 bpp | 158% → 98% (**-38%**) | 119% → 75% (**-37%**) |
+
 ## Fixes
 
 ### Encoder
