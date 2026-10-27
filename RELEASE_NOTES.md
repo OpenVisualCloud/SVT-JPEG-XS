@@ -194,6 +194,20 @@ API version: 0.10 (`SVT_JPEGXS_API_VER_MINOR` raised from 9 to 10).
 - Fixed a decoder throughput regression in the IDWT and VLC inner loops
   that the IntSan fixes had introduced.
 
+### Compared with v0.9.0
+
+Applications that move from v0.9.0 to v0.10.0 can expect:
+
+- **Decoder:** throughput 230% to 350% higher.
+- **Encoder:** throughput 45% to 75% higher.
+- **Frame latency** at a fixed frame rate: 20% to 75% lower.
+- **CPU load** at a fixed frame rate: about one third lower.
+
+These ranges apply to a single session, that is, one encoder or decoder
+instance processing one stream. The actual gain depends on the CPU, the
+instruction set it supports, the colour format, the bit depth, the bit
+rate and the number of threads.
+
 ## Fixes
 
 ### Encoder
