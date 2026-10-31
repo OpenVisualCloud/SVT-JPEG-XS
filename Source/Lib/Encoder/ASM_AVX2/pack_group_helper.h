@@ -94,8 +94,14 @@ static INLINE uint64_t pack_nonempty_mask(const uint8_t* gclis, uint32_t chunk, 
         _mm256_cmpgt_epi8(_mm256_subs_epu8(gcli_vec, _mm256_set1_epi8((char)gtli)), _mm256_setzero_si256()));
 }
 
-static INLINE void pack_groups_masked(nib_writer_t* w, const uint16_t* buf_16bit, const uint8_t* gclis, uint32_t groups,
+static INLINE void pack_groups_masked(nib_writer_t* writer, const uint16_t* buf_16bit, const uint8_t* gclis, uint32_t groups,
                                       uint8_t gtli, const int emit_signs) {
+    /* The writer is used through a local copy. Its stores to the stream are byte stores, which may alias anything as
+     * far as the compiler knows, so through the caller's pointer every field of the writer went back to memory after
+     * each group and was loaded again for the next one, and the four byte stores of a flush could not be merged. A
+     * local whose address does not escape cannot be aliased, so it stays in registers. */
+    nib_writer_t local = *writer;
+    nib_writer_t* const w = &local;
     for (uint32_t base = 0; base < groups; base += 32) {
         const uint32_t chunk = MIN(groups - base, 32u);
         uint64_t todo = pack_nonempty_mask(gclis + base, chunk, gtli);
@@ -114,6 +120,7 @@ static INLINE void pack_groups_masked(nib_writer_t* w, const uint16_t* buf_16bit
             nibw_put_group(w, word, count);
         }
     }
+    *writer = local;
 }
 
 /* The whole loop over the full groups of a line.
@@ -164,8 +171,11 @@ TARGET_BMI2 static INLINE uint64_t pack_group_planes_pdep(const uint16_t* buf) {
         _pdep_u64(buf[2], 0x2222222222222222ULL) | _pdep_u64(buf[3], 0x1111111111111111ULL);
 }
 
-TARGET_BMI2 static INLINE void pack_groups_masked_pdep(nib_writer_t* w, const uint16_t* buf_16bit, const uint8_t* gclis,
+TARGET_BMI2 static INLINE void pack_groups_masked_pdep(nib_writer_t* writer, const uint16_t* buf_16bit, const uint8_t* gclis,
                                                        uint32_t groups, uint8_t gtli, const int emit_signs) {
+    /* A local copy of the writer, see pack_groups_masked() */
+    nib_writer_t local = *writer;
+    nib_writer_t* const w = &local;
     for (uint32_t base = 0; base < groups; base += 32) {
         const uint32_t chunk = MIN(groups - base, 32u);
         uint64_t todo = pack_nonempty_mask(gclis + base, chunk, gtli);
@@ -183,6 +193,7 @@ TARGET_BMI2 static INLINE void pack_groups_masked_pdep(nib_writer_t* w, const ui
             nibw_put_group(w, word, count);
         }
     }
+    *writer = local;
 }
 
 #endif /*__PACK_GROUP_HELPER_H__*/
