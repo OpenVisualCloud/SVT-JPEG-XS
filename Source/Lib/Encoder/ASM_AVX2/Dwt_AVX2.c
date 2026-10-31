@@ -208,7 +208,7 @@ void transform_vertical_loop_lf_hf_hf_line_last_even_avx2(uint32_t width, int32_
         out_tmp = _mm256_add_epi32(out_tmp, l0);
         _mm256_storeu_si256((__m256i*)(out_lf + i), out_tmp);
     }
-    for (uint32_t i = 0; i < width; i++) {
+    for (; i < width; i++) {
         out_hf[i] = line_1[i] - line_0[i];
         out_lf[i] = line_0[i] + ((in_hf_prev[i] + out_hf[i] + 2) >> 2);
     }
