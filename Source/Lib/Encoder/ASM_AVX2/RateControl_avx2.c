@@ -109,7 +109,6 @@ uint32_t rate_control_calc_vpred_cost_nosigf_avx2(uint32_t gcli_width, uint8_t *
 void gc_precinct_stage_scalar_avx2(uint8_t *gcli_data_ptr, uint16_t *coeff_data_ptr_16bit, uint32_t group_size, uint32_t width) {
     UNUSED(group_size);
     assert(group_size == GROUP_SIZE);
-    DECLARE_ALIGNED(16, uint16_t, data[16]);
     const __m256i perm = _mm256_setr_epi32(0, 4, 2, 6, 1, 5, 3, 7);
     const __m256i one = _mm256_set1_epi16(1);
 
@@ -143,9 +142,18 @@ void gc_precinct_stage_scalar_avx2(uint8_t *gcli_data_ptr, uint16_t *coeff_data_
         //merge_or <<= 1; //Remove sign bit
         merge_or = _mm256_slli_epi16(merge_or, 1);
         merge_or = _mm256_or_si256(merge_or, one);
-        _mm256_storeu_si256((__m256i *)data, merge_or);
 
-        msb_x16_ASM(data, gcli_data_ptr);
+        /* The MSB of each of the sixteen values, without a round trip through memory and sixteen BSRs: converted to
+         * float, a value below 2^24 is exact and its biased exponent is MSB + 127. The unpacks and packs stay within
+         * the 128-bit lanes, so the packs put the values back in their order. */
+        const __m256i zero = _mm256_setzero_si256();
+        const __m256 values_lo = _mm256_cvtepi32_ps(_mm256_unpacklo_epi16(merge_or, zero));
+        const __m256 values_hi = _mm256_cvtepi32_ps(_mm256_unpackhi_epi16(merge_or, zero));
+        const __m256i exp_lo = _mm256_srli_epi32(_mm256_castps_si256(values_lo), 23);
+        const __m256i exp_hi = _mm256_srli_epi32(_mm256_castps_si256(values_hi), 23);
+        const __m256i exp_16 = _mm256_packus_epi32(exp_lo, exp_hi);
+        const __m256i exp_8 = _mm256_permute4x64_epi64(_mm256_packus_epi16(exp_16, exp_16), 0x08);
+        _mm_storeu_si128((__m128i *)gcli_data_ptr, _mm_sub_epi8(_mm256_castsi256_si128(exp_8), _mm_set1_epi8(127)));
 
         gcli_data_ptr += 16;
         coeff_data_ptr_16bit += 64;
