@@ -102,6 +102,26 @@
 #define SET_NEON(ptr, neon)
 #endif /* ARCH_AARCH64 */
 
+#ifdef ARCH_X86_64
+/* AMD family 17h (Zen, Zen+ and Zen 2) runs PDEP and PEXT in microcode, at a cost that grows with the number of set
+ * bits in the mask: up to hundreds of cycles for a dense one. The unary run decoder uses the bitstream itself as the
+ * mask, so there it would be much slower than the scalar reader. Zen 3 and later do them in hardware. */
+static int pdep_is_microcoded(void) {
+#if defined(_MSC_VER)
+    int regs[4];
+    __cpuid(regs, 0);
+    /* "AuthenticAMD" */
+    const int amd = regs[1] == 0x68747541 && regs[3] == 0x69746e65 && regs[2] == 0x444d4163;
+    __cpuid(regs, 1);
+    const unsigned family = ((unsigned)regs[0] >> 8) & 0xf;
+    return amd && family == 0xf && family + (((unsigned)regs[0] >> 20) & 0xff) == 0x17;
+#else
+    __builtin_cpu_init();
+    return __builtin_cpu_is("amdfam17h");
+#endif
+}
+#endif /* ARCH_X86_64 */
+
 void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
     /* Avoid check that pointer is set double, after first  setup. */
     static uint8_t first_call_setup = 1;
@@ -161,6 +181,15 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
 #endif /* ARCH_X86_64 */
     SET_NEON(unpack_data, unpack_data_neon);
     SET_AVX2_AVX512(unpack_gclis_unary_run, unpack_gclis_unary_run_c, NULL, unpack_gclis_unary_run_avx512);
+#ifdef ARCH_X86_64
+    /* The run decoder of the AVX-512 tier needs only BMI2 and POPCNT. Without it the AVX2 tier reads the
+     * codes one at a time, so a host with AVX2 and BMI2 but no AVX-512 takes it on the same terms as
+     * unpack_data_avx2_bmi2 above - except AMD family 17h, see pdep_is_microcoded(). */
+    if ((flags & CPU_FLAGS_AVX2) && !(flags & CPU_FLAGS_AVX512F) &&
+        (host_flags & (CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT)) == (CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT) && !pdep_is_microcoded()) {
+        unpack_gclis_unary_run = unpack_gclis_unary_run_avx2_bmi2;
+    }
+#endif /* ARCH_X86_64 */
     SET_AVX2_AVX512(idwt_horizontal_line_lf16_hf16,
                     idwt_horizontal_line_lf16_hf16_c,
                     idwt_horizontal_line_lf16_hf16_avx2,
