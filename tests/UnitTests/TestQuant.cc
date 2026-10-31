@@ -4,6 +4,7 @@
 */
 
 #include "gtest/gtest.h"
+#include <vector>
 #include "random.h"
 #include "Quant.h"
 #include "encoder_dsp_rtcd.h"
@@ -238,3 +239,53 @@ TEST_P(QuantTest, corectness_test_neon) {
 #endif /* ARCH_AARCH64 */
 
 INSTANTIATE_TEST_SUITE_P(Quant, QuantTest, ::testing::Range(0, (int)RAND_SIZE));
+
+#ifdef ARCH_X86_64
+/* Random lines against quantization_c: every GTLI, any GCLI up to the 15 an encoder can produce, and line lengths that
+ * end on and off a SIMD step, in buffers of exactly that length so that an access past the end shows under ASan or
+ * valgrind. The magnitudes are within the GCLI of their group, as an encoder makes them (the SIMD deadzone versions
+ * rely on it: they do not look at the GCLIs), except that uniform quantization also gets any magnitude now and then in
+ * the groups above GTLI. */
+static void run_random_against_c(void (*quant_fn_ptr)(uint16_t* buf, uint32_t size, uint8_t* gclis, uint32_t group_size,
+                                                      uint8_t gtli, QUANT_TYPE quant_type)) {
+    svt_jxs_test_tool::SVTRandom rnd(0, 0xffff, 11);
+    for (int test = 0; test < 20000; test++) {
+        const uint32_t size = 1 + rnd.random() % 200;
+        const uint8_t gtli = (uint8_t)(rnd.random() % 16);
+        const QUANT_TYPE type = (test & 1) ? QUANT_TYPE_UNIFORM : QUANT_TYPE_DEADZONE;
+        std::vector<uint8_t> gclis((size + GROUP_SIZE - 1) / GROUP_SIZE);
+        std::vector<uint16_t> buf_ref(size);
+        for (uint8_t& gcli : gclis) {
+            gcli = (uint8_t)(rnd.random() % 16);
+        }
+        for (uint32_t i = 0; i < size; i++) {
+            const uint8_t gcli = gclis[i / GROUP_SIZE];
+            const bool any = type == QUANT_TYPE_UNIFORM && gcli > gtli && !(rnd.random() % 8);
+            const uint16_t magnitude = (uint16_t)(rnd.random() & (any ? 0x7fffu : (1u << gcli) - 1));
+            buf_ref[i] = magnitude | (uint16_t)(rnd.random() & BITSTREAM_MASK_SIGN);
+        }
+        std::vector<uint16_t> buf_mod(buf_ref);
+        quantization_c(buf_ref.data(), size, gclis.data(), GROUP_SIZE, gtli, type);
+        quant_fn_ptr(buf_mod.data(), size, gclis.data(), GROUP_SIZE, gtli, type);
+        ASSERT_EQ(buf_ref, buf_mod) << "test " << test << " size " << size << " gtli " << (int)gtli << " type " << (int)type;
+    }
+}
+
+TEST(QuantRandom, sse41_matches_c) {
+    run_random_against_c(quantization_sse4_1);
+}
+
+TEST(QuantRandom, avx2_matches_c) {
+    if (!(CPU_FLAGS_AVX2 & get_cpu_flags())) {
+        GTEST_SKIP() << "no AVX2";
+    }
+    run_random_against_c(quantization_avx2);
+}
+
+TEST(QuantRandom, avx512_matches_c) {
+    if (!(CPU_FLAGS_AVX512F & get_cpu_flags())) {
+        GTEST_SKIP() << "no AVX-512";
+    }
+    run_random_against_c(quantization_avx512);
+}
+#endif /* ARCH_X86_64 */
