@@ -9,10 +9,12 @@
 #include "DecHandle.h"
 #include "SvtType.h"
 #include "Dequant.h"
+#include <vector>
 
 #ifdef ARCH_X86_64
 #include <immintrin.h>
 #include "Dequant_SSE4.h"
+#include "Dequant_avx2.h"
 #include "Dequant_avx512.h"
 #endif /* ARCH_X86_64 */
 
@@ -153,6 +155,18 @@ TEST_P(DequantFixture, Deadzone_SSE4_1) {
     run_test_deadzone(dequant_sse4_1);
 }
 
+TEST_P(DequantFixture, Uniform_AVX2) {
+    if (CPU_FLAGS_AVX2 & get_cpu_flags()) {
+        run_test_uniform(dequant_avx2);
+    }
+}
+
+TEST_P(DequantFixture, Deadzone_AVX2) {
+    if (CPU_FLAGS_AVX2 & get_cpu_flags()) {
+        run_test_deadzone(dequant_avx2);
+    }
+}
+
 TEST_P(DequantFixture, Uniform_AVX512) {
     if (CPU_FLAGS_AVX512F & get_cpu_flags()) {
         run_test_uniform(dequant_avx512);
@@ -168,6 +182,44 @@ TEST_P(DequantFixture, Deadzone_AVX512) {
 TEST_P(DequantFixture, DISABLED_speed_SSE4_1) {
     run_test_speed(QUANT_TYPE_UNIFORM, dequant_sse4_1);
     run_test_speed(QUANT_TYPE_DEADZONE, dequant_sse4_1);
+}
+
+TEST_P(DequantFixture, DISABLED_speed_AVX2) {
+    run_test_speed(QUANT_TYPE_UNIFORM, dequant_avx2);
+    run_test_speed(QUANT_TYPE_DEADZONE, dequant_avx2);
+}
+
+/* Every line length up to a few vector steps and some full lines, in buffers of exactly that length so that a read or
+ * write past the end shows under ASan or valgrind, and every GTLI including 15. */
+TEST(DequantExactSize, AVX2_matches_c) {
+    if (!(CPU_FLAGS_AVX2 & get_cpu_flags())) {
+        GTEST_SKIP() << "no AVX2";
+    }
+    svt_jxs_test_tool::SVTRandom rnd(0, 0xffff, 5);
+    const uint32_t group_size = 4;
+    std::vector<uint32_t> lengths;
+    for (uint32_t len = 1; len <= 80; len++) {
+        lengths.push_back(len);
+    }
+    lengths.insert(lengths.end(), {1917, 1920, 3839, 3840, 4096});
+    for (uint32_t len : lengths) {
+        for (uint8_t gtli = 0; gtli <= 15; gtli++) {
+            for (QUANT_TYPE type : {QUANT_TYPE_UNIFORM, QUANT_TYPE_DEADZONE}) {
+                std::vector<uint8_t> gclis((len + group_size - 1) / group_size);
+                std::vector<uint16_t> buf_ref(len);
+                for (uint8_t& gcli : gclis) {
+                    gcli = (uint8_t)(rnd.random() % 31);
+                }
+                for (uint16_t& v : buf_ref) {
+                    v = (uint16_t)rnd.random();
+                }
+                std::vector<uint16_t> buf_mod(buf_ref);
+                dequant_c(buf_ref.data(), len, gclis.data(), group_size, gtli, type);
+                dequant_avx2(buf_mod.data(), len, gclis.data(), group_size, gtli, type);
+                ASSERT_EQ(buf_ref, buf_mod) << "len " << len << " gtli " << (int)gtli << " type " << (int)type;
+            }
+        }
+    }
 }
 #endif /* ARCH_X86_64 */
 
