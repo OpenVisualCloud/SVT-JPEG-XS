@@ -17,6 +17,7 @@
 #include "Mct_avx512.h"
 #include "Dwt53Decoder_AVX2.h"
 #include "Dequant_SSE4.h"
+#include "Dequant_avx2.h"
 #include "NltDec_AVX2.h"
 #include "UnPack_avx2.h"
 #include "UnPack_avx512.h"
@@ -129,7 +130,7 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
      * to read the mask. */
     (void)flags;
 
-    SET_SSE41_AVX2_AVX512(dequant, dequant_c, dequant_sse4_1, NULL, dequant_avx512);
+    SET_SSE41_AVX2_AVX512(dequant, dequant_c, dequant_sse4_1, dequant_avx2, dequant_avx512);
     SET_NEON(dequant, dequant_neon);
     SET_AVX2(linear_output_scaling_8bit, linear_output_scaling_8bit_c, linear_output_scaling_8bit_avx2);
     SET_AVX2_AVX512(linear_output_scaling_8bit_line,
