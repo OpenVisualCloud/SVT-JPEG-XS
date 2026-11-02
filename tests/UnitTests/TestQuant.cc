@@ -229,6 +229,45 @@ TEST_P(QuantTest, corectness_test_avx512) {
         run_correctness(quantization_avx512);
     }
 }
+
+/* Uniform quantization of groups with GCLI 15, the largest an encoder can produce: its rounding term 1 << 15 does
+ * not fit in a signed 16-bit lane. Every magnitude within the GCLI, at every GTLI below it. */
+static void run_uniform_gcli15(void (*quant_fn)(uint16_t* buf, uint32_t size, uint8_t* gclis, uint32_t group_size, uint8_t gtli,
+                                                QUANT_TYPE quant_type)) {
+    const uint32_t size = 64;
+    uint16_t buf_ref[size];
+    uint16_t buf_mod[size];
+    uint8_t gclis[size / GROUP_SIZE];
+    memset(gclis, 15, sizeof(gclis));
+    for (uint8_t gtli = 0; gtli < 15; gtli++) {
+        for (uint32_t first = 0; first < 0x10000; first += size) {
+            for (uint32_t i = 0; i < size; i++) {
+                buf_ref[i] = buf_mod[i] = (uint16_t)(first + i);
+            }
+            quantization_c(buf_ref, size, gclis, GROUP_SIZE, gtli, QUANT_TYPE_UNIFORM);
+            quant_fn(buf_mod, size, gclis, GROUP_SIZE, gtli, QUANT_TYPE_UNIFORM);
+            ASSERT_EQ(0, memcmp(buf_ref, buf_mod, sizeof(buf_ref))) << "gtli " << (int)gtli << " first " << first;
+        }
+    }
+}
+
+TEST(QuantUniformGcli15, sse41_matches_c) {
+    run_uniform_gcli15(quantization_sse4_1);
+}
+
+TEST(QuantUniformGcli15, avx2_matches_c) {
+    if (!(CPU_FLAGS_AVX2 & get_cpu_flags())) {
+        GTEST_SKIP() << "no AVX2";
+    }
+    run_uniform_gcli15(quantization_avx2);
+}
+
+TEST(QuantUniformGcli15, avx512_matches_c) {
+    if (!(CPU_FLAGS_AVX512F & get_cpu_flags())) {
+        GTEST_SKIP() << "no AVX-512";
+    }
+    run_uniform_gcli15(quantization_avx512);
+}
 #endif /* ARCH_X86_64 */
 
 #ifdef ARCH_AARCH64
