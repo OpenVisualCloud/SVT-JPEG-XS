@@ -213,6 +213,11 @@ SvtJxsErrorType_t unpack_data_avx2_bmi2(bitstream_reader_t* bitstream, uint16_t*
                               unpack_n_groups_nosign_bmi2);
 }
 
+TARGET_BMI2 uint32_t unpack_gclis_unary_run_avx2_bmi2(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out,
+                                                      uint32_t count, int8_t gtli, int32_t* error) {
+    return unpack_gclis_unary_run_pdep(mem, bit_pos, byte_limit, out, count, gtli, error);
+}
+
 SvtJxsErrorType_t unpack_data_common(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                      uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                      int32_t* precinct_bits_left, unpack_groups_fn groups_sign, unpack_groups_fn groups_nosign) {
