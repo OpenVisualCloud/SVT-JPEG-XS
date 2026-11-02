@@ -104,10 +104,10 @@ are needed; everything else has a default that suits a 1080p test on one host.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `TEST_WIDTH`, `TEST_HEIGHT` | `1920`, `1080` | Picture size in pixels of every stream; both must be even, `TEST_HEIGHT` a multiple of 4 for `test_interlaced.sh` (each field needs an even height). The lossy packet budget is computed from it. |
-| `TEST_FPS` | `p59` | Frame rate of every stream, in RxTxApp notation: `p23` (23.98), `p24`, `p25`, `p29` (29.97), `p30`, `p50`, `p59` (59.94), `p60`, `p100`, `p119` (119.88), `p120`. Any other value exits with 125. |
-| `TEST_SECONDS` | `10` | How many seconds the TX side runs in each loopback case of `test_formats.sh` and `test_interlaced.sh`, at least 5. The RX side starts 4 s earlier and stops about 2 s later, so one case takes about `TEST_SECONDS` + 6 s: a full `test_formats.sh` (26 loopbacks and 2 RxTxApp runs) takes about 7 min with the default, about 5 min with `TEST_SECONDS=5`. Starting MTL takes about 3 s of that time; a case fails if the TX encoder returns less than half the frames the remaining time at `TEST_FPS` allows, or RX gets more than 3 frames fewer than TX encoded. |
-| `SOURCE_YUV` | none | A raw picture file to derive the test content from instead of the generated gradients: planar 4:2:2 10-bit little-endian (ffmpeg `yuv422p10le`), `TEST_WIDTH` x `TEST_HEIGHT`, only the first frame is used, e.g. `ffmpeg -i in.mkv -frames:v 1 -pix_fmt yuv422p10le -f rawvideo src.yuv`. Lossless content must compress to less than the raw size (half of it for interlaced), so noisy pictures can make the lossless cases fail. |
+| `TEST_WIDTH`, `TEST_HEIGHT` | `1920`, `1080` | Picture size in pixels of every stream except in `test_ipmx.sh`; both must be even, `TEST_HEIGHT` a multiple of 4 for `test_interlaced.sh` (each field needs an even height). The lossy packet budget is computed from it. |
+| `TEST_FPS` | `p59` | Frame rate of every stream except in `test_ipmx.sh`, in RxTxApp notation: `p23` (23.98), `p24`, `p25`, `p29` (29.97), `p30`, `p50`, `p59` (59.94), `p60`, `p100`, `p119` (119.88), `p120`. Any other value exits with 125. |
+| `TEST_SECONDS` | `10` | How many seconds the TX side runs in each loopback case of `test_formats.sh`, `test_ipmx.sh` and `test_interlaced.sh`, at least 5. The RX side starts 4 s earlier and stops about 2 s later, so one case takes about `TEST_SECONDS` + 6 s: a full `test_formats.sh` (26 loopbacks and 2 RxTxApp runs) takes about 7 min with the default, about 5 min with `TEST_SECONDS=5`. Starting MTL takes about 3 s of that time; a case fails if the TX encoder returns less than half the frames the remaining time at `TEST_FPS` allows, or RX gets more than 3 frames fewer than TX encoded. |
+| `SOURCE_YUV` | none | A raw picture file to derive the test content from instead of the generated gradients (not in `test_ipmx.sh`): planar 4:2:2 10-bit little-endian (ffmpeg `yuv422p10le`), `TEST_WIDTH` x `TEST_HEIGHT`, only the first frame is used, e.g. `ffmpeg -i in.mkv -frames:v 1 -pix_fmt yuv422p10le -f rawvideo src.yuv`. Lossless content must compress to less than the raw size (half of it for interlaced), so noisy pictures can make the lossless cases fail. |
 
 ### Performance test
 
@@ -135,7 +135,7 @@ These only affect `test_perf.sh`.
 | --- | --- | --- |
 | `OUT_DIR` | `mtl-plugin/tests/results/<date_time>` | Where logs and results are written (see [Results](#results)). `run_all.sh` passes one directory to all tests of a run. |
 | `KEEP_FILES` | `0` | `1` keeps the temp dir (`/tmp/mtl-plugin-test.*`) with the generated pictures, config files and what RX received, to inspect a failure; its path is printed at the end. |
-| `TESTS` | `config formats interlaced perf` | `run_all.sh` only: which tests to run, in this order. |
+| `TESTS` | `config formats ipmx interlaced perf` | `run_all.sh` only: which tests to run, in this order. |
 
 ### Host setup
 
@@ -152,10 +152,13 @@ These only affect `setup_host.sh` (see [Host setup and undo](#host-setup-and-und
 
 The plugin's config file loader, without MTL. Builds `tools/config_test.c` together with
 `src/st22_svt_jpeg_xs_config.c`, using the defines of the plugin build, and checks: no config
-file, `sample_config.json` (all keys at the library defaults), every key with a valid value,
-numbers instead of names, the library verbosity per `log_level`, comments, unknown keys, invalid
-values, syntax errors with their line number, the 1 MiB size limit, and a key the installed
-library doesn't support (the harness rebuilt without `HAVE_ENC_LOSSLESS_ENABLE`).
+file, `sample_config.json` (all keys at the library defaults), the IPMX files
+(`ipmx_1080p.json`, `ipmx_2160p.json`: every value they set, and that `decomp_v`,
+`quantization` and `slice_height` are in them, since the harness applies the files to library
+defaults, not to the MTL quality mode presets), every key with a valid value, `bpp` 0 and its
+range, numbers instead of names, the library verbosity per `log_level`, comments, unknown keys,
+invalid values, syntax errors with their line number, the 1 MiB size limit, and a key the
+installed library doesn't support (the harness rebuilt without `HAVE_ENC_LOSSLESS_ENABLE`).
 
 ### test_formats.sh
 
@@ -177,6 +180,29 @@ Progressive loopback with the MTL pipeline samples, for every plugin format:
 The 16LE cases are skipped when the plugin doesn't offer the format (built against a library
 without MSB-aligned input/output). The tests read that from the encoder caps MTL logs when the
 plugin registers; when the TX log has no caps line, the 16LE cases fail instead.
+
+### test_ipmx.sh
+
+The IPMX config files (`ipmx_1080p.json`, `ipmx_2160p.json`) through the MTL pipeline samples,
+TX encoding `GBRPLANAR10LE` with the file, in QUALITY mode (the samples' only mode). It sets
+its own sizes and rates and always uses generated content; `TEST_WIDTH`, `TEST_HEIGHT`,
+`TEST_FPS` and `SOURCE_YUV` don't apply.
+
+Every case runs at the samples' 3 bpp and at 4 bpp, with a copy of the file that sets
+`"bpp": 4` and the Sublev4bpp level (`0x1006`, `0x2406`). Packets per frame must fit the bpp:
+more packets than a frame at bpp - 1 needs, at most as many as a frame at bpp needs (codestream
+plus the 60-byte ST22 box header).
+
+* 1080p59.94 with `ipmx_1080p.json`: RX receives the codestreams without decoding
+  (`JPEGXS_CODESTREAM` output) and dumps them; `tools/frame_tool pih` prints the picture header
+  of each, and all must be High444.12 (Ppih 0x4a40), Plev 0x1004 (4 bpp: 0x1006), Cpih 1,
+  NL,x 5, NL,y 2, Qpih 1, Rl 0, Lh 0, Cw 0 and Hsl 4 precincts (16 lines); Fslc, Ppoc, Fs and
+  Rm at the encoder defaults.
+* 2160p30 with `ipmx_2160p.json`: RX decodes to `GBRPLANAR10LE`; frames are counted as in the
+  other loopbacks, the content is not compared. The picture header isn't checked: in codestream
+  output the RX sample takes frames up to 1 MiB only (MTL's derive mode default), a 2160p frame
+  at 3 bpp is 3.1 MB; 1080p at 4 bpp (1036800 bytes) still fits. 30 fps, because at 2160p60 RX
+  drops about 5 frames at start while the decoder warms up, with any encoder config.
 
 ### test_interlaced.sh
 

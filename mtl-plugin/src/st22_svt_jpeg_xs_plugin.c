@@ -363,14 +363,40 @@ static int encoder_init_session(struct st22_encoder_session* session,
   }
 #endif
 
-  if (req->codestream_size > UINT32_MAX / 8) {
-    err("%s(%d), codestream_size %zu too large for bpp calculation\n", __func__, idx,
-        req->codestream_size);
-    encoder_uinit_session(session);
-    return -EINVAL;
+  bool cfg_bpp = session->codec_ctx->bpp_numerator != 0;
+#ifdef HAVE_ENC_LOSSLESS_ENABLE
+  /* lossless ignores the bpp, the block below sizes its buffers */
+  if (session->codec_ctx->lossless_enable) cfg_bpp = false;
+#endif
+  if (cfg_bpp) {
+    /* encoder.bpp from the config file (over the default denominator 1) replaces the bpp
+     * of MTL's codestream_size; MTL sizes the frame buffers and TX bandwidth from
+     * max_codestream_size */
+    svt_jpeg_xs_image_config_t image_config;
+    uint32_t bytes_per_frame = 0;
+    ret = svt_jpeg_xs_encoder_get_image_config(
+        SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, session->codec_ctx,
+        &image_config, &bytes_per_frame);
+    if (ret != SvtJxsErrorNone) {
+      err("%s(%d), svt_jpeg_xs_encoder_get_image_config err = %d\n", __func__, idx, ret);
+      encoder_uinit_session(session);
+      return -EIO;
+    }
+    req->max_codestream_size = bytes_per_frame;
+    session->req.max_codestream_size = bytes_per_frame;
+    info("%s(%d), bpp %u from the config file, codestream size %u instead of %zu\n",
+         __func__, idx, session->codec_ctx->bpp_numerator, bytes_per_frame,
+         req->codestream_size);
+  } else {
+    if (req->codestream_size > UINT32_MAX / 8) {
+      err("%s(%d), codestream_size %zu too large for bpp calculation\n", __func__, idx,
+          req->codestream_size);
+      encoder_uinit_session(session);
+      return -EINVAL;
+    }
+    session->codec_ctx->bpp_numerator = (uint32_t)(req->codestream_size * 8);
+    session->codec_ctx->bpp_denominator = req->width * session->codec_ctx->source_height;
   }
-  session->codec_ctx->bpp_numerator = (uint32_t)(req->codestream_size * 8);
-  session->codec_ctx->bpp_denominator = req->width * session->codec_ctx->source_height;
 
 #ifdef HAVE_ENC_LOSSLESS_ENABLE
   if (session->codec_ctx->lossless_enable) {
