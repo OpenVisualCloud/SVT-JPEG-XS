@@ -10,7 +10,7 @@ if("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_BINARY_DIR}")
                     "Please use the Build folder or create your own.")
 endif()
 
-project(svt-jpegxs VERSION 0.10.0
+project(svt-jpegxs VERSION 0.11.0
     LANGUAGES C CXX)
 
 set(CMAKE_C_VISIBILITY_PRESET hidden)
