@@ -143,9 +143,10 @@ The installed SVT-JPEG-XS library must support `rct`, `coding_raw`, `stream_prof
 `stream_level`.
 
 * Input must be `GBRPLANAR*`: `rct` fails any other format at session create. TR-10-15 Part 1
-  §8 asks an IPMX-JPEG-XS sender for 8-bit RGB (or 10-bit 4:2:2 YCbCr); the plugin has no 8-bit
-  RGB input yet, so with `GBRPLANAR10LE` / `12LE` the codestream meets TR-08 but the sender
-  can't claim the IPMX-JPEG-XS profile.
+  §8 asks an IPMX-JPEG-XS sender for 8-bit RGB (or 10-bit 4:2:2 YCbCr), which is `GBRPLANAR8`
+  (B 8 in the component table); it needs an MTL with that format (see [Formats](#4-formats)).
+  With `GBRPLANAR10LE` / `12LE` the codestream meets TR-08 too, but the sender can't claim the
+  IPMX-JPEG-XS profile.
 * The file applies to every encoder session of the process, so one process can send only the
   streams one file is for, and nothing checks that the file matches the stream. TR-08 allows
   only the levels 1k-1, 2k-1, 4k-2 and 8k-2 and needs the lowest of them that fits width,
@@ -177,10 +178,14 @@ The encoder takes and the decoder outputs these MTL pipeline formats:
 | `YUV444PLANAR12LE` | 4:4:4 | 12 |
 | `GBRPLANAR10LE` | 4:4:4 RGB | 10 |
 | `GBRPLANAR12LE` | 4:4:4 RGB | 12 |
+| `GBRPLANAR8` | 4:4:4 RGB | 8 |
 
 * `YUV422PLANAR16LE` needs an SVT-JPEG-XS library with MSB-aligned input/output; the plugin offers
   it only when built against such a library. The decoder accepts only 10-bit 4:2:2 streams for it.
   `lossless` can't be combined with it.
+* `GBRPLANAR8` needs an MTL that has `ST_FRAME_FMT_GBRPLANAR8`; the plugin offers it only when
+  built against such an MTL. Applications with packed `RGB8` frames convert them with MTL's
+  `st_frame_convert()`; the st22 pipeline doesn't convert.
 * `GBRPLANAR*` frames store the planes G, B, R. The plugin hands them to the codec as components R,
   G, B (`COLOUR_FORMAT_PLANAR_RGB`; `COLOUR_FORMAT_PLANAR_YUV444_OR_RGB` with libraries that lack
   it), the order the colour transform (`rct`), the SVT-JPEG-XS ffmpeg plugin and other JPEG XS codecs
