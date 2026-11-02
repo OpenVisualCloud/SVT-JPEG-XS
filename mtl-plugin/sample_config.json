@@ -72,6 +72,12 @@
     //   "slice_max_rate"    (3) budget per slice, max slice size RATE
     // Ignored when lossless is true.
     "rc": "precinct_padding",
+    // Bits per pixel of the coded frame, 1-48. 0 = from MTL's codestream_size,
+    // the rate the application asked for (MTL samples and RxTxApp: 3). Any
+    // other value overrides it for every session; the plugin reports the new
+    // frame size to MTL, which sizes its buffers and TX bandwidth for it, and
+    // receivers must take frames of that size. Ignored when lossless is true.
+    "bpp": 0,
     // --- Stream features / interoperability ---
     // True lossless coding (Fq=0). Frame size depends on the content instead
     // of MTL's codestream_size; the plugin sizes the output buffers for the

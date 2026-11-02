@@ -137,6 +137,10 @@ static const struct key_desc enc_keys[] = {
      .names = coding_vpred_names, .numeric = true, .max = 2},
     {.name = "rc", .kind = KEY_NAME, ENC(rate_control_mode), .names = rc_names, .numeric = true,
      .max = 3},
+    /* bits per pixel over the library's default bpp_denominator 1; 0 keeps the bpp the plugin
+     * derives from MTL's codestream_size. 48 is the highest decoded bpp of the non-Bayer
+     * profiles (ISO/IEC 21122-2 Table A.6) */
+    {.name = "bpp", .kind = KEY_UINT, ENC(bpp_numerator), .max = 48, .zero_keeps = true},
 #ifdef HAVE_ENC_LOSSLESS_ENABLE
     {.name = "lossless", .kind = KEY_BOOL, ENC(lossless_enable)},
 #else
