@@ -62,6 +62,7 @@ void quant_uniform_avx512(uint16_t* buf, uint32_t size, uint8_t* gclis, uint8_t 
     const __m256i clamp_sse = _mm256_set1_epi16((short)~BITSTREAM_MASK_SIGN);
     const __m256i gtli_avx = _mm256_set1_epi16(gtli);
     const __m256i one_avx = _mm256_set1_epi16(1);
+    const __m512i one_avx512 = _mm512_set1_epi32(1);
     const __m512i permute = _mm512_setr_epi64(0, 2, 4, 6, 0, 0, 0, 0);
 
     for (uint32_t coeff_idx = 0; coeff_idx < size / 16; coeff_idx++) {
@@ -81,7 +82,8 @@ void quant_uniform_avx512(uint16_t* buf, uint32_t size, uint8_t* gclis, uint8_t 
         const __m256i scal_value = _mm256_subs_epu16(gclis_avx16_p1, gtli_avx);
 
         __m512i d = _mm512_sllv_epi32(buff32, _mm512_cvtepi16_epi32(scal_value));
-        d = _mm512_add_epi32(_mm512_sub_epi32(d, buff32), _mm512_cvtepi16_epi32(_mm256_sllv_epi16(one_avx, gclis_avx16)));
+        /* 1 << gcli in 32-bit lanes: in 16-bit lanes 1 << 15 is 0x8000, which the widening would sign-extend */
+        d = _mm512_add_epi32(_mm512_sub_epi32(d, buff32), _mm512_sllv_epi32(one_avx512, _mm512_cvtepi16_epi32(gclis_avx16)));
         d = _mm512_srlv_epi32(d, _mm512_cvtepi16_epi32(gclis_avx16_p1));
         d = _mm512_slli_epi32(d, gtli);
         d = _mm512_packs_epi32(d, d);

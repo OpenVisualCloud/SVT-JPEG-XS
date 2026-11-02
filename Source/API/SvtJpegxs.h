@@ -15,7 +15,7 @@ extern "C" {
 
 /* API Version */
 #define SVT_JPEGXS_API_VER_MAJOR (0)
-#define SVT_JPEGXS_API_VER_MINOR (10)
+#define SVT_JPEGXS_API_VER_MINOR (11)
 
 /*Define PREFIX_API*/
 #ifdef DEF_DLL
