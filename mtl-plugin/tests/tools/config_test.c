@@ -34,6 +34,7 @@ static void print_enc(const svt_jpeg_xs_encoder_api_t* e) {
   printf("enc.coding_significance=%u\n", e->coding_significance);
   printf("enc.coding_vertical_prediction_mode=%u\n", e->coding_vertical_prediction_mode);
   printf("enc.rate_control_mode=%u\n", e->rate_control_mode);
+  printf("enc.bpp_numerator=%u\n", e->bpp_numerator);
 #ifdef HAVE_ENC_LOSSLESS_ENABLE
   printf("enc.lossless_enable=%u\n", e->lossless_enable);
 #endif
