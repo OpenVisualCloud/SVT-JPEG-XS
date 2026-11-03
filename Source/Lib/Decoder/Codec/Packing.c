@@ -279,9 +279,29 @@ int32_t unpack_sign(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, ui
     return SvtJxsErrorNone;
 }
 
+/* Raw GCLI coding: one nibble per GCLI, the first GCLI in the high nibble of a byte. Each byte
+ * becomes two GCLIs. */
+void unpack_raw_gclis_bytes_c(const uint8_t* mem, uint8_t* gclis, uint32_t bytes) {
+    for (uint32_t i = 0; i < bytes; i++) {
+        gclis[2 * i] = mem[i] >> 4;
+        gclis[2 * i + 1] = mem[i] & 0xF;
+    }
+}
+
+/* The caller has already checked that the w nibbles are within the precinct. A GCLI left over at
+ * either end, where the line does not start or end on a byte boundary, is read one nibble at a
+ * time; the whole bytes in between go to the dispatched kernel. */
 void unpack_raw_gclis(bitstream_reader_t* bitstream, uint8_t* gclis, uint32_t w) {
-    for (uint32_t i = 0; i < w; i++) {
-        gclis[i] = (int8_t)read_4_bits_align4(bitstream);
+    uint32_t i = 0;
+    if (w > 0 && bitstream->bits_used == 4) {
+        gclis[i++] = read_4_bits_align4(bitstream);
+    }
+    const uint32_t bytes = (w - i) / 2;
+    unpack_raw_gclis_bytes(bitstream->mem + bitstream->offset, gclis + i, bytes);
+    bitstream->offset += bytes;
+    i += 2 * bytes;
+    if (i < w) {
+        gclis[i] = read_4_bits_align4(bitstream);
     }
 }
 

@@ -346,3 +346,19 @@ SvtJxsErrorType_t unpack_data_avx2(bitstream_reader_t* bitstream, uint16_t* buf,
                               unpack_n_groups,
                               unpack_n_groups_nosign);
 }
+
+/* See unpack_raw_gclis_bytes_c(). Each byte is widened to a 16-bit lane, which then holds the high
+ * nibble in its low byte and the low nibble in its high byte - the two GCLIs in stream order. */
+void unpack_raw_gclis_bytes_avx2(const uint8_t* mem, uint8_t* gclis, uint32_t bytes) {
+    const __m256i low_nibble = _mm256_set1_epi16(0x0F);
+    uint32_t i = 0;
+    for (; i + 16 <= bytes; i += 16) {
+        const __m256i v = _mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i*)(mem + i)));
+        const __m256i out = _mm256_or_si256(_mm256_srli_epi16(v, 4), _mm256_slli_epi16(_mm256_and_si256(v, low_nibble), 8));
+        _mm256_storeu_si256((__m256i*)(gclis + 2 * i), out);
+    }
+    for (; i < bytes; i++) {
+        gclis[2 * i] = mem[i] >> 4;
+        gclis[2 * i + 1] = mem[i] & 0xF;
+    }
+}

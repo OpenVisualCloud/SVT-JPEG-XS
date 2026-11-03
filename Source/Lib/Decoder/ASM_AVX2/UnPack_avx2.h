@@ -44,6 +44,8 @@ SvtJxsErrorType_t unpack_data_avx2_bmi2(bitstream_reader_t* bitstream, uint16_t*
  * but no AVX-512. Like unpack_data_avx2_bmi2, select it only when the host has BMI2 (and POPCNT). */
 uint32_t unpack_gclis_unary_run_avx2_bmi2(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out,
                                           uint32_t count, int8_t gtli, int32_t* error);
+
+void unpack_raw_gclis_bytes_avx2(const uint8_t* mem, uint8_t* gclis, uint32_t bytes);
 #ifdef __cplusplus
 }
 #endif

@@ -26,6 +26,8 @@ SvtJxsErrorType_t unpack_data_avx512(bitstream_reader_t* bitstream, uint16_t* bu
 uint32_t unpack_gclis_unary_run_avx512(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out,
                                        uint32_t count, int8_t gtli, int32_t* error);
 
+void unpack_raw_gclis_bytes_avx512(const uint8_t* mem, uint8_t* gclis, uint32_t bytes);
+
 #ifdef __cplusplus
 }
 #endif

@@ -219,6 +219,7 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
     }
 #endif /* ARCH_X86_64 */
     SET_NEON(pack_data_groups, pack_data_groups_neon);
+    SET_AVX2_AVX512(pack_raw_gclis_bytes, pack_raw_gclis_bytes_c, pack_raw_gclis_bytes_avx2, pack_raw_gclis_bytes_avx512);
     SET_AVX2_AVX512(gc_histogram_16, gc_histogram_16_c, gc_histogram_16_avx2, gc_histogram_16_avx512);
     SET_NEON(gc_histogram_16, gc_histogram_16_neon);
     SET_SSE41(gc_precinct_sigflags_max, gc_precinct_sigflags_max_c, gc_precinct_sigflags_max_sse4_1);

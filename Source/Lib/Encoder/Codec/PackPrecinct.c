@@ -63,8 +63,30 @@ void pack_significance_compare(bitstream_writer_t* bitstream, uint8_t* significa
     bitw_finish(&writer, bitstream);
 }
 
+/* Raw GCLI coding: one nibble per GCLI, the first GCLI in the high nibble of a byte. Every two
+ * GCLIs become one byte. */
+void pack_raw_gclis_bytes_c(const uint8_t* gclis, uint8_t* mem, uint32_t bytes) {
+    for (uint32_t i = 0; i < bytes; i++) {
+        mem[i] = (uint8_t)((gclis[2 * i] << 4) | gclis[2 * i + 1]);
+    }
+}
+
+/* A GCLI left over at either end, where the line does not start or end on a byte boundary, is
+ * written one nibble at a time; the whole bytes in between go to the dispatched kernel. That is
+ * only done when they all fit in the buffer: otherwise every nibble goes through
+ * write_4_bits_align4(), which guards each write. */
 static void pack_bitplane_count_raw(bitstream_writer_t* bitstream, uint8_t* bitplane, uint32_t width) {
-    for (uint32_t i = 0; i < width; i++) {
+    uint32_t i = 0;
+    if (width > 0 && bitstream->bits_used == 4) {
+        write_4_bits_align4(bitstream, bitplane[i++]);
+    }
+    const uint32_t bytes = (width - i) / 2;
+    if (bitstream->offset <= bitstream->size && bytes <= bitstream->size - bitstream->offset) {
+        pack_raw_gclis_bytes(bitplane + i, bitstream->mem + bitstream->offset, bytes);
+        bitstream->offset += bytes;
+        i += 2 * bytes;
+    }
+    for (; i < width; i++) {
         write_4_bits_align4(bitstream, bitplane[i]);
     }
 }

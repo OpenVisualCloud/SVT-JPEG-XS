@@ -181,6 +181,7 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
     }
 #endif /* ARCH_X86_64 */
     SET_NEON(unpack_data, unpack_data_neon);
+    SET_AVX2_AVX512(unpack_raw_gclis_bytes, unpack_raw_gclis_bytes_c, unpack_raw_gclis_bytes_avx2, unpack_raw_gclis_bytes_avx512);
     SET_AVX2_AVX512(unpack_gclis_unary_run, unpack_gclis_unary_run_c, NULL, unpack_gclis_unary_run_avx512);
 #ifdef ARCH_X86_64
     /* The run decoder of the AVX-512 tier needs only BMI2 and POPCNT. Without it the AVX2 tier reads the

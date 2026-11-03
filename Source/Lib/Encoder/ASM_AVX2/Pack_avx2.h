@@ -25,6 +25,7 @@ void pack_data_groups_avx2_bmi2(bitstream_writer_t* bitstream, uint16_t* buf_16b
                                 uint8_t gtli, uint8_t sign_flag);
 
 void pack_data_single_group_avx2(bitstream_writer_t* bitstream, uint16_t* buf, uint8_t gcli, uint8_t gtli);
+void pack_raw_gclis_bytes_avx2(const uint8_t* gclis, uint8_t* mem, uint32_t bytes);
 
 #ifdef __cplusplus
 }
