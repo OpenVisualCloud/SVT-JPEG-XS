@@ -1,0 +1,27 @@
+// SVT-JPEG-XS MTL plugin configuration for IPMX JPEG XS senders, 1080p.
+//
+// Load it with SVT_JXS_MTL_PLUGIN_CONFIG=<path>/ipmx_1080p.json. Every encoder session of the
+// process then emits VSF TR-08 §8.1.1 High444.12 codestreams of RGB 4:4:4 (GBRPLANAR* input),
+// the codestream part of the IPMX-JPEG-XS profile of VSF TR-10-15 Part 1 §8. Use it only for
+// 1920x1080 up to 60 fps and up to 3 bpp; see README.md, "IPMX".
+{
+  "encoder": {
+    // High444.12, Ppih 0x4A40 (TR-08 §8.1.1 Table 1)
+    "stream_profile": "high444",
+    // 2k-1 at Sublev3bpp: the lowest TR-08 level for 1080p (60 fps: pixel rate 124.4 M/s,
+    // 2k-1 allows 133.7 M/s, ISO/IEC 21122-2 Table A.8). Above 3 bpp up to 4 bpp, TR-08 needs
+    // Sublev4bpp: "0x1006", and "bpp": 4 unless the application asks for 4 bpp.
+    "stream_level": "0x1004",
+    // NL,x = 5, NL,y = 2, Qpih = 1 (uniform quantizer), TR-08 §8.1.1
+    "decomp_h": 5,
+    "decomp_v": 2,
+    "quantization": "uniform",
+    // Cpih = 1 for RGB, components R, G, B (TR-08 §8.1.1); needs cpu_profile "latency", the
+    // default
+    "rct": true,
+    // Rl = 0 and 16-line slices, required by High444.12 (ISO/IEC 21122-2 Table A.3); MTL's
+    // QUALITY mode would set 64 lines
+    "coding_raw": false,
+    "slice_height": 16
+  }
+}

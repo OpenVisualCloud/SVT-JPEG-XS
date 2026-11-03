@@ -8,6 +8,8 @@
 # - GBR decoded as YUV444: planes R, G, B (codec component order)
 # - lossy: all frames received, clean logs, packets per frame within the codestream budget
 # - YUV422PLANAR16LE: decoded 16LE >> 6 equals decoded 10LE of the same picture
+# - GBRPLANAR8 (MTL with ST_FRAME_FMT_GBRPLANAR8): lossless, lossless with rct, lossy, and
+#   refused by a 10-bit GBR receiver
 # - rejected combinations fail cleanly with the plugin's message
 
 # shellcheck source-path=SCRIPTDIR
@@ -15,7 +17,7 @@ set -eo pipefail
 # shellcheck source=common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
-init_test formats "progressive loopback of every format" "$(loopback_minutes 28)"
+init_test formats "progressive loopback of every format" "$(loopback_minutes 32)"
 require_plugin
 require_mtl
 require_ports
@@ -128,8 +130,10 @@ done
 
 # the encoder caps MTL logs at plugin registration: bit n = st_frame_fmt n
 HAS_16LE=""
+HAS_GBR8=""
 if [ -n "$ENC_IN_CAPS" ]; then
     HAS_16LE=$(((ENC_IN_CAPS >> 15) & 1))
+    HAS_GBR8=$(((ENC_IN_CAPS >> 39) & 1))
 fi
 
 # GBR stored G, B, R decodes into YUV444 as the codec components R, G, B
@@ -168,6 +172,30 @@ elif [ -z "$ENC_IN_CAPS" ]; then
 else
     for c in lossy_YUV422PLANAR16LE yuv422p16le_equals_10le reject_12bit_to_16le reject_lossless_16le; do
         skip "$c" "plugin does not offer YUV422PLANAR16LE (encoder caps $ENC_IN_CAPS)"
+    done
+fi
+
+# --- GBRPLANAR8 -----------------------------------------------------------------------------
+
+# 8-bit RGB 4:4:4 with the colour transform is the IPMX JPEG XS format (TR-08 §8.1.1: B 8,
+# Cpih 1); only in MTL builds that have ST_FRAME_FMT_GBRPLANAR8 (bit 39 of the caps)
+CASES_GBR8=(lossless_GBRPLANAR8 lossless_rct_GBRPLANAR8 lossy_GBRPLANAR8 reject_8bit_to_10bit)
+if [ "$HAS_GBR8" = 1 ]; then
+    lossless lossless_GBRPLANAR8 GBRPLANAR8 GBRPLANAR8 "$LOSSLESS"
+    # the reversible colour transform must stay lossless at 8 bits too
+    lossless lossless_rct_GBRPLANAR8 GBRPLANAR8 GBRPLANAR8 "$LOSSLESS_RCT"
+    lossy lossy_GBRPLANAR8 GBRPLANAR8
+    # same sampling and colour format, only the bit depth differs: the decoder must refuse it
+    reject reject_8bit_to_10bit GBRPLANAR8 GBRPLANAR10LE "" \
+        'stream mismatch: .* bit_depth 8 .* expect .* GBRPLANAR10LE'
+elif [ -z "$ENC_IN_CAPS" ]; then
+    # no caps line: a changed MTL log format must not hide the 8-bit cases as skipped
+    for c in "${CASES_GBR8[@]}"; do
+        fail "$c" "encoder caps not found in the TX log, can't tell whether the plugin offers GBRPLANAR8"
+    done
+else
+    for c in "${CASES_GBR8[@]}"; do
+        skip "$c" "plugin does not offer GBRPLANAR8 (encoder caps $ENC_IN_CAPS)"
     done
 fi
 
