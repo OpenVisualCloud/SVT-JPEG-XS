@@ -82,45 +82,53 @@ void image_shift_avx2(uint16_t* out_coeff_16bit, int32_t* in_coeff_32bit, uint32
     }
 }
 
+/* The input picture is read once, a line at a time, and when the encoder gets to it, it is usually in DRAM. A 1080p
+ * line of 16-bit samples is 3840 bytes, about a page, so the hardware prefetcher, which does not follow a stream across
+ * pages, starts over at almost every line. The input scaling prefetches a page ahead of what it reads, which, as the
+ * lines of a plane usually follow each other, is the start of the next line (two lines ahead for 8-bit samples).
+ * Near the end of the plane that address is past it, which is harmless for a prefetch. */
+#define INPUT_PREFETCH_DISTANCE 4096
+
 void linear_input_scaling_line_8bit_avx2(const uint8_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset) {
     const __m256i offset_avx2 = _mm256_set1_epi32(offset);
-    const uint32_t simd_batch = w / 8;
-    const uint32_t remaining = w % 8;
+    uint32_t i = 0;
 
-    for (uint32_t j = 0; j < simd_batch; j++) {
-        __m128i temp_data = _mm_loadl_epi64((const __m128i*)src);
-        __m256i data = _mm256_cvtepu8_epi32(temp_data);
-
-        data = _mm256_slli_epi32(data, shift);
-        data = _mm256_sub_epi32(data, offset_avx2);
-
-        _mm256_storeu_si256((__m256i*)dst, data);
-
-        src += 8;
-        dst += 8;
+    for (; i + 64 <= w; i += 64) {
+        _mm_prefetch((const char*)(src + i) + INPUT_PREFETCH_DISTANCE, _MM_HINT_T0);
+        for (uint32_t k = 0; k < 64; k += 8) {
+            const __m256i data = _mm256_cvtepu8_epi32(_mm_loadl_epi64((const __m128i*)(src + i + k)));
+            _mm256_storeu_si256((__m256i*)(dst + i + k), _mm256_sub_epi32(_mm256_slli_epi32(data, shift), offset_avx2));
+        }
     }
-    for (uint32_t j = 0; j < remaining; j++) {
-        dst[j] = (int32_t)((uint32_t)src[j] << shift) - (int32_t)offset;
+    for (; i + 8 <= w; i += 8) {
+        const __m256i data = _mm256_cvtepu8_epi32(_mm_loadl_epi64((const __m128i*)(src + i)));
+        _mm256_storeu_si256((__m256i*)(dst + i), _mm256_sub_epi32(_mm256_slli_epi32(data, shift), offset_avx2));
+    }
+    for (; i < w; i++) {
+        dst[i] = (int32_t)((uint32_t)src[i] << shift) - (int32_t)offset;
     }
 }
 
 void linear_input_scaling_line_16bit_avx2(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
                                           uint8_t bit_depth) {
-    /* each __m512i has 16 int32_t(int32_t) */
-    const uint32_t simd_batch = w / 8;
-    const uint32_t remaining = w % 8;
     const uint16_t input_mask = (1 << bit_depth) - 1;
-
     const __m256i offset_avx2 = _mm256_set1_epi32(offset);
     const __m128i input_mask_epi16 = _mm_set1_epi16(input_mask);
-    for (uint32_t i = 0; i < simd_batch; i++) {
-        __m256i reg = _mm256_cvtepi16_epi32(_mm_and_si128(_mm_loadu_si128((__m128i*)src), input_mask_epi16));
-        __m256i result = _mm256_sub_epi32(_mm256_slli_epi32(reg, shift), offset_avx2);
-        _mm256_storeu_si256((__m256i*)dst, result);
-        src += 8;
-        dst += 8;
+    uint32_t i = 0;
+
+    for (; i + 32 <= w; i += 32) {
+        _mm_prefetch((const char*)(src + i) + INPUT_PREFETCH_DISTANCE, _MM_HINT_T0);
+        for (uint32_t k = 0; k < 32; k += 8) {
+            const __m256i reg = _mm256_cvtepi16_epi32(
+                _mm_and_si128(_mm_loadu_si128((const __m128i*)(src + i + k)), input_mask_epi16));
+            _mm256_storeu_si256((__m256i*)(dst + i + k), _mm256_sub_epi32(_mm256_slli_epi32(reg, shift), offset_avx2));
+        }
     }
-    for (uint32_t i = 0; i < remaining; i++) {
+    for (; i + 8 <= w; i += 8) {
+        const __m256i reg = _mm256_cvtepi16_epi32(_mm_and_si128(_mm_loadu_si128((const __m128i*)(src + i)), input_mask_epi16));
+        _mm256_storeu_si256((__m256i*)(dst + i), _mm256_sub_epi32(_mm256_slli_epi32(reg, shift), offset_avx2));
+    }
+    for (; i < w; i++) {
         dst[i] = ((src[i] & input_mask) << shift) - offset;
     }
 }
@@ -129,18 +137,21 @@ void linear_input_scaling_line_16bit_avx2(const uint16_t* src, int32_t* dst, uin
 void linear_input_scaling_line_16bit_msb_avx2(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
                                               uint8_t bit_depth) {
     (void)bit_depth;
-    const uint32_t simd_batch = w / 8;
-    const uint32_t remaining = w % 8;
     const __m256i offset_avx2 = _mm256_set1_epi32(offset);
+    uint32_t i = 0;
 
-    for (uint32_t i = 0; i < simd_batch; i++) {
-        __m256i reg = _mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i*)src));
-        __m256i result = _mm256_sub_epi32(_mm256_slli_epi32(reg, shift), offset_avx2);
-        _mm256_storeu_si256((__m256i*)dst, result);
-        src += 8;
-        dst += 8;
+    for (; i + 32 <= w; i += 32) {
+        _mm_prefetch((const char*)(src + i) + INPUT_PREFETCH_DISTANCE, _MM_HINT_T0);
+        for (uint32_t k = 0; k < 32; k += 8) {
+            const __m256i reg = _mm256_cvtepu16_epi32(_mm_loadu_si128((const __m128i*)(src + i + k)));
+            _mm256_storeu_si256((__m256i*)(dst + i + k), _mm256_sub_epi32(_mm256_slli_epi32(reg, shift), offset_avx2));
+        }
     }
-    for (uint32_t i = 0; i < remaining; i++) {
+    for (; i + 8 <= w; i += 8) {
+        const __m256i reg = _mm256_cvtepu16_epi32(_mm_loadu_si128((const __m128i*)(src + i)));
+        _mm256_storeu_si256((__m256i*)(dst + i), _mm256_sub_epi32(_mm256_slli_epi32(reg, shift), offset_avx2));
+    }
+    for (; i < w; i++) {
         dst[i] = ((uint32_t)src[i] << shift) - offset;
     }
 }

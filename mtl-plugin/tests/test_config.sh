@@ -123,6 +123,21 @@ else
     pass sample_config "all keys at library defaults"
 fi
 
+# the IPMX files (see README.md, "IPMX"): High444.12, NL 5/2, uniform quantizer, RCT, Rl 0,
+# 16-line slices, and the level of the resolution they are for
+# decomp_v, quantization and slice_height must be in the files even where they equal the library
+# default: they override the MTL quality mode presets, which the harness doesn't apply
+for ipmx in 1080p:0x1004 2160p:0x2404; do
+    for key in decomp_v quantization slice_height; do
+        grep -q "^ *\"$key\":" "$PLUGIN_DIR/ipmx_${ipmx%%:*}.json" ||
+            fail "ipmx_${ipmx%%:*}_$key" "$key not set, the MTL quality mode would change it"
+    done
+    expect_ok "ipmx_${ipmx%%:*}" "$PLUGIN_DIR/ipmx_${ipmx%%:*}.json" "load=0 log_level=2" \
+        enc.profile_ppih_override=0x4a40 "enc.level_plev_override=${ipmx#*:}" enc.ndecomp_h=5 \
+        enc.ndecomp_v=2 enc.quantization=1 enc.enable_color_transform=1 enc.coding_raw_disable=1 \
+        enc.slice_height=16 enc.cpu_profile=0
+done
+
 # --- valid keys -----------------------------------------------------------------------------
 
 expect_ok valid_keys "$(cfg valid '{
@@ -130,15 +145,17 @@ expect_ok valid_keys "$(cfg valid '{
   "encoder": {
     "lp": 8, "asm": "sse4_2", "cpu_profile": "cpu", "decomp_v": 1, "decomp_h": 3,
     "quantization": "uniform", "slice_height": 32, "coding_signs": "full", "coding_sigf": false,
-    "coding_vpred": "zero_coefficients", "rc": "slice", "lossless": true, "coding_raw": false,
-    "cap_compat": true, "rct": true, "stream_profile": "main422", "stream_level": "4k-1"
+    "coding_vpred": "zero_coefficients", "rc": "slice", "bpp": 4, "lossless": true,
+    "coding_raw": false, "cap_compat": true, "rct": true, "stream_profile": "main422",
+    "stream_level": "4k-1"
   },
   "decoder": {"lp": 4, "asm": "avx2"}
 }')" "load=0 log_level=3" enc.threads_num=8 enc.use_cpu_flags=0x7f enc.cpu_profile=1 \
     enc.ndecomp_v=1 enc.ndecomp_h=3 enc.quantization=1 enc.slice_height=32 \
     enc.coding_signs_handling=2 enc.coding_significance=0 enc.coding_vertical_prediction_mode=2 \
-    enc.rate_control_mode=2 enc.lossless_enable=1 enc.coding_raw_disable=1 enc.cap_compat=1 \
-    enc.enable_color_transform=1 enc.profile_ppih_override=0x3540 enc.level_plev_override=0x2000 \
+    enc.rate_control_mode=2 enc.bpp_numerator=4 enc.lossless_enable=1 enc.coding_raw_disable=1 \
+    enc.cap_compat=1 enc.enable_color_transform=1 enc.profile_ppih_override=0x3540 \
+    enc.level_plev_override=0x2000 \
     enc.verbose=5 dec.threads_num=4 dec.use_cpu_flags=0x1ff dec.verbose=5
 
 # numbers instead of names, lp 0 keeps the session's thread count
@@ -169,6 +186,10 @@ expect_fail unknown_top "$(cfg unknown_top '{"encoderr": {}}')" -22 "unknown key
 expect_fail unknown_enc "$(cfg unknown_enc '{"encoder": {"lossles": true}}')" -22 "unknown key encoder.lossles$"
 expect_fail unknown_dec "$(cfg unknown_dec '{"decoder": {"rc": 1}}')" -22 "unknown key decoder.rc$"
 expect_fail bad_uint "$(cfg bad_uint '{"encoder": {"decomp_v": 3}}')" -22 'encoder.decomp_v: invalid value 3, expected integer 0-2'
+# bpp is a whole number up to 48 (ISO/IEC 21122-2 Table A.6); 0 keeps the bpp from MTL
+expect_ok bpp_zero "$(cfg bpp_zero '{"encoder": {"bpp": 0}}')" enc.bpp_numerator=0
+expect_fail bad_bpp "$(cfg bad_bpp '{"encoder": {"bpp": 49}}')" -22 'encoder.bpp: invalid value 49, expected integer 0-48'
+expect_fail bad_bpp_fraction "$(cfg bad_bpp_frac '{"encoder": {"bpp": 3.5}}')" -22 'encoder.bpp: invalid value 3.5, expected integer 0-48'
 expect_fail bad_negative "$(cfg bad_neg '{"encoder": {"lp": -1}}')" -22 'encoder.lp: invalid value -1, expected integer 0-1024'
 expect_fail bad_uint_string "$(cfg bad_uint_str '{"encoder": {"slice_height": "16"}}')" -22 'encoder.slice_height: invalid value "16"'
 expect_fail bad_bool "$(cfg bad_bool '{"encoder": {"lossless": "yes"}}')" -22 'encoder.lossless: invalid value "yes", expected true or false'

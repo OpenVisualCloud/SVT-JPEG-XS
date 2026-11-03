@@ -33,8 +33,6 @@ extern "C" {
 void setup_encoder_rtcd_internal(CPU_FLAGS flags);
 void gc_precinct_stage_scalar_loop_ASM(uint32_t line_groups_num, uint16_t* coeff_data_ptr_16bit, uint8_t* gcli_data_ptr);
 
-void msb_x16_ASM(uint16_t* in, uint8_t* out);
-
 RTCD_EXTERN void (*image_shift)(uint16_t* out_coeff_16bit, int32_t* in_coeff_32bit, uint32_t width, int32_t shift,
                                 int32_t offset);
 
