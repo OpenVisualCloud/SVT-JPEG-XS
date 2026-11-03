@@ -19,6 +19,12 @@
  *   Compare the first <bytes> bytes of two files of 16-bit little-endian samples: every sample
  *   of <a> shifted right by <shift> must equal the one of <b>, and the low <shift> bits of <a>
  *   must be 0.
+ * frame_tool pih <file>
+ *   Find every JPEG XS picture header (an SOC marker followed by a PIH marker, ISO/IEC 21122-1
+ *   Table A.7) in a file of codestreams and print its fields as one line of key=value pairs
+ *   per codestream, ending with the bit precision B[c] and the sampling factors sx[c], sy[c] of
+ *   each component from the component table that follows it (Table A.15, "b=?" when it
+ *   doesn't). Fails when there is none.
  *
  * Exit status: 0 success, 1 check failed, 2 usage or I/O error.
  */
@@ -43,7 +49,7 @@ static const struct fmt_desc fmts[] = {
     {"YUV422PLANAR12LE", 2, 12, 0, 2, 1, 0}, {"YUV422PLANAR16LE", 2, 10, 6, 2, 1, 0},
     {"YUV420PLANAR8", 1, 8, 0, 2, 2, 0},     {"YUV444PLANAR10LE", 2, 10, 0, 1, 1, 0},
     {"YUV444PLANAR12LE", 2, 12, 0, 1, 1, 0}, {"GBRPLANAR10LE", 2, 10, 0, 1, 1, 1},
-    {"GBRPLANAR12LE", 2, 12, 0, 1, 1, 1},
+    {"GBRPLANAR12LE", 2, 12, 0, 1, 1, 1},    {"GBRPLANAR8", 1, 8, 0, 1, 1, 1},
 };
 
 static const struct fmt_desc* find_fmt(const char* name) {
@@ -255,6 +261,64 @@ static int cmd_shift_cmp(int argc, char** argv) {
   return bad ? 1 : 0;
 }
 
+static int cmd_pih(int argc, char** argv) {
+  if (argc < 3) return -1;
+  FILE* fp = fopen(argv[2], "rb");
+  if (!fp) {
+    perror(argv[2]);
+    return 2;
+  }
+  fseek(fp, 0, SEEK_END);
+  const long len = ftell(fp);
+  rewind(fp);
+  uint8_t* buf = len > 0 ? malloc(len) : NULL;
+  if (!buf || fread(buf, 1, len, fp) != (size_t)len) {
+    fprintf(stderr, "%s: read failed\n", argv[2]);
+    fclose(fp);
+    free(buf);
+    return 2;
+  }
+  fclose(fp);
+
+  int found = 0;
+  /* SOC 0xff10, then up to a CAP marker segment before PIH 0xff12 with Lpih = 26 */
+  for (long i = 0; i + 64 <= len; i++) {
+    if (buf[i] != 0xff || buf[i + 1] != 0x10) continue;
+    long h = i + 2;
+    while (h < i + 32 && !(buf[h] == 0xff && buf[h + 1] == 0x12)) h++;
+    if (h == i + 32 || buf[h + 2] != 0 || buf[h + 3] != 26) continue;
+    const uint8_t* p = &buf[h + 4]; /* after the marker and Lpih */
+#define U16(o) ((unsigned)p[o] << 8 | p[(o) + 1])
+    printf(
+        "ppih=%#06x plev=%#06x wf=%u hf=%u cw=%u hsl=%u nc=%u bw=%u fq=%u br=%u fslc=%u "
+        "ppoc=%u cpih=%u nlx=%u nly=%u lh=%u rl=%u qpih=%u fs=%u rm=%u",
+        U16(4), U16(6), U16(8), U16(10), U16(12), U16(14), p[16], p[19], p[20] >> 4,
+        p[20] & 0xf, p[21] >> 7, (p[21] >> 4) & 0x7, p[21] & 0xf, p[22] >> 4, p[22] & 0xf,
+        p[23] >> 7, (p[23] >> 6) & 1, (p[23] >> 4) & 3, (p[23] >> 2) & 3, p[23] & 3);
+#undef U16
+    /* CDT 0xff13 right after the 28-byte PIH segment (Table A.1), Lcdt = 2 * Nc + 2 */
+    const uint8_t* c = &buf[h + 28];
+    const unsigned nc = p[16];
+    if (h + 32 + 2 * (long)nc <= len && c[0] == 0xff && c[1] == 0x13 &&
+        ((unsigned)c[2] << 8 | c[3]) == 2 * nc + 2) {
+      for (unsigned comp = 0; comp < nc; comp++)
+        printf("%s%u", comp ? "," : " b=", c[4 + 2 * comp]);
+      for (unsigned comp = 0; comp < nc; comp++)
+        printf("%s%u", comp ? "," : " sx=", c[5 + 2 * comp] >> 4);
+      for (unsigned comp = 0; comp < nc; comp++)
+        printf("%s%u", comp ? "," : " sy=", c[5 + 2 * comp] & 0xf);
+      printf("\n");
+    } else {
+      printf(" b=?\n");
+    }
+    found++;
+    i = h + 26;
+  }
+  free(buf);
+  if (!found) fprintf(stderr, "%s: no picture header found\n", argv[2]);
+  return found ? 0 : 1;
+}
+
 int main(int argc, char** argv) {
   int ret = -1;
   if (argc > 1 && !strcmp(argv[1], "gen"))
@@ -263,12 +327,15 @@ int main(int argc, char** argv) {
     ret = cmd_size(argc, argv);
   else if (argc > 1 && !strcmp(argv[1], "shift-cmp"))
     ret = cmd_shift_cmp(argc, argv);
+  else if (argc > 1 && !strcmp(argv[1], "pih"))
+    ret = cmd_pih(argc, argv);
   if (ret < 0) {
     fprintf(stderr,
             "usage: %s gen <fmt> <w> <h> <out> [phase] [source [field]]\n"
             "       %s size <fmt> <w> <h>\n"
-            "       %s shift-cmp <a> <b> <bytes> <shift>\n",
-            argv[0], argv[0], argv[0]);
+            "       %s shift-cmp <a> <b> <bytes> <shift>\n"
+            "       %s pih <file>\n",
+            argv[0], argv[0], argv[0], argv[0]);
     return 2;
   }
   return ret;

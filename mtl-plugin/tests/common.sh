@@ -70,6 +70,9 @@ PLUGIN_SO="${PLUGIN_SO:-$PLUGIN_BUILD_DIR/libst_plugin_st22_svt_jpeg_xs.so}"
 # MTL sends ST22 codestreams in RTP payloads of this many bytes (st_tx_video_session.c: UDP
 # payload minus the RFC 9134 header, rounded down to 128)
 ST22_PKT_PAYLOAD=1280
+# bytes of the ST22 box header MTL puts in front of every codestream (st_header.h struct
+# st22_boxes, jpvs + colr), unless the app sets ST22_TX_FLAG_DISABLE_BOXES; the samples don't
+ST22_BOX_HDR=60
 # bits per pixel the MTL pipeline samples and RxTxApp encode lossy streams with
 SAMPLE_BPP=3
 

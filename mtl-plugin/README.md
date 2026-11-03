@@ -111,8 +111,57 @@ unknown keys. Choice values are names (`"uniform"`); `quantization`, `coding_sig
   the session may not fit the link. The receiver must set `max_codestream_size` to the worst case
   size too: its default, the raw frame size, drops frames above it.
 
-Resolution, pixel format, bit depth, bpp (from the MTL codestream size) and packetization are set by
-MTL and can't be configured.
+* `bpp` (bits per pixel, 1-48) replaces the bpp the plugin derives from the MTL codestream size,
+  for every encoder session. The plugin reports the resulting frame size to MTL as the
+  codestream size, so MTL sizes the TX buffers, packets and bandwidth for it; the receiver must
+  take frames of that size (`max_codestream_size`; the default, the raw frame size, is enough
+  for decoded output). 0, the default, keeps the MTL codestream size. Ignored with `lossless`.
+
+Resolution, pixel format, bit depth and packetization are set by MTL and can't be configured.
+
+### 3.1 IPMX
+
+`ipmx_1080p.json` and `ipmx_2160p.json` make every encoder session emit High444.12 codestreams
+of RGB 4:4:4 that meet VSF TR-08 §8.1.1, the codestream part of the IPMX-JPEG-XS profile of
+VSF TR-10-15 Part 1 §8. Without them the plugin defaults stay as described above; they are not
+TR-08 conformant (e.g. Main profiles, Rl = 1, deadzone quantizer in SPEED mode).
+
+```bash
+export SVT_JXS_MTL_PLUGIN_CONFIG=<jpeg-xs-repo>/mtl-plugin/ipmx_1080p.json
+```
+
+| File | Streams | `stream_level` |
+| --- | --- | --- |
+| `ipmx_1080p.json` | 1920x1080 up to 60 fps | `0x1004`: 2k-1, Sublev3bpp |
+| `ipmx_2160p.json` | 3840x2160 up to 60 fps | `0x2404`: 4k-2, Sublev3bpp |
+
+Both set `stream_profile` `high444` (Ppih 0x4A40), `decomp_h` 5, `decomp_v` 2, `quantization`
+`uniform`, `rct` true (Cpih 1, components R, G, B), `coding_raw` false (Rl 0) and
+`slice_height` 16; High444.12 needs Rl 0 and 16-line slices (ISO/IEC 21122-2 Table A.3). They
+set every field the MTL quality mode changes, so SPEED and QUALITY give the same codestream.
+The installed SVT-JPEG-XS library must support `rct`, `coding_raw`, `stream_profile` and
+`stream_level`.
+
+* Input must be `GBRPLANAR*`: `rct` fails any other format at session create. TR-10-15 Part 1
+  §8 asks an IPMX-JPEG-XS sender for 8-bit RGB (or 10-bit 4:2:2 YCbCr), which is `GBRPLANAR8`
+  (B 8 in the component table); it needs an MTL with that format (see [Formats](#4-formats)).
+  With `GBRPLANAR10LE` / `12LE` the codestream meets TR-08 too, but the sender can't claim the
+  IPMX-JPEG-XS profile.
+* The file applies to every encoder session of the process, so one process can send only the
+  streams one file is for, and nothing checks that the file matches the stream. TR-08 allows
+  only the levels 1k-1, 2k-1, 4k-2 and 8k-2 and needs the lowest of them that fits width,
+  height and frame rate: 2k-1 holds 2048 pixels wide and 133.7 M pixels/s (1080p up to 64 fps),
+  4k-2 4096 pixels wide and 534.8 M pixels/s (2160p up to 64 fps), ISO/IEC 21122-2 Table A.8.
+  4k-1, which Table A.8 lists for 2160p30, is not allowed by TR-08.
+* Sublev3bpp is for up to 3 bpp, the MTL samples' and RxTxApp's rate. Above 3 bpp, up to
+  4 bpp, TR-08 needs Sublev4bpp; the encoder writes `stream_level` as given, so a 4 bpp stream
+  with the shipped files claims a wrong Sublev3bpp. For 4 bpp, the rate of the TR-08 Appendix B
+  RGB interoperability points, set the low byte to `06` and, unless the application already
+  asks for 4 bpp, add `"bpp": 4`:
+  `"stream_level": "0x1006", "bpp": 4` (1080p), `"stream_level": "0x2406", "bpp": 4` (2160p).
+  `06` is the library's Sublev4bpp code (`Source/Lib/Common/Codec/ProfileLevelNames.c`), added
+  to ISO/IEC 21122-2 after the 2022 edition. TR-10-15 Part 1 §7.1 allows higher sublevels too
+  (`08` 6 bpp, `0C` 9 bpp, `10` 12 bpp).
 
 ## 4. Formats
 
@@ -129,10 +178,14 @@ The encoder takes and the decoder outputs these MTL pipeline formats:
 | `YUV444PLANAR12LE` | 4:4:4 | 12 |
 | `GBRPLANAR10LE` | 4:4:4 RGB | 10 |
 | `GBRPLANAR12LE` | 4:4:4 RGB | 12 |
+| `GBRPLANAR8` | 4:4:4 RGB | 8 |
 
 * `YUV422PLANAR16LE` needs an SVT-JPEG-XS library with MSB-aligned input/output; the plugin offers
   it only when built against such a library. The decoder accepts only 10-bit 4:2:2 streams for it.
   `lossless` can't be combined with it.
+* `GBRPLANAR8` needs an MTL that has `ST_FRAME_FMT_GBRPLANAR8`; the plugin offers it only when
+  built against such an MTL. Applications with packed `RGB8` frames convert them with MTL's
+  `st_frame_convert()`; the st22 pipeline doesn't convert.
 * `GBRPLANAR*` frames store the planes G, B, R. The plugin hands them to the codec as components R,
   G, B (`COLOUR_FORMAT_PLANAR_RGB`; `COLOUR_FORMAT_PLANAR_YUV444_OR_RGB` with libraries that lack
   it), the order the colour transform (`rct`), the SVT-JPEG-XS ffmpeg plugin and other JPEG XS codecs
