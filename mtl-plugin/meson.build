@@ -49,6 +49,10 @@ endif
 if cc.has_header_symbol('SvtJpegxs.h', 'COLOUR_FORMAT_PLANAR_RGB', dependencies : jpegxs_dep)
   plugins_c_args += ['-DHAVE_COLOUR_FORMAT_PLANAR_RGB']
 endif
+# 8-bit planar RGB frame format, not in every MTL release
+if cc.has_header_symbol('st_pipeline_api.h', 'ST_FRAME_FMT_GBRPLANAR8', dependencies : mtl_dep)
+  plugins_c_args += ['-DHAVE_ST_FRAME_FMT_GBRPLANAR8']
+endif
 #enable warning as error
 plugins_c_args += ['-Werror']
 plugins_c_args += ['-Wall']

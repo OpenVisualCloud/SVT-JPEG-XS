@@ -3,7 +3,7 @@
 # Copyright(c) 2026 Intel Corporation
 # SPDX - License - Identifier: BSD - 2 - Clause - Patent
 #
-# Run the tests one after another into one results dir: config, formats, interlaced, perf
+# Run the tests one after another into one results dir: config, formats, ipmx, interlaced, perf
 # (TESTS selects a subset, e.g. TESTS="config formats"). With PF_PORT set, runs setup_host.sh
 # first when tests/.host.env is missing or stale. Exit status: number of failed cases.
 
@@ -20,7 +20,7 @@ fi
 # shellcheck source=common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
-TESTS="${TESTS:-config formats interlaced perf}"
+TESTS="${TESTS:-config formats ipmx interlaced perf}"
 
 mkdir -p "$OUT_DIR"
 : >"$OUT_DIR/summary.txt"

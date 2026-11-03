@@ -4,6 +4,7 @@
 */
 
 #include "gtest/gtest.h"
+#include <vector>
 #include "random.h"
 #include "Packing.h"
 #include "BitstreamWriter.h"
@@ -815,3 +816,87 @@ TEST(unpack_data_c, single_group_plane_read_is_bounded) {
 
     free(bitstream_mem);
 }
+
+#ifdef ARCH_X86_64
+typedef uint32_t (*unary_run_fn)(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out, uint32_t count,
+                                 int8_t gtli, int32_t* error);
+
+/* Writes the unary codes (values[i] ones and a zero), most significant bit first, after first_bit bits of padding.
+ * Returns the length in bits, padding included. */
+static uint32_t write_unary_codes(std::vector<uint8_t>& mem, uint32_t first_bit, const std::vector<uint32_t>& values) {
+    uint32_t pos = first_bit;
+    for (uint32_t v : values) {
+        for (uint32_t i = 0; i <= v; i++, pos++) {
+            if (i < v) {
+                mem[pos >> 3] |= (uint8_t)(0x80 >> (pos & 7));
+            }
+        }
+    }
+    return pos;
+}
+
+static void check_unary_run(unary_run_fn fn) {
+    svt_jxs_test_tool::SVTRandom rnd(0, 255, 7);
+    for (int test = 0; test < 2000; test++) {
+        const uint32_t count = 1 + rnd.random() % 300;
+        /* Mostly short codes, like real GCLIs, with now and then a long one */
+        std::vector<uint32_t> values(count);
+        for (auto& v : values) {
+            v = (rnd.random() % 16) ? rnd.random() % 6 : rnd.random() % 32;
+        }
+        const uint32_t first_bit = rnd.random() % 8;
+        std::vector<uint8_t> mem(count * 4 + 16, 0);
+        const uint32_t end_bit = write_unary_codes(mem, first_bit, values);
+        const int8_t gtli = (int8_t)(rnd.random() % 8);
+        std::vector<uint8_t> out(count, 0xAA);
+
+        uint32_t pos = first_bit;
+        int32_t err = 1;
+        const uint32_t byte_limit = (end_bit + 7) / 8;
+        /* Exactly byte_limit bytes, so that a load past it shows under ASan or valgrind */
+        const std::vector<uint8_t> stream(mem.begin(), mem.begin() + byte_limit);
+        const uint32_t done = fn(stream.data(), &pos, byte_limit, out.data(), count, gtli, &err);
+
+        ASSERT_EQ(err, 0) << "test " << test;
+        ASSERT_LE(done, count) << "test " << test;
+        uint32_t expected_pos = first_bit;
+        for (uint32_t i = 0; i < done; i++) {
+            ASSERT_EQ(out[i], (uint8_t)(gtli + values[i])) << "test " << test << " code " << i;
+            expected_pos += values[i] + 1;
+        }
+        ASSERT_EQ(pos, expected_pos) << "test " << test;
+        ASSERT_LE((pos + 7) / 8, byte_limit) << "test " << test;
+        if (count >= 16 && end_bit >= first_bit + 128) {
+            ASSERT_GT(done, 0u) << "test " << test;
+        }
+    }
+
+    /* A code longer than thirty-one bits is an error, as for the scalar reader */
+    std::vector<uint32_t> values(40, 1);
+    values[20] = 40;
+    std::vector<uint8_t> mem(64, 0);
+    const uint32_t end_bit = write_unary_codes(mem, 3, values);
+    const std::vector<uint8_t> stream(mem.begin(), mem.begin() + (end_bit + 7) / 8);
+    std::vector<uint8_t> out(values.size());
+    uint32_t pos = 3;
+    int32_t err = 0;
+    fn(stream.data(), &pos, (uint32_t)stream.size(), out.data(), (uint32_t)values.size(), 0, &err);
+    ASSERT_EQ(err, 1);
+}
+
+TEST(unpack_gclis_unary_run, AVX2_BMI2) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX2 | CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT;
+    if ((get_cpu_flags() & required) != required) {
+        GTEST_SKIP() << "no AVX2, BMI2 and POPCNT";
+    }
+    check_unary_run(unpack_gclis_unary_run_avx2_bmi2);
+}
+
+TEST(unpack_gclis_unary_run, AVX512) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & required) != required) {
+        GTEST_SKIP() << "no AVX-512 and BMI2";
+    }
+    check_unary_run(unpack_gclis_unary_run_avx512);
+}
+#endif /* ARCH_X86_64 */
