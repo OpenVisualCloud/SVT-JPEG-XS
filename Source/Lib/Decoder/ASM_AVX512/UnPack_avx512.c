@@ -141,3 +141,21 @@ uint32_t unpack_gclis_unary_run_avx512(const uint8_t* mem, uint32_t* bit_pos, ui
                                        uint32_t count, int8_t gtli, int32_t* error) {
     return unpack_gclis_unary_run_pdep(mem, bit_pos, byte_limit, out, count, gtli, error);
 }
+
+/* See unpack_raw_gclis_bytes_avx2(). The bytes left after the last full vector are loaded and
+ * stored under a mask, so nothing outside the line is touched. */
+void unpack_raw_gclis_bytes_avx512(const uint8_t* mem, uint8_t* gclis, uint32_t bytes) {
+    const __m512i low_nibble = _mm512_set1_epi16(0x0F);
+    uint32_t i = 0;
+    for (; i + 32 <= bytes; i += 32) {
+        const __m512i v = _mm512_cvtepu8_epi16(_mm256_loadu_si256((const __m256i*)(mem + i)));
+        const __m512i out = _mm512_or_si512(_mm512_srli_epi16(v, 4), _mm512_slli_epi16(_mm512_and_si512(v, low_nibble), 8));
+        _mm512_storeu_si512((__m512i*)(gclis + 2 * i), out);
+    }
+    if (i < bytes) {
+        const uint32_t rest = bytes - i;
+        const __m512i v = _mm512_cvtepu8_epi16(_mm256_maskz_loadu_epi8((__mmask32)((1ULL << rest) - 1), mem + i));
+        const __m512i out = _mm512_or_si512(_mm512_srli_epi16(v, 4), _mm512_slli_epi16(_mm512_and_si512(v, low_nibble), 8));
+        _mm512_mask_storeu_epi8(gclis + 2 * i, (__mmask64)((1ULL << (2 * rest)) - 1), out);
+    }
+}

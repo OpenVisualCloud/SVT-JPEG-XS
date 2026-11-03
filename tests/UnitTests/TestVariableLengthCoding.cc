@@ -4,6 +4,7 @@
 */
 
 #include "gtest/gtest.h"
+#include <vector>
 #include "random.h"
 #include "SvtUtility.h"
 #include "BitstreamReader.h"
@@ -1290,3 +1291,42 @@ TEST(VLC, unpack_verical_pred_gclis_significance_11_short_bitstream_error) {
     free(band_org.gcli_data);
     free(band_top.gcli_data);
 }
+
+/* unpack_raw_gclis() as a whole, against a nibble-at-a-time read: a line may start on either half
+ * of a byte and have an odd or even width, and the reader must end at the same position. Run on
+ * every asm tier, since the whole bytes in the middle go through the dispatched kernel. */
+class UnpackRawGclis : public ::testing::TestWithParam<CPU_FLAGS> {};
+
+TEST_P(UnpackRawGclis, MatchesNibbleReader) {
+    setup_decoder_rtcd_internal(GetParam());
+    DecoderRtcdRestore restore;
+    svt_jxs_test_tool::SVTRandom rnd(0, 255);
+    std::vector<uint8_t> mem(2048);
+    for (auto& v : mem) {
+        v = (uint8_t)rnd.random();
+    }
+    const uint32_t widths[] = {0, 1, 2, 3, 31, 32, 33, 63, 64, 65, 127, 128, 129, 1000, 1001};
+    for (uint32_t start_nibble = 0; start_nibble < 4; start_nibble++) {
+        for (uint32_t w : widths) {
+            bitstream_reader_t ref_reader;
+            bitstream_reader_t tst_reader;
+            bitstream_reader_init(&ref_reader, mem.data(), mem.size());
+            bitstream_reader_init(&tst_reader, mem.data(), mem.size());
+            for (uint32_t i = 0; i < start_nibble; i++) {
+                read_4_bits_align4(&ref_reader);
+                read_4_bits_align4(&tst_reader);
+            }
+            std::vector<uint8_t> ref(w + 64, 0xAA);
+            std::vector<uint8_t> tst(w + 64, 0xAA);
+            for (uint32_t i = 0; i < w; i++) {
+                ref[i] = read_4_bits_align4(&ref_reader);
+            }
+            unpack_raw_gclis(&tst_reader, tst.data(), w);
+            ASSERT_EQ(ref, tst) << "start nibble " << start_nibble << " width " << w;
+            ASSERT_EQ(ref_reader.offset, tst_reader.offset) << "start nibble " << start_nibble << " width " << w;
+            ASSERT_EQ(ref_reader.bits_used, tst_reader.bits_used) << "start nibble " << start_nibble << " width " << w;
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(C_AVX2_AVX512, UnpackRawGclis, ::testing::Values(0, CPU_FLAGS_AVX2, CPU_FLAGS_ALL));

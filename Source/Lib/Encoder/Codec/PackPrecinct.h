@@ -120,6 +120,7 @@ static INLINE uint8_t vlc_encode_get_bits(int32_t x, int32_t r, int32_t t) {
 }
 
 void pack_data_single_group_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint8_t gcli, uint8_t gtli);
+void pack_raw_gclis_bytes_c(const uint8_t* gclis, uint8_t* mem, uint32_t bytes);
 
 #ifdef __cplusplus
 }

@@ -615,3 +615,41 @@ TEST(vlc_put_unary, matches_vlc_encode_pack_bits) {
     free(mem_cmp);
     delete rnd;
 }
+
+/* Byte counts around the vector widths of both tiers (32 bytes per iteration), so the main loop,
+ * the scalar or masked remainder and their combinations are all covered. GCLIs are 0..15. The
+ * output is followed by a guard area that must stay untouched. */
+static void test_pack_raw_gclis_bytes(void (*fn)(const uint8_t*, uint8_t*, uint32_t)) {
+    svt_jxs_test_tool::SVTRandom rnd(0, 15);
+    const uint32_t byte_counts[] = {0, 1, 2, 15, 16, 17, 31, 32, 33, 47, 63, 64, 65, 100, 240, 961};
+    const uint32_t guard = 64;
+    for (uint32_t bytes : byte_counts) {
+        std::vector<uint8_t> gclis(2 * bytes);
+        for (auto& v : gclis) {
+            v = (uint8_t)rnd.random();
+        }
+        std::vector<uint8_t> ref(bytes + guard, 0xAA);
+        std::vector<uint8_t> tst(bytes + guard, 0xAA);
+        pack_raw_gclis_bytes_c(gclis.data(), ref.data(), bytes);
+        fn(gclis.data(), tst.data(), bytes);
+        for (size_t i = 0; i < ref.size(); i++) {
+            ASSERT_EQ(ref[i], tst[i]) << "bytes " << bytes << " index " << i;
+        }
+    }
+}
+
+#ifdef ARCH_X86_64
+TEST(pack_raw_gclis_bytes, AVX2) {
+    if (!(CPU_FLAGS_AVX2 & get_cpu_flags())) {
+        GTEST_SKIP();
+    }
+    test_pack_raw_gclis_bytes(pack_raw_gclis_bytes_avx2);
+}
+
+TEST(pack_raw_gclis_bytes, AVX512) {
+    if (!(CPU_FLAGS_AVX512F & get_cpu_flags())) {
+        GTEST_SKIP();
+    }
+    test_pack_raw_gclis_bytes(pack_raw_gclis_bytes_avx512);
+}
+#endif /* ARCH_X86_64 */

@@ -74,6 +74,8 @@ RTCD_EXTERN void (*transform_vertical_loop_lf_hf_hf_line_last_even)(uint32_t wid
 RTCD_EXTERN void (*pack_data_groups)(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint8_t* gclis, uint32_t groups,
                                      uint8_t gtli, uint8_t sign_flag);
 
+RTCD_EXTERN void (*pack_raw_gclis_bytes)(const uint8_t* gclis, uint8_t* mem, uint32_t bytes);
+
 RTCD_EXTERN void (*gc_histogram_16)(const uint8_t* data, uint32_t width, uint16_t* hist);
 
 RTCD_EXTERN void (*gc_precinct_sigflags_max)(uint8_t* significance_data_max_ptr, uint8_t* gcli_data_ptr, uint32_t group_sign_size,

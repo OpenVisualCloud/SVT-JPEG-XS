@@ -900,3 +900,42 @@ TEST(unpack_gclis_unary_run, AVX512) {
     check_unary_run(unpack_gclis_unary_run_avx512);
 }
 #endif /* ARCH_X86_64 */
+
+/* Byte counts around the vector widths of both tiers (16 and 32 bytes per iteration), so the main
+ * loop, the scalar or masked remainder and their combinations are all covered. The output is
+ * followed by a guard area that must stay untouched. */
+static const uint32_t raw_gclis_byte_counts[] = {0, 1, 2, 15, 16, 17, 31, 32, 33, 47, 63, 64, 65, 100, 240, 961};
+
+static void test_unpack_raw_gclis_bytes(void (*fn)(const uint8_t*, uint8_t*, uint32_t)) {
+    svt_jxs_test_tool::SVTRandom rnd(0, 255);
+    const uint32_t guard = 128;
+    for (uint32_t bytes : raw_gclis_byte_counts) {
+        std::vector<uint8_t> mem(bytes);
+        for (auto& v : mem) {
+            v = (uint8_t)rnd.random();
+        }
+        std::vector<uint8_t> ref(2 * bytes + guard, 0xAA);
+        std::vector<uint8_t> tst(2 * bytes + guard, 0xAA);
+        unpack_raw_gclis_bytes_c(mem.data(), ref.data(), bytes);
+        fn(mem.data(), tst.data(), bytes);
+        for (size_t i = 0; i < ref.size(); i++) {
+            ASSERT_EQ(ref[i], tst[i]) << "bytes " << bytes << " index " << i;
+        }
+    }
+}
+
+#ifdef ARCH_X86_64
+TEST(unpack_raw_gclis_bytes, AVX2) {
+    if (!(CPU_FLAGS_AVX2 & get_cpu_flags())) {
+        GTEST_SKIP();
+    }
+    test_unpack_raw_gclis_bytes(unpack_raw_gclis_bytes_avx2);
+}
+
+TEST(unpack_raw_gclis_bytes, AVX512) {
+    if (!(CPU_FLAGS_AVX512F & get_cpu_flags())) {
+        GTEST_SKIP();
+    }
+    test_unpack_raw_gclis_bytes(unpack_raw_gclis_bytes_avx512);
+}
+#endif /* ARCH_X86_64 */

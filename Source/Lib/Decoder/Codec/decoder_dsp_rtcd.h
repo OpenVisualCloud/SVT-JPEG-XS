@@ -45,6 +45,7 @@ RTCD_EXTERN void (*inverse_rct)(int32_t* comps[MAX_COMPONENTS_NUM], int32_t w, i
 RTCD_EXTERN SvtJxsErrorType_t (*unpack_data)(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                              uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                              int32_t* precinct_bits_left);
+RTCD_EXTERN void (*unpack_raw_gclis_bytes)(const uint8_t* mem, uint8_t* gclis, uint32_t bytes);
 RTCD_EXTERN uint32_t (*unpack_gclis_unary_run)(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out,
                                                uint32_t count, int8_t gtli, int32_t* error);
 

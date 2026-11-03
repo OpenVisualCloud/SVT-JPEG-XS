@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 void pack_data_single_group_avx512(bitstream_writer_t *bitstream, uint16_t *buf, uint8_t gcli, uint8_t gtli);
+void pack_raw_gclis_bytes_avx512(const uint8_t *gclis, uint8_t *mem, uint32_t bytes);
 void pack_data_groups_avx512(bitstream_writer_t *bitstream, uint16_t *buf_16bit, uint8_t *gclis, uint32_t groups, uint8_t gtli,
                              uint8_t sign_flag);
 uint32_t rate_control_calc_vpred_cost_nosigf_avx512(uint32_t gcli_width, uint8_t *gcli_data_top_ptr, uint8_t *gcli_data_ptr,

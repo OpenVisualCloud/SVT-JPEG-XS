@@ -298,3 +298,20 @@ void rate_control_calc_vpred_cost_sigf_nosigf_avx512(uint32_t significance_width
     *pack_size_gcli_no_sigf += _mm_cvtsi128_si32(bits_sum_nosigf_sse);
     *pack_size_gcli_no_sigf += _mm_extract_epi32(bits_sum_nosigf_sse, 1);
 }
+
+/* See pack_raw_gclis_bytes_avx2(). VPMOVWB narrows the 16-bit lanes in order, so no permute is
+ * needed, and the bytes left after the last full vector are loaded and stored under a mask. */
+void pack_raw_gclis_bytes_avx512(const uint8_t *gclis, uint8_t *mem, uint32_t bytes) {
+    const __m512i weights = _mm512_set1_epi16(0x0110);
+    uint32_t i = 0;
+    for (; i + 32 <= bytes; i += 32) {
+        const __m512i v = _mm512_maddubs_epi16(_mm512_loadu_si512((const __m512i *)(gclis + 2 * i)), weights);
+        _mm256_storeu_si256((__m256i *)(mem + i), _mm512_cvtepi16_epi8(v));
+    }
+    if (i < bytes) {
+        const uint32_t rest = bytes - i;
+        const __m512i v = _mm512_maddubs_epi16(_mm512_maskz_loadu_epi8((__mmask64)((1ULL << (2 * rest)) - 1), gclis + 2 * i),
+                                               weights);
+        _mm256_mask_storeu_epi8(mem + i, (__mmask32)((1ULL << rest) - 1), _mm512_cvtepi16_epi8(v));
+    }
+}
