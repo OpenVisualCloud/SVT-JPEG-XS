@@ -166,8 +166,8 @@ MATRIX=(
     # sizing rationale (lossless's ~2 bytes/sample worst case would blow the tmpfs budget at full
     # $FRAMES). The threads=8 baselines are lower than the native binary's: the plugin's rawvideo
     # demuxer / image2pipe muxer pipe I/O adds overhead the native binary doesn't have.
-    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|66|106|-lossless 1||200"
-    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|323|373|-lossless 1||200"
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|70|113|-lossless 1||200"
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|340|513|-lossless 1||200"
 )
 
 # get_ffmpeg_pix_fmt colour_format bit_depth: maps to the ffmpeg pix_fmt name.

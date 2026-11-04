@@ -202,8 +202,8 @@ MATRIX=(
     # 2.4 GiB peak already tolerated for the yuva444p8 (bpp=5.0) row above, so the ramdisk does
     # not need to grow.
     # Baselines calibrated on the CI runner (jpeg-runner-1).
-    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|69|107|--rc 0 --lossless 1||200"
-    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|399|545|--rc 0 --lossless 1||200"
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|73|114|--rc 0 --lossless 1||200"
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|419|579|--rc 0 --lossless 1||200"
 )
 
 # run_measured cmd...: single run, prints parsed FPS (empty if unparseable or if the command
