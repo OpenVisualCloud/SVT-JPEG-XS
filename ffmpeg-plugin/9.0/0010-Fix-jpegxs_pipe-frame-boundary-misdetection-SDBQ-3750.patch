@@ -32,6 +32,12 @@ too-small Lcod otherwise making the frame's true end permanently
 unreachable (frame_pos only ever increases), which would hang the parser
 returning END_NOT_FOUND forever instead of falling back to the scan.
 
+Once Lcod is known, the frame end is computed from it instead of walking
+the payload one byte at a time; only the header bytes up to and including
+Lcod go through the header parser. With large frames (e.g. lossless) a
+per-byte walk makes the single demuxer thread slower than a multi-threaded
+decoder, so it would cap the decoding frame rate.
+
 Same fix as ffmpeg-plugin/8.1/0009-*.patch, applied to the 9.0 patch chain.
 
 Verified against every multi-frame test file in
@@ -47,11 +53,11 @@ correctly report their pre-existing errors. Also ran the full
 tests/scripts/ParallelAllFFmpegTests.sh suite (decoder conformance,
 decoder multi-frames, encoder) against /opt/samples with no failures.
 ---
- libavcodec/jpegxs_parser.c | 130 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 130 insertions(+)
+ libavcodec/jpegxs_parser.c | 139 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 139 insertions(+)
 
 diff --git a/libavcodec/jpegxs_parser.c b/libavcodec/jpegxs_parser.c
-index c7c5a83b9a..4cc51d214d 100644
+index c7c5a83b9a..57606bd932 100644
 --- a/libavcodec/jpegxs_parser.c
 +++ b/libavcodec/jpegxs_parser.c
 @@ -24,12 +24,114 @@
@@ -180,28 +186,37 @@ index c7c5a83b9a..4cc51d214d 100644
                  break;
              }
          }
-@@ -63,6 +169,30 @@ static int jpegxs_find_frame_end(JPEGXSParseContext *jpegxs, const uint8_t *buf,
+@@ -63,6 +169,39 @@ static int jpegxs_find_frame_end(JPEGXSParseContext *jpegxs, const uint8_t *buf,
          return 0;
      }
  
 +    if (pic_found) {
-+        for (int j = i; j < buf_size; j++) {
-+            if (jpegxs->hdr_state != JPX_HDR_DONE && jpegxs->hdr_state != JPX_HDR_FAILED)
-+                jpegxs_feed_header_byte(jpegxs, buf[j]);
++        int j = i;
++
++        /* Only the header bytes up to and including Lcod are looked at one by one. */
++        for (; j < buf_size && jpegxs->hdr_state != JPX_HDR_DONE &&
++               jpegxs->hdr_state != JPX_HDR_FAILED; j++) {
++            jpegxs_feed_header_byte(jpegxs, buf[j]);
 +            jpegxs->frame_pos++;
-+            if (jpegxs->lcod && jpegxs->frame_pos == jpegxs->lcod) {
-+                pc->frame_start_found = jpegxs->eoc_found = 0;
-+                pc->state = -1;
-+                return j + 1;
-+            }
 +        }
 +
-+        /* Lcod is known but this call's buffer ran out before reaching it: the
-+         * true frame end is guaranteed to be in a later call. Do NOT fall through
-+         * to the EOC/SOC marker-byte scan below - it can misfire on a coincidental
-+         * marker-like byte sequence inside this frame's own payload data (see
-+         * SDBQ-3750), and it is unnecessary since Lcod already gives the answer. */
++        /* Once Lcod is known, the frame end is computed instead of walking the
++         * payload byte by byte, which for large (e.g. lossless) frames would make
++         * the parser slower than a multi-threaded decoder. If this call's buffer
++         * runs out before the frame end, the end is guaranteed to be in a later
++         * call. Do NOT fall through to the EOC/SOC marker-byte scan below - it can
++         * misfire on a coincidental marker-like byte sequence inside this frame's
++         * own payload data (see SDBQ-3750), and it is unnecessary since Lcod
++         * already gives the answer. */
 +        if (jpegxs->lcod) {
++            int64_t left = jpegxs->lcod - jpegxs->frame_pos;
++
++            if (left <= buf_size - j) {
++                pc->frame_start_found = jpegxs->eoc_found = 0;
++                pc->state = -1;
++                return j + left;
++            }
++            jpegxs->frame_pos += buf_size - j;
 +            pc->frame_start_found = pic_found;
 +            pc->state = state;
 +            return END_NOT_FOUND;
