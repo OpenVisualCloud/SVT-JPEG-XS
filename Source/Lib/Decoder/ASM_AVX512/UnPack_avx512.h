@@ -23,8 +23,9 @@ SvtJxsErrorType_t unpack_data_avx512(bitstream_reader_t* bitstream, uint16_t* bu
                                      uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                      int32_t* precinct_bits_left);
 
-uint32_t unpack_gclis_unary_run_avx512(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out,
-                                       uint32_t count, int8_t gtli, int32_t* error);
+/* Needs AVX512_VBMI and AVX512_VBMI2 on top of the AVX-512 tier, see host_has_avx512_vbmi2() */
+uint32_t unpack_gclis_unary_run_avx512_vbmi2(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out,
+                                             uint32_t count, int8_t gtli, int32_t* error);
 
 void unpack_raw_gclis_bytes_avx512(const uint8_t* mem, uint8_t* gclis, uint32_t bytes);
 
