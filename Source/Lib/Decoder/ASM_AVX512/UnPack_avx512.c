@@ -136,10 +136,65 @@ SvtJxsErrorType_t unpack_data_avx512(bitstream_reader_t* bitstream, uint16_t* bu
                               unpack_n_groups_nosign_avx512);
 }
 
-/* The run decoder needs BMI2 and POPCNT only, see unpack_gclis_unary_run_pdep in unpack_common.h */
-uint32_t unpack_gclis_unary_run_avx512(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out,
-                                       uint32_t count, int8_t gtli, int32_t* error) {
-    return unpack_gclis_unary_run_pdep(mem, bit_pos, byte_limit, out, count, gtli, error);
+/* The same run of GCLI unary codes as unpack_gclis_unary_run_avx2, a 64-bit window at a time.
+ *
+ * In the inverted window every set bit ends one code. VPCOMPRESSB with the window as the mask packs
+ * the lane numbers of the set bits, from the lowest bit up; the lane numbers are stored as distances
+ * from the top of the window, so the packed bytes are where the codes end, last code first. One byte
+ * permute puts them in stream order, a second one shifts them by a lane, and the difference of the
+ * two is the length of every code, which is its value plus one.
+ *
+ * The cost of a window does not depend on how many codes it holds, so all of them are taken, up to
+ * sixty-four, and a masked store writes exactly as many as are decoded: the run can go on to the end
+ * of the line. What is left is only the last bytes before byte_limit. A window without any code end,
+ * or a code longer than thirty-two bits, is a corrupt stream, as for the scalar reader. */
+TARGET_AVX512_VBMI2 uint32_t unpack_gclis_unary_run_avx512_vbmi2(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit,
+                                                                 uint8_t* out, uint32_t count, int8_t gtli, int32_t* error) {
+    // clang-format off
+    /* lane i: 63 - i, the distance of bit i from the top of the window */
+    const __m512i from_top = _mm512_set_epi8(0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
+                                             16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+                                             32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+                                             48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63);
+    /* lane i: i */
+    const __m512i lane = _mm512_set_epi8(63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48,
+                                         47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35, 34, 33, 32,
+                                         31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
+                                         15, 14, 13, 12, 11, 10, 9,  8,  7,  6,  5,  4,  3,  2,  1,  0);
+    // clang-format on
+    const __m512i lane_down = _mm512_sub_epi8(lane, _mm512_set1_epi8(1));
+    const __m512i minus_one = _mm512_set1_epi8(-1);
+    const __m512i max_length = _mm512_set1_epi8(32);
+    const __m512i value_offset = _mm512_set1_epi8((char)(gtli - 1));
+    uint32_t pos = *bit_pos;
+    uint32_t done = 0;
+    int32_t err = 0;
+    while (done < count && (pos >> 3) + 8 <= byte_limit) {
+        uint64_t word;
+        memcpy(&word, mem + (pos >> 3), sizeof(word));
+        const uint64_t w = ~UNPACK_BSWAP64(word) << (pos & 7);
+        const uint32_t n = (uint32_t)_mm_popcnt_u64(w);
+        if (!n) {
+            err = 1;
+            break;
+        }
+        const uint32_t m = MIN(n, count - done);
+        /* the end of code k, as a distance from the top: lane n - 1 - k of the packed bytes */
+        const __m512i packed = _mm512_maskz_compress_epi8(w, from_top);
+        const __m512i end = _mm512_permutexvar_epi8(_mm512_sub_epi8(_mm512_set1_epi8((char)(n - 1)), lane), packed);
+        /* the end of code k - 1, and -1 before the first code */
+        const __m512i end_prev = _mm512_mask_permutexvar_epi8(minus_one, ~(__mmask64)1, lane_down, end);
+        const __m512i length = _mm512_sub_epi8(end, end_prev);
+        const __mmask64 keep = _bzhi_u64(~0ULL, m);
+        /* a code longer than thirty-two bits is a corrupt stream, as for the scalar reader */
+        err |= _mm512_mask_cmpgt_epi8_mask(keep, length, max_length) != 0;
+        _mm512_mask_storeu_epi8(out + done, keep, _mm512_add_epi8(length, value_offset));
+        pos += 64 - svt_first_set_bit(_pdep_u64((uint64_t)1 << (n - m), w));
+        done += m;
+    }
+    *bit_pos = pos;
+    *error = err;
+    return done;
 }
 
 /* See unpack_raw_gclis_bytes_avx2(). The bytes left after the last full vector are loaded and

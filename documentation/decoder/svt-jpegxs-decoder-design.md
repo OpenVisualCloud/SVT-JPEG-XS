@@ -237,6 +237,29 @@ the boundary precinct lines is calculated by whichever of the two slices reaches
 This module is where the GCLI and sign bits are being unpacked from bitstream through reading coefficients and prediction modes ( raw, vertical, significance or zero).
 The process is done at the sub-packet level for every band.
 
+#### GCLI unary codes
+
+With the zero prediction mode, every GCLI of a band line is coded as a unary code: one bit set per value above GTLI, then
+a terminating bit. The scalar reader finds the end of a code with a leading-zero count and must shift its register by the
+length of the code before it can look for the next one, so every code waits for the previous one. Lines are therefore
+decoded by a *run decoder* (`unpack_gclis_unary_run`), which finds the ends of many codes at once:
+
+- AVX2 (`unpack_gclis_unary_run_avx2()`): a 256-entry table gives the positions of the code ends in any byte of the
+  inverted stream. They are stored one byte after another as a list of 16-bit positions, and a vector subtract of
+  neighbouring positions gives the length of 16 codes at a time. Only the bytes inside the precinct are read.
+- AVX-512 with AVX512_VBMI and AVX512_VBMI2 (`unpack_gclis_unary_run_avx512_vbmi2()`): `VPCOMPRESSB` of a 64-bit window
+  of the inverted stream packs the positions of all code ends in the window, two byte permutes and a subtract give the
+  lengths, and a masked store writes up to 64 codes per window.
+
+The AVX-512 tier uses the AVX2 run decoder on a host without AVX512_VBMI2. `CPU_FLAGS` has no bit for it, so the
+decoder RTCD asks the host directly (`host_has_avx512_vbmi2()`). The C tier, and the last bytes of a line that the run
+decoder leaves, use the scalar reader. If the run decoder finds a corrupt code, the line is decoded again from its start
+by the scalar reader, so the result and the error are the same as without the run decoder.
+
+With significance coding, the groups of 8 GCLIs that are not significant have no codes in the stream, and the codes of
+the significant groups follow each other. So they are decoded in one run into the start of the line, then moved to
+their groups from the last group down, and the groups that are not significant are filled with GTLI.
+
 ### Data Calculation for Precinct
 
 After the unpack stage, coefficients are being inverse quantized in the data calculation stage.

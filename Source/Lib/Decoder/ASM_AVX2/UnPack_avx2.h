@@ -40,10 +40,9 @@ SvtJxsErrorType_t unpack_data_avx2_bmi2(bitstream_reader_t* bitstream, uint16_t*
                                         uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                         int32_t* precinct_bits_left);
 
-/* The run decoder of the AVX-512 tier (unpack_gclis_unary_run_pdep in unpack_common.h) for a host with AVX2 and BMI2
- * but no AVX-512. Like unpack_data_avx2_bmi2, select it only when the host has BMI2 (and POPCNT). */
-uint32_t unpack_gclis_unary_run_avx2_bmi2(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out,
-                                          uint32_t count, int8_t gtli, int32_t* error);
+/* The run decoder of the AVX2 tier, and of the AVX-512 one on a host without AVX512_VBMI2. AVX2 only. */
+uint32_t unpack_gclis_unary_run_avx2(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out, uint32_t count,
+                                     int8_t gtli, int32_t* error);
 
 void unpack_raw_gclis_bytes_avx2(const uint8_t* mem, uint8_t* gclis, uint32_t bytes);
 #ifdef __cplusplus

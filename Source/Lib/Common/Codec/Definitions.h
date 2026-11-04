@@ -78,6 +78,14 @@ extern "C" {
 #define TARGET_BMI2
 #endif
 
+// The same for the byte compress and permute of AVX512_VBMI2 and AVX512_VBMI, which the
+// AVX-512 directory is not built with: only a few kernels use them, behind a host check.
+#if defined(__GNUC__) || defined(__clang__)
+#define TARGET_AVX512_VBMI2 __attribute__((target("avx512vbmi,avx512vbmi2")))
+#else
+#define TARGET_AVX512_VBMI2
+#endif
+
 /* This is a 32 bit pointer and is aligned on a 32 bit word boundary.
 */
 typedef void *void_ptr;

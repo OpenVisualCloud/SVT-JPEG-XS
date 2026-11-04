@@ -884,20 +884,19 @@ static void check_unary_run(unary_run_fn fn) {
     ASSERT_EQ(err, 1);
 }
 
-TEST(unpack_gclis_unary_run, AVX2_BMI2) {
-    const CPU_FLAGS required = CPU_FLAGS_AVX2 | CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT;
-    if ((get_cpu_flags() & required) != required) {
-        GTEST_SKIP() << "no AVX2, BMI2 and POPCNT";
+TEST(unpack_gclis_unary_run, AVX2) {
+    if (!(get_cpu_flags() & CPU_FLAGS_AVX2)) {
+        GTEST_SKIP() << "no AVX2";
     }
-    check_unary_run(unpack_gclis_unary_run_avx2_bmi2);
+    check_unary_run(unpack_gclis_unary_run_avx2);
 }
 
-TEST(unpack_gclis_unary_run, AVX512) {
-    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2;
-    if ((get_cpu_flags() & required) != required) {
-        GTEST_SKIP() << "no AVX-512 and BMI2";
+TEST(unpack_gclis_unary_run, AVX512_VBMI2) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_AVX512BW | CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT;
+    if ((get_cpu_flags() & required) != required || !host_has_avx512_vbmi2()) {
+        GTEST_SKIP() << "no AVX-512 with VBMI2, BMI2 and POPCNT";
     }
-    check_unary_run(unpack_gclis_unary_run_avx512);
+    check_unary_run(unpack_gclis_unary_run_avx512_vbmi2);
 }
 #endif /* ARCH_X86_64 */
 

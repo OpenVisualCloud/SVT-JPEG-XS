@@ -485,8 +485,8 @@ SvtJxsErrorType_t unpack_verical_pred_gclis_no_significance(bitstream_reader_t* 
 
 /* The C version decodes nothing and is never called: unpack_gclis_unary sees it
  * in the RTCD slot and goes to the scalar reader directly. It exists only
- * because every slot needs a C entry. The AVX-512 one (see UnPack_avx512.c)
- * takes the bulk of the line in runs of sixteen codes and leaves only the tail. */
+ * because every slot needs a C entry. The SIMD ones (see UnPack_avx2.c and
+ * UnPack_avx512.c) take the bulk of the line and leave only the last bytes. */
 uint32_t unpack_gclis_unary_run_c(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out, uint32_t count,
                                   int8_t gtli, int32_t* error) {
     UNUSED(mem);
@@ -570,50 +570,55 @@ SvtJxsErrorType_t unpack_pred_zero_gclis_significance(bitstream_reader_t* bitstr
     const uint32_t gcli_width = b_info->gcli_width;
 
     uint8_t* gclis = b_data->gcli_data + ypos * gcli_width;
-    uint8_t* significances = b_data->significance_data + ypos * b_info->significance_width;
-    uint32_t group_num = (gcli_width / SIGNIFICANCE_GROUP_SIZE);
-    uint8_t leftover = (gcli_width % SIGNIFICANCE_GROUP_SIZE);
+    const uint8_t* significances = b_data->significance_data + ypos * b_info->significance_width;
+    const uint32_t group_num = (gcli_width / SIGNIFICANCE_GROUP_SIZE);
+    const uint32_t leftover = (gcli_width % SIGNIFICANCE_GROUP_SIZE);
 
-    vlc_reader_t vlc_reader;
-    vlc_reader_init(&vlc_reader, bitstream, *precinct_bits_left);
-    int8_t error = 0;
+    /* Only the significant groups have codes in the stream, and they follow each other with
+     * nothing in between, so they are one run of codes as on a line without significance.
+     * They are decoded in one go into the start of the line, which lets the fast reader
+     * take whole runs of them instead of a group at a time, and then moved to their groups
+     * from the last one down, the others filled with gtli. A group never moves towards the
+     * start of the line, so walking down never overwrites codes not yet moved. */
+    uint32_t count = 0;
     for (uint32_t group_idx = 0; group_idx < group_num; group_idx++) {
-        uint8_t significance_group_is_significant = !significances[0];
-        if (significance_group_is_significant) {
-            for (uint8_t i = 0; i < SIGNIFICANCE_GROUP_SIZE; i++) {
-                int8_t res = vlc_reader_get_next_value(&vlc_reader);
-                error |= res;
-                gclis[i] = gtli + res;
-            }
-        }
-        else {
-            memset(gclis, gtli, SIGNIFICANCE_GROUP_SIZE);
-        }
-        significances++;
-        gclis += SIGNIFICANCE_GROUP_SIZE;
+        count += !significances[group_idx];
+    }
+    count *= SIGNIFICANCE_GROUP_SIZE;
+    if (leftover && !significances[group_num]) {
+        count += leftover;
     }
 
+    /* On a corrupt stream the codes are moved all the same, so the groups read before the error are
+     * where they were when the codes were read a group at a time. */
+    const SvtJxsErrorType_t ret = unpack_gclis_unary(bitstream, gclis, count, gtli, precinct_bits_left);
+
+    uint32_t src = count;
     if (leftover) {
-        uint8_t significance_group_is_significant = !significances[0];
-        if (significance_group_is_significant) {
-            for (uint8_t i = 0; i < leftover; i++) {
-                int8_t res = vlc_reader_get_next_value(&vlc_reader);
-                error |= res;
-                gclis[i] = gtli + res;
-            }
+        uint8_t* dst = gclis + group_num * SIGNIFICANCE_GROUP_SIZE;
+        if (!significances[group_num]) {
+            src -= leftover;
+            memmove(dst, gclis + src, leftover);
         }
         else {
-            memset(gclis, gtli, leftover);
+            memset(dst, gtli, leftover);
         }
     }
-
-    /*Check only error at the end.*/
-    if (error < 0) {
-        return SvtJxsErrorDecoderInvalidBitstream;
+    for (uint32_t group_idx = group_num; group_idx-- > 0;) {
+        uint8_t* dst = gclis + group_idx * SIGNIFICANCE_GROUP_SIZE;
+        if (!significances[group_idx]) {
+            src -= SIGNIFICANCE_GROUP_SIZE;
+            if (dst == gclis + src) {
+                /* every group below is significant and already in place */
+                break;
+            }
+            memmove(dst, gclis + src, SIGNIFICANCE_GROUP_SIZE);
+        }
+        else {
+            memset(dst, gtli, SIGNIFICANCE_GROUP_SIZE);
+        }
     }
-
-    *precinct_bits_left -= vlc_reader_end(&vlc_reader, bitstream);
-    return SvtJxsErrorNone;
+    return ret;
 }
 
 SvtJxsErrorType_t unpack_precinct(bitstream_reader_t* bitstream, precinct_t* prec, precinct_t* prec_top, const pi_t* pi,
