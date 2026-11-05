@@ -127,6 +127,9 @@ processed one after another by `process_precinct()` (Figure 5). For rate control
 separate loops over the whole slice, see [Rate Control Modes](#rate-control-modes). Precinct processing is described in
 details in the encoder algorithms section.
 
+The DWT line buffers of the pack threads (`buffers_dwt_tmp`, `buffers_dwt_per_component`) are allocated aligned to
+`ALVALUE` (64 bytes), so the 512-bit loads and stores of the DWT kernels do not straddle cache lines.
+
 ### Final Stage
 
 The final process is where all the synchronization is done: Releasing objects and reordering queues. Slices are properly

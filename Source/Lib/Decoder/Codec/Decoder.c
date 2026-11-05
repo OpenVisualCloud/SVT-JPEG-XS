@@ -90,13 +90,22 @@ ColourFormat_t svt_jpeg_xs_get_format_from_params(uint32_t comps_num, uint32_t s
     return format;
 }
 
+// Coefficients of one band in one precinct line of the whole-frame buffer, rounded up to
+// ALVALUE bytes: every band then starts on a cache line, so the IDWT loads of its first and
+// following lines do not straddle two lines more often than their width makes them.
+static INLINE uint64_t band_coeff_size_get(const pi_t* pi, uint32_t c, uint32_t b) {
+    const uint64_t align = ALVALUE / sizeof(int16_t);
+    const uint64_t size = (uint64_t)pi->components[c].bands[b].width * pi->components[c].bands[b].height_lines_num;
+    return (size + align - 1) / align * align;
+}
+
 // Coefficients in the whole-frame buffer, see coeff_buff_ptr_16bit layout in Decoder.h.
 // Computed in 64 bits: maximum-size headers (65535x65535, several components) exceed uint32.
 static uint64_t frame_coeff_size_get(const pi_t* pi) {
     uint64_t precincts_line_coeff_size = 0;
     for (uint32_t c = 0; c < pi->comps_num; c++) {
         for (uint32_t b = 0; b < pi->components[c].bands_num; b++) {
-            precincts_line_coeff_size += (uint64_t)pi->components[c].bands[b].width * pi->components[c].bands[b].height_lines_num;
+            precincts_line_coeff_size += band_coeff_size_get(pi, c, b);
         }
     }
     return precincts_line_coeff_size * pi->precincts_line_num;
@@ -233,7 +242,7 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
     for (uint32_t c = 0; c < pi->comps_num; c++) {
         ctx->precincts_line_coeff_comp_offset[c] = (uint32_t)precincts_line_coeff_size;
         for (uint32_t b = 0; b < pi->components[c].bands_num; b++) {
-            precincts_line_coeff_size += (uint64_t)pi->components[c].bands[b].width * pi->components[c].bands[b].height_lines_num;
+            precincts_line_coeff_size += band_coeff_size_get(pi, c, b);
         }
     }
 
@@ -247,7 +256,12 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
     ctx->precincts_line_coeff_size = (uint32_t)precincts_line_coeff_size;
 
     // Zero-initialize: IDWT may read padding/boundary elements before they are written
-    SVT_NO_THROW_CALLOC(ctx->coeff_buff_ptr_16bit, (size_t)frame_coeff_size, sizeof(int16_t));
+    // The byte size in size_t: the check calloc did on count * size, kept for 32-bit size_t builds.
+    if (frame_coeff_size > SIZE_MAX / sizeof(int16_t)) {
+        svt_jpeg_xs_dec_instance_free(ctx);
+        return NULL;
+    }
+    SVT_NO_THROW_CALLOC_ALIGNED(ctx->coeff_buff_ptr_16bit, (size_t)frame_coeff_size * sizeof(int16_t));
     if (!ctx->coeff_buff_ptr_16bit) {
         ret |= 1;
     }
@@ -257,18 +271,18 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
     const uint32_t buffers_num = dec_common->rct_per_precinct ? pi->comps_num : 1;
     for (uint32_t c = 0; c < buffers_num; c++) {
         if (pi->decom_v == 0) {
-            SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer[c], 1, 1 * pi->width * sizeof(int32_t));
-            SVT_NO_THROW_CALLOC(ctx->precinct_component_tmp_buffer[c], 1, 1 * pi->width * sizeof(int32_t));
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_idwt_tmp_buffer[c], 1 * pi->width * sizeof(int32_t));
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_component_tmp_buffer[c], 1 * pi->width * sizeof(int32_t));
         }
         else if (pi->decom_v == 1) {
-            SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer[c], 1, 3 * pi->width * sizeof(int32_t));
-            SVT_NO_THROW_CALLOC(ctx->precinct_component_tmp_buffer[c], 1, 4 * pi->width * sizeof(int32_t));
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_idwt_tmp_buffer[c], 3 * pi->width * sizeof(int32_t));
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_component_tmp_buffer[c], 4 * pi->width * sizeof(int32_t));
         }
         else { // pi->.decom_v == 2
             uint32_t V1_len = (pi->width / 2) + (pi->width & 1);
-            SVT_NO_THROW_CALLOC(
-                ctx->precinct_idwt_tmp_buffer[c], 1, (7 * V1_len + 4 * pi->width) * sizeof(int32_t)); // ~7.5 * pi->width
-            SVT_NO_THROW_CALLOC(ctx->precinct_component_tmp_buffer[c], 1, 8 * pi->width * sizeof(int32_t));
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_idwt_tmp_buffer[c],
+                                        (7 * V1_len + 4 * pi->width) * sizeof(int32_t)); // ~7.5 * pi->width
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_component_tmp_buffer[c], 8 * pi->width * sizeof(int32_t));
         }
 
         if (!ctx->precinct_idwt_tmp_buffer[c] || !ctx->precinct_component_tmp_buffer[c]) {
@@ -313,10 +327,10 @@ void svt_jpeg_xs_dec_instance_free(svt_jpeg_xs_decoder_instance_t* ctx) {
     if (!ctx) {
         return;
     }
-    SVT_FREE(ctx->coeff_buff_ptr_16bit);
+    SVT_FREE_ALIGNED(ctx->coeff_buff_ptr_16bit);
     for (uint32_t c = 0; c < MAX_COMPONENTS_NUM; c++) {
-        SVT_FREE(ctx->precinct_idwt_tmp_buffer[c]);
-        SVT_FREE(ctx->precinct_component_tmp_buffer[c]);
+        SVT_FREE_ALIGNED(ctx->precinct_idwt_tmp_buffer[c]);
+        SVT_FREE_ALIGNED(ctx->precinct_component_tmp_buffer[c]);
     }
     SVT_FREE(ctx->rct_tmp_buffer);
 
@@ -343,19 +357,18 @@ svt_jpeg_xs_decoder_thread_context* svt_jpeg_xs_dec_thread_context_alloc(svt_jpe
     // output lines of components 0-2 alive at the same time.
     for (uint32_t c = 0; c < pi->comps_num; c++) {
         if (pi->components[c].decom_v == 0) {
-            SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer[c], 1, pi->components[c].width * sizeof(int32_t));
-            SVT_NO_THROW_CALLOC(ctx->precinct_components_tmp_buffer[c], 1, pi->components[c].width * sizeof(int32_t));
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_idwt_tmp_buffer[c], pi->components[c].width * sizeof(int32_t));
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_components_tmp_buffer[c], pi->components[c].width * sizeof(int32_t));
         }
         else if (pi->components[c].decom_v == 1) {
-            SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer[c], 1, 3 * pi->components[c].width * sizeof(int32_t));
-            SVT_NO_THROW_CALLOC(ctx->precinct_components_tmp_buffer[c], 1, 4 * pi->components[c].width * sizeof(int32_t));
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_idwt_tmp_buffer[c], 3 * pi->components[c].width * sizeof(int32_t));
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_components_tmp_buffer[c], 4 * pi->components[c].width * sizeof(int32_t));
         }
         else { // pi->components[c].decom_v == 2
             uint32_t V1_len = (pi->components[c].width / 2) + (pi->components[c].width & 1);
-            SVT_NO_THROW_CALLOC(ctx->precinct_idwt_tmp_buffer[c],
-                                1,
-                                (7 * V1_len + 3 * pi->components[c].width) * sizeof(int32_t)); // ~6.5 * component->width
-            SVT_NO_THROW_CALLOC(ctx->precinct_components_tmp_buffer[c], 1, 8 * pi->components[c].width * sizeof(int32_t));
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_idwt_tmp_buffer[c],
+                                        (7 * V1_len + 3 * pi->components[c].width) * sizeof(int32_t)); // ~6.5 * component->width
+            SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_components_tmp_buffer[c], 8 * pi->components[c].width * sizeof(int32_t));
         }
         if (!ctx->precinct_components_tmp_buffer[c] || !ctx->precinct_idwt_tmp_buffer[c]) {
             ret |= 1;
@@ -420,8 +433,8 @@ void svt_jpeg_xs_dec_thread_context_free(svt_jpeg_xs_decoder_thread_context* ctx
 
     //IDWT per precinct support
     for (uint32_t c = 0; c < pi->comps_num; c++) {
-        SVT_FREE(ctx->precinct_components_tmp_buffer[c]);
-        SVT_FREE(ctx->precinct_idwt_tmp_buffer[c]);
+        SVT_FREE_ALIGNED(ctx->precinct_components_tmp_buffer[c]);
+        SVT_FREE_ALIGNED(ctx->precinct_idwt_tmp_buffer[c]);
     }
     SVT_FREE(ctx->rct_tmp_buffer);
     //END IDWT per precinct support
@@ -475,7 +488,7 @@ void decoder_get_precinct_bands_pointers(const pi_t* pi, svt_jpeg_xs_decoder_ins
         ctx->precincts_line_coeff_comp_offset[comp];
     for (uint32_t b = 0; b < pi->components[comp].bands_num; b++) {
         precicnt_bands_ptr[b] = bands_offset;
-        bands_offset += pi->components[comp].bands[b].width * pi->components[comp].bands[b].height_lines_num;
+        bands_offset += band_coeff_size_get(pi, comp, b);
     }
 }
 

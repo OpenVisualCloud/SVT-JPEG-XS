@@ -86,6 +86,9 @@ precinct X |  comp-n, band6        |
            |  comp-n, band9-line0  |
            |  comp-n, band9-line1  |
             -----------------------
+The buffer is ALVALUE aligned and each band block (all its lines in one precinct) is padded
+to a multiple of ALVALUE bytes, so every block starts on a cache line: offsets are sums of
+band_coeff_size_get() (Decoder.c), not of width * height_lines_num.
 */
     int16_t* coeff_buff_ptr_16bit;
     uint32_t precincts_line_coeff_size;
