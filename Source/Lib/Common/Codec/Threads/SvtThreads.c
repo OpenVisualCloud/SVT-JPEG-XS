@@ -179,7 +179,8 @@ static void svt_jxs_tw_read_env(void) {
 static int64_t svt_jxs_tw_budget(void) {
     pthread_once(&svt_jxs_tw_once, svt_jxs_tw_read_env);
     if (svt_jxs_tw_config.budget_ns > 0 && svt_jxs_tw_lib_thread && !svt_jxs_tw_slack_set) {
-        prctl(PR_SET_TIMERSLACK, svt_jxs_tw_config.slack_ns);
+        /* prctl is variadic: pass the unused arguments as 0, not whatever the registers hold */
+        prctl(PR_SET_TIMERSLACK, svt_jxs_tw_config.slack_ns, 0UL, 0UL, 0UL);
         svt_jxs_tw_slack_set = 1;
     }
     return svt_jxs_tw_config.budget_ns;
