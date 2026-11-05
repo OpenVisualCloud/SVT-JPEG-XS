@@ -30,6 +30,15 @@ static INLINE void vlc_put_unary(bit_writer_t* w, uint8_t nbits) {
     bitw_put(w, (((uint64_t)1 << nbits) - 1) << 1, (uint32_t)nbits + 1);
 }
 
+/* The same code through the branchless writer; see fast_bit_writer_t. */
+static INLINE void vlc_put_unary_fast(fast_bit_writer_t* w, uint8_t nbits) {
+    assert(nbits < 32);
+    fbw_put(w, (((uint64_t)1 << nbits) - 1) << 1, (uint32_t)nbits + 1);
+}
+
+/* Worst case of a run of unary codes: thirty-two bits per code. */
+#define VLC_UNARY_MAX_BYTES(codes) ((size_t)(codes) * 4)
+
 /*Variable Length Coding
  * Params:
  * nbits - bits to coding

@@ -7,6 +7,8 @@
 #define __BITSTREAM_WRITER_ENCODER_H__
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
+#include <assert.h>
 #include "Definitions.h"
 
 #ifdef __cplusplus
@@ -255,6 +257,65 @@ static INLINE void nibw_finish(nib_writer_t* w, bitstream_writer_t* bitstream) {
     }
     bitstream->offset = (uint32_t)w->pos;
     bitstream->bits_used = n * 4;
+}
+
+/* Branchless bit writer for runs whose worst-case size is known up front.
+ *
+ * bitw_put and nibw_put_chunk flush when a thirty-two bit word is full. Whether
+ * that happens after a given code depends on the lengths of all the codes
+ * before it, so the branch is close to random and it is mispredicted about once
+ * per flush. Here every append stores the whole accumulator as an eight-byte
+ * big-endian word at the current byte and advances by the number of complete
+ * bytes: no branch at all.
+ *
+ * The bits sit right aligned in the accumulator; fewer than eight remain
+ * between appends, so an append of up to fifty-six bits always fits. The bytes
+ * past the completed ones are overwritten by every store and end up zero past
+ * the valid bits, which the writers that follow rely on (write_4_bits_align4
+ * ORs into the started byte).
+ *
+ * An append stores up to eight bytes from the current byte, so the caller must
+ * check with fbw_fits() that the worst case of the whole run plus eight bytes
+ * of slack lies inside the buffer, and use the guarded writers otherwise. */
+typedef struct fast_bit_writer {
+    uint8_t* ptr; /* the byte the next bits start in */
+    uint64_t acc;
+    uint32_t nbits;
+} fast_bit_writer_t;
+
+#define FBW_SLACK_BYTES 8
+
+static INLINE int fbw_fits(const bitstream_writer_t* bitstream, size_t max_bytes) {
+    return bitstream->offset <= bitstream->size && max_bytes + FBW_SLACK_BYTES <= (size_t)(bitstream->size - bitstream->offset);
+}
+
+static INLINE void fbw_init(fast_bit_writer_t* w, bitstream_writer_t* bitstream) {
+    w->ptr = bitstream->mem + bitstream->offset;
+    const uint32_t used = bitstream->bits_used;
+    w->acc = used ? (uint64_t)(w->ptr[0] >> (8 - used)) : 0;
+    w->nbits = used;
+}
+
+/* len is at most fifty-six, zero included; value carries len significant
+ * positions on the right. */
+static INLINE void fbw_put(fast_bit_writer_t* w, uint64_t value, uint32_t len) {
+    assert(len <= 56);
+    w->acc = (w->acc << len) | value;
+    w->nbits += len;
+    assert(w->nbits < 64);
+    /* the valid bits go to the top; two shifts because nbits can be zero */
+    const uint64_t be = SVT_BSWAP64((w->acc << (63 - w->nbits)) << 1);
+    memcpy(w->ptr, &be, sizeof(be));
+    w->ptr += w->nbits >> 3;
+    w->nbits &= 7;
+}
+
+static INLINE void fbw_finish(fast_bit_writer_t* w, bitstream_writer_t* bitstream) {
+    if (w->nbits) {
+        w->ptr[0] = (uint8_t)(w->acc << (8 - w->nbits));
+    }
+    bitstream->offset = (uint32_t)(w->ptr - bitstream->mem);
+    bitstream->bits_used = w->nbits;
 }
 
 /*

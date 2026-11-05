@@ -21,12 +21,6 @@
 extern "C" {
 #endif
 
-#if defined(_MSC_VER)
-#define UNPACK_BSWAP64(x) _byteswap_uint64(x)
-#else
-#define UNPACK_BSWAP64(x) __builtin_bswap64(x)
-#endif
-
 typedef struct reader_short {
     uint8_t* mem;
     uint8_t bits_used;
@@ -79,7 +73,7 @@ static const uint64_t unpack_sign_spread[16] = {
 static INLINE uint64_t unpack_load_nibbles(const uint8_t* mem, uint32_t nib, uint32_t count) {
     uint64_t w;
     memcpy(&w, mem + (nib >> 1), sizeof(w));
-    w = UNPACK_BSWAP64(w);
+    w = SVT_BSWAP64(w);
     w <<= (nib & 1) * 4;
     return w >> (64 - 4 * count);
 }
