@@ -92,6 +92,15 @@ static void pack_bitplane_count_raw(bitstream_writer_t* bitstream, uint8_t* bitp
 }
 
 static void pack_bitplane_count_no_significance(bitstream_writer_t* bitstream, uint8_t* bitplane, uint32_t width, int8_t gtli) {
+    if (fbw_fits(bitstream, VLC_UNARY_MAX_BYTES(width))) {
+        fast_bit_writer_t fw;
+        fbw_init(&fw, bitstream);
+        for (uint32_t i = 0; i < width; i++) {
+            vlc_put_unary_fast(&fw, gcli_above_gtli(bitplane[i], gtli));
+        }
+        fbw_finish(&fw, bitstream);
+        return;
+    }
     bit_writer_t writer;
     bitw_init(&writer, bitstream);
     for (uint32_t i = 0; i < width; i++) {
@@ -101,6 +110,15 @@ static void pack_bitplane_count_no_significance(bitstream_writer_t* bitstream, u
 }
 
 static void pack_bitplane_count_vpred_no_significance(bitstream_writer_t* bitstream, uint8_t* bitplane_bits, uint32_t width) {
+    if (fbw_fits(bitstream, VLC_UNARY_MAX_BYTES(width))) {
+        fast_bit_writer_t fw;
+        fbw_init(&fw, bitstream);
+        for (uint32_t i = 0; i < width; i++) {
+            vlc_put_unary_fast(&fw, bitplane_bits[i]);
+        }
+        fbw_finish(&fw, bitstream);
+        return;
+    }
     bit_writer_t writer;
     bitw_init(&writer, bitstream);
     for (uint32_t i = 0; i < width; i++) {
@@ -115,6 +133,25 @@ static void pack_bitplane_count_vpred_significance(bitstream_writer_t* bitstream
     assert(group_size == SIGNIFICANCE_GROUP_SIZE);
     uint32_t groups = width / SIGNIFICANCE_GROUP_SIZE;
     uint32_t leftover = width % SIGNIFICANCE_GROUP_SIZE;
+    if (fbw_fits(bitstream, VLC_UNARY_MAX_BYTES(width))) {
+        fast_bit_writer_t fw;
+        fbw_init(&fw, bitstream);
+        for (uint32_t g = 0; g < groups; ++g) {
+            if (!significance_flags[g]) {
+                for (uint32_t i = 0; i < SIGNIFICANCE_GROUP_SIZE; ++i) {
+                    vlc_put_unary_fast(&fw, bitplane_bits[i]);
+                }
+            }
+            bitplane_bits += SIGNIFICANCE_GROUP_SIZE;
+        }
+        if (leftover && !significance_flags[groups]) {
+            for (uint32_t i = 0; i < leftover; i++) {
+                vlc_put_unary_fast(&fw, bitplane_bits[i]);
+            }
+        }
+        fbw_finish(&fw, bitstream);
+        return;
+    }
     bit_writer_t writer;
     bitw_init(&writer, bitstream);
     for (uint32_t g = 0; g < groups; ++g) {
@@ -139,6 +176,25 @@ static void pack_bitplane_count_significance(bitstream_writer_t* bitstream, uint
     assert(group_size == SIGNIFICANCE_GROUP_SIZE);
     uint32_t groups = width / SIGNIFICANCE_GROUP_SIZE;
     uint32_t leftover = width % SIGNIFICANCE_GROUP_SIZE;
+    if (fbw_fits(bitstream, VLC_UNARY_MAX_BYTES(width))) {
+        fast_bit_writer_t fw;
+        fbw_init(&fw, bitstream);
+        for (uint32_t g = 0; g < groups; ++g) {
+            if (significance_data_max_ptr[g] > gtli) {
+                for (uint32_t i = 0; i < SIGNIFICANCE_GROUP_SIZE; ++i) {
+                    vlc_put_unary_fast(&fw, gcli_above_gtli(bitplane[i], gtli));
+                }
+            }
+            bitplane += SIGNIFICANCE_GROUP_SIZE;
+        }
+        if (leftover && significance_data_max_ptr[groups] > gtli) {
+            for (uint32_t i = 0; i < leftover; i++) {
+                vlc_put_unary_fast(&fw, gcli_above_gtli(bitplane[i], gtli));
+            }
+        }
+        fbw_finish(&fw, bitstream);
+        return;
+    }
     bit_writer_t writer;
     bitw_init(&writer, bitstream);
     for (uint32_t g = 0; g < groups; ++g) {

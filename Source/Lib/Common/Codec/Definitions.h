@@ -86,6 +86,14 @@ extern "C" {
 #define TARGET_AVX512_VBMI2
 #endif
 
+/* 64-bit byte swap: big-endian bitstream words to and from host order. */
+#if defined(_MSC_VER)
+#include <stdlib.h>
+#define SVT_BSWAP64(x) _byteswap_uint64(x)
+#else
+#define SVT_BSWAP64(x) __builtin_bswap64(x)
+#endif
+
 /* This is a 32 bit pointer and is aligned on a 32 bit word boundary.
 */
 typedef void *void_ptr;

@@ -419,7 +419,7 @@ static void pack_data_groups_ref(bitstream_writer_t* bitstream, const uint16_t* 
  * The line is walked in chunks of thirty-two groups, so seventy groups cover a
  * full chunk, a second one and a partial third; the start is put on both halves
  * of a byte because the nibble writer picks the stream up mid-byte. */
-static void pack_data_groups_test(pack_data_groups_fn pack_cmp) {
+static void pack_data_groups_test(pack_data_groups_fn pack_cmp, bool tight = false) {
     svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
 
     uint16_t* buf = (uint16_t*)malloc(PACK_GROUPS_MAX_GROUPS * GROUP_SIZE * sizeof(uint16_t));
@@ -443,16 +443,21 @@ static void pack_data_groups_test(pack_data_groups_fn pack_cmp) {
 
             bitstream_writer_t ref, cmp;
             bitstream_writer_init(&ref, mem_ref, PACK_GROUPS_BUF_SIZE);
-            bitstream_writer_init(&cmp, mem_cmp, PACK_GROUPS_BUF_SIZE);
             /* after the init: a debug build fills the buffer with 0xFF in there,
              * and the nibble written into the second half of a byte is ORed into
              * whatever the first half holds */
             memset(mem_ref, 0, PACK_GROUPS_BUF_SIZE);
-            memset(mem_cmp, 0, PACK_GROUPS_BUF_SIZE);
             const uint8_t start_bits_used = (uint8_t)(rnd->Rand8() % 2 ? 4 : 0);
-            ref.bits_used = cmp.bits_used = start_bits_used;
-
+            ref.bits_used = start_bits_used;
             pack_data_groups_ref(&ref, buf, gclis, groups, gtli, sign_flag);
+
+            /* tight: the buffer ends just past what the line needs, below the worst case the
+             * branchless writer requires, so the implementations take their guarded path */
+            const uint32_t needed = ref.offset + (ref.bits_used ? 1 : 0);
+            const uint32_t cmp_size = tight ? MAX(needed + (uint32_t)(rnd->Rand8() % 8), 1u) : PACK_GROUPS_BUF_SIZE;
+            bitstream_writer_init(&cmp, mem_cmp, cmp_size);
+            memset(mem_cmp, 0, PACK_GROUPS_BUF_SIZE);
+            cmp.bits_used = start_bits_used;
             pack_cmp(&cmp, buf, gclis, groups, gtli, sign_flag);
 
             ASSERT_EQ(ref.offset, cmp.offset);
@@ -504,6 +509,98 @@ TEST(pack_data_groups, AVX512) {
     pack_data_groups_test(pack_data_groups_avx512);
 }
 #endif /* ARCH_X86_64 */
+
+#ifdef ARCH_X86_64
+TEST(pack_data_groups, AVX2_BMI2_guarded) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX2 | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & required) != required) {
+        GTEST_SKIP();
+    }
+    pack_data_groups_test(pack_data_groups_avx2_bmi2, true);
+}
+
+TEST(pack_data_groups, AVX512_guarded) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT;
+    if ((get_cpu_flags() & required) != required) {
+        GTEST_SKIP();
+    }
+    pack_data_groups_test(pack_data_groups_avx512, true);
+}
+#endif /* ARCH_X86_64 */
+
+/* The branchless writer against the guarded one: runs of unary codes from any bit position,
+ * then more writes through the generic writer, which must find the stream as bitw_* left it
+ * (the bytes past the last started one included, write_4_bits_align4 ORs into them). */
+TEST(fast_bit_writer, unary_matches_bit_writer) {
+    svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
+    const uint32_t max_codes = 300;
+    const uint32_t mem_size = 4 * max_codes + 64;
+    uint8_t* mem_ref = (uint8_t*)malloc(mem_size);
+    uint8_t* mem_cmp = (uint8_t*)malloc(mem_size);
+    uint8_t* codes = (uint8_t*)malloc(max_codes);
+    ASSERT_TRUE(mem_ref != NULL && mem_cmp != NULL && codes != NULL);
+
+    for (uint32_t test_num = 0; test_num < 3000; test_num++) {
+        const uint32_t n = rnd->Rand16() % (max_codes + 1);
+        /* mostly short codes as in real GCLI data, now and then up to the longest one */
+        const uint32_t max_len = (rnd->Rand8() % 4) ? 16 : 32;
+        for (uint32_t i = 0; i < n; i++) {
+            codes[i] = (uint8_t)(rnd->Rand8() % max_len);
+        }
+        const uint8_t start_bits = (uint8_t)(rnd->Rand8() % 8);
+        const uint8_t start_byte = (uint8_t)(rnd->Rand8() & ~(0xFF >> start_bits));
+
+        bitstream_writer_t ref, cmp;
+        bitstream_writer_init(&ref, mem_ref, mem_size);
+        bitstream_writer_init(&cmp, mem_cmp, mem_size);
+        memset(mem_ref, 0, mem_size);
+        memset(mem_cmp, 0, mem_size);
+        mem_ref[0] = mem_cmp[0] = start_byte;
+        ref.bits_used = cmp.bits_used = start_bits;
+
+        ASSERT_TRUE(fbw_fits(&cmp, VLC_UNARY_MAX_BYTES(n)));
+        bit_writer_t bw;
+        bitw_init(&bw, &ref);
+        fast_bit_writer_t fw;
+        fbw_init(&fw, &cmp);
+        for (uint32_t i = 0; i < n; i++) {
+            vlc_put_unary(&bw, codes[i]);
+            vlc_put_unary_fast(&fw, codes[i]);
+        }
+        bitw_finish(&bw, &ref);
+        fbw_finish(&fw, &cmp);
+        ASSERT_EQ(ref.offset, cmp.offset);
+        ASSERT_EQ(ref.bits_used, cmp.bits_used);
+
+        const uint32_t tail = rnd->Rand16();
+        write_N_bits(&ref, tail & 0x1FF, 9);
+        write_N_bits(&cmp, tail & 0x1FF, 9);
+        align_bitstream_writer_to_next_byte(&ref);
+        align_bitstream_writer_to_next_byte(&cmp);
+        write_8_bits(&ref, (uint8_t)(tail >> 9));
+        write_8_bits(&cmp, (uint8_t)(tail >> 9));
+
+        ASSERT_EQ(ref.offset, cmp.offset);
+        ASSERT_EQ(memcmp(mem_ref, mem_cmp, ref.offset), 0);
+    }
+    free(mem_ref);
+    free(mem_cmp);
+    free(codes);
+    delete rnd;
+}
+
+TEST(fast_bit_writer, fits_bounds) {
+    uint8_t mem[64];
+    bitstream_writer_t bs;
+    bitstream_writer_init(&bs, mem, sizeof(mem));
+    ASSERT_TRUE(fbw_fits(&bs, sizeof(mem) - FBW_SLACK_BYTES));
+    ASSERT_FALSE(fbw_fits(&bs, sizeof(mem) - FBW_SLACK_BYTES + 1));
+    bs.offset = 60;
+    ASSERT_FALSE(fbw_fits(&bs, 0));
+    /* past the end, as after a guarded write into an undersized buffer */
+    bs.offset = 70;
+    ASSERT_FALSE(fbw_fits(&bs, 0));
+}
 
 #ifdef ARCH_X86_64
 /* The line packer that walks the mask, called directly rather than through the

@@ -21,15 +21,16 @@ void pack_data_single_group_avx512(bitstream_writer_t *bitstream, uint16_t *buf,
 
 void pack_data_groups_avx512(bitstream_writer_t *bitstream, uint16_t *buf_16bit, uint8_t *gclis, uint32_t groups, uint8_t gtli,
                              uint8_t sign_flag) {
-    nib_writer_t w;
-    nibw_init(&w, bitstream);
-    if (sign_flag == 0) {
-        pack_groups_masked_pdep(&w, buf_16bit, gclis, groups, gtli, 1);
+    if (fbw_fits(bitstream, PACK_GROUP_MAX_BYTES(groups))) {
+        if (sign_flag == 0) {
+            pack_groups_masked_pdep_fast(bitstream, buf_16bit, gclis, groups, gtli, 1);
+        }
+        else {
+            pack_groups_masked_pdep_fast(bitstream, buf_16bit, gclis, groups, gtli, 0);
+        }
+        return;
     }
-    else {
-        pack_groups_masked_pdep(&w, buf_16bit, gclis, groups, gtli, 0);
-    }
-    nibw_finish(&w, bitstream);
+    pack_data_groups_pdep_guarded(bitstream, buf_16bit, gclis, groups, gtli, sign_flag);
 }
 
 static INLINE __m512i vlc_encode_get_bits_avx512(__m512i x, __m512i r, __m512i t) {

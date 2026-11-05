@@ -171,6 +171,22 @@ TARGET_BMI2 static INLINE uint64_t pack_group_planes_pdep(const uint16_t* buf) {
         _pdep_u64(buf[2], 0x2222222222222222ULL) | _pdep_u64(buf[3], 0x1111111111111111ULL);
 }
 
+/* The nibbles of one non-empty group, right aligned, the sign nibble first when emit_signs is
+ * set; *count receives their number. */
+TARGET_BMI2 static INLINE uint64_t pack_group_word_pdep(const uint16_t* buf, uint8_t gcli, uint8_t gtli, const int emit_signs,
+                                                        uint32_t* count) {
+    const uint64_t all = pack_group_planes_pdep(buf);
+    const uint32_t planes = (uint32_t)gcli - gtli;
+    uint64_t word = (all >> (4 * gtli)) & (((uint64_t)1 << (4 * planes)) - 1);
+    *count = planes;
+    if (emit_signs) {
+        /* the sign is bit 15, that is the top nibble of all */
+        word |= (all >> 60) << (4 * planes);
+        *count = planes + 1;
+    }
+    return word;
+}
+
 TARGET_BMI2 static INLINE void pack_groups_masked_pdep(nib_writer_t* writer, const uint16_t* buf_16bit, const uint8_t* gclis,
                                                        uint32_t groups, uint8_t gtli, const int emit_signs) {
     /* A local copy of the writer, see pack_groups_masked() */
@@ -182,18 +198,66 @@ TARGET_BMI2 static INLINE void pack_groups_masked_pdep(nib_writer_t* writer, con
         while (todo) {
             const uint32_t group = base + svt_first_set_bit(todo);
             todo &= todo - 1;
-            const uint64_t all = pack_group_planes_pdep(buf_16bit + (size_t)group * GROUP_SIZE);
-            const uint32_t planes = (uint32_t)gclis[group] - gtli;
-            uint64_t word = (all >> (4 * gtli)) & (((uint64_t)1 << (4 * planes)) - 1);
-            uint32_t count = planes;
-            if (emit_signs) {
-                word |= (all >> 60) << (4 * planes);
-                count = planes + 1;
-            }
+            uint32_t count;
+            const uint64_t word = pack_group_word_pdep(
+                buf_16bit + (size_t)group * GROUP_SIZE, gclis[group], gtli, emit_signs, &count);
             nibw_put_group(w, word, count);
         }
     }
     *writer = local;
+}
+
+/* Worst case of a line of groups: sixteen nibbles each, fifteen planes and a sign. */
+#define PACK_GROUP_MAX_BYTES(groups) ((size_t)(groups) * 8)
+
+/* A group word of len bits, at most sixty-four: one append when it fits, two otherwise.
+ * Groups with more than fourteen nibbles are rare, so the branch predicts well. */
+static INLINE void fbw_put_group(fast_bit_writer_t* w, uint64_t word, uint32_t len) {
+    if (len <= 56) {
+        fbw_put(w, word, len);
+    }
+    else {
+        fbw_put(w, word >> 32, len - 32);
+        fbw_put(w, (uint32_t)word, 32);
+    }
+}
+
+/* pack_groups_masked_pdep() through the branchless writer (see fast_bit_writer_t). The caller
+ * checks fbw_fits() with PACK_GROUP_MAX_BYTES first. */
+TARGET_BMI2 static INLINE void pack_groups_masked_pdep_fast(bitstream_writer_t* bitstream, const uint16_t* buf_16bit,
+                                                            const uint8_t* gclis, uint32_t groups, uint8_t gtli,
+                                                            const int emit_signs) {
+    fast_bit_writer_t local;
+    fbw_init(&local, bitstream);
+    fast_bit_writer_t* const w = &local;
+    for (uint32_t base = 0; base < groups; base += 32) {
+        const uint32_t chunk = MIN(groups - base, 32u);
+        uint64_t todo = pack_nonempty_mask(gclis + base, chunk, gtli);
+        while (todo) {
+            const uint32_t group = base + svt_first_set_bit(todo);
+            todo &= todo - 1;
+            uint32_t count;
+            const uint64_t word = pack_group_word_pdep(
+                buf_16bit + (size_t)group * GROUP_SIZE, gclis[group], gtli, emit_signs, &count);
+            fbw_put_group(w, word, 4 * count);
+        }
+    }
+    fbw_finish(w, bitstream);
+}
+
+/* The guarded nibble-writer path, for lines whose worst case does not fit the buffer. */
+TARGET_BMI2 static INLINE void pack_data_groups_pdep_guarded(bitstream_writer_t* bitstream, const uint16_t* buf_16bit,
+                                                             const uint8_t* gclis, uint32_t groups, uint8_t gtli,
+                                                             uint8_t sign_flag) {
+    nib_writer_t w;
+    nibw_init(&w, bitstream);
+    if (sign_flag == 0) {
+        pack_groups_masked_pdep(&w, buf_16bit, gclis, groups, gtli, 1);
+    }
+    else {
+        pack_groups_masked_pdep(&w, buf_16bit, gclis, groups, gtli, 0);
+    }
+    nibw_finish(&w, bitstream);
 }
 
 #endif /*__PACK_GROUP_HELPER_H__*/

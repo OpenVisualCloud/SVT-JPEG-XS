@@ -274,6 +274,33 @@ Packing process consists of writing encoding information to bitstream. Informati
 quantization, refinement, transformation coefficients for each band, and any necessary information that the decoder needs
 to reconstruct the video following the JPEG XS specification.
 
+#### Branchless bit writer
+
+The GCLI unary codes and the data of the groups go through bit writers that keep the bits in a 64-bit accumulator. The
+guarded writers (`bit_writer_t`, `nib_writer_t`, BitstreamWriter.h) flush a 32-bit word when it is full, and whether
+that happens after a given code depends on the lengths of all codes before it, so the branch is mispredicted about once
+per flush. The branchless writer (`fast_bit_writer_t`) stores the whole accumulator as an 8-byte big-endian word after
+every append and advances by the number of complete bytes. It writes up to 8 bytes past the current position, so a line
+uses it only when `fbw_fits()` finds room for the worst case of the line plus 8 bytes in the slice window; otherwise the
+guarded writer is used. Both give the same stream.
+
+#### GCLI unary codes
+
+With the zero prediction mode every GCLI above GTLI is written as a unary code, `vlc_put_unary_fast()` in the
+`pack_bitplane_count_*()` functions (PackPrecinct.c). The worst case of a line is 4 bytes per code
+(`VLC_UNARY_MAX_BYTES`).
+
+#### Group data
+
+`pack_data_groups()` writes the bit planes of the groups of 4 coefficients of a band line, from GCLI down to GTLI, with
+the sign nibble first when signs are coded with the data. Only groups with GCLI above GTLI are written; a mask of the
+non-empty groups is walked instead of testing every group. The planes of a group are a bit transpose of 4 x 16 bits:
+nibble j holds bit j of the 4 coefficients, the first one in the top bit.
+
+- AVX2 with BMI2 and AVX-512 (`pack_groups_masked_pdep()`, pack_group_helper.h): 4 `PDEP` per group build all 16 planes.
+
+The worst case of a line is 8 bytes per group (`PACK_GROUP_MAX_BYTES`).
+
 ### Coding Tools
 
 The coding tools below are configured in `encoder_init_configuration()` (EncHandle.c) and evaluated per band or per

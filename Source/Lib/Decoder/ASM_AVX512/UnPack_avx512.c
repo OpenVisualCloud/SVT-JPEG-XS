@@ -172,7 +172,7 @@ TARGET_AVX512_VBMI2 uint32_t unpack_gclis_unary_run_avx512_vbmi2(const uint8_t* 
     while (done < count && (pos >> 3) + 8 <= byte_limit) {
         uint64_t word;
         memcpy(&word, mem + (pos >> 3), sizeof(word));
-        const uint64_t w = ~UNPACK_BSWAP64(word) << (pos & 7);
+        const uint64_t w = ~SVT_BSWAP64(word) << (pos & 7);
         const uint32_t n = (uint32_t)_mm_popcnt_u64(w);
         if (!n) {
             err = 1;

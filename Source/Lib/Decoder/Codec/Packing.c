@@ -12,12 +12,6 @@
 #include "SvtLog.h"
 #include <string.h>
 
-#if defined(_MSC_VER)
-#define VLC_BSWAP64(x) _byteswap_uint64(x)
-#else
-#define VLC_BSWAP64(x) __builtin_bswap64(x)
-#endif
-
 typedef struct vlc_reader {
     uint8_t const* mem;
     uint32_t bits_to_use;
@@ -58,7 +52,7 @@ static INLINE int8_t vlc_reader_get_next_value(vlc_reader_t* vlc_reader) {
             if (vlc_reader->bits_to_use >= vlc_reader->bits_used + vlc_reader->register_bits + 64) {
                 uint64_t word;
                 memcpy(&word, vlc_reader->mem, sizeof(word));
-                word = ~VLC_BSWAP64(word);
+                word = ~SVT_BSWAP64(word);
                 /* Only whole bytes are appended: the positions below register_bits must
                  * stay zero, otherwise the next refill would land on top of them. */
                 const uint32_t add = (64 - vlc_reader->register_bits) & ~7u;
