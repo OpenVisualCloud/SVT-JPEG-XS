@@ -33,6 +33,91 @@ void pack_data_groups_avx512(bitstream_writer_t *bitstream, uint16_t *buf_16bit,
     pack_data_groups_pdep_guarded(bitstream, buf_16bit, gclis, groups, gtli, sign_flag);
 }
 
+/* Group packing with GFNI, eight groups per vector.
+ *
+ * The word pack_group_planes_pdep() builds with four PDEPs per group - nibble j made of
+ * bit j of the four coefficients, the first coefficient on top - is a bit transpose, and
+ * GF2P8AFFINEQB transposes the 8x8 bit matrix of every qword when the qword is passed as
+ * the matrix and the identity bytes as the data: byte k of the result collects bit k of
+ * all eight bytes, the last byte in bit 0.
+ *
+ * The bytes of a group are first ordered low halves of the four coefficients, then their
+ * high halves. Byte k of the transpose then holds plane k in its high nibble and plane
+ * k + 8 in its low one, in the nibble order of the stream. The word needs planes 2m and
+ * 2m + 1 in byte m, low nibble first, so two byte shuffles pick the even and the odd
+ * planes, taking each byte either from the transpose or from its nibble-swapped copy.
+ *
+ * Truncation, the sign nibble and the length are vector operations over the eight
+ * groups too; only the writer remains per group, and only for the non-empty ones. */
+TARGET_GFNI_BMI2 static INLINE void pack_groups_gfni(bitstream_writer_t *bitstream, const uint16_t *buf_16bit,
+                                                     const uint8_t *gclis, uint32_t groups, uint8_t gtli, const int emit_signs) {
+    const __m512i byte_order = _mm512_broadcast_i32x4(_mm_setr_epi8(0, 2, 4, 6, 1, 3, 5, 7, 8, 10, 12, 14, 9, 11, 13, 15));
+    const __m512i unit = _mm512_set1_epi64((long long)0x8040201008040201ULL);
+    const __m512i even_planes = _mm512_broadcast_i32x4(_mm_setr_epi8(0, 2, 4, 6, 0, 2, 4, 6, 8, 10, 12, 14, 8, 10, 12, 14));
+    const __m512i odd_planes = _mm512_broadcast_i32x4(_mm_setr_epi8(1, 3, 5, 7, 1, 3, 5, 7, 9, 11, 13, 15, 9, 11, 13, 15));
+    const __m512i low_nibbles = _mm512_set1_epi8(0x0F);
+    const __m512i one = _mm512_set1_epi64(1);
+    const __m128i gtli_vec = _mm_set1_epi8((char)gtli);
+    const __m128i gtli_shift = _mm_cvtsi32_si128(4 * gtli);
+    const __mmask64 first_half = 0x0F0F0F0F0F0F0F0FULL;
+
+    DECLARE_ALIGNED(64, uint64_t, words[8]);
+    DECLARE_ALIGNED(64, uint64_t, lens[8]);
+
+    fast_bit_writer_t local;
+    fbw_init(&local, bitstream);
+    fast_bit_writer_t *const w = &local;
+
+    for (uint32_t base = 0; base < groups; base += 8) {
+        const uint32_t n = MIN(groups - base, 8u);
+        const __mmask16 gmask = (__mmask16)((1u << n) - 1);
+        const __m128i planes8 = _mm_subs_epu8(_mm_maskz_loadu_epi8(gmask, gclis + base), gtli_vec);
+        const uint32_t todo_mask = _mm_test_epi8_mask(planes8, planes8) & 0xFF;
+        if (!todo_mask) {
+            continue;
+        }
+        const __mmask32 cmask = (__mmask32)(((uint64_t)1 << (4 * n)) - 1);
+        const __m512i coeffs = _mm512_maskz_loadu_epi16(cmask, buf_16bit + (size_t)base * GROUP_SIZE);
+
+        const __m512i t = _mm512_gf2p8affine_epi64_epi8(unit, _mm512_shuffle_epi8(coeffs, byte_order), 0);
+        const __m512i t_swapped = _mm512_ternarylogic_epi64(_mm512_srli_epi16(t, 4), _mm512_slli_epi16(t, 4), low_nibbles, 0xE4);
+        const __m512i even = _mm512_mask_shuffle_epi8(_mm512_shuffle_epi8(t, even_planes), first_half, t_swapped, even_planes);
+        const __m512i odd = _mm512_mask_shuffle_epi8(_mm512_shuffle_epi8(t_swapped, odd_planes), first_half, t, odd_planes);
+        const __m512i all = _mm512_ternarylogic_epi64(even, odd, low_nibbles, 0xE4);
+
+        __m512i len = _mm512_slli_epi64(_mm512_cvtepu8_epi64(planes8), 2);
+        __m512i word = _mm512_and_si512(_mm512_srl_epi64(all, gtli_shift), _mm512_sub_epi64(_mm512_sllv_epi64(one, len), one));
+        if (emit_signs) {
+            word = _mm512_or_si512(word, _mm512_sllv_epi64(_mm512_srli_epi64(all, 60), len));
+            len = _mm512_add_epi64(len, _mm512_set1_epi64(4));
+        }
+        _mm512_store_si512((__m512i *)words, word);
+        _mm512_store_si512((__m512i *)lens, len);
+
+        uint32_t todo = todo_mask;
+        while (todo) {
+            const uint32_t j = svt_first_set_bit(todo);
+            todo &= todo - 1;
+            fbw_put_group(w, words[j], (uint32_t)lens[j]);
+        }
+    }
+    fbw_finish(w, bitstream);
+}
+
+TARGET_GFNI_BMI2 void pack_data_groups_avx512_gfni(bitstream_writer_t *bitstream, uint16_t *buf_16bit, uint8_t *gclis,
+                                                   uint32_t groups, uint8_t gtli, uint8_t sign_flag) {
+    if (!fbw_fits(bitstream, PACK_GROUP_MAX_BYTES(groups))) {
+        pack_data_groups_pdep_guarded(bitstream, buf_16bit, gclis, groups, gtli, sign_flag);
+        return;
+    }
+    if (sign_flag == 0) {
+        pack_groups_gfni(bitstream, buf_16bit, gclis, groups, gtli, 1);
+    }
+    else {
+        pack_groups_gfni(bitstream, buf_16bit, gclis, groups, gtli, 0);
+    }
+}
+
 static INLINE __m512i vlc_encode_get_bits_avx512(__m512i x, __m512i r, __m512i t) {
     //    assert(x < 32);
     //    int32_t max = r - t;

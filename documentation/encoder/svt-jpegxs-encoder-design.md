@@ -298,8 +298,15 @@ non-empty groups is walked instead of testing every group. The planes of a group
 nibble j holds bit j of the 4 coefficients, the first one in the top bit.
 
 - AVX2 with BMI2 and AVX-512 (`pack_groups_masked_pdep()`, pack_group_helper.h): 4 `PDEP` per group build all 16 planes.
+- With GFNI (`pack_data_groups_avx512_gfni()`, `pack_data_groups_avx2_gfni()`): 8 groups per 512-bit vector (4 per
+  256-bit vector) are transposed at once. A byte shuffle puts the low bytes of the 4 coefficients before their high
+  bytes, `GF2P8AFFINEQB` with the identity bytes transposes the 8x8 bit matrix of every group, and two byte shuffles put
+  the planes into nibble order. Truncation to GTLI, the sign nibble and the length are computed for all groups in the
+  vector; only the writer runs per non-empty group. The AVX2 kernel packs the last groups of a line, fewer than 4, with
+  `PDEP`.
 
-The worst case of a line is 8 bytes per group (`PACK_GROUP_MAX_BYTES`).
+`CPU_FLAGS` has no bit for GFNI, so the encoder RTCD asks the host directly (`host_has_gfni()`). The worst case of a line
+is 8 bytes per group (`PACK_GROUP_MAX_BYTES`).
 
 ### Coding Tools
 

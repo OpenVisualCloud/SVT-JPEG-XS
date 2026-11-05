@@ -48,8 +48,17 @@ int host_has_avx512_vbmi2(void) {
     cpuinfo_initialize();
     return cpuinfo_has_x86_avx512vbmi() && cpuinfo_has_x86_avx512vbmi2();
 }
+
+int host_has_gfni(void) {
+    cpuinfo_initialize();
+    return cpuinfo_has_x86_gfni();
+}
 #elif defined(ARCH_AARCH64)
 int host_has_avx512_vbmi2(void) {
+    return 0;
+}
+
+int host_has_gfni(void) {
     return 0;
 }
 
@@ -60,6 +69,10 @@ CPU_FLAGS get_cpu_flags() {
 }
 #else
 int host_has_avx512_vbmi2(void) {
+    return 0;
+}
+
+int host_has_gfni(void) {
     return 0;
 }
 
