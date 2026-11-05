@@ -94,6 +94,13 @@ extern "C" {
 #define SVT_BSWAP64(x) __builtin_bswap64(x)
 #endif
 
+// GFNI (with the EVEX forms of AVX-512) plus BMI2, for the group packing kernels behind a host check.
+#if defined(__GNUC__) || defined(__clang__)
+#define TARGET_GFNI_BMI2 __attribute__((target("gfni,bmi2")))
+#else
+#define TARGET_GFNI_BMI2
+#endif
+
 /* This is a 32 bit pointer and is aligned on a 32 bit word boundary.
 */
 typedef void *void_ptr;

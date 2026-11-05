@@ -215,7 +215,11 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
      * never AVX-512, which already uses PDEP - and only when the host (not just the requested
      * tier) actually has BMI2. */
     if ((flags & CPU_FLAGS_AVX2) && !(flags & CPU_FLAGS_AVX512F) && (host_flags & CPU_FLAGS_BMI2)) {
-        pack_data_groups = pack_data_groups_avx2_bmi2;
+        pack_data_groups = host_has_gfni() ? pack_data_groups_avx2_gfni : pack_data_groups_avx2_bmi2;
+    }
+    /* The bit transpose of eight groups at once with GF2P8AFFINEQB, see Pack_avx512.c */
+    if ((flags & CPU_FLAGS_AVX512F) && (host_flags & CPU_FLAGS_BMI2) && host_has_gfni()) {
+        pack_data_groups = pack_data_groups_avx512_gfni;
     }
 #endif /* ARCH_X86_64 */
     SET_NEON(pack_data_groups, pack_data_groups_neon);

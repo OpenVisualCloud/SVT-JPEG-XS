@@ -32,6 +32,8 @@ CPU_FLAGS get_cpu_flags();
 /* AVX512_VBMI and AVX512_VBMI2, which have no bit of their own in CPU_FLAGS: kernels that need
  * them are picked in addition to the AVX-512 tier, on the host's word alone. */
 int host_has_avx512_vbmi2(void);
+/* GFNI (Galois field instructions), likewise without a CPU_FLAGS bit. */
+int host_has_gfni(void);
 void setup_common_rtcd_internal(CPU_FLAGS flags);
 uint32_t log2_32_c(uint32_t x);
 RTCD_EXTERN uint32_t (*svt_log2_32)(uint32_t x);

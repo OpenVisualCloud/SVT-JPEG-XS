@@ -9,6 +9,7 @@
 #include "PackPrecinct.h"
 #include "SvtUtility.h"
 #include "encoder_dsp_rtcd.h"
+#include "common_dsp_rtcd.h"
 #include "EncDec.h" /* TRUNCATION_MAX */
 
 #include "Codestream.h"
@@ -525,6 +526,25 @@ TEST(pack_data_groups, AVX512_guarded) {
         GTEST_SKIP();
     }
     pack_data_groups_test(pack_data_groups_avx512, true);
+}
+
+/* The GFNI kernels: the same dispatch conditions as setup_encoder_rtcd_internal. */
+TEST(pack_data_groups, AVX2_GFNI) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX2 | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & required) != required || !host_has_gfni()) {
+        GTEST_SKIP();
+    }
+    pack_data_groups_test(pack_data_groups_avx2_gfni);
+    pack_data_groups_test(pack_data_groups_avx2_gfni, true);
+}
+
+TEST(pack_data_groups, AVX512_GFNI) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & required) != required || !host_has_gfni()) {
+        GTEST_SKIP();
+    }
+    pack_data_groups_test(pack_data_groups_avx512_gfni);
+    pack_data_groups_test(pack_data_groups_avx512_gfni, true);
 }
 #endif /* ARCH_X86_64 */
 
