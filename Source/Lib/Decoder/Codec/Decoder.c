@@ -256,12 +256,17 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
     ctx->precincts_line_coeff_size = (uint32_t)precincts_line_coeff_size;
 
     // Zero-initialize: IDWT may read padding/boundary elements before they are written
-    // The byte size in size_t: the check calloc did on count * size, kept for 32-bit size_t builds.
-    if (frame_coeff_size > SIZE_MAX / sizeof(int16_t)) {
+    // calloc rather than an aligned allocation plus memset: a buffer this large gets fresh pages that
+    // are zero already and are only touched when the decoder writes them. ALVALUE more bytes to
+    // align the start by hand. The byte size is checked as calloc does, also for 32-bit size_t.
+    if (frame_coeff_size > (SIZE_MAX - ALVALUE) / sizeof(int16_t)) {
         svt_jpeg_xs_dec_instance_free(ctx);
         return NULL;
     }
-    SVT_NO_THROW_CALLOC_ALIGNED(ctx->coeff_buff_ptr_16bit, (size_t)frame_coeff_size * sizeof(int16_t));
+    SVT_NO_THROW_CALLOC(ctx->coeff_buff_alloc, 1, (size_t)frame_coeff_size * sizeof(int16_t) + ALVALUE);
+    ctx->coeff_buff_ptr_16bit = ctx->coeff_buff_alloc
+        ? (int16_t*)(((uintptr_t)ctx->coeff_buff_alloc + ALVALUE - 1) & ~(uintptr_t)(ALVALUE - 1))
+        : NULL;
     if (!ctx->coeff_buff_ptr_16bit) {
         ret |= 1;
     }
@@ -327,7 +332,8 @@ void svt_jpeg_xs_dec_instance_free(svt_jpeg_xs_decoder_instance_t* ctx) {
     if (!ctx) {
         return;
     }
-    SVT_FREE_ALIGNED(ctx->coeff_buff_ptr_16bit);
+    SVT_FREE(ctx->coeff_buff_alloc);
+    ctx->coeff_buff_ptr_16bit = NULL;
     for (uint32_t c = 0; c < MAX_COMPONENTS_NUM; c++) {
         SVT_FREE_ALIGNED(ctx->precinct_idwt_tmp_buffer[c]);
         SVT_FREE_ALIGNED(ctx->precinct_component_tmp_buffer[c]);

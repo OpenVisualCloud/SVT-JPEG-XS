@@ -91,6 +91,7 @@ to a multiple of ALVALUE bytes, so every block starts on a cache line: offsets a
 band_coeff_size_get() (Decoder.c), not of width * height_lines_num.
 */
     int16_t* coeff_buff_ptr_16bit;
+    void* coeff_buff_alloc; /* what was allocated for coeff_buff_ptr_16bit, see svt_jpeg_xs_dec_instance_alloc() */
     uint32_t precincts_line_coeff_size;
     uint32_t precincts_line_coeff_comp_offset[MAX_COMPONENTS_NUM];
 
