@@ -12,6 +12,7 @@
 #define _SVT_MALLOC_H_
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "Definitions.h"
 
@@ -191,6 +192,30 @@ void svt_jxs_remove_mem_entry(void* ptr, PointerType_t type);
         SVT_REMOVE_MEM_ENTRY(pointer, POINTER_TYPE_A_PTR); \
         free(pointer);                                     \
         pointer = NULL;                                    \
+    } while (0)
+#endif
+
+/* Zeroed, ALVALUE-aligned, no return on failure: pointer is NULL then. Free with
+ * SVT_FREE_ALIGNED. */
+#ifdef _WIN32
+#define SVT_NO_THROW_CALLOC_ALIGNED(pointer, size)                 \
+    do {                                                           \
+        void* aligned_p = _aligned_malloc(size, ALVALUE);          \
+        if (aligned_p)                                             \
+            memset(aligned_p, 0, size);                            \
+        SVT_NO_THROW_ADD_MEM(aligned_p, size, POINTER_TYPE_A_PTR); \
+        pointer = aligned_p;                                       \
+    } while (0)
+#else
+#define SVT_NO_THROW_CALLOC_ALIGNED(pointer, size)                 \
+    do {                                                           \
+        void* aligned_p = NULL;                                    \
+        if (posix_memalign(&aligned_p, ALVALUE, size) != 0)        \
+            aligned_p = NULL;                                      \
+        if (aligned_p)                                             \
+            memset(aligned_p, 0, size);                            \
+        SVT_NO_THROW_ADD_MEM(aligned_p, size, POINTER_TYPE_A_PTR); \
+        pointer = aligned_p;                                       \
     } while (0)
 #endif
 

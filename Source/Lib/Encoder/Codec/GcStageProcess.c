@@ -985,8 +985,8 @@ SvtJxsErrorType_t buffers_components_allocate(struct precinct_calc_dwt_buff_per_
     uint32_t c = 0;
     if (decom_V1_exist) {
         for (; c < pi->comps_num; ++c) {
-            SVT_CALLOC(buffers_dwt_per_component->V1[c].in_tmp_line_HF_prev, 1, pi->width * sizeof(int32_t));
-            SVT_CALLOC(buffers_dwt_per_component->V1[c].line_first, 1, pi->width * sizeof(int32_t));
+            SVT_CALLOC_ALIGNED_ARRAY(buffers_dwt_per_component->V1[c].in_tmp_line_HF_prev, pi->width);
+            SVT_CALLOC_ALIGNED_ARRAY(buffers_dwt_per_component->V1[c].line_first, pi->width);
         }
     }
     for (; c < MAX_COMPONENTS_NUM; ++c) {
@@ -997,9 +997,9 @@ SvtJxsErrorType_t buffers_components_allocate(struct precinct_calc_dwt_buff_per_
     c = 0;
     if (decom_V2_exist) {
         for (; c < pi->comps_num; ++c) {
-            SVT_CALLOC(buffers_dwt_per_component->V2[c].line_2, 1, pi->width * sizeof(int32_t));
-            SVT_CALLOC(buffers_dwt_per_component->V2[c].buffer_prev, 1, (pi->width + 1) * sizeof(int32_t));
-            SVT_CALLOC(buffers_dwt_per_component->V2[c].buffer_on_place, 1, (3 * pi->width / 2) * sizeof(int32_t));
+            SVT_CALLOC_ALIGNED_ARRAY(buffers_dwt_per_component->V2[c].line_2, pi->width);
+            SVT_CALLOC_ALIGNED_ARRAY(buffers_dwt_per_component->V2[c].buffer_prev, pi->width + 1);
+            SVT_CALLOC_ALIGNED_ARRAY(buffers_dwt_per_component->V2[c].buffer_on_place, 3 * pi->width / 2);
         }
     }
     for (; c < MAX_COMPONENTS_NUM; ++c) {
@@ -1012,12 +1012,12 @@ SvtJxsErrorType_t buffers_components_allocate(struct precinct_calc_dwt_buff_per_
 
 void buffers_components_free(struct precinct_calc_dwt_buff_per_component* buffers_dwt_per_component) {
     for (uint32_t c = 0; c < MAX_COMPONENTS_NUM; ++c) {
-        SVT_FREE(buffers_dwt_per_component->V1[c].in_tmp_line_HF_prev);
-        SVT_FREE(buffers_dwt_per_component->V1[c].line_first);
+        SVT_FREE_ALIGNED(buffers_dwt_per_component->V1[c].in_tmp_line_HF_prev);
+        SVT_FREE_ALIGNED(buffers_dwt_per_component->V1[c].line_first);
     }
     for (uint32_t c = 0; c < MAX_COMPONENTS_NUM; ++c) {
-        SVT_FREE(buffers_dwt_per_component->V2[c].line_2);
-        SVT_FREE(buffers_dwt_per_component->V2[c].buffer_prev);
-        SVT_FREE(buffers_dwt_per_component->V2[c].buffer_on_place);
+        SVT_FREE_ALIGNED(buffers_dwt_per_component->V2[c].line_2);
+        SVT_FREE_ALIGNED(buffers_dwt_per_component->V2[c].buffer_prev);
+        SVT_FREE_ALIGNED(buffers_dwt_per_component->V2[c].buffer_on_place);
     }
 }

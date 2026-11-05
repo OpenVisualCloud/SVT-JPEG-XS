@@ -75,7 +75,7 @@ static void pack_stage_context_dctor(void_ptr p) {
         }
 
         if (obj->buffers_dwt_tmp.buffer_tmp) {
-            SVT_FREE(obj->buffers_dwt_tmp.buffer_tmp);
+            SVT_FREE_ALIGNED(obj->buffers_dwt_tmp.buffer_tmp);
         }
 
         if (obj->buffers_dwt_tmp.buffer_unpacked_color_formats) {
@@ -83,7 +83,7 @@ static void pack_stage_context_dctor(void_ptr p) {
         }
 
         if (obj->buffers_dwt_tmp.rct_scaled_lines) {
-            SVT_FREE(obj->buffers_dwt_tmp.rct_scaled_lines);
+            SVT_FREE_ALIGNED(obj->buffers_dwt_tmp.rct_scaled_lines);
         }
 
         uint8_t decom_V1_exist = 0;
@@ -99,16 +99,16 @@ static void pack_stage_context_dctor(void_ptr p) {
 
         if (enc_common->cpu_profile == CPU_PROFILE_LOW_LATENCY) {
             if (decom_V1_exist) {
-                SVT_FREE(obj->buffers_dwt_tmp.V1.line_1);
-                SVT_FREE(obj->buffers_dwt_tmp.V1.line_2);
-                SVT_FREE(obj->buffers_dwt_tmp.V1.out_tmp_line_HF_next);
+                SVT_FREE_ALIGNED(obj->buffers_dwt_tmp.V1.line_1);
+                SVT_FREE_ALIGNED(obj->buffers_dwt_tmp.V1.line_2);
+                SVT_FREE_ALIGNED(obj->buffers_dwt_tmp.V1.out_tmp_line_HF_next);
             }
             if (decom_V2_exist) {
-                SVT_FREE(obj->buffers_dwt_tmp.V2.line_3);
-                SVT_FREE(obj->buffers_dwt_tmp.V2.line_4);
-                SVT_FREE(obj->buffers_dwt_tmp.V2.line_5);
-                SVT_FREE(obj->buffers_dwt_tmp.V2.line_6);
-                SVT_FREE(obj->buffers_dwt_tmp.V2.buffer_next);
+                SVT_FREE_ALIGNED(obj->buffers_dwt_tmp.V2.line_3);
+                SVT_FREE_ALIGNED(obj->buffers_dwt_tmp.V2.line_4);
+                SVT_FREE_ALIGNED(obj->buffers_dwt_tmp.V2.line_5);
+                SVT_FREE_ALIGNED(obj->buffers_dwt_tmp.V2.line_6);
+                SVT_FREE_ALIGNED(obj->buffers_dwt_tmp.V2.buffer_next);
             }
         }
         if (enc_common->cpu_profile == CPU_PROFILE_LOW_LATENCY) {
@@ -197,9 +197,9 @@ SvtJxsErrorType_t pack_stage_context_ctor(ThreadContext_t* thread_contxt_ptr, sv
             *2.5 temp for Vertical and Horizontal temp
             *Summary: 7.5 line == 15/2*width
             */
-            SVT_CALLOC(context_ptr->buffers_dwt_tmp.V1.line_1, 1, pi->width * sizeof(int32_t));
-            SVT_CALLOC(context_ptr->buffers_dwt_tmp.V1.line_2, 1, pi->width * sizeof(int32_t));
-            SVT_CALLOC(context_ptr->buffers_dwt_tmp.V1.out_tmp_line_HF_next, 1, pi->width * sizeof(int32_t));
+            SVT_CALLOC_ALIGNED_ARRAY(context_ptr->buffers_dwt_tmp.V1.line_1, pi->width);
+            SVT_CALLOC_ALIGNED_ARRAY(context_ptr->buffers_dwt_tmp.V1.line_2, pi->width);
+            SVT_CALLOC_ALIGNED_ARRAY(context_ptr->buffers_dwt_tmp.V1.out_tmp_line_HF_next, pi->width);
         }
         if (decom_V2_exist) {
             /*Allocate buffer for V2 get maximum from:
@@ -210,11 +210,11 @@ SvtJxsErrorType_t pack_stage_context_ctor(ThreadContext_t* thread_contxt_ptr, sv
             pixels_temp_size = MAX(pixels_temp_size, (7 * pi->width / 2 + 2) + 4 * pi->width);
             unpacked_color_format_temp_size = MAX(unpacked_color_format_temp_size, 27 * pi->width);
 
-            SVT_CALLOC(context_ptr->buffers_dwt_tmp.V2.line_3, 1, pi->width * sizeof(int32_t));
-            SVT_CALLOC(context_ptr->buffers_dwt_tmp.V2.line_4, 1, pi->width * sizeof(int32_t));
-            SVT_CALLOC(context_ptr->buffers_dwt_tmp.V2.line_5, 1, pi->width * sizeof(int32_t));
-            SVT_CALLOC(context_ptr->buffers_dwt_tmp.V2.line_6, 1, pi->width * sizeof(int32_t));
-            SVT_CALLOC(context_ptr->buffers_dwt_tmp.V2.buffer_next, 1, (pi->width + 1) * sizeof(int32_t));
+            SVT_CALLOC_ALIGNED_ARRAY(context_ptr->buffers_dwt_tmp.V2.line_3, pi->width);
+            SVT_CALLOC_ALIGNED_ARRAY(context_ptr->buffers_dwt_tmp.V2.line_4, pi->width);
+            SVT_CALLOC_ALIGNED_ARRAY(context_ptr->buffers_dwt_tmp.V2.line_5, pi->width);
+            SVT_CALLOC_ALIGNED_ARRAY(context_ptr->buffers_dwt_tmp.V2.line_6, pi->width);
+            SVT_CALLOC_ALIGNED_ARRAY(context_ptr->buffers_dwt_tmp.V2.buffer_next, pi->width + 1);
         }
     }
 
@@ -226,7 +226,7 @@ SvtJxsErrorType_t pack_stage_context_ctor(ThreadContext_t* thread_contxt_ptr, sv
     }
 
     if (pixels_temp_size > 0) {
-        SVT_CALLOC(context_ptr->buffers_dwt_tmp.buffer_tmp, 1, pixels_temp_size * sizeof(int32_t));
+        SVT_CALLOC_ALIGNED_ARRAY(context_ptr->buffers_dwt_tmp.buffer_tmp, pixels_temp_size);
     }
 
     ColourFormat_t colour_format = enc_common->colour_format;
@@ -245,7 +245,7 @@ SvtJxsErrorType_t pack_stage_context_ctor(ThreadContext_t* thread_contxt_ptr, sv
 
     if (enc_common->hdr_Cpih == 1) {
         //Encoder-side forward RCT prepass scratch: components 0,1,2 x 13 ring slots x width, see GcStageProcess.h.
-        SVT_CALLOC(context_ptr->buffers_dwt_tmp.rct_scaled_lines, 1, 3 * 13 * (size_t)pi->width * sizeof(int32_t));
+        SVT_CALLOC_ALIGNED_ARRAY(context_ptr->buffers_dwt_tmp.rct_scaled_lines, 3 * 13 * (size_t)pi->width);
         for (uint32_t k = 0; k < 13; k++) {
             context_ptr->buffers_dwt_tmp.rct_scaled_lines_tag[k] = -1; //No absolute line index cached yet.
         }

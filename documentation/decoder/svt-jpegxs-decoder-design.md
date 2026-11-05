@@ -277,6 +277,12 @@ by `Fq`. As there is a dependency between slices, if vertical decomposition is >
 precinct lines of each slice (except the first slice) and only initialises the IDWT state from them. These lines are transformed later, see
 [Final Stage](#final-stage).
 
+The frame coefficient buffer (`coeff_buff_ptr_16bit`) and the IDWT line buffers (`precinct_idwt_tmp_buffer`,
+`precinct_component(s)_tmp_buffer`) are allocated aligned to `ALVALUE` (64 bytes). In the coefficient buffer the block
+of each band in a precinct line is padded to a multiple of 64 bytes (`band_coeff_size_get()`), so every band starts on a
+cache line and the 512-bit loads and stores of the IDWT kernels do not straddle cache lines more often than the band
+width makes them.
+
 ### MCT [Multiple component transformations]
 
 Optional stage that transforms the output array of the inverse wavelet transformation to intermediate picture samples values of the picture (RGB or Star-Tetrix)
