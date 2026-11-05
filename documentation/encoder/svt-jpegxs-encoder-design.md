@@ -127,6 +127,11 @@ processed one after another by `process_precinct()` (Figure 5). For rate control
 separate loops over the whole slice, see [Rate Control Modes](#rate-control-modes). Precinct processing is described in
 details in the encoder algorithms section.
 
+The pack input and output queues hold 4 slices per pack thread, in the Low CPU profile at least twice the slices of a picture
+(`svt_jpeg_xs_encoder_init()`). A pack thread keeps its input object until it gets an output object, and the final stage
+releases output objects in slice order. With a shallow queue the init stage runs out of empty input objects and the
+pack threads wait while it wakes up; the deeper queue keeps the init stage ahead of them. The objects hold no buffers.
+
 The DWT line buffers of the pack threads (`buffers_dwt_tmp`, `buffers_dwt_per_component`) are allocated aligned to
 `ALVALUE` (64 bytes), so the 512-bit loads and stores of the DWT kernels do not straddle cache lines.
 

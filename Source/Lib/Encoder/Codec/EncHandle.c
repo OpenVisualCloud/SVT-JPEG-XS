@@ -979,7 +979,11 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_init(uint64_t version_api_major
         assert(0);
     }
 
-    uint32_t pack_input_fifo_count = 2 * enc_api_prv->pack_stage_threads_num;
+    /* Four slices per pack thread. A pack thread keeps its input object until it gets an output
+     * object, and the final stage gives output objects back in slice order. A shallow queue makes
+     * the init stage block on an empty input object almost every slice, and the pack threads wait
+     * while it wakes up. The objects hold no buffers, so the depth costs no memory. */
+    uint32_t pack_input_fifo_count = 4 * enc_api_prv->pack_stage_threads_num;
     if (enc_common->cpu_profile == CPU_PROFILE_CPU) {
         /*Set minimum 2 frames to schedule.
          *If size of queue is smaller than number of slices then deadlock.*/
