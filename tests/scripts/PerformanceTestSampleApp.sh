@@ -149,47 +149,47 @@ echo "CSV ready, entering test matrix loop"
 MATRIX=(
     # 1080p yuva422 (4:2:2:4) 8-bit - 4.0 BPP Thread Scaling. Baselines calibrated from the
     # CI runner's own measurements (dev-sandbox numbers were faster/slower than this host).
-    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH:yuva422|58|120"
-    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|8|SYNTH:yuva422|355|576"
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|1|SYNTH:yuva422|63|133"
+    "1080p60_yuva422p8|1920|1080|8|yuva422|60|4.0|8|SYNTH:yuva422|378|664"
 
     # 1080p rgba/yuva444 (4:4:4:4) 8-bit - 5.0 BPP Thread Scaling.
-    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|1|SYNTH:yuva444|46|94"
-    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|8|SYNTH:yuva444|287|451"
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|1|SYNTH:yuva444|51|105"
+    "1080p60_yuva444p8|1920|1080|8|rgba|60|5.0|8|SYNTH:yuva444|303|524"
 
     # 1080p 422p 10-bit - 1.5 BPP Thread Scaling
-    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|100|202"
-    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|572|924"
+    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|103|222"
+    "1080p60_422p10|1920|1080|10|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|611|1048"
 
     # 1080p 422p 10-bit - 3.0 BPP Thread Scaling
-    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|89|174"
-    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|512|821"
+    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|96|189"
+    "1080p60_422p10|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|570|917"
 
     # 1080p 420p 10-bit - 1.5 BPP Thread Scaling
-    "1080p60_420p10|1920|1080|10|yuv420|60|1.5|1|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|118|249"
-    "1080p60_420p10|1920|1080|10|yuv420|60|1.5|8|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|694|1155"
+    "1080p60_420p10|1920|1080|10|yuv420|60|1.5|1|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|126|265"
+    "1080p60_420p10|1920|1080|10|yuv420|60|1.5|8|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|739|1282"
 
     # 1080p 420p 10-bit - 3.0 BPP Thread Scaling
-    "1080p60_420p10|1920|1080|10|yuv420|60|3.0|1|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|99|207"
-    "1080p60_420p10|1920|1080|10|yuv420|60|3.0|8|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|591|999"
+    "1080p60_420p10|1920|1080|10|yuv420|60|3.0|1|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|111|218"
+    "1080p60_420p10|1920|1080|10|yuv420|60|3.0|8|encoder_tests/touchdown_1080p_yuv420p_10_bit_le_60_frames.yuv|654|1100"
 
     # 1080p 422p 8-bit - 1.5 BPP Thread Scaling
-    "1080p60_422p8|1920|1080|8|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|102|210"
-    "1080p60_422p8|1920|1080|8|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|590|973"
+    "1080p60_422p8|1920|1080|8|yuv422|60|1.5|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|106|231"
+    "1080p60_422p8|1920|1080|8|yuv422|60|1.5|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|633|1114"
 
     # 1080p 422p 8-bit - 3.0 BPP Thread Scaling
-    "1080p60_422p8|1920|1080|8|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|91|179"
-    "1080p60_422p8|1920|1080|8|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|526|861"
+    "1080p60_422p8|1920|1080|8|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|99|195"
+    "1080p60_422p8|1920|1080|8|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_8_bit_60_frames.yuv|590|968"
 
     # 1080p 422p 10-bit - 3.0 BPP - MSB-aligned input/output.
-    "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|505|813|--input-msb-aligned 1|--output-msb-aligned 1"
+    "1080p60_422p10_msb|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|555|913|--input-msb-aligned 1|--output-msb-aligned 1"
 
     # 1080p planar RGB (3-component, unsubsampled) 8-bit - 4.0 BPP Thread Scaling, encoder-side
     # reversible colour transform enabled (--color-transform 1, RCT, Cpih=1). Requires
     # --colour-format rgb and --profile latency (already the default). The decoder
     # applies the inverse RCT per precinct in the --lp slice workers, so decode scales with
     # threads like non-RCT decode.
-    "1080p60_rgb8_rct|1920|1080|8|rgb|60|4.0|1|SYNTH:yuv444|67|127|--color-transform 1 --profile latency"
-    "1080p60_rgb8_rct|1920|1080|8|rgb|60|4.0|8|SYNTH:yuv444|369|576|--color-transform 1 --profile latency"
+    "1080p60_rgb8_rct|1920|1080|8|rgb|60|4.0|1|SYNTH:yuv444|75|139|--color-transform 1 --profile latency"
+    "1080p60_rgb8_rct|1920|1080|8|rgb|60|4.0|8|SYNTH:yuv444|428|655|--color-transform 1 --profile latency"
 
     # 1080p 422p 10-bit true lossless (--lossless 1, Fq=0) Thread Scaling. --bpp is passed but
     # ignored by the encoder in this mode (kept only for CSV-column consistency with the other
@@ -202,8 +202,8 @@ MATRIX=(
     # 2.4 GiB peak already tolerated for the yuva444p8 (bpp=5.0) row above, so the ramdisk does
     # not need to grow.
     # Baselines calibrated on the CI runner (jpeg-runner-1).
-    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|73|126|--rc 0 --lossless 1||200"
-    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|419|628|--rc 0 --lossless 1||200"
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|1|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|98|133|--rc 0 --lossless 1||200"
+    "1080p60_422p10_lossless|1920|1080|10|yuv422|60|3.0|8|encoder_tests/touchdown_1080p_yuv422p_10_bit_le_60_frames.yuv|564|687|--rc 0 --lossless 1||200"
 )
 
 # run_measured cmd...: single run, prints parsed FPS (empty if unparseable or if the command
