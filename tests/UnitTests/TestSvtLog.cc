@@ -6,6 +6,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -113,7 +114,10 @@ TEST(LogCallback, DefaultLoggerStillWorksWithoutCallback) {
 TEST(LogDefault, ConcurrentMessagesStayWholeLines) {
     const int threads_num = 8;
     const int messages_num = 2000;
-    char path[] = "/tmp/svt_jxs_log_test_XXXXXX";
+    const std::string path_template = testing::TempDir() + "svt_jxs_log_test_XXXXXX";
+    std::vector<char> path_buffer(path_template.begin(), path_template.end());
+    path_buffer.push_back('\0');
+    char* path = path_buffer.data();
     int fd = mkstemp(path);
     ASSERT_GE(fd, 0);
     close(fd);
@@ -131,16 +135,18 @@ TEST(LogDefault, ConcurrentMessagesStayWholeLines) {
         setenv("SVT_LOG_FILE", path, 1);
         setenv("SVT_LOG", "4", 1);
         svt_jxs_log_reset_for_testing();
-        std::vector<std::thread> threads;
-        for (int t = 0; t < threads_num; t++) {
-            threads.emplace_back([t]() {
-                for (int m = 0; m < messages_num; m++) {
-                    svt_jxs_log(SVT_LOG_WARN, "Svt", "thread %d message %d\n", t, m);
-                }
-            });
-        }
-        for (auto& thread : threads) {
-            thread.join();
+        {
+            std::vector<std::thread> threads;
+            for (int t = 0; t < threads_num; t++) {
+                threads.emplace_back([t]() {
+                    for (int m = 0; m < messages_num; m++) {
+                        svt_jxs_log(SVT_LOG_WARN, "Svt", "thread %d message %d\n", t, m);
+                    }
+                });
+            }
+            for (auto& thread : threads) {
+                thread.join();
+            }
         }
         _exit(0);
     }
@@ -159,8 +165,8 @@ TEST(LogDefault, ConcurrentMessagesStayWholeLines) {
         int t = -1, m = -1;
         char tail = 0;
         lines++;
-        if (sscanf(line, "Svt[warn]: thread %d message %d%c", &t, &m, &tail) != 3 || tail != '\n' || t < 0 ||
-            t >= threads_num || m != next_message[t]) {
+        if (sscanf(line, "Svt[warn]: thread %d message %d%c", &t, &m, &tail) != 3 || tail != '\n' || t < 0 || t >= threads_num ||
+            m != next_message[t]) {
             if (bad_lines++ < 5) {
                 ADD_FAILURE() << "broken log line " << lines << ": " << line;
             }
