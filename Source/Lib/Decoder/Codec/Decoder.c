@@ -602,6 +602,22 @@ static void output_line(svt_jpeg_xs_decoder_instance_t* ctx, uint32_t c, int32_t
 void transform_precinct(const pi_t* pi, svt_jpeg_xs_decoder_instance_t* ctx, uint32_t c, uint32_t precinct_line_idx,
                         int32_t* precinct_components_tmp_buffer, int32_t* precinct_idwt_tmp_buffer,
                         svt_jpeg_xs_image_buffer_t* out, uint8_t shift) {
+    if (c >= pi->comps_num - pi->Sd) {
+        /* An undecomposed component still has every row of its precinct. Reuse the
+         * one-row scratch buffer while scaling each coefficient row separately. */
+        const pi_component_t* comp = &pi->components[c];
+        const uint32_t first_row = precinct_line_idx * comp->precinct_height;
+        const uint32_t rows = MIN(comp->precinct_height, comp->height - first_row);
+        int16_t* buff_in[MAX_BANDS_PER_COMPONENT_NUM] = {0};
+        decoder_get_precinct_bands_pointers(pi, ctx, buff_in, c, precinct_line_idx);
+        for (uint32_t row = 0; row < rows; row++) {
+            for (uint32_t x = 0; x < comp->width; x++) {
+                precinct_components_tmp_buffer[x] = LSHIFT32(buff_in[0][row * comp->width + x], shift);
+            }
+            output_line(ctx, c, precinct_components_tmp_buffer, first_row + row, comp->width, out);
+        }
+        return;
+    }
     transform_lines_t out_lines;
     transform_precinct_idwt(
         pi, ctx, c, precinct_line_idx, precinct_components_tmp_buffer, precinct_idwt_tmp_buffer, &out_lines, shift);
