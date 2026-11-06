@@ -99,19 +99,21 @@ std::vector<uint8_t> encode_single_frame(uint32_t width, uint32_t height, uint8_
 } // namespace
 
 /*
- * Encoder accepts both new 4-component formats across the full decomposition range.
+ * Encoder accepts valid decompositions for both 4-component formats and rejects V > H.
  */
 class FourComponentEncodeParam : public ::testing::TestWithParam<std::tuple<ColourFormat_t, uint32_t, uint32_t>> {};
 
-TEST_P(FourComponentEncodeParam, EncodesSuccessfully) {
+TEST_P(FourComponentEncodeParam, ValidatesDecomposition) {
     ColourFormat_t format = std::get<0>(GetParam());
     uint32_t decomp_h = std::get<1>(GetParam());
     uint32_t decomp_v = std::get<2>(GetParam());
-    if (decomp_v > decomp_h) {
-        GTEST_SKIP() << "vertical decomposition must not exceed horizontal (pre-existing, unrelated rule)";
-    }
     SvtJxsErrorType_t init_result = SvtJxsErrorNone;
     std::vector<uint8_t> bitstream = encode_single_frame(64, 64, 8, format, decomp_h, decomp_v, 4, &init_result);
+    if (decomp_v > decomp_h) {
+        EXPECT_EQ(init_result, SvtJxsErrorBadParameter) << "decomp_h=" << decomp_h << " decomp_v=" << decomp_v;
+        EXPECT_TRUE(bitstream.empty());
+        return;
+    }
     EXPECT_EQ(init_result, SvtJxsErrorNone) << "decomp_h=" << decomp_h << " decomp_v=" << decomp_v;
     EXPECT_GT(bitstream.size(), 0u);
 }
