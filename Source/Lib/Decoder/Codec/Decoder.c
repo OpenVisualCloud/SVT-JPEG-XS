@@ -997,9 +997,9 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_final(svt_jpeg_xs_decoder_instance_t* ctx, 
                 uint32_t component_precinct_height = pi->components[comp_id].precinct_height;
                 int32_t* buff_out = ctx->dec_common->buffer_tmp_cpih[comp_id] + precinct_idx * component_precinct_height * width;
 
-                if (pi->decom_v && precinct_idx == (pi->precincts_line_num - 1)) {
-                    component_precinct_height = pi->components[comp_id].height % pi->components[comp_id].precinct_height;
-                }
+                /* A zero remainder is a full final precinct, not an empty one. */
+                uint32_t remaining_lines = pi->components[comp_id].height - precinct_idx * component_precinct_height;
+                component_precinct_height = MIN(component_precinct_height, remaining_lines);
 
                 /* UBSan fix: use LSHIFT32 to avoid UB when left-shifting negative wavelet coefficients. */
                 for (uint32_t idx = 0; idx < component_precinct_height * width; idx++) {
