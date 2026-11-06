@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <memory>
+#include <ostream>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -18,6 +19,10 @@ struct SdTailCase {
     uint32_t height;
     uint8_t depth;
 };
+
+void PrintTo(const SdTailCase& param, std::ostream* output) {
+    *output << "vertical=" << param.vertical << " height=" << param.height << " depth=" << (unsigned)param.depth;
+}
 
 std::vector<SdTailCase> sd_tail_cases() {
     std::vector<SdTailCase> cases;
