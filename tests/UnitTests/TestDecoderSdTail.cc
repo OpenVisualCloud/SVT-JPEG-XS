@@ -109,5 +109,68 @@ TEST_P(DecoderSdTail, ReconstructsEveryRowAndPreservesStridePadding) {
     }
 }
 
+TEST_P(DecoderSdTail, WithoutColourTransformWritesEveryRow) {
+    const SdTailCase param = GetParam();
+    SCOPED_TRACE(::testing::Message() << "vertical=" << param.vertical << " height=" << param.height
+                                      << " depth=" << (unsigned)param.depth);
+    const uint32_t width = 8;
+    const uint32_t stride = width + 3;
+    setup_common_rtcd_internal(CPU_FLAGS_C);
+    setup_decoder_rtcd_internal(CPU_FLAGS_C);
+
+    svt_jpeg_xs_decoder_common_t common = {};
+    uint32_t sx[MAX_COMPONENTS_NUM] = {1, 1, 1};
+    uint32_t sy[MAX_COMPONENTS_NUM] = {1, 1, 1};
+    ASSERT_EQ(SvtJxsErrorNone,
+              pi_compute(&common.pi,
+                         0,
+                         3,
+                         4,
+                         8,
+                         width,
+                         param.height,
+                         std::max(1u, param.vertical),
+                         param.vertical,
+                         1,
+                         sx,
+                         sy,
+                         0,
+                         param.height));
+    common.picture_header_const.hdr_bit_depth[0] = param.depth;
+    std::unique_ptr<svt_jpeg_xs_decoder_instance_t, decltype(&svt_jpeg_xs_dec_instance_free)> instance(
+        svt_jpeg_xs_dec_instance_alloc(&common), svt_jpeg_xs_dec_instance_free);
+    ASSERT_NE(nullptr, instance.get());
+    instance->picture_header_dynamic.hdr_Bw = param.depth;
+    const pi_component_t& sd = common.pi.components[2];
+    for (uint32_t p = 0; p < common.pi.precincts_line_num; ++p) {
+        int16_t* coefficients = instance->coeff_buff_ptr_16bit + p * instance->precincts_line_coeff_size +
+            instance->precincts_line_coeff_comp_offset[2];
+        for (uint32_t row = 0; row < sd.precinct_height && p * sd.precinct_height + row < sd.height; ++row) {
+            for (uint32_t x = 0; x < width; ++x) {
+                coefficients[row * width + x] = (int16_t)((int32_t)(p * sd.precinct_height + row) * 7 + (int32_t)x - 16);
+            }
+        }
+    }
+    std::array<std::vector<uint8_t>, 3> bytes;
+    std::array<std::vector<uint16_t>, 3> words;
+    svt_jpeg_xs_image_buffer_t output = {};
+    for (uint32_t c = 0; c < 3; ++c) {
+        bytes[c].assign(stride * param.height, 0xa5);
+        words[c].assign(stride * param.height, 0xa5a5);
+        output.data_yuv[c] = param.depth == 8 ? (void*)bytes[c].data() : (void*)words[c].data();
+        output.stride[c] = stride;
+        output.alloc_size[c] = stride * param.height * (param.depth == 8 ? 1 : 2);
+    }
+    ASSERT_EQ(SvtJxsErrorNone, svt_jpeg_xs_decode_final(instance.get(), &output));
+    const uint32_t bias = 1u << (param.depth - 1);
+    for (uint32_t y = 0; y < param.height; ++y) {
+        for (uint32_t x = 0; x < stride; ++x) {
+            const uint32_t actual = param.depth == 8 ? bytes[2][y * stride + x] : words[2][y * stride + x];
+            const uint32_t want = x < width ? bias + y * 7 + x - 16 : (param.depth == 8 ? 0xa5u : 0xa5a5u);
+            ASSERT_EQ(want, actual) << "x=" << x << " y=" << y;
+        }
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(FullAndPartialPrecincts, DecoderSdTail, ::testing::ValuesIn(sd_tail_cases()));
 } // namespace
