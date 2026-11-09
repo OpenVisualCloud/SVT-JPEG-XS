@@ -137,7 +137,8 @@ TEST(StreamProfileDerivation, LosslessForcesMls12RegardlessOfColourFormat) {
 }
 
 TEST(StreamProfileDerivation, NeverReturnsZero) {
-    // Ppih=0x0000 is never a valid profile; the auto-derivation must never reintroduce that defect.
+    // The legacy format/depth candidate helper always returns a named codeword.
+    // Finalized automatic selection separately validates membership and may emit Unrestricted.
     for (int bit_depth = 8; bit_depth <= 14; ++bit_depth) {
         EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
         EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
@@ -207,9 +208,7 @@ TEST(StreamProfileLevelEncodeIntegration, AutoDerivedYuv422MatchesDerivationFunc
     std::vector<uint8_t> bitstream = encode_single_frame(256, 256, 8, COLOUR_FORMAT_PLANAR_YUV422, 8, 1);
     ASSERT_GT(bitstream.size(), 0u);
     picture_header_const_t phc = probe_header(bitstream);
-    EXPECT_EQ(phc.hdr_Ppih, derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 8, 0, VERBOSE_NONE));
-    EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_MAIN_422_10);
-    EXPECT_NE(phc.hdr_Ppih, 0u); // The original defect: Ppih was hardcoded to 0.
+    EXPECT_EQ(phc.hdr_Ppih, 0u); // V2/Rl=1 defaults require Unrestricted.
     EXPECT_EQ(phc.hdr_Plev, derive_stream_level_plev(256, 256, 8, 1, 0));
 }
 
@@ -217,7 +216,7 @@ TEST(StreamProfileLevelEncodeIntegration, AutoDerivedYuv420MatchesDerivationFunc
     std::vector<uint8_t> bitstream = encode_single_frame(256, 256, 8, COLOUR_FORMAT_PLANAR_YUV420, 6, 1);
     ASSERT_GT(bitstream.size(), 0u);
     picture_header_const_t phc = probe_header(bitstream);
-    EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_MAIN_420_12);
+    EXPECT_EQ(phc.hdr_Ppih, 0u); // Rl=1 cannot declare Main/High.
     EXPECT_EQ(phc.hdr_Plev, derive_stream_level_plev(256, 256, 6, 1, 0));
 }
 
@@ -225,7 +224,7 @@ TEST(StreamProfileLevelEncodeIntegration, AutoDerivedYuv444_12bitMatchesDerivati
     std::vector<uint8_t> bitstream = encode_single_frame(256, 256, 12, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12, 1);
     ASSERT_GT(bitstream.size(), 0u);
     picture_header_const_t phc = probe_header(bitstream);
-    EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_MAIN_444_12);
+    EXPECT_EQ(phc.hdr_Ppih, 0u); // Rl=1 cannot declare Main/High.
 }
 
 TEST(StreamProfileLevelEncodeIntegration, ProfileOverrideIsUsedVerbatim) {

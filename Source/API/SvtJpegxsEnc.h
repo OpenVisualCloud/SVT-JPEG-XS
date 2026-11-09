@@ -106,10 +106,11 @@ typedef struct svt_jpeg_xs_encoder_api {
     uint8_t cap_compat;
 
     /* Stream profile (Ppih) override.
-     * 0 = auto-derive (default): Ppih is computed from colour_format/input_bit_depth, matching the
-     *     closest ISO/IEC 21122-2 Annex A "Main" family profile (Main 420.12, Main 422.10, Main 444.12
-     *     or Main 4444.12). This is always a validly-defined profile codeword. 0x0000 is never a valid
-     *     Ppih value in the standard, so it safely doubles as the "auto-derive" sentinel here.
+     * 0 = auto-derive (default): select Main/High or MLS.12 only when the encoder configuration
+     *     satisfies the static profile constraints; otherwise emit Unrestricted (0x0000).
+     *     Main/High require Rl=0 (coding_raw_disable=1) and 16-row slices. V2 uses High.
+     *     Named profiles are limited to the discrete precisions 8, 10 and 12; other accepted
+     *     precisions remain encodable with an Unrestricted declaration.
      * Any other value = use verbatim instead of auto-deriving. Use this to declare a Light or High
      *     family profile, or any other Annex A profile codeword, when the caller knows the encoder
      *     configuration and downstream decoder both satisfy that profile's constraints.
@@ -163,10 +164,8 @@ typedef struct svt_jpeg_xs_encoder_api {
      * slice_packetization_mode=1, or enable_color_transform=1 at input_bit_depth 13/14.
      * svt_jpeg_xs_encoder_get_image_config() reports a worst-case bytes_per_frame for output buffer
      * allocation; each encoded frame is compacted to its real size.
-     * When profile_ppih_override/level_plev_override are left at auto, the stream is declared as
-     * MLS.12 (Ppih=0x6EC0, ISO/IEC 21122-2 Table A.4) with an unrestricted sublevel. MLS.12 requires
-     * Rl=0, so also set coding_raw_disable=1 for a strictly conformant stream. MLS.12 covers 8/10/12-bit
-     * input only; 13/14-bit input is still coded losslessly but a warning is printed (verbose >= VERBOSE_WARNINGS).
+     * Auto Ppih selects MLS.12 only for 8/10/12-bit input with Rl=0, 16-row slices and Lh=0;
+     * otherwise it emits Unrestricted. The auto sublevel is Unrestricted for lossless output.
      * 0 = disabled (default, current behavior): lossy CBR coding as today.
      * 1 = enabled: true lossless coding.
      * Optional, default 0 */

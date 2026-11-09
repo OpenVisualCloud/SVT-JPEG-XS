@@ -237,11 +237,9 @@ To encode a mathematically lossless stream (decoded output is bit-exact with the
 - Frame size is data-dependent: each frame is encoded into a worst-case sized buffer and then
   compacted, so compressible content produces smaller frames. `--bpp`, `--rc` and `--quantization`
   have no effect.
-- Unless overridden with `--stream-profile`/`--stream-level`, the stream is declared as the MLS.12
-  profile (Ppih=0x6EC0, ISO/IEC 21122-2 Table A.4) with an unrestricted sublevel. MLS.12 requires
-  raw-mode to be disabled (Rl=0), so pass `--coding-raw 0` for a strictly conformant stream. MLS.12
-  only covers 8/10/12-bit input; 13/14-bit lossless input is supported, but no defined profile matches
-  it (the encoder warns about it at `-v 4` or higher).
+- Automatic profile selection emits MLS.12 only for 8/10/12-bit input with raw mode disabled,
+  16-row slices and no long-header enforcement. Other accepted lossless configurations emit
+  Unrestricted (Ppih=0). The automatic lossless sublevel is Unrestricted.
 - `--color-transform 1` (requires `--colour-format rgb` and `--profile latency`) can be combined with `--lossless 1`, since
   RCT is reversible, for 8-12-bit input only; at 13/14 bits the colour-transformed coefficients
   would exceed the coded magnitude range, so this combination is rejected.
