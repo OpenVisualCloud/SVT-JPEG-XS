@@ -192,6 +192,40 @@ static uint64_t lossless_worst_case_bytes_per_frame(const pi_t* pi, uint8_t raw_
     return precincts_num * precinct_max_bytes + headers_bytes;
 }
 
+/* Select a named profile only after validating its static syntax restrictions.
+ * ISO/IEC 21122-2:2022 Tables A.1/A.4 and Amd 1:2022 Tables A.3/A.7.
+ * Cross-check: ISO/IEC 21122-5 edition-3 libjxs/src/xs_config.c,
+ * XS_PROFILES and xs_config_validate; codepoints: libjxs/public/libjxs.h.
+ * Zero is Unrestricted, not an invalid profile. Explicit overrides remain verbatim.
+ */
+static uint16_t derive_automatic_profile_ppih(const svt_jpeg_xs_encoder_common_t* common) {
+    const uint8_t depth = common->bit_depth;
+    if (depth != 8 && depth != 10 && depth != 12) {
+        return 0; /* Named Main/High/MLS.12 precisions are discrete sets. */
+    }
+    if (!common->pi.use_short_header) {
+        return 0; /* These profiles require Lh=0. */
+    }
+    if (common->picture_header_dynamic.hdr_Rl || common->pi.slice_height != 16) {
+        return 0; /* Part 2:2022 Tables A.1/A.3/A.4 require Rl=0 and 16-row slices. */
+    }
+    if (common->lossless_enable) {
+        return JXS_PPIH_MLS_12;
+    }
+    if (common->pi.decom_v == 2) {
+        switch (common->colour_format) {
+        case COLOUR_FORMAT_PLANAR_YUV420:
+            return JXS_PPIH_HIGH_420_12;
+        case COLOUR_FORMAT_PLANAR_4_COMPONENTS:
+        case COLOUR_FORMAT_PLANAR_YUV422_ALPHA:
+            return JXS_PPIH_HIGH_4444_12;
+        default:
+            return JXS_PPIH_HIGH_444_12;
+        }
+    }
+    return derive_stream_profile_ppih(common->colour_format, depth, 0, VERBOSE_NONE);
+}
+
 static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t* enc_common,
                                                     svt_jpeg_xs_encoder_api_t* config_struct) {
     uint32_t sx[MAX_COMPONENTS_NUM];
@@ -326,12 +360,6 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         }
     }
 
-    enc_common->hdr_Ppih = config_struct->profile_ppih_override != 0
-        ? config_struct->profile_ppih_override
-        : derive_stream_profile_ppih(enc_common->colour_format,
-                                     enc_common->bit_depth,
-                                     config_struct->lossless_enable,
-                                     config_struct->verbose);
     enc_common->hdr_Plev = config_struct->level_plev_override != 0xFFFF
         ? config_struct->level_plev_override
         : derive_stream_level_plev(config_struct->source_width,
@@ -623,6 +651,10 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         return return_error;
     }
 
+    enc_common->hdr_Ppih = config_struct->profile_ppih_override != 0
+        ? config_struct->profile_ppih_override
+        : derive_automatic_profile_ppih(enc_common);
+
     if (config_struct->lossless_enable) {
         bytes_per_frame = lossless_worst_case_bytes_per_frame(pi, !config_struct->coding_raw_disable);
         if (bytes_per_frame >= (((uint64_t)1) << 32)) {
@@ -743,7 +775,7 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_load_default_parameters(uint64_
     enc_api->slice_packetization_mode = 0;
     enc_api->private_ptr = NULL;
 
-    /* 0 already means "auto-derive" for profile_ppih_override (0x0000 is never a valid Ppih).
+    /* 0 means "auto-derive" for profile_ppih_override; auto may itself emit Unrestricted (0).
      * level_plev_override needs an explicit non-zero sentinel since Plev=0x0000 (Unrestricted) is a
      * valid, meaningful value. */
     enc_api->level_plev_override = 0xFFFF;

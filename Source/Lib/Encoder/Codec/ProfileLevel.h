@@ -14,12 +14,9 @@ extern "C" {
 #endif
 
 /* ISO/IEC 21122-2 Annex A profile identifiers (Ppih).
- * Only the "Main" family and, when lossless_enable is set, MLS.12 are auto-derivable by
- * derive_stream_profile_ppih() below: this encoder never signals Star-Tetrix/RAW-CFA, non-linear
- * transforms or component-dependent decomposition, so Bayer/TDC profiles are out of scope, and
- * Light/High family membership additionally implies encoder-complexity guarantees that cannot be
- * safely inferred from configuration alone. Light/High/other values are only reachable via the
- * profile_ppih_override API field. */
+ * EncHandle.c validates the finalized configuration before selecting a named
+ * profile. Unrestricted (0) is used when these named profiles do not apply.
+ * The format/depth helper below is retained as a candidate selector only. */
 typedef enum StreamProfilePpih {
     JXS_PPIH_LIGHT_422_10 = 0x1500,
     JXS_PPIH_LIGHT_444_12 = 0x1A00,
@@ -31,7 +28,7 @@ typedef enum StreamProfilePpih {
     JXS_PPIH_HIGH_420_12 = 0x4240,
     JXS_PPIH_HIGH_444_12 = 0x4A40,
     JXS_PPIH_HIGH_4444_12 = 0x4E40,
-    JXS_PPIH_MLS_12 = 0x6EC0, /* Table A.4: the only lossless profile (B in {8,10,12}, Rl=0). */
+    JXS_PPIH_MLS_12 = 0x6EC0, /* MLS.12; the encoder uses Br=4 and does not claim MLS.16. */
 } StreamProfilePpih;
 
 /* ISO/IEC 21122-2 Annex A level identifiers, pre-shifted into their Plev bit position (bits [15:10]). */
@@ -62,14 +59,9 @@ typedef enum StreamSublevelPlev {
     JXS_PLEV_SUBLEVEL_2BPP = 0x03,
 } StreamSublevelPlev;
 
-/* Derive the Ppih (profile) codeword from the encoder configuration.
- * When lossless_enable is set, always returns JXS_PPIH_MLS_12, the only defined lossless profile;
- * for the encoder's extended 13-14 bit lossless range (outside Table A.4, only reachable without RCT
- * - encoder_init_configuration() rejects lossless+RCT above 12 bit) a warning is printed when
- * verbose >= VERBOSE_WARNINGS. Otherwise returns a validly-defined "Main" family Ppih codeword for
- * the supported bit-depth range (8-12 bit); for the encoder's extended 13-14 bit range (outside
- * every defined ISO/IEC 21122-2 lossy profile) the closest Main profile for the given colour format
- * is returned and a warning is printed when verbose >= VERBOSE_WARNINGS. */
+/* Legacy format/depth candidate selector; this does not validate a complete
+ * profile declaration. encoder_init_configuration() additionally checks precision,
+ * vertical levels, raw mode, slice height and long-header enforcement. */
 uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_depth, uint32_t lossless_enable,
                                     uint32_t verbose);
 

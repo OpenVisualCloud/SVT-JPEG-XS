@@ -13,14 +13,14 @@ uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_de
     uint16_t ppih;
 
     if (lossless_enable) {
-        /* Table A.4: MLS.12 is the only defined lossless profile, valid for B in {8,10,12}. The
+        /* Legacy candidate selector: MLS.12 uses B in {8,10,12}. The
          * encoder's extended 13/14-bit lossless range (without RCT; encoder_init_configuration()
-         * rejects lossless+RCT above 12 bit) has no defined lossless profile either, so declare the
-         * closest codeword (still a validly-defined MLS codepoint, unlike Ppih=0) and warn, mirroring
+         * rejects lossless+RCT above 12 bit) has no named Br=4 lossless profile here, so return the
+         * closest named codeword and warn, mirroring
          * the lossy 13/14-bit fallback below. */
         if (bit_depth > 12 && verbose >= VERBOSE_WARNINGS) {
             SVT_WARN(
-                "Warning: bit depth %u exceeds the maximum (12) defined by the ISO/IEC 21122-2 lossless (MLS) "
+                "Warning: bit depth %u exceeds the maximum (12) of this encoder's named Br=4 lossless "
                 "profile; declaring the closest MLS profile (Ppih=0x%04X). Use profile_ppih_override if a "
                 "different declaration is required.\n",
                 bit_depth,
@@ -54,12 +54,12 @@ uint16_t derive_stream_profile_ppih(ColourFormat_t colour_format, uint8_t bit_de
     }
 
     /* Every "Main" profile above tops out at 12-bit; the encoder additionally allows 13/14-bit input
-     * (see encoder_init_configuration()), a combination with no defined ISO/IEC 21122-2 lossy profile.
-     * Keep declaring the closest Main profile (still a validly-defined codeword, unlike Ppih=0) but
+     * (see encoder_init_configuration()), outside the named Main/High profiles selected here.
+     * This legacy helper returns a candidate Main profile; its caller must validate membership and
      * make the limitation visible. */
     if (bit_depth > 12 && verbose >= VERBOSE_WARNINGS) {
         SVT_WARN(
-            "Warning: bit depth %u exceeds the maximum (12) defined by any ISO/IEC 21122-2 lossy profile; "
+            "Warning: bit depth %u exceeds the maximum (12) of this encoder's named lossy profiles; "
             "declaring the closest Main profile (Ppih=0x%04X). Use profile_ppih_override if a different "
             "declaration is required.\n",
             bit_depth,
