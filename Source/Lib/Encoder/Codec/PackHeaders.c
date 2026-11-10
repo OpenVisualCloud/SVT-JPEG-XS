@@ -69,7 +69,7 @@ void write_picture_header(bitstream_writer_t* bitstream, pi_t* pi, svt_jpeg_xs_e
     write_134_bits(bitstream, 0, 0, enc_common->hdr_Cpih);                   //Fslc | PPoc | Cpih
     write_2x4_bits(bitstream, pi->decom_h, pi->decom_v);                     //Nlx  | Nly
 
-    write_1_bit(bitstream, !pi->use_short_header);                        //Lh
+    write_1_bit(bitstream, enc_common->picture_header_dynamic.hdr_Lh);    //Lh
     write_1_bit(bitstream, enc_common->picture_header_dynamic.hdr_Rl);    //Rl
     write_2_bits(bitstream, enc_common->picture_header_dynamic.hdr_Qpih); //Qpih - Quantization type
     write_2_bits(bitstream, enc_common->picture_header_dynamic.hdr_Fs);   //Fs

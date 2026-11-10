@@ -427,6 +427,21 @@ SvtJxsErrorType_t pack_precinct(bitstream_writer_t* bitstream, pi_t* pi, precinc
             const uint8_t line_idx = (uint8_t)pi->packets[packet_idx].line_idx;
             uint32_t height_lines = precinct->p_info->b_info[c][b].height;
             if (line_idx < height_lines) {
+                /* Short packet headers hold Ldat < 2^15, Lcnt < 2^13 and Lsgn < 2^11 bytes
+                 * (ISO/IEC 21122-1 Table C.3); fail the frame rather than truncate a size. */
+                if (pi->use_short_header &&
+                    (precinct->packet_size_data_bytes[packet_idx] >= (1u << 15) ||
+                     precinct->packet_size_gcli_bytes[packet_idx] >= (1u << 13) ||
+                     precinct->packet_size_signs_handling_bytes[packet_idx] >= (1u << 11))) {
+                    SVT_ERROR("Error[%s:%i]: Packet %u does not fit a short packet header: data=%u gcli=%u sign=%u\n",
+                              __FUNCTION__,
+                              __LINE__,
+                              packet_idx,
+                              precinct->packet_size_data_bytes[packet_idx],
+                              precinct->packet_size_gcli_bytes[packet_idx],
+                              precinct->packet_size_signs_handling_bytes[packet_idx]);
+                    return SvtJxsErrorEncodeFrameError;
+                }
                 //packet_header(p,s) Begin
                 offset_sign_size_bytes = write_packet_header(bitstream,
                                                              !pi->use_short_header,
