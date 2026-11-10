@@ -12,6 +12,7 @@ typedef struct CodewordName {
 } CodewordName;
 
 static const CodewordName profile_names[] = {
+    {0x0000, "Unrestricted"},
     {0x1500, "Light 422.10"},
     {0x1A00, "Light 444.12"},
     {0x2500, "Light-Subline 422.10"},
@@ -21,6 +22,7 @@ static const CodewordName profile_names[] = {
     {0x3E40, "Main 4444.12"},
     {0x4240, "High 420.12"},
     {0x4A40, "High 444.12"},
+    {0x4A44, "CHigh 444.12"},
     {0x4E40, "High 4444.12"},
     {0x6EC0, "MLS.12"},
 };

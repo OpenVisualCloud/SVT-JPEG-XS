@@ -173,6 +173,7 @@ static const struct {
     {"main4444", 0x3E40},
     {"high420", 0x4240},
     {"high444", 0x4A40},
+    {"chigh444", 0x4A44},
     {"high4444", 0x4E40},
 };
 
@@ -436,8 +437,8 @@ ConfigEntry config_entry[] = {
     {CODING_OPTIONS, CODING_RAW_TOKEN,      "Packet-based raw-mode coding (enabled:1, disabled:0, default:1). Disabling clears the raw-mode capability bit and never selects raw packet packing.", 0, 1, set_coding_raw},
     {CODING_OPTIONS, CAP_COMPAT_TOKEN,      "Legacy decoder CAP-marker compatibility (full CAP:0, empty CAP when no capability bit set:1, default:0)", 0, 1, set_cap_compat},
     {CODING_OPTIONS, COLOR_TRANSFORM_TOKEN, "Encoder-side reversible colour transform (RCT, Cpih=1) (enabled:1, disabled:0, default:0). Requires --colour-format rgb (planes R, G, B) and --profile latency; rejected for every other format. Decoders output R, G, B for Cpih=1 streams", 0, 1, set_color_transform},
-    {CODING_OPTIONS, LOSSLESS_TOKEN,        "True lossless coding, Fq=0 (enabled:1, disabled:0, default:0). Output size is data-dependent instead of fixed CBR size. Ignores --bpp/--rc/--quantization. Not supported with --input-msb-aligned 1, --packetization-mode 1, or --color-transform 1 at --input-depth 13/14. Use --coding-raw 0 for a strictly MLS.12-conformant stream.", 0, 1, set_lossless},
-    {CODING_OPTIONS, STREAM_PROFILE_TOKEN, "Stream profile (Ppih) to declare in the picture header (auto, light422, light444, lightsubline422, main420, main422, main444, main4444, high420, high444, high4444, or raw hex/decimal Ppih value, default:auto)", 0, 1, set_stream_profile},
+    {CODING_OPTIONS, LOSSLESS_TOKEN,        "True lossless coding, Fq=0 (enabled:1, disabled:0, default:0). Output size is data-dependent instead of fixed CBR size. Ignores --bpp/--rc/--quantization. Not supported with --input-msb-aligned 1, --packetization-mode 1, or --color-transform 1 at --input-depth 13/14. Use --coding-raw 0 for an MLS.12 stream.", 0, 1, set_lossless},
+    {CODING_OPTIONS, STREAM_PROFILE_TOKEN, "Stream profile (Ppih) to declare in the picture header (auto, light422, light444, lightsubline422, main420, main422, main444, main4444, high420, high444, chigh444, high4444, or raw hex/decimal Ppih value, default:auto)", 0, 1, set_stream_profile},
     {CODING_OPTIONS, STREAM_LEVEL_TOKEN,   "Stream level (Plev) to declare in the picture header (auto, unrestricted, 1k-1, 2k-1, 4k-1, 4k-2, 4k-3, 5k-1, 8k-1, 8k-2, 8k-3, 10k-1, or raw hex/decimal Plev value, default:auto)", 0, 1, set_stream_level},
     {THREAD_PERF_OPTIONS, ASM_TYPE_TOKEN,   "Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2, sse3, "
                                             "ssse3, sse4_1, sse4_2,"

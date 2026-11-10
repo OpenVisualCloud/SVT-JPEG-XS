@@ -238,10 +238,10 @@ To encode a mathematically lossless stream (decoded output is bit-exact with the
   compacted, so compressible content produces smaller frames. `--bpp`, `--rc` and `--quantization`
   have no effect.
 - Unless overridden with `--stream-profile`/`--stream-level`, the stream is declared as the MLS.12
-  profile (Ppih=0x6EC0, ISO/IEC 21122-2 Table A.4) with an unrestricted sublevel. MLS.12 requires
-  raw-mode to be disabled (Rl=0), so pass `--coding-raw 0` for a strictly conformant stream. MLS.12
-  only covers 8/10/12-bit input; 13/14-bit lossless input is supported, but no defined profile matches
-  it (the encoder warns about it at `-v 4` or higher).
+  profile (Ppih=0x6EC0, ISO/IEC 21122-2 Table A.4) with an unrestricted sublevel only when it meets
+  MLS.12: `--coding-raw 0` (Rl=0), 8/10/12-bit input and a 16-row slice. Otherwise, including the
+  default `--coding-raw 1` and 13/14-bit input, the stream is declared Unrestricted (Ppih=0x0000), and
+  the encoder prints the reason at `-v 4` or higher.
 - `--color-transform 1` (requires `--colour-format rgb` and `--profile latency`) can be combined with `--lossless 1`, since
   RCT is reversible, for 8-12-bit input only; at 13/14 bits the colour-transformed coefficients
   would exceed the coded magnitude range, so this combination is rejected.
@@ -362,21 +362,34 @@ Coding features used during Rate Calculation (quality/speed trade-off):
                             size is data-dependent instead of fixed CBR size. Ignores
                             --bpp/--rc/--quantization. Not supported with
                             --input-msb-aligned 1, --packetization-mode 1, or --color-transform 1
-                            at --input-depth 13/14. Use --coding-raw 0 for a strictly
-                            MLS.12-conformant stream.
+                            at --input-depth 13/14. Use --coding-raw 0 for an MLS.12
+                            stream.
 [--stream-profile]         Stream profile (Ppih) to declare in the picture header (auto, light422,
                             light444, lightsubline422, main420, main422, main444, main4444, high420,
-                            high444, high4444, or raw hex/decimal Ppih value, default:auto)
+                            high444, chigh444, high4444, or raw hex/decimal Ppih value, default:auto)
 [--stream-level]           Stream level (Plev) to declare in the picture header (auto, unrestricted,
                             1k-1, 2k-1, 4k-1, 4k-2, 4k-3, 5k-1, 8k-1, 8k-2, 8k-3, 10k-1, or raw
                             hex/decimal Plev value, default:auto)
 ```
 
 - `--lossless`: see [Lossless coding](#lossless-coding).
-- `--stream-profile auto` picks the profile from the colour format and the input depth (Main 420.12,
-  Main 422.10, Main 444.12 or Main 4444.12; MLS.12 for `--lossless 1`). `--stream-level auto` picks
-  the smallest level that fits the resolution, and the sublevel from `--bpp` (unrestricted for
-  `--lossless 1`).
+- `--stream-profile auto` declares the ISO/IEC 21122-2 profile whose restrictions the stream meets.
+  Every candidate needs `--input-depth` 8, 10 or 12 and a slice of 16 rows (the default
+  `--slice-height 16`; a picture shorter than 16 rows gets a shorter slice, which is Unrestricted
+  unless the slice still rounds up to 16 rows of whole precincts).
+  `--decomp_v 0` with width x components between 16376 and 32751 enforces long packet headers
+  (Lh=1), which no profile allows.
+  - With `--coding-raw 1` (the default, Rl=1): CHigh 444.12 for lossy yuv422, yuv444, rgb and rgbp.
+  - With `--coding-raw 0` (Rl=0): MLS.12 for `--lossless 1`; otherwise Main 420.12, 422.10, 444.12 or
+    4444.12 for `--decomp_v` 0 or 1, and High 420.12, 444.12 or 4444.12 for `--decomp_v 2`.
+  - Any other configuration is declared Unrestricted (Ppih=0x0000); at `-v 4` or higher the encoder
+    prints which restriction failed.
+
+  `--stream-level auto` picks the smallest level that fits the resolution, and the sublevel from
+  `--bpp` (unrestricted for `--lossless 1`).
+- `--stream-profile` values other than `auto` are written as given. The encoder prints a warning
+  for every restriction of the declared profile the stream breaks, for example High 444.12 with
+  `--coding-raw 1`.
 
 Threading, performance:
 

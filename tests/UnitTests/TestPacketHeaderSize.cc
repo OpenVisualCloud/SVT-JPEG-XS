@@ -18,6 +18,7 @@
 #include "SvtJpegxsDec.h"
 #include "SvtJpegxsImageBufferTools.h"
 #include "Decoder.h"
+#include "ProfileLevel.h"
 
 namespace {
 
@@ -29,6 +30,7 @@ struct HeaderCase {
     uint32_t bpp;           /* lossy only */
     uint8_t signs_handling; /* lossy only, Fs=1 when non-zero */
     uint8_t expected_lh;
+    uint16_t expected_ppih;
 };
 
 void PrintTo(const HeaderCase& c, std::ostream* os) {
@@ -109,6 +111,7 @@ TEST_P(PacketHeaderSize, LhAndRoundTrip) {
     memset(&phd, 0, sizeof(phd));
     ASSERT_EQ(svt_jpeg_xs_decoder_probe(bitstream.data(), bitstream.size(), &phc, &phd, VERBOSE_NONE), SvtJxsErrorNone);
     EXPECT_EQ(phd.hdr_Lh, param.expected_lh);
+    EXPECT_EQ(phc.hdr_Ppih, param.expected_ppih);
 
     /* The stream must decode, and lossless streams bit-exactly: an overflowing short header size
      * field makes the decoder fail. */
@@ -148,25 +151,26 @@ TEST_P(PacketHeaderSize, LhAndRoundTrip) {
     free(out_buf.buffer);
 }
 
-/* All cases use 8-bit input, Rl=0 and 16-row slices. Wf*Nc: 4093*4 = 16372 < 16376 <= 4094*4 = 16376; 5458*3 = 16374 < 16376 < 5459*3 = 16377;
+/* All cases use 8-bit input, Rl=0 and 16-row slices, so Lh alone decides between a named profile and
+ * Unrestricted. Wf*Nc: 4093*4 = 16372 < 16376 <= 4094*4 = 16376; 5458*3 = 16374 < 16376 < 5459*3 = 16377;
  * 10916*3 = 32748 < 32752 <= 10918*3 = 32754; 8192*4 = 32768. */
 INSTANTIATE_TEST_SUITE_P(WidthBoundaries, PacketHeaderSize,
                          ::testing::Values(
                              /* NL,y = 0: long headers forced with Lh=1 from Wf*Nc >= 16376 up to 32752. */
-                             HeaderCase{4093, COLOUR_FORMAT_PLANAR_4_COMPONENTS, 0, 1, 0, 0, 0},
-                             HeaderCase{4094, COLOUR_FORMAT_PLANAR_4_COMPONENTS, 0, 1, 0, 0, 1},
-                             HeaderCase{5458, COLOUR_FORMAT_PLANAR_YUV444, 0, 1, 0, 0, 0},
-                             HeaderCase{5459, COLOUR_FORMAT_PLANAR_YUV444, 0, 1, 0, 0, 1},
-                             HeaderCase{10916, COLOUR_FORMAT_PLANAR_YUV444, 0, 1, 0, 0, 1},
-                             HeaderCase{5459, COLOUR_FORMAT_PLANAR_YUV444, 0, 0, 20, 1, 1},
-                             HeaderCase{10916, COLOUR_FORMAT_PLANAR_YUV444, 0, 0, 8, 2, 1},
-                             /* Wf*Nc >= 32752: long headers are implied, so Lh=0. */
-                             HeaderCase{10918, COLOUR_FORMAT_PLANAR_YUV444, 0, 1, 0, 0, 0},
-                             HeaderCase{8192, COLOUR_FORMAT_PLANAR_4_COMPONENTS, 0, 1, 0, 0, 0},
-                             HeaderCase{8192, COLOUR_FORMAT_PLANAR_4_COMPONENTS, 1, 0, 6, 0, 0},
-                             HeaderCase{10918, COLOUR_FORMAT_PLANAR_YUV444, 2, 0, 6, 0, 0},
+                             HeaderCase{4093, COLOUR_FORMAT_PLANAR_4_COMPONENTS, 0, 1, 0, 0, 0, JXS_PPIH_MLS_12},
+                             HeaderCase{4094, COLOUR_FORMAT_PLANAR_4_COMPONENTS, 0, 1, 0, 0, 1, JXS_PPIH_UNRESTRICTED},
+                             HeaderCase{5458, COLOUR_FORMAT_PLANAR_YUV444, 0, 1, 0, 0, 0, JXS_PPIH_MLS_12},
+                             HeaderCase{5459, COLOUR_FORMAT_PLANAR_YUV444, 0, 1, 0, 0, 1, JXS_PPIH_UNRESTRICTED},
+                             HeaderCase{10916, COLOUR_FORMAT_PLANAR_YUV444, 0, 1, 0, 0, 1, JXS_PPIH_UNRESTRICTED},
+                             HeaderCase{5459, COLOUR_FORMAT_PLANAR_YUV444, 0, 0, 20, 1, 1, JXS_PPIH_UNRESTRICTED},
+                             HeaderCase{10916, COLOUR_FORMAT_PLANAR_YUV444, 0, 0, 8, 2, 1, JXS_PPIH_UNRESTRICTED},
+                             /* Wf*Nc >= 32752: long headers are implied, so Lh=0 and the profile still applies. */
+                             HeaderCase{10918, COLOUR_FORMAT_PLANAR_YUV444, 0, 1, 0, 0, 0, JXS_PPIH_MLS_12},
+                             HeaderCase{8192, COLOUR_FORMAT_PLANAR_4_COMPONENTS, 0, 1, 0, 0, 0, JXS_PPIH_MLS_12},
+                             HeaderCase{8192, COLOUR_FORMAT_PLANAR_4_COMPONENTS, 1, 0, 6, 0, 0, JXS_PPIH_MAIN_4444_12},
+                             HeaderCase{10918, COLOUR_FORMAT_PLANAR_YUV444, 2, 0, 6, 0, 0, JXS_PPIH_HIGH_444_12},
                              /* NL,y >= 1 below 32752 keeps short headers. */
-                             HeaderCase{10916, COLOUR_FORMAT_PLANAR_YUV444, 1, 1, 0, 0, 0},
-                             HeaderCase{10916, COLOUR_FORMAT_PLANAR_YUV444, 2, 1, 0, 0, 0}));
+                             HeaderCase{10916, COLOUR_FORMAT_PLANAR_YUV444, 1, 1, 0, 0, 0, JXS_PPIH_MLS_12},
+                             HeaderCase{10916, COLOUR_FORMAT_PLANAR_YUV444, 2, 1, 0, 0, 0, JXS_PPIH_MLS_12}));
 
 } // namespace

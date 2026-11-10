@@ -106,13 +106,20 @@ typedef struct svt_jpeg_xs_encoder_api {
     uint8_t cap_compat;
 
     /* Stream profile (Ppih) override.
-     * 0 = auto-derive (default): Ppih is computed from colour_format/input_bit_depth, matching the
-     *     closest ISO/IEC 21122-2 Annex A "Main" family profile (Main 420.12, Main 422.10, Main 444.12
-     *     or Main 4444.12). This is always a validly-defined profile codeword. 0x0000 is never a valid
-     *     Ppih value in the standard, so it safely doubles as the "auto-derive" sentinel here.
-     * Any other value = use verbatim instead of auto-deriving. Use this to declare a Light or High
-     *     family profile, or any other Annex A profile codeword, when the caller knows the encoder
-     *     configuration and downstream decoder both satisfy that profile's constraints.
+     * 0 = auto-derive (default): Ppih is the ISO/IEC 21122-2 Annex A profile whose restrictions the
+     *     finalized configuration meets. All candidates need input_bit_depth 8, 10 or 12, a slice of
+     *     16 rows and Lh=0. The encoder sets Lh=1 (long precinct headers enforced) only for
+     *     ndecomp_v=0 when source_width x components is at least 16376 and below 32752, where short
+     *     headers could overflow (ISO/IEC 21122-1 Table C.3, NOTE 2); such streams are Unrestricted.
+     *     With coding_raw_disable=1 (Rl=0): MLS.12 for
+     *     lossless_enable=1, otherwise Main (ndecomp_v 0 or 1) or High (ndecomp_v 2) for the colour
+     *     format. With raw-mode enabled (Rl=1, the default): CHigh 444.12 for 4:2:2 and 4:4:4 (YUV,
+     *     RGB, packed) lossy input. Any other configuration is declared Unrestricted (Ppih=0x0000), and a warning
+     *     naming the failed restrictions is printed when verbose >= VERBOSE_WARNINGS.
+     * Any other value = use verbatim instead of auto-deriving, for example to declare a Light
+     *     profile. The encoder checks the value against the configuration and, when
+     *     verbose >= VERBOSE_SYSTEM_INFO, prints a warning listing every restriction of that profile
+     *     the stream breaks (or that the value is not a profile it can produce).
      * Optional, default 0 (auto-derive) */
     uint16_t profile_ppih_override;
 
@@ -164,9 +171,10 @@ typedef struct svt_jpeg_xs_encoder_api {
      * svt_jpeg_xs_encoder_get_image_config() reports a worst-case bytes_per_frame for output buffer
      * allocation; each encoded frame is compacted to its real size.
      * When profile_ppih_override/level_plev_override are left at auto, the stream is declared as
-     * MLS.12 (Ppih=0x6EC0, ISO/IEC 21122-2 Table A.4) with an unrestricted sublevel. MLS.12 requires
-     * Rl=0, so also set coding_raw_disable=1 for a strictly conformant stream. MLS.12 covers 8/10/12-bit
-     * input only; 13/14-bit input is still coded losslessly but a warning is printed (verbose >= VERBOSE_WARNINGS).
+     * MLS.12 (Ppih=0x6EC0, ISO/IEC 21122-2 Table A.4) with an unrestricted sublevel only if MLS.12
+     * applies: coding_raw_disable=1 (Rl=0), 8/10/12-bit input, a 16-row slice and Lh=0. Otherwise
+     * (including the default coding_raw_disable=0 and 13/14-bit input) it is declared Unrestricted
+     * (Ppih=0x0000) and a warning is printed (verbose >= VERBOSE_WARNINGS).
      * 0 = disabled (default, current behavior): lossy CBR coding as today.
      * 1 = enabled: true lossless coding.
      * Optional, default 0 */

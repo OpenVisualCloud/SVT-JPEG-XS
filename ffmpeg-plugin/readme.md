@@ -343,12 +343,12 @@ cap-compat|optional|(default:auto/disabled), true(enabled), false(disabled)|Emit
 color_transform|optional|(default:auto/disabled), true(enabled), false(disabled)|Encoder-side reversible colour transform (RCT, Cpih=1). Only valid for planar RGB input (gbrp, gbrp10le, gbrp12le, gbrp14le) with `cpu_profile` latency - rejected otherwise, including yuv444p: YUV input is already decorrelated, and Cpih=1 streams are decoded as RGB
 cpu_profile|optional|(default:auto/latency), latency, cpu|Encoder internal threading model. `color_transform` and rgb24 input require latency
 msb_aligned|optional|(default:false), true, false|Non-standard: input 10/12-bit samples are MSB-aligned in each 16-bit word instead of LSB-aligned. Must match the decoder's msb_aligned setting
-lossless|optional|(default:false), true, false|True lossless coding (Fq=0): decoded output is bit-exact with the input. Output size is data-dependent instead of the usual fixed CBR size; `-bpp` is not required and is ignored, as is `quantization`. Unless `-profile:v`/`-level:v` are set, the stream is declared as MLS.12 (Ppih=0x6EC0) with an unrestricted sublevel; add `-coding-raw false` for a strictly MLS.12-conformant stream (MLS.12 requires Rl=0). Rejected together with `-msb_aligned true`, or with `-color_transform true` at 13/14-bit input
+lossless|optional|(default:false), true, false|True lossless coding (Fq=0): decoded output is bit-exact with the input. Output size is data-dependent instead of the usual fixed CBR size; `-bpp` is not required and is ignored, as is `quantization`. Unless `-profile:v`/`-level:v` are set, the stream is declared as MLS.12 (Ppih=0x6EC0) with an unrestricted sublevel only with `-coding-raw false` (MLS.12 requires Rl=0) and 8/10/12-bit input; otherwise it is declared Unrestricted (Ppih=0x0000). Rejected together with `-msb_aligned true`, or with `-color_transform true` at 13/14-bit input
 
 ### Stream profile (Ppih) and level (Plev)
 
 The picture header's profile (Ppih) and level (Plev) fields are normally derived automatically from
-the input pixel format, resolution and `-bpp`. To override them, use ffmpeg's generic `-profile`/
+the encoder configuration, resolution and `-bpp`. To override them, use ffmpeg's generic `-profile`/
 `-level` options (these are not libsvtjpegxs-private options, they are the same options every ffmpeg
 encoder exposes) - do not use a plugin-specific flag for this.
 
@@ -367,9 +367,14 @@ level|optional|(default: unset/auto-derive), a name (unrestricted, 1k-1, 2k-1, 4
 
 Notes:
 
-- Leaving `-profile`/`-level` unset (the default) keeps the existing auto-derive behavior: the
-  encoder always signals a validly-defined ISO/IEC 21122-2 Annex A codeword based on the actual
-  encoder configuration.
+- Leaving `-profile`/`-level` unset (the default) declares the ISO/IEC 21122-2 profile whose
+  restrictions the stream meets. With the default `-coding-raw true` (Rl=1) that is CHigh 444.12 for
+  lossy 4:2:2 and 4:4:4 input. With `-coding-raw false` it is Main (`-decomp_v` 0 or 1), High
+  (`-decomp_v 2`) or MLS.12 (`-lossless true`). Every profile needs 8/10/12-bit input and 16-row slices.
+  Other configurations, such as 4:2:0 or 4-component input with raw mode enabled, are declared
+  Unrestricted (Ppih=0x0000).
+- A profile without a name in the list above, such as CHigh 444.12, can be set as a raw value
+  (`-profile:v 0x4A44`).
 - Named level values only cover the resolution/level portion of Plev (bits [15:10]); use a raw
   hex/decimal value instead of a name to also set an explicit sublevel/FBB-level, or for a profile
   not in the named list.

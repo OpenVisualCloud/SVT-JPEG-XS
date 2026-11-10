@@ -326,12 +326,6 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         }
     }
 
-    enc_common->hdr_Ppih = config_struct->profile_ppih_override != 0
-        ? config_struct->profile_ppih_override
-        : derive_stream_profile_ppih(enc_common->colour_format,
-                                     enc_common->bit_depth,
-                                     config_struct->lossless_enable,
-                                     config_struct->verbose);
     enc_common->hdr_Plev = config_struct->level_plev_override != 0xFFFF
         ? config_struct->level_plev_override
         : derive_stream_level_plev(config_struct->source_width,
@@ -634,6 +628,27 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         pi->use_short_header = (width_by_comps < 32752 && !long_header_needed) ? 1 : 0;
     }
 
+    /* The profile depends on finalized syntax (Hsl, Lh), so derive it only after pi_compute().
+     * Overrides are written verbatim, with a warning for every restriction the stream breaks. */
+    StreamProfileParams profile_params;
+    profile_params.colour_format = enc_common->colour_format;
+    profile_params.width = pi->width;
+    profile_params.bit_depth = enc_common->bit_depth;
+    profile_params.ndecomp_v = (uint8_t)pi->decom_v;
+    profile_params.slice_height_rows = pi->precincts_per_slice * pi->precinct_height;
+    profile_params.raw_mode_per_packet = enc_common->picture_header_dynamic.hdr_Rl ? 1 : 0;
+    profile_params.long_header = enc_common->picture_header_dynamic.hdr_Lh;
+    profile_params.lossless = config_struct->lossless_enable ? 1 : 0;
+    profile_params.quantization = (uint8_t)enc_common->picture_header_dynamic.hdr_Qpih;
+    profile_params.colour_transform = enc_common->hdr_Cpih ? 1 : 0;
+    if (config_struct->profile_ppih_override != 0) {
+        enc_common->hdr_Ppih = config_struct->profile_ppih_override;
+        check_stream_profile_ppih(enc_common->hdr_Ppih, &profile_params, config_struct->verbose);
+    }
+    else {
+        enc_common->hdr_Ppih = derive_stream_profile_ppih(&profile_params, config_struct->verbose);
+    }
+
     if (config_struct->lossless_enable) {
         bytes_per_frame = lossless_worst_case_bytes_per_frame(pi, !config_struct->coding_raw_disable);
         if (bytes_per_frame >= (((uint64_t)1) << 32)) {
@@ -754,9 +769,9 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_load_default_parameters(uint64_
     enc_api->slice_packetization_mode = 0;
     enc_api->private_ptr = NULL;
 
-    /* 0 already means "auto-derive" for profile_ppih_override (0x0000 is never a valid Ppih).
-     * level_plev_override needs an explicit non-zero sentinel since Plev=0x0000 (Unrestricted) is a
-     * valid, meaningful value. */
+    /* profile_ppih_override=0 means "auto-derive"; the auto-derivation itself declares Ppih=0x0000
+     * (Unrestricted) when no profile applies. level_plev_override needs a non-zero sentinel since
+     * Plev=0x0000 (Unrestricted) is a meaningful explicit override. */
     enc_api->level_plev_override = 0xFFFF;
 
     return SvtJxsErrorNone;
