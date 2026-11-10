@@ -416,7 +416,6 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     }
 
     enc_common->picture_header_dynamic.hdr_Qpih = config_struct->quantization;
-    enc_common->pi.use_short_header = (((config_struct->source_width * num_comp) < 32768) && (config_struct->ndecomp_v < 3));
 
     enc_common->picture_header_dynamic.hdr_Rl = config_struct->coding_raw_disable ? 0 : 1;
     enc_common->cap_compat = config_struct->cap_compat ? 1 : 0;
@@ -621,6 +620,18 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
 
     if (return_error) {
         return return_error;
+    }
+
+    /* Packet header size, ISO/IEC 21122-1 Table C.3: decoders read short headers
+     * only when Wf*Nc < 32752 and Lh=0. Short headers hold Ldat < 2^15, Lcnt < 2^13 and
+     * Lsgn < 2^11 bytes. With NL,y = 0 the first packet carries a full line of every component, so
+     * these can overflow once Wf*Nc >= 16376 (NOTE 2): force long headers with Lh=1 there. For
+     * Wf*Nc >= 32752 long headers are implied and Lh stays 0, as every profile requires. */
+    {
+        const uint64_t width_by_comps = (uint64_t)pi->width * pi->comps_num;
+        const int long_header_needed = (pi->decom_v == 0 && width_by_comps >= 16376);
+        enc_common->picture_header_dynamic.hdr_Lh = (long_header_needed && width_by_comps < 32752) ? 1 : 0;
+        pi->use_short_header = (width_by_comps < 32752 && !long_header_needed) ? 1 : 0;
     }
 
     if (config_struct->lossless_enable) {

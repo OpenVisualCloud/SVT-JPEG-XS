@@ -383,6 +383,13 @@ The profile (Ppih) and level (Plev) are written verbatim into the picture header
 - `derive_stream_level_plev()` selects the smallest level whose width, height and pixel count limits fit the picture, and
   the sublevel from the bpp (2, 3, 4, 6, 9 or 12 bpp, unrestricted above and for lossless coding).
 
+Packet header size (EncHandle.c, after `pi_compute()`): decoders read short packet headers only when Wf×Nc < 32752
+and Lh=0 (ISO/IEC 21122-1 Table C.3). Short headers hold data, bitplane count and sign subpackets below 2^15, 2^13
+and 2^11 bytes. With NL,y = 0 the first packet carries a full line of every component, so the encoder writes Lh=1
+and long headers when 16376 ≤ Wf×Nc < 32752 (Table C.3 NOTE 2). From Wf×Nc ≥ 32752 long headers are implied and
+Lh stays 0, as every profile requires. `pack_precinct()` fails the frame if a size still does not fit a short
+header.
+
 `write_capabilities_marker()` (PackHeaders.c) writes the CAP marker with the bits for 4:2:0 sub-sampling, lossless
 decoding and the raw-mode switch (Rl). With `cap_compat` = 1 an empty CAP marker (Lcap=2) is written when none of these
 bits is set, for decoders that reject a non-empty CAP marker.
