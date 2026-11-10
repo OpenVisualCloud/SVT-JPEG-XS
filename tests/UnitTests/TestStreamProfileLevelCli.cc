@@ -70,6 +70,12 @@ TEST(StreamProfileLevelCli, ProfileNameHigh4444) {
     EXPECT_EQ(result.cfg.encoder.profile_ppih_override, 0x4E40);
 }
 
+TEST(StreamProfileLevelCli, ProfileNameCHigh444) {
+    CliResult result = run_cli({"--stream-profile", "chigh444"});
+    EXPECT_EQ(result.verify_settings_ret, SvtJxsErrorNone);
+    EXPECT_EQ(result.cfg.encoder.profile_ppih_override, 0x4A44);
+}
+
 TEST(StreamProfileLevelCli, ProfileAutoKeywordExplicitlySelectsAuto) {
     CliResult result = run_cli({"--stream-profile", "auto"});
     EXPECT_EQ(result.verify_settings_ret, SvtJxsErrorNone);

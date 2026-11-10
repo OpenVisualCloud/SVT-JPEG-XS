@@ -21,7 +21,8 @@ namespace {
  * profile_ppih_override=0 and level_plev_override=0xFFFF mean "auto-derive" (library defaults). */
 std::vector<uint8_t> encode_single_frame(uint32_t width, uint32_t height, uint8_t bit_depth, ColourFormat_t colour_format,
                                          uint32_t bpp_numerator, uint32_t bpp_denominator, uint16_t profile_ppih_override = 0,
-                                         uint16_t level_plev_override = 0xFFFF) {
+                                         uint16_t level_plev_override = 0xFFFF, uint8_t coding_raw_disable = 0,
+                                         uint32_t ndecomp_v = 2) {
     svt_jpeg_xs_encoder_api_t enc;
     EXPECT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
               SvtJxsErrorNone);
@@ -34,6 +35,8 @@ std::vector<uint8_t> encode_single_frame(uint32_t width, uint32_t height, uint8_
     enc.bpp_denominator = bpp_denominator;
     enc.profile_ppih_override = profile_ppih_override;
     enc.level_plev_override = level_plev_override;
+    enc.coding_raw_disable = coding_raw_disable;
+    enc.ndecomp_v = ndecomp_v;
 
     svt_jpeg_xs_image_config_t image_config;
     uint32_t bytes_per_frame = 0;
@@ -87,64 +90,211 @@ picture_header_const_t probe_header(const std::vector<uint8_t> &bitstream) {
 } // namespace
 
 /*
- * derive_stream_profile_ppih(): unit tests across colour format / bit depth combinations.
+ * derive_stream_profile_ppih(): unit tests against ISO/IEC 21122-2 Tables A.1, A.3 (Amd 1:2022) and
+ * A.4, and the 3rd edition CHigh 444.12 profile.
  */
-TEST(StreamProfileDerivation, Yuv420) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_420_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, 10, 0, VERBOSE_NONE), JXS_PPIH_MAIN_420_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, 12, 0, VERBOSE_NONE), JXS_PPIH_MAIN_420_12);
+namespace {
+
+/* Parameters of a stream that meets every shared restriction: 8 bit, 16-row slices, Lh=0, Rl=0. */
+StreamProfileParams conformant_params(ColourFormat_t colour_format, uint8_t ndecomp_v) {
+    StreamProfileParams params;
+    params.colour_format = colour_format;
+    params.width = 1920;
+    params.bit_depth = 8;
+    params.ndecomp_v = ndecomp_v;
+    params.slice_height_rows = 16;
+    params.raw_mode_per_packet = 0;
+    params.long_header = 0;
+    params.lossless = 0;
+    params.quantization = 0;
+    params.colour_transform = 0;
+    return params;
 }
 
-TEST(StreamProfileDerivation, Yuv422LowBitDepthIsMain422) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_422_10);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 10, 0, VERBOSE_NONE), JXS_PPIH_MAIN_422_10);
+uint16_t derive(StreamProfileParams params) {
+    return derive_stream_profile_ppih(&params, VERBOSE_NONE);
 }
 
-TEST(StreamProfileDerivation, Yuv422HighBitDepthFallsBackToMain444) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 12, 0, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
-}
+const ColourFormat_t all_colour_formats[] = {COLOUR_FORMAT_PLANAR_RGB,
+                                             COLOUR_FORMAT_PLANAR_RGBA,
+                                             COLOUR_FORMAT_PLANAR_YUV400,
+                                             COLOUR_FORMAT_PLANAR_YUV420,
+                                             COLOUR_FORMAT_PLANAR_YUV422,
+                                             COLOUR_FORMAT_PLANAR_YUV444_OR_RGB,
+                                             COLOUR_FORMAT_PACKED_YUV444_OR_RGB,
+                                             COLOUR_FORMAT_PLANAR_4_COMPONENTS,
+                                             COLOUR_FORMAT_PLANAR_YUV422_ALPHA};
 
-TEST(StreamProfileDerivation, Gray400) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV400, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_422_10);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV400, 12, 0, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
-}
+} // namespace
 
-TEST(StreamProfileDerivation, Yuv444PlanarAndPacked) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12, 0, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PACKED_YUV444_OR_RGB, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_444_12);
-}
-
-TEST(StreamProfileDerivation, FourComponents) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_4_COMPONENTS, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
-}
-
-/* Regression test (SDBQ-3776): derive_stream_profile_ppih() previously had no case for this enum
- * value and silently fell through to the Main 422.10/444.12 default, neither of which is a
- * defined ISO/IEC 21122-2 profile for a 4-component picture. */
-TEST(StreamProfileDerivation, Yuv422Alpha) {
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 8, 0, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 10, 0, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 12, 0, VERBOSE_NONE), JXS_PPIH_MAIN_4444_12);
-}
-
-TEST(StreamProfileDerivation, LosslessForcesMls12RegardlessOfColourFormat) {
-    // Table A.4: MLS.12 is the only defined lossless profile; every Main/Light/High profile allows
-    // only Bw=20/Fq=8, so declaring one for a lossless (Bw=B, Fq=0) stream is non-conformant.
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, 8, 1, VERBOSE_NONE), JXS_PPIH_MLS_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12, 1, VERBOSE_NONE), JXS_PPIH_MLS_12);
-    EXPECT_EQ(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_4_COMPONENTS, 10, 1, VERBOSE_NONE), JXS_PPIH_MLS_12);
-}
-
-TEST(StreamProfileDerivation, NeverReturnsZero) {
-    // Ppih=0x0000 is never a valid profile; the auto-derivation must never reintroduce that defect.
-    for (int bit_depth = 8; bit_depth <= 14; ++bit_depth) {
-        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV420, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
-        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
-        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
-        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_4_COMPONENTS, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
-        EXPECT_NE(derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, (uint8_t)bit_depth, 0, VERBOSE_NONE), 0);
+TEST(StreamProfileDerivation, MainProfilesForUpToOneVerticalDecomposition) {
+    EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_YUV420, 1)), JXS_PPIH_MAIN_420_12);
+    for (uint8_t v = 0; v <= 1; ++v) {
+        EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_YUV400, v)), JXS_PPIH_MAIN_422_10);
+        EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_YUV422, v)), JXS_PPIH_MAIN_422_10);
+        EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, v)), JXS_PPIH_MAIN_444_12);
+        EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PACKED_YUV444_OR_RGB, v)), JXS_PPIH_MAIN_444_12);
+        EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_4_COMPONENTS, v)), JXS_PPIH_MAIN_4444_12);
+        /* Regression (SDBQ-3776): 4:2:2:4 is a 4444.12 format, not 422.10/444.12. */
+        EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, v)), JXS_PPIH_MAIN_4444_12);
     }
+}
+
+TEST(StreamProfileDerivation, HighProfilesForTwoVerticalDecompositions) {
+    /* Main allows at most NL,y = 1 (Main 420.12 exactly 1); High allows 2. */
+    EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_YUV420, 2)), JXS_PPIH_HIGH_420_12);
+    EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_YUV400, 2)), JXS_PPIH_HIGH_444_12);
+    EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_YUV422, 2)), JXS_PPIH_HIGH_444_12);
+    EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 2)), JXS_PPIH_HIGH_444_12);
+    EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PACKED_YUV444_OR_RGB, 2)), JXS_PPIH_HIGH_444_12);
+    EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_4_COMPONENTS, 2)), JXS_PPIH_HIGH_4444_12);
+    EXPECT_EQ(derive(conformant_params(COLOUR_FORMAT_PLANAR_YUV422_ALPHA, 2)), JXS_PPIH_HIGH_4444_12);
+}
+
+TEST(StreamProfileDerivation, TwelveBit422And400UseMain444) {
+    /* Main 422.10 only allows B in {8, 10}; Main 444.12 also covers 4:0:0 and 4:2:2. */
+    StreamProfileParams params = conformant_params(COLOUR_FORMAT_PLANAR_YUV422, 1);
+    params.bit_depth = 10;
+    EXPECT_EQ(derive(params), JXS_PPIH_MAIN_422_10);
+    params.bit_depth = 12;
+    EXPECT_EQ(derive(params), JXS_PPIH_MAIN_444_12);
+    params.colour_format = COLOUR_FORMAT_PLANAR_YUV400;
+    EXPECT_EQ(derive(params), JXS_PPIH_MAIN_444_12);
+}
+
+TEST(StreamProfileDerivation, RawModeUsesCHighOnlyFor400_422_444) {
+    for (uint8_t v = 0; v <= 2; ++v) {
+        for (ColourFormat_t colour_format : all_colour_formats) {
+            StreamProfileParams params = conformant_params(colour_format, v);
+            params.raw_mode_per_packet = 1;
+            const bool chigh = colour_format == COLOUR_FORMAT_PLANAR_RGB || colour_format == COLOUR_FORMAT_PLANAR_YUV400 ||
+                colour_format == COLOUR_FORMAT_PLANAR_YUV422 || colour_format == COLOUR_FORMAT_PLANAR_YUV444_OR_RGB ||
+                colour_format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB;
+            EXPECT_EQ(derive(params), chigh ? JXS_PPIH_CHIGH_444_12 : JXS_PPIH_UNRESTRICTED)
+                << "colour_format " << colour_format << " ndecomp_v " << (int)v;
+        }
+    }
+}
+
+TEST(StreamProfileDerivation, LosslessIsMls12OnlyWithoutRawMode) {
+    for (ColourFormat_t colour_format : all_colour_formats) {
+        StreamProfileParams params = conformant_params(colour_format, 2);
+        params.lossless = 1;
+        EXPECT_EQ(derive(params), JXS_PPIH_MLS_12) << "colour_format " << colour_format;
+        params.raw_mode_per_packet = 1; /* Table A.4: MLS.12 requires Rl=0; CHigh is lossy only. */
+        EXPECT_EQ(derive(params), JXS_PPIH_UNRESTRICTED) << "colour_format " << colour_format;
+    }
+}
+
+TEST(StreamProfileDerivation, BitDepthOutsideDiscreteSetIsUnrestricted) {
+    /* Every selectable profile allows B in {8, 10, 12} only. */
+    const uint8_t bit_depths[] = {9, 11, 13, 14};
+    for (uint8_t bit_depth : bit_depths) {
+        for (ColourFormat_t colour_format : all_colour_formats) {
+            for (uint8_t raw = 0; raw <= 1; ++raw) {
+                for (uint8_t lossless = 0; lossless <= 1; ++lossless) {
+                    StreamProfileParams params = conformant_params(colour_format, 2);
+                    params.bit_depth = bit_depth;
+                    params.raw_mode_per_packet = raw;
+                    params.lossless = lossless;
+                    EXPECT_EQ(derive(params), JXS_PPIH_UNRESTRICTED) << "bit_depth " << (int)bit_depth;
+                }
+            }
+        }
+    }
+}
+
+TEST(StreamProfileDerivation, SliceHeightOtherThan16RowsIsUnrestricted) {
+    const uint32_t heights[] = {4, 8, 32, 64, 1080};
+    for (uint32_t rows : heights) {
+        StreamProfileParams params = conformant_params(COLOUR_FORMAT_PLANAR_YUV422, 1);
+        params.slice_height_rows = rows;
+        EXPECT_EQ(derive(params), JXS_PPIH_UNRESTRICTED) << "rows " << rows;
+        params.raw_mode_per_packet = 1;
+        EXPECT_EQ(derive(params), JXS_PPIH_UNRESTRICTED) << "rows " << rows;
+    }
+}
+
+TEST(StreamProfileDerivation, LongHeaderEnforcementIsUnrestricted) {
+    StreamProfileParams params = conformant_params(COLOUR_FORMAT_PLANAR_4_COMPONENTS, 1);
+    params.long_header = 1;
+    EXPECT_EQ(derive(params), JXS_PPIH_UNRESTRICTED);
+    params = conformant_params(COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 2);
+    params.long_header = 1;
+    params.raw_mode_per_packet = 1;
+    EXPECT_EQ(derive(params), JXS_PPIH_UNRESTRICTED);
+}
+
+/*
+ * check_stream_profile_ppih(): profile_ppih_override is written verbatim, but every restriction the
+ * stream breaks is reported.
+ */
+TEST(StreamProfileOverrideCheck, AutoSelectionAlwaysPassesItsOwnCheck) {
+    for (ColourFormat_t colour_format : all_colour_formats) {
+        for (uint8_t v = 0; v <= 2; ++v) {
+            for (uint8_t raw = 0; raw <= 1; ++raw) {
+                for (uint8_t lossless = 0; lossless <= 1; ++lossless) {
+                    for (uint8_t bit_depth : {8, 10, 12, 14}) {
+                        StreamProfileParams params = conformant_params(colour_format, v);
+                        params.raw_mode_per_packet = raw;
+                        params.lossless = lossless;
+                        params.bit_depth = bit_depth;
+                        const uint16_t ppih = derive(params);
+                        EXPECT_EQ(check_stream_profile_ppih(ppih, &params, VERBOSE_NONE), 0u)
+                            << std::hex << ppih << std::dec << " format " << colour_format << " v " << (int)v;
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(StreamProfileOverrideCheck, ReportsEveryBrokenRestriction) {
+    /* BirdDog 2026-11-10 samples: 4:2:2 10 bit, NL,y = 2, Rl=1 declared as High 444.12. */
+    StreamProfileParams params = conformant_params(COLOUR_FORMAT_PLANAR_YUV422, 2);
+    params.bit_depth = 10;
+    params.raw_mode_per_packet = 1;
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_HIGH_444_12, &params, VERBOSE_NONE), 1u);
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_CHIGH_444_12, &params, VERBOSE_NONE), 0u);
+    /* Main 422.10 at NL,y = 2 with Rl=1: two problems. */
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_MAIN_422_10, &params, VERBOSE_NONE), 2u);
+    /* CHigh with Rl=0. */
+    params.raw_mode_per_packet = 0;
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_CHIGH_444_12, &params, VERBOSE_NONE), 1u);
+    /* MLS.12 for a lossy stream; Main for a lossless one. */
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_MLS_12, &params, VERBOSE_NONE), 1u);
+    params.lossless = 1;
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_HIGH_444_12, &params, VERBOSE_NONE), 1u);
+}
+
+TEST(StreamProfileOverrideCheck, ColourFormatRctQuantizerAndColumnWidth) {
+    StreamProfileParams params = conformant_params(COLOUR_FORMAT_PLANAR_YUV420, 1);
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_MAIN_422_10, &params, VERBOSE_NONE), 1u);
+    params = conformant_params(COLOUR_FORMAT_PLANAR_RGB, 1);
+    params.colour_transform = 1;
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_MAIN_444_12, &params, VERBOSE_NONE), 0u);
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_LIGHT_444_12, &params, VERBOSE_NONE), 0u);
+    /* Light 422.10 allows neither 4:4:4 nor the colour transform. */
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_LIGHT_422_10, &params, VERBOSE_NONE), 2u);
+    /* Light profiles other than Light-Subline only allow the deadzone quantizer. */
+    params = conformant_params(COLOUR_FORMAT_PLANAR_YUV422, 1);
+    params.quantization = 1;
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_LIGHT_422_10, &params, VERBOSE_NONE), 1u);
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_MAIN_422_10, &params, VERBOSE_NONE), 0u);
+    /* Light-Subline: NL,y = 0 and a column of at most 2048 grid points (Cw=0 makes it Wf). */
+    params = conformant_params(COLOUR_FORMAT_PLANAR_YUV422, 0);
+    params.width = 2048;
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_LIGHT_SUBLINE_422_10, &params, VERBOSE_NONE), 0u);
+    params.width = 2050;
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_LIGHT_SUBLINE_422_10, &params, VERBOSE_NONE), 1u);
+}
+
+TEST(StreamProfileOverrideCheck, UnknownAndUnsupportedCodepoints) {
+    StreamProfileParams params = conformant_params(COLOUR_FORMAT_PLANAR_YUV422, 2);
+    EXPECT_EQ(check_stream_profile_ppih(JXS_PPIH_UNRESTRICTED, &params, VERBOSE_NONE), 0u);
+    EXPECT_EQ(check_stream_profile_ppih(0x1234, &params, VERBOSE_NONE), 1u);
+    EXPECT_EQ(check_stream_profile_ppih(0xB340, &params, VERBOSE_NONE), 1u); /* MainBayer */
+    EXPECT_EQ(check_stream_profile_ppih(0x4A45, &params, VERBOSE_NONE), 1u); /* TDC 444.12 */
 }
 
 /*
@@ -203,29 +353,53 @@ TEST(StreamLevelDerivation, LosslessForcesUnrestrictedSublevelRegardlessOfBpp) {
  * End-to-end: encode a single frame and verify the actual bytes in the produced codestream carry the
  * expected auto-derived Ppih/Plev (regression test for the original Ppih=0/Plev=0 defect).
  */
-TEST(StreamProfileLevelEncodeIntegration, AutoDerivedYuv422MatchesDerivationFunction) {
+TEST(StreamProfileLevelEncodeIntegration, DefaultYuv422IsCHigh444) {
+    /* Library defaults: raw-mode enabled (Rl=1), ndecomp_v=2, 16-row slices. */
     std::vector<uint8_t> bitstream = encode_single_frame(256, 256, 8, COLOUR_FORMAT_PLANAR_YUV422, 8, 1);
     ASSERT_GT(bitstream.size(), 0u);
     picture_header_const_t phc = probe_header(bitstream);
-    EXPECT_EQ(phc.hdr_Ppih, derive_stream_profile_ppih(COLOUR_FORMAT_PLANAR_YUV422, 8, 0, VERBOSE_NONE));
-    EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_MAIN_422_10);
-    EXPECT_NE(phc.hdr_Ppih, 0u); // The original defect: Ppih was hardcoded to 0.
+    EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_CHIGH_444_12);
     EXPECT_EQ(phc.hdr_Plev, derive_stream_level_plev(256, 256, 8, 1, 0));
 }
 
-TEST(StreamProfileLevelEncodeIntegration, AutoDerivedYuv420MatchesDerivationFunction) {
+TEST(StreamProfileLevelEncodeIntegration, DefaultYuv420IsUnrestricted) {
+    /* No profile covers 4:2:0 with raw-mode selection per packet (Rl=1). */
     std::vector<uint8_t> bitstream = encode_single_frame(256, 256, 8, COLOUR_FORMAT_PLANAR_YUV420, 6, 1);
     ASSERT_GT(bitstream.size(), 0u);
     picture_header_const_t phc = probe_header(bitstream);
-    EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_MAIN_420_12);
+    EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_UNRESTRICTED);
     EXPECT_EQ(phc.hdr_Plev, derive_stream_level_plev(256, 256, 6, 1, 0));
 }
 
-TEST(StreamProfileLevelEncodeIntegration, AutoDerivedYuv444_12bitMatchesDerivationFunction) {
-    std::vector<uint8_t> bitstream = encode_single_frame(256, 256, 12, COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12, 1);
+TEST(StreamProfileLevelEncodeIntegration, RawModeDisabledSelectsMainOrHigh) {
+    struct Case {
+        ColourFormat_t colour_format;
+        uint8_t bit_depth;
+        uint32_t ndecomp_v;
+        uint16_t expected;
+    };
+    const Case cases[] = {
+        {COLOUR_FORMAT_PLANAR_YUV422, 10, 1, JXS_PPIH_MAIN_422_10},
+        {COLOUR_FORMAT_PLANAR_YUV422, 10, 2, JXS_PPIH_HIGH_444_12},
+        {COLOUR_FORMAT_PLANAR_YUV420, 8, 1, JXS_PPIH_MAIN_420_12},
+        {COLOUR_FORMAT_PLANAR_YUV420, 8, 2, JXS_PPIH_HIGH_420_12},
+        {COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, 12, 1, JXS_PPIH_MAIN_444_12},
+        {COLOUR_FORMAT_PLANAR_4_COMPONENTS, 8, 2, JXS_PPIH_HIGH_4444_12},
+    };
+    for (const Case &c : cases) {
+        std::vector<uint8_t> bitstream = encode_single_frame(
+            256, 256, c.bit_depth, c.colour_format, 6, 1, 0, 0xFFFF, 1 /*coding_raw_disable*/, c.ndecomp_v);
+        ASSERT_GT(bitstream.size(), 0u);
+        EXPECT_EQ(probe_header(bitstream).hdr_Ppih, c.expected)
+            << "colour_format " << c.colour_format << " ndecomp_v " << c.ndecomp_v;
+    }
+}
+
+TEST(StreamProfileLevelEncodeIntegration, ShortPictureSliceIsUnrestricted) {
+    /* A picture shorter than 16 rows clamps the slice height below the 16 rows every profile needs. */
+    std::vector<uint8_t> bitstream = encode_single_frame(256, 8, 8, COLOUR_FORMAT_PLANAR_YUV422, 6, 1, 0, 0xFFFF, 1, 1);
     ASSERT_GT(bitstream.size(), 0u);
-    picture_header_const_t phc = probe_header(bitstream);
-    EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_MAIN_444_12);
+    EXPECT_EQ(probe_header(bitstream).hdr_Ppih, JXS_PPIH_UNRESTRICTED);
 }
 
 TEST(StreamProfileLevelEncodeIntegration, ProfileOverrideIsUsedVerbatim) {
@@ -303,7 +477,8 @@ INSTANTIATE_TEST_SUITE_P(VariousProfilesAndLevels, StreamProfileLevelDecodeStill
 /* Every codeword the encoder can auto-derive must have a printable name, and the formatted string
  * must keep the raw hex value, only adding the name in parentheses when the codeword is known. */
 TEST(ProfileLevelNames, KnownCodewordsAreNamed) {
-    const uint16_t profiles[] = {JXS_PPIH_LIGHT_422_10,
+    const uint16_t profiles[] = {JXS_PPIH_UNRESTRICTED,
+                                 JXS_PPIH_LIGHT_422_10,
                                  JXS_PPIH_LIGHT_444_12,
                                  JXS_PPIH_LIGHT_SUBLINE_422_10,
                                  JXS_PPIH_MAIN_420_12,
@@ -312,6 +487,7 @@ TEST(ProfileLevelNames, KnownCodewordsAreNamed) {
                                  JXS_PPIH_MAIN_4444_12,
                                  JXS_PPIH_HIGH_420_12,
                                  JXS_PPIH_HIGH_444_12,
+                                 JXS_PPIH_CHIGH_444_12,
                                  JXS_PPIH_HIGH_4444_12,
                                  JXS_PPIH_MLS_12};
     for (uint16_t ppih : profiles) {
