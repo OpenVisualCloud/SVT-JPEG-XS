@@ -377,11 +377,26 @@ Lossless coding is enabled with `lossless_enable`. `encoder_init_configuration()
 The profile (Ppih) and level (Plev) are written verbatim into the picture header. Unless overridden with
 `profile_ppih_override` (0 means auto) and `level_plev_override` (0xFFFF means auto), they are derived in ProfileLevel.c:
 
-- `derive_stream_profile_ppih()` selects MLS.12 for lossless coding. Otherwise it selects Main 420.12 for YUV420,
-  Main 4444.12 for 4-component formats, Main 444.12 for 4:4:4 and packed input, and Main 422.10 for YUV422
-  (Main 444.12 above 10 bit). A warning is printed for bit depths above 12, which no profile covers.
-- `derive_stream_level_plev()` selects the smallest level whose width, height and pixel count limits fit the picture, and
-  the sublevel from the bpp (2, 3, 4, 6, 9 or 12 bpp, unrestricted above and for lossless coding).
+- `derive_stream_profile_ppih()` runs after `pi_compute()`, so it sees the final slice height and Lh. It declares the
+  ISO/IEC 21122-2 profile whose restrictions the stream meets. Every candidate needs a bit depth of 8, 10 or 12, a
+  16-row slice and Lh=0. With Rl=0 it selects MLS.12 for lossless coding, otherwise Main (NL,y 0 or 1) or High
+  (NL,y 2) for the colour format. With Rl=1 it selects CHigh 444.12 for 4:2:2 and 4:4:4 lossy input. Light profiles
+  are never selected, because their smaller decoder smoothing buffer is not guaranteed. In every
+  other case it declares Unrestricted (Ppih=0x0000) and warns with the failed restrictions.
+- `derive_stream_level_plev()` selects the first ISO/IEC 21122-2 Table A.8 level whose width, height, pixel count and
+  pixel rate limits fit the picture at `fps_numerator`/`fps_denominator`. 5k-1 is skipped because the ISO/IEC 21122-5
+  edition 3 reference decoder rejects it. Without a frame rate, or when no level fits, the level is Unrestricted. The
+  sublevel is the smallest of 2, 3, 4, 6, 9 or 12 bpp that the frame size (Lcod, rounded up to whole bytes) fits,
+  unrestricted above and for lossless coding.
+- Overrides are written verbatim. `check_stream_profile_ppih()` and `check_stream_level_plev()` test them with the same
+  rules and print a warning per broken restriction at verbose >= `VERBOSE_SYSTEM_INFO`.
+
+Packet header size (EncHandle.c, after `pi_compute()`): decoders read short packet headers only when Wf×Nc < 32752
+and Lh=0 (ISO/IEC 21122-1 Table C.3). Short headers hold data, bitplane count and sign subpackets below 2^15, 2^13
+and 2^11 bytes. With NL,y = 0 the first packet carries a full line of every component, so the encoder writes Lh=1
+and long headers when 16376 ≤ Wf×Nc < 32752 (Table C.3 NOTE 2). From Wf×Nc ≥ 32752 long headers are implied and
+Lh stays 0, as every profile requires. `pack_precinct()` fails the frame if a size still does not fit a short
+header.
 
 `write_capabilities_marker()` (PackHeaders.c) writes the CAP marker with the bits for 4:2:0 sub-sampling, lossless
 decoding and the raw-mode switch (Rl). With `cap_compat` = 1 an empty CAP marker (Lcap=2) is written when none of these

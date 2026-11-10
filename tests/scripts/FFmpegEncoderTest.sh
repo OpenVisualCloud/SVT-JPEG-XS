@@ -271,76 +271,76 @@ function test_all {
 #   coding-signs full, 10 frames.
 #   NOTE: matches EncoderTest.sh test_rate_control()'s "--rc 1" row exactly (same expected md5),
 #   confirming ffmpeg's default rate-control mode == SvtJpegxsEncApp's --rc 1.
-    test_enc 0 3f24dcf3bdfd1184caacac7fa9989a78 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs full"
+    test_enc 0 70b374d7bc085b0f75590be48b187b92 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs full"
 
 #   Same input, coding-vpred/coding-signs disabled.
 #   NOTE: matches EncoderTest.sh test_rate_control()'s other "--rc 1" row exactly.
-    test_enc 0 820a3890a0b7748802672f37e0f90565 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs disable"
+    test_enc 0 c4cbd6aa6e1e74802c1f5986c211c57f touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs disable"
 
 #   8bit 720p yuv420, bpp 4, decomp_v 2, decomp_h 5. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 84cd5feebcc0651157afafa92cc2724e touchdown_720p_yuv420p_8_bit_60_frames 1280 720 yuv420p 5 "-bpp 4 -decomp_v 2 -decomp_h 5 -coding-sigf 0 -coding-vpred disable -coding-signs full"
+    test_enc 0 53ece3f8feca937f7b4a1e688e67e659 touchdown_720p_yuv420p_8_bit_60_frames 1280 720 yuv420p 5 "-bpp 4 -decomp_v 2 -decomp_h 5 -coding-sigf 0 -coding-vpred disable -coding-signs full"
 
 #   10bit(le) 1080p yuv422, bpp 3, decomp_v 2, decomp_h 5. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 1e5989607bd7412547d16e29fd2064e5 touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 77a352cf80c76481e33c5d929d8d56f6 touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   10bit(le) 1080p yuv422 single frame. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 94806b522fbe0409f15b29847b95728e signal_1080p_yuv422p_10bit_le_1_frame 1920 1080 yuv422p10le 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 07e1aa335a5b7653f2ba095a48edaa99 signal_1080p_yuv422p_10bit_le_1_frame 1920 1080 yuv422p10le 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   Uncommon (odd) resolution 8bit yuv422 1920x1081. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 599c9b2c9b6f95d15a203e7a8f8e7c2f uncommon_resolution_8bit_422_1920x1081 1920 1081 yuv422p 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 af145673aedb1b2f97fd6591a72a78cb uncommon_resolution_8bit_422_1920x1081 1920 1081 yuv422p 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   Uncommon (odd) resolution 10bit(le) yuv420 1922x1082. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 e582583486adc5cbd6aa80adebfae9c9 uncommon_resolution_10bit_420_1922x1082 1922 1082 yuv420p10le 1 "-bpp 3 -decomp_v 1 -decomp_h 4 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 88ed6ecb0e12488ddb1fa3c376404a4d uncommon_resolution_10bit_420_1922x1082 1922 1082 yuv420p10le 1 "-bpp 3 -decomp_v 1 -decomp_h 4 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   coding-vpred=no_coeffs (mode 2, "VPRED FULL Mode 2" in EncoderTest.sh). NEW md5, pinned from this ffmpeg build.
 #   Previously untested value of the coding-vpred AVOption (only disable/no_residuals were covered above).
-    test_enc 0 38f36f8115333adecb4a3367a4ef46b4 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_coeffs -coding-signs full"
+    test_enc 0 b31fed5764dda32640f5c2c3faeb226c touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_coeffs -coding-signs full"
 
 #   coding-signs=fast (mode 1). NEW md5, pinned from this ffmpeg build.
 #   Previously untested value of the coding-signs AVOption (only disable/full were covered above).
-    test_enc 0 dab9a55934b4c46bb87cecf5d3efcc4b touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs fast"
+    test_enc 0 26ee73059066d1c7fcfeef0ae12d4cda touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs fast"
 
 #   threads=4: ffmpeg's standard thread pass-through (-threads N), previously untested here.
 #   NEW md5, pinned from this ffmpeg build - verified (by actually running both) to be byte-
 #   identical to the same params without -threads (and with -threads 1), confirming thread count
 #   only affects parallelism, not the encoded bitstream.
-    test_enc 0 91780e4e9d32683b0a11583d3c0accb5 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-threads 4 -bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 b6559f331901f38ed7c71dd1fab6e1aa touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-threads 4 -bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   coding-raw=0 (disable packet-based raw-mode coding, for legacy-decoder compatibility).
 #   NEW md5, pinned from this ffmpeg build - previously untested value of the coding-raw AVOption
 #   (default/unset is coding-raw=1/enabled, exercised implicitly by every other test above).
-    test_enc 0 9138e221e7e8d138ca56dd20bea64b3e touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -coding-raw 0"
+    test_enc 0 b35daa8111e55670f23f3d9bc8f0fe5e touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -coding-raw 0"
 
 #   cap-compat=1 (emit an empty CAP marker when no capability bit is required), combined with
 #   coding-raw=0 so that no capability bit (raw-mode or 4:2:0) is actually set - this is the only
 #   way to make cap-compat observable (verified: with the default coding-raw=1, the raw-mode
 #   capability bit is always set, so cap-compat=1 produces byte-identical output to cap-compat=0
 #   and the test would not actually exercise anything). NEW md5, pinned from this ffmpeg build.
-    test_enc 0 e34aa650919f8c0c5cf380a836f6b736 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -coding-raw 0 -cap-compat 1"
+    test_enc 0 161dae59442f88e6b8f36e03f6c930a6 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -coding-raw 0 -cap-compat 1"
 
 #   quantization=uniform. NEW md5, pinned from this ffmpeg build.
 #   The quantization AVOption (deadzone/uniform) had zero coverage before.
-    test_enc 0 69986efe852479b112898689b17e2784 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -quantization uniform"
+    test_enc 0 c0824c589dc42ed5bc0b673902454e4e touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -quantization uniform"
 
 #   slice_height=120 (10bit yuv422). NEW md5, pinned from this ffmpeg build.
 #   The slice_height AVOption had zero coverage before.
-    test_enc 0 ce3a0a35dec2548897753e5e196ec653 touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -slice_height 120"
+    test_enc 0 fe3cc74f76bf965d7579ebea32da3a19 touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -slice_height 120"
 
 #   decomp_v=0 path (only decomp_v 1/2 were covered above). NEW md5, pinned from this ffmpeg build.
-    test_enc 0 ebbd8c89dbbf4faa14cbaea356003e99 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 4 -decomp_v 0 -decomp_h 2 -coding-sigf 1 -coding-vpred disable"
+    test_enc 0 4bdfa505d7018cb7d6a7cdec92146cde touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 4 -decomp_v 0 -decomp_h 2 -coding-sigf 1 -coding-vpred disable"
 
 #   bpp=5 (only bpp 3/4/0.05 were covered above). NEW md5, pinned from this ffmpeg build.
-    test_enc 0 2a5b347a944e05f343b203573f881d4e touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 5 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable"
+    test_enc 0 7c1c9c947138e225a62faea8dbe60386 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 5 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable"
 
 #   10bit(le) yuv420 (only 8bit yuv420 and 10bit yuv422 were covered above). NEW md5, pinned from this ffmpeg build.
-    test_enc 0 2e6eeef88bc70abe6f64db08babab398 touchdown_1080p_yuv420p_10_bit_le_60_frames 1920 1080 yuv420p10le 5 "-bpp 4 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable"
+    test_enc 0 b4c49a556724340ca36a7a1d4f061e8c touchdown_1080p_yuv420p_10_bit_le_60_frames 1920 1080 yuv420p10le 5 "-bpp 4 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable"
 
 #   -profile/-level unset (auto-derive Ppih/Plev from pixel format/resolution/bpp): same md5 as the
 #   "threads=4" test above with identical other parameters, confirming this feature is a no-op on
 #   the encoded bitstream when left unset (ffmpeg's generic -profile/-level AVOptions default to
 #   AV_PROFILE_UNKNOWN/AV_LEVEL_UNKNOWN, so profile_ppih_override/level_plev_override are never
 #   touched and the pre-existing auto-derive path in the library runs unchanged).
-    test_enc 0 91780e4e9d32683b0a11583d3c0accb5 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 b6559f331901f38ed7c71dd1fab6e1aa touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   -profile:v main444 -level:v 8k-1 (named override values, reused via ffmpeg's generic -profile/
 #   -level options and this encoder's own AV_OPT_TYPE_CONST entries against the shared
@@ -367,36 +367,36 @@ function test_all {
 
 #   msb_aligned=1 on 10bit(le) content: encoder must accept the option and produce a valid,
 #   deterministic, decodable bitstream. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 6b8c07cd7625f46c3941f35443179531 touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -msb_aligned 1"
+    test_enc 0 64bc917d33adf6c794acce275f6029b6 touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full -msb_aligned 1"
 
 #   msb_aligned=1 on 8bit content must be a no-op (the library only applies msb-alignment above
 #   8bit): same md5 as the very first test_all row above with otherwise identical parameters,
 #   confirming the option is safely ignored for 8bit input rather than corrupting it.
-    test_enc 0 3f24dcf3bdfd1184caacac7fa9989a78 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs full -msb_aligned 1"
+    test_enc 0 70b374d7bc085b0f75590be48b187b92 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred no_residuals -coding-signs full -msb_aligned 1"
 
 #   4:2:2:4 (YUVA422, synthesized fixture, SDBQ-3776). NEW md5, pinned from this ffmpeg build.
-    test_enc 0 8c2ec2b5ee21903e8bc4ce10d8724e66 SYNTH:yuva422p8 1920 1080 yuva422p 1 "-bpp 4 -decomp_v 2 -decomp_h 5"
+    test_enc 0 df359201ff6f21b7197ed2547a36ccff SYNTH:yuva422p8 1920 1080 yuva422p 1 "-bpp 4 -decomp_v 2 -decomp_h 5"
 
 #   4:4:4:4 (YUVA444, synthesized fixture, SDBQ-3776). NEW md5, pinned from this ffmpeg build.
-    test_enc 0 fb905b390b6bbe62ffda9a93215e5922 SYNTH:yuva444p8 1920 1080 yuva444p 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
+    test_enc 0 36c32237bd4abd52534e233492a9b2bb SYNTH:yuva444p8 1920 1080 yuva444p 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
 
 #   4:4:4:4 via GBRA (COLOUR_FORMAT_PLANAR_RGBA, SDBQ-3776): the fixture's 4 planes are identical,
 #   so the G, B, R, A to R, G, B, A plane reorder does not change the bytes - byte-identical to the
 #   YUVA444P test above (component order is covered by the SYNTH:abca444p8 rows below).
-    test_enc 0 fb905b390b6bbe62ffda9a93215e5922 SYNTH:gbrap8 1920 1080 gbrap 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
+    test_enc 0 36c32237bd4abd52534e233492a9b2bb SYNTH:gbrap8 1920 1080 gbrap 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
 
 #   color_transform=0 (explicit): must be byte-identical to leaving the option unset (the -1
 #   sentinel default), confirming it's a true no-op rather than forcing Cpih=0 behavior that
 #   happens to differ. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 c48cf10045dc7c924a9daaa1084d6af6 SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 0"
+    test_enc 0 c1b7e9b28a190b9da846facd2518d2fb SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 0"
 
 #   color_transform unset (default): same md5 as the explicit color_transform=0 row above.
-    test_enc 0 c48cf10045dc7c924a9daaa1084d6af6 SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5"
+    test_enc 0 c1b7e9b28a190b9da846facd2518d2fb SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5"
 
 #   color_transform=1 on gbrp: encoder-side forward RCT (Cpih=1) must produce a valid, decodable,
 #   deterministic bitstream, distinct from the color_transform=0/unset md5 above.
 #   NEW md5, pinned from this ffmpeg build.
-    test_enc 0 eb9d4759fd43aa34c70c7358ea8e0e30 SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 1"
+    test_enc 0 99f003d0a880015d00ac6b0dbba87bc6 SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 1"
 
 #   Error path: color_transform=1 on yuv444p must be rejected - Cpih=1 is decoded as R, G, B, so
 #   the plugin only accepts it for planar RGB (gbrp*) input.
@@ -404,25 +404,25 @@ function test_all {
 
 #   Component order: gbrp planes A,B,C (G,B,R) are coded as R,G,B = C,A,B, byte-identical to
 #   yuv444p input C,A,B. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 da3aa90175b7d3e4ad96adf53076e43c SYNTH:abc444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5"
-    test_enc 0 da3aa90175b7d3e4ad96adf53076e43c SYNTH:cab444p8 1920 1080 yuv444p 1 "-bpp 3 -decomp_v 2 -decomp_h 5"
+    test_enc 0 fe1bf6f498764a45079e2a3b17fe027f SYNTH:abc444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5"
+    test_enc 0 fe1bf6f498764a45079e2a3b17fe027f SYNTH:cab444p8 1920 1080 yuv444p 1 "-bpp 3 -decomp_v 2 -decomp_h 5"
 
 #   Component order, 4 components: gbrap A,B,C,A is coded as C,A,B,A, byte-identical to yuva444p
 #   input C,A,B,A. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 56b84f5642160de57467c2d4ff781bd6 SYNTH:abca444p8 1920 1080 gbrap 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
-    test_enc 0 56b84f5642160de57467c2d4ff781bd6 SYNTH:caba444p8 1920 1080 yuva444p 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
+    test_enc 0 f69f6d378b7250e38636b71852d2acfa SYNTH:abca444p8 1920 1080 gbrap 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
+    test_enc 0 f69f6d378b7250e38636b71852d2acfa SYNTH:caba444p8 1920 1080 yuva444p 1 "-bpp 5 -decomp_v 2 -decomp_h 5"
 
 #   Component order with color_transform=1: RCT on gbrp A,B,C must see R,G,B = C,A,B (base channel
 #   G = A). NEW md5, pinned from this ffmpeg build.
-    test_enc 0 4aa252ed0c9a34f1d4d37ce1af45e56d SYNTH:abc444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 1"
+    test_enc 0 65ae1c5663e0e00eb69dcd62f5ad3177 SYNTH:abc444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -color_transform 1"
 
 #   No -bpp: the uncompressed-equivalent default bpp must also cover gbrp/gbrap (planar RGB/RGBA
 #   library formats), byte-identical to yuv444p/yuva444p with the planes reordered.
 #   NEW md5, pinned from this ffmpeg build.
-    test_enc 0 412f4e450add7159257fd15a079552fc SYNTH:abc444p8 1920 1080 gbrp 1 "-decomp_v 2 -decomp_h 5"
-    test_enc 0 412f4e450add7159257fd15a079552fc SYNTH:cab444p8 1920 1080 yuv444p 1 "-decomp_v 2 -decomp_h 5"
-    test_enc 0 e60f6f3743457cda8f8a8b37d1120dc6 SYNTH:abca444p8 1920 1080 gbrap 1 "-decomp_v 2 -decomp_h 5"
-    test_enc 0 e60f6f3743457cda8f8a8b37d1120dc6 SYNTH:caba444p8 1920 1080 yuva444p 1 "-decomp_v 2 -decomp_h 5"
+    test_enc 0 dc3031e25f41c34e2d090447d0fddbd5 SYNTH:abc444p8 1920 1080 gbrp 1 "-decomp_v 2 -decomp_h 5"
+    test_enc 0 dc3031e25f41c34e2d090447d0fddbd5 SYNTH:cab444p8 1920 1080 yuv444p 1 "-decomp_v 2 -decomp_h 5"
+    test_enc 0 bb60a8f50f46bc29c854b125131f9a99 SYNTH:abca444p8 1920 1080 gbrap 1 "-decomp_v 2 -decomp_h 5"
+    test_enc 0 bb60a8f50f46bc29c854b125131f9a99 SYNTH:caba444p8 1920 1080 yuva444p 1 "-decomp_v 2 -decomp_h 5"
 
 #   bgr24 is not accepted by the plugin (it would store B, G, R); ffmpeg converts it to a
 #   supported format, so encoding must still succeed.
@@ -440,7 +440,7 @@ function test_all {
 #   cpu_profile=cpu alone (no color_transform): must be byte-identical to the default/latency
 #   md5 above - cpu_profile only changes the internal threading model, never the encoded
 #   bitstream (verified this also holds for SvtJpegxsEncApp's equivalent --profile option).
-    test_enc 0 c48cf10045dc7c924a9daaa1084d6af6 SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -cpu_profile cpu"
+    test_enc 0 c1b7e9b28a190b9da846facd2518d2fb SYNTH:planar444p8 1920 1080 gbrp 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -cpu_profile cpu"
 }
 
 test_all

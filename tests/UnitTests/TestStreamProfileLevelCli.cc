@@ -39,9 +39,12 @@ CliResult run_cli(std::initializer_list<const char *> extra_tokens) {
     for (const char *token : extra_tokens) {
         argv.push_back(token);
     }
+    /* argv[argc] is NULL as for main(): read_command_line() looks one token ahead for a value, so a
+     * last token that is not taken as a value (e.g. "-25") reads argv[argc]. */
+    const int32_t argc = (int32_t)argv.size();
+    argv.push_back(nullptr);
 
-    result.read_command_line_ret = read_command_line(
-        (int32_t)argv.size(), const_cast<char *const *>(argv.data()), &result.cfg);
+    result.read_command_line_ret = read_command_line(argc, const_cast<char *const *>(argv.data()), &result.cfg);
     result.verify_settings_ret = (result.read_command_line_ret == SvtJxsErrorNone) ? verify_settings(&result.cfg)
                                                                                     : SvtJxsErrorBadParameter;
     return result;
@@ -68,6 +71,12 @@ TEST(StreamProfileLevelCli, ProfileNameHigh4444) {
     CliResult result = run_cli({"--stream-profile", "high4444"});
     EXPECT_EQ(result.verify_settings_ret, SvtJxsErrorNone);
     EXPECT_EQ(result.cfg.encoder.profile_ppih_override, 0x4E40);
+}
+
+TEST(StreamProfileLevelCli, ProfileNameCHigh444) {
+    CliResult result = run_cli({"--stream-profile", "chigh444"});
+    EXPECT_EQ(result.verify_settings_ret, SvtJxsErrorNone);
+    EXPECT_EQ(result.cfg.encoder.profile_ppih_override, 0x4A44);
 }
 
 TEST(StreamProfileLevelCli, ProfileAutoKeywordExplicitlySelectsAuto) {
@@ -138,4 +147,30 @@ TEST(ColourFormatCli, Yuv400IsRejected) {
     ASSERT_EQ(read_command_line((int32_t)argv.size() - 1, const_cast<char *const *>(argv.data()), &cfg), SvtJxsErrorNone);
     EXPECT_EQ(cfg.encoder.colour_format, COLOUR_FORMAT_INVALID);
     EXPECT_NE(verify_settings(&cfg), SvtJxsErrorNone);
+}
+
+TEST(StreamProfileLevelCli, FpsDefaultsToUnknown) {
+    CliResult result = run_cli({});
+    EXPECT_EQ(result.cfg.encoder.fps_numerator, 0u);
+    EXPECT_EQ(result.cfg.encoder.fps_denominator, 1u);
+}
+
+TEST(StreamProfileLevelCli, FpsIntegerAndFractionAreParsed) {
+    CliResult result = run_cli({"--fps", "50"});
+    EXPECT_EQ(result.verify_settings_ret, SvtJxsErrorNone);
+    EXPECT_EQ(result.cfg.encoder.fps_numerator, 50u);
+    EXPECT_EQ(result.cfg.encoder.fps_denominator, 1u);
+
+    result = run_cli({"--fps", "60000/1001"});
+    EXPECT_EQ(result.verify_settings_ret, SvtJxsErrorNone);
+    EXPECT_EQ(result.cfg.encoder.fps_numerator, 60000u);
+    EXPECT_EQ(result.cfg.encoder.fps_denominator, 1001u);
+}
+
+TEST(StreamProfileLevelCli, InvalidFpsIsRejected) {
+    const char *invalid[] = {"0", "25/0", "abc", "25/", "/2", "-25", "25.5", "30/1x", "4294967296", "1/4294967296"};
+    for (const char *value : invalid) {
+        CliResult result = run_cli({"--fps", value});
+        EXPECT_EQ(result.verify_settings_ret, SvtJxsErrorBadParameter) << value;
+    }
 }

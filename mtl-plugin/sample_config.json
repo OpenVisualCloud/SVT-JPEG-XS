@@ -97,16 +97,20 @@
     // cpu_profile "latency".
     "rct": false,
     // Profile (Ppih) declared in the picture header.
-    //   "auto" = derived from the input format (Main 420.12 / 422.10 / 444.12 /
-    //            4444.12; MLS.12 when lossless).
+    //   "auto" = the profile the configuration meets: CHigh 444.12 with
+    //            coding_raw true (default); with coding_raw false Main (decomp_v
+    //            0/1), High (decomp_v 2) or MLS.12 (lossless); otherwise
+    //            Unrestricted.
     //   Names: "light422", "light444", "lightsubline422", "main420", "main422",
     //          "main444", "main4444", "high420", "high444", "high4444".
     //   Or a raw Ppih value as hex/decimal string, e.g. "0x6EC0" (MLS.12).
     // Override only when encoder settings and receivers meet the profile; the
-    // encoder does not check it.
+    // library writes it as given and warns for every restriction it breaks.
     "stream_profile": "auto",
     // Level (Plev) declared in the picture header.
-    //   "auto" = tightest level/sublevel bounding resolution and bitrate.
+    //   "auto" = lowest level bounding resolution and frame rate, sublevel from
+    //            the bitrate. This plugin passes no frame rate, so the auto
+    //            level is Unrestricted: set the level here for a named one.
     //   Names (sublevel unrestricted): "unrestricted", "1k-1", "2k-1", "4k-1",
     //          "4k-2", "4k-3", "5k-1", "8k-1", "8k-2", "8k-3", "10k-1".
     //   Or a raw Plev value = level + sublevel as hex/decimal string:
