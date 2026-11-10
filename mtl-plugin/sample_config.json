@@ -108,7 +108,9 @@
     // library writes it as given and warns for every restriction it breaks.
     "stream_profile": "auto",
     // Level (Plev) declared in the picture header.
-    //   "auto" = tightest level/sublevel bounding resolution and bitrate.
+    //   "auto" = lowest level bounding resolution and frame rate, sublevel from
+    //            the bitrate. This plugin passes no frame rate, so the auto
+    //            level is Unrestricted: set the level here for a named one.
     //   Names (sublevel unrestricted): "unrestricted", "1k-1", "2k-1", "4k-1",
     //          "4k-2", "4k-3", "5k-1", "8k-1", "8k-2", "8k-3", "10k-1".
     //   Or a raw Plev value = level + sublevel as hex/decimal string:

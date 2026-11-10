@@ -1,0 +1,42 @@
+From ee7f356bab1d16d6fe8cb20a279a5a51c195ca9e Mon Sep 17 00:00:00 2001
+From: SVT-JPEG-XS <noreply@example.com>
+Date: Tue, 10 Nov 2026 09:39:49 +0100
+Subject: [PATCH] avcodec/libsvtjpegxsenc: pass the frame rate to the encoder
+
+Every JPEG XS level (ISO/IEC 21122-2 Table A.8) bounds the number of
+sampling grid points per second, so the library needs the frame rate to
+declare a level. Without it, the library declares the Unrestricted
+level.
+
+Pass avctx->framerate, or 1/time_base when the frame rate is not set.
+Frame timestamps are multiples of time_base, so 1/time_base never
+understates the frame rate.
+---
+ libavcodec/libsvtjpegxsenc.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/libavcodec/libsvtjpegxsenc.c b/libavcodec/libsvtjpegxsenc.c
+index 344dae2b9e..9aa981edbe 100644
+--- a/libavcodec/libsvtjpegxsenc.c
++++ b/libavcodec/libsvtjpegxsenc.c
+@@ -318,6 +318,17 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
+     svt_enc->encoder.source_width = avctx->width;
+     svt_enc->encoder.source_height = avctx->height;
+ 
++    /* Every JPEG XS level bounds the number of samples per second, so the
++     * library needs the frame rate to declare one. Frame timestamps are
++     * multiples of time_base, so 1/time_base never understates the rate. */
++    if (avctx->framerate.num > 0 && avctx->framerate.den > 0) {
++        svt_enc->encoder.fps_numerator = avctx->framerate.num;
++        svt_enc->encoder.fps_denominator = avctx->framerate.den;
++    } else if (avctx->time_base.num > 0 && avctx->time_base.den > 0) {
++        svt_enc->encoder.fps_numerator = avctx->time_base.den;
++        svt_enc->encoder.fps_denominator = avctx->time_base.num;
++    }
++
+     if ((ret = set_pix_fmt(avctx, &(svt_enc->encoder))) < 0) {
+         return ret;
+     }
+-- 
+2.53.0
+

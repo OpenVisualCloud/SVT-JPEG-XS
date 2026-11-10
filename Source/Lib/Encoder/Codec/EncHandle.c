@@ -326,13 +326,12 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         }
     }
 
-    enc_common->hdr_Plev = config_struct->level_plev_override != 0xFFFF
-        ? config_struct->level_plev_override
-        : derive_stream_level_plev(config_struct->source_width,
-                                   config_struct->source_height,
-                                   config_struct->bpp_numerator,
-                                   config_struct->bpp_denominator,
-                                   config_struct->lossless_enable);
+    if (config_struct->fps_numerator != 0 && config_struct->fps_denominator == 0) {
+        if (config_struct->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("fps_denominator cannot be 0 when fps_numerator is set!\n");
+        }
+        return SvtJxsErrorBadParameter;
+    }
 
     // Rate Control
     enc_common->lossless_enable = config_struct->lossless_enable ? 1 : 0;
@@ -649,6 +648,22 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
         enc_common->hdr_Ppih = derive_stream_profile_ppih(&profile_params, config_struct->verbose);
     }
 
+    /* bytes_per_frame is the exact codestream size (Lcod) of a lossy frame here. */
+    StreamLevelParams level_params;
+    level_params.width = config_struct->source_width;
+    level_params.height = config_struct->source_height;
+    level_params.fps_numerator = config_struct->fps_numerator;
+    level_params.fps_denominator = config_struct->fps_denominator;
+    level_params.frame_bytes = config_struct->lossless_enable ? 0 : bytes_per_frame;
+    level_params.lossless = config_struct->lossless_enable ? 1 : 0;
+    if (config_struct->level_plev_override != 0xFFFF) {
+        enc_common->hdr_Plev = config_struct->level_plev_override;
+        check_stream_level_plev(enc_common->hdr_Plev, enc_common->hdr_Ppih, &level_params, config_struct->verbose);
+    }
+    else {
+        enc_common->hdr_Plev = derive_stream_level_plev(&level_params, config_struct->verbose);
+    }
+
     if (config_struct->lossless_enable) {
         bytes_per_frame = lossless_worst_case_bytes_per_frame(pi, !config_struct->coding_raw_disable);
         if (bytes_per_frame >= (((uint64_t)1) << 32)) {
@@ -773,6 +788,8 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_load_default_parameters(uint64_
      * (Unrestricted) when no profile applies. level_plev_override needs a non-zero sentinel since
      * Plev=0x0000 (Unrestricted) is a meaningful explicit override. */
     enc_api->level_plev_override = 0xFFFF;
+    enc_api->fps_numerator = 0;
+    enc_api->fps_denominator = 1;
 
     return SvtJxsErrorNone;
 }
