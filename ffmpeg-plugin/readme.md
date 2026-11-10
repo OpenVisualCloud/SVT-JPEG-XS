@@ -375,6 +375,11 @@ Notes:
   Unrestricted (Ppih=0x0000).
 - A profile without a name in the list above, such as CHigh 444.12, can be set as a raw value
   (`-profile:v 0x4A44`).
+- The auto-derived level is the lowest ISO/IEC 21122-2 level whose limits fit the resolution at the
+  stream frame rate (`-r`, or 1/time_base when no frame rate is set). 5k-1 is not picked
+  automatically.
+- `-profile:v`/`-level:v` values are written as given; the library warns when the stream breaks
+  a restriction of the declared profile or level.
 - Named level values only cover the resolution/level portion of Plev (bits [15:10]); use a raw
   hex/decimal value instead of a name to also set an explicit sublevel/FBB-level, or for a profile
   not in the named list.

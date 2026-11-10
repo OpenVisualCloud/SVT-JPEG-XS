@@ -74,6 +74,7 @@ static void strncpy_local(char *dest, const char *src, size_t count) {
 #define SHOW_BANDS           "--show-bands"
 
 #define LIMIT_FPS_TOKEN "--limit-fps"
+#define FPS_TOKEN       "--fps"
 #define VERBOSE_TOKEN   "-v"
 
 // latency configuration
@@ -102,6 +103,29 @@ static void set_cfg_frames_count(const char *value, EncoderConfig_t *cfg) {
 
 static void set_limit_fps(const char *value, EncoderConfig_t *cfg) {
     cfg->limit_fps = strtoul(value, NULL, 0);
+}
+
+/* --fps N or --fps N/D (e.g. 60000/1001), both non-zero and at most UINT32_MAX. */
+static void set_fps(const char *value, EncoderConfig_t *cfg) {
+    char *end = NULL;
+    unsigned long long numerator = 0;
+    unsigned long long denominator = 1;
+    int valid = value[0] >= '0' && value[0] <= '9';
+    if (valid) {
+        numerator = strtoull(value, &end, 10);
+        if (*end == '/') {
+            const char *den_str = end + 1;
+            valid = den_str[0] >= '0' && den_str[0] <= '9';
+            denominator = valid ? strtoull(den_str, &end, 10) : 0;
+        }
+        valid = valid && *end == '\0' && numerator != 0 && denominator != 0 && numerator <= UINT32_MAX &&
+            denominator <= UINT32_MAX;
+    }
+    cfg->fps_invalid = valid ? 0 : 1;
+    if (valid) {
+        cfg->encoder.fps_numerator = (uint32_t)numerator;
+        cfg->encoder.fps_denominator = (uint32_t)denominator;
+    }
 }
 
 static void set_no_progress(const char *value, EncoderConfig_t *cfg) {
@@ -423,6 +447,7 @@ ConfigEntry config_entry[] = {
     {INPUT_OPTIONS, COMPRESS_BPP_LONG_TOKEN,"Bits Per Pixel, can be passed as integer or float (example: 0.5, 3, 3.75, 5 etc.). Required unless --lossless 1 is set", 0, 1, set_encoder_bpp},
     {INPUT_OPTIONS, FRAMES_COUNT_TOKEN,     "Number of frames to encode", 0, 1, set_cfg_frames_count},
     {INPUT_OPTIONS, LIMIT_FPS_TOKEN,        "Limit number of frames per second (disabled: 0, enabled [1-240])", 0, 1, set_limit_fps},
+    {INPUT_OPTIONS, FPS_TOKEN,              "Frame rate of the input, N or N/D (e.g. 50, 60000/1001); used only to derive the stream level, which is Unrestricted without it (default: unknown)", 0, 1, set_fps},
     {OUTPUT_OPTIONS, OUTPUT_BITSTREAM_TOKEN,"Output filename", 0, 1, set_cfg_stream_file},
     {OUTPUT_OPTIONS, NO_PROGRESS_TOKEN,     "Do not print out progress (no print:1, print:0, default:0)", 0, 1, set_no_progress},
     {OUTPUT_OPTIONS, PACKETIZATION_MODE,    "Specify how encoded stream is returned (multiple packets per frame:1, single packet per frame:0, default:0)", 0, 1, set_packetization_mode},
@@ -521,6 +546,11 @@ SvtJxsErrorType_t verify_settings(EncoderConfig_t *config) {
 
     if (config->encoder.profile_ppih_override == STREAM_PROFILE_INVALID) {
         fprintf(stderr, "Error: Invalid --stream-profile value\n");
+        return_error = SvtJxsErrorBadParameter;
+    }
+
+    if (config->fps_invalid) {
+        fprintf(stderr, "Error: Invalid --fps value, expected N or N/D with non-zero N and D\n");
         return_error = SvtJxsErrorBadParameter;
     }
 

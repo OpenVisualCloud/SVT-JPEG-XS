@@ -169,50 +169,50 @@ mkdir $tmp_dir
 
 function test_all {
 #   8bit 1080p yuv422, bpp 3, decomp-v 2, decomp-h 5, coding-signs=full, 10 frames.
-    test_enc 0 82ff17383fdd5d688a35d0ca37b4dccc touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-signs=full"
+    test_enc 0 9a555fd57812b918742980f595130815 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-signs=full"
 
 #   Same input, coding-signs=disable (default). Byte-identical to
 #   EncoderTest.sh test_rate_control()'s "--coding-vpred 0 --coding-signs 0
 #   --rc 0" row (same library defaults for the knobs GStreamer doesn't expose).
-    test_enc 0 b3f0e7495d30816487ae52fa932d5ce0 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-signs=disable"
+    test_enc 0 9953e0ab2a3d05c8de48857131c81eac touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 10 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-signs=disable"
 
 #   8bit 720p yuv420, bpp 4, decomp-v 2, decomp-h 5.
-    test_enc 0 9f40947a43b0c873a678c26733383512 touchdown_720p_yuv420p_8_bit_60_frames 1280 720 yuv420p 5 "bits-per-pixel=4 decomp-v=2 decomp-h=5 coding-signs=full"
+    test_enc 0 38c4d541368d8d26e9849f4aad3458a8 touchdown_720p_yuv420p_8_bit_60_frames 1280 720 yuv420p 5 "bits-per-pixel=4 decomp-v=2 decomp-h=5 coding-signs=full"
 
 #   10bit(le) 1080p yuv422, bpp 3, decomp-v 2, decomp-h 5.
-    test_enc 0 32551d2d96e1a8d9ddcbd2217e2cf02c touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-signs=full"
+    test_enc 0 f3a8315a951a00fc6e50431c0c45cc54 touchdown_1080p_yuv422p_10_bit_le_60_frames 1920 1080 yuv422p10le 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-signs=full"
 
 #   10bit(le) 1080p yuv422 single frame.
-    test_enc 0 cf5a7289e5912ef189263c0261b6d11c signal_1080p_yuv422p_10bit_le_1_frame 1920 1080 yuv422p10le 1 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-signs=full"
+    test_enc 0 7bdc62dd90dbd87d876b2857614d07b4 signal_1080p_yuv422p_10bit_le_1_frame 1920 1080 yuv422p10le 1 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-signs=full"
 
 #   coding-signs=fast (only disable/full were covered above).
-    test_enc 0 b17d116189f8c195a917b124c9d7feff touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-signs=fast"
+    test_enc 0 e8163e4fc0e79f9b40189af56a2434ef touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-signs=fast"
 
 #   quant-mode=uniform (only the default "deadzone" was covered above).
-    test_enc 0 27bc9cafba83ff7ed3d97533bb34a855 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 quant-mode=uniform"
+    test_enc 0 8193efa90a9669ef8d9eb49f03569117 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 quant-mode=uniform"
 
 #   rate-control-mode=cbr-slice (only the default "cbr-precinct" was covered above).
-    test_enc 0 23ca868263199c9aca1740538befdce6 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 rate-control-mode=cbr-slice"
+    test_enc 0 647afcada6cab302b67a78a04ced1b1b touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 rate-control-mode=cbr-slice"
 
 #   slice-height=8 (property range is only 1-16, unlike ffmpeg's slice_height AVOption).
-    test_enc 0 4cc8d2d7a7704b6e1b8febae077cc15c touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 slice-height=8"
+    test_enc 0 8e276abfe258e40181ddc533a8ad2b9f touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 slice-height=8"
 
 #   threads=4: byte-identical to EncoderTest.sh test_rate_control()'s
 #   "--coding-sigf 1 --coding-vpred 0 --rc 0 -n 5" row - confirms thread
 #   count only affects parallelism, not the encoded bitstream.
-    test_enc 0 1930cc847631284d1714f5e61bfa0727 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 threads=4"
+    test_enc 0 4a36a98fa2f7bc7687ff807fc869ef85 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 threads=4"
 
 #   coding-raw=false (disable packet-based raw-mode coding, for legacy-decoder
 #   compatibility). Requires SVT-JPEG-XS API >= 0.10 (conditionally available property).
-    test_enc 0 d57fdb18690ddba3048a567ede710b66 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-raw=false"
+    test_enc 0 ff67a30e2aab18f4f2b0eb2f093fb660 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-raw=false"
 
 #   cap-compat=true, combined with coding-raw=false so that no capability bit
 #   is actually set - this is the only way to make cap-compat observable
 #   (see FFmpegEncoderTest.sh for the same reasoning).
-    test_enc 0 ca2869cb249213e8694b5fb369501dea touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-raw=false cap-compat=true"
+    test_enc 0 083b8077b60cbd8bea4bf4554dda22d9 touchdown_1080p_yuv422p_8_bit_60_frames 1920 1080 yuv422p 5 "bits-per-pixel=3 decomp-v=2 decomp-h=5 coding-raw=false cap-compat=true"
 
 #   10bit(le) yuv420 (only 8bit yuv420 and 10bit yuv422 were covered above).
-    test_enc 0 9cdeef101ac439d439430e7068e6197a touchdown_1080p_yuv420p_10_bit_le_60_frames 1920 1080 yuv420p10le 5 "bits-per-pixel=4 decomp-v=2 decomp-h=5"
+    test_enc 0 eaa3503650cae18bde04cbb5d869b05d touchdown_1080p_yuv420p_10_bit_le_60_frames 1920 1080 yuv420p10le 5 "bits-per-pixel=4 decomp-v=2 decomp-h=5"
 }
 
 test_all

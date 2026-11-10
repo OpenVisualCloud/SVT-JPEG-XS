@@ -319,6 +319,9 @@ Input Options:
 [-n]                       Number of frames to encode
 [--limit-fps]              Limit number of frames per second
                             (disabled: 0, enabled [1-240])
+[--fps]                    Frame rate of the input, N or N/D (e.g. 50, 60000/1001); used only to
+                            derive the stream level, which is Unrestricted without it
+                            (default: unknown)
 ```
 
 `-n 0` (the default) encodes every frame in the input file. A value larger than the number of frames
@@ -385,11 +388,15 @@ Coding features used during Rate Calculation (quality/speed trade-off):
   - Any other configuration is declared Unrestricted (Ppih=0x0000); at `-v 4` or higher the encoder
     prints which restriction failed.
 
-  `--stream-level auto` picks the smallest level that fits the resolution, and the sublevel from
-  `--bpp` (unrestricted for `--lossless 1`).
-- `--stream-profile` values other than `auto` are written as given. The encoder prints a warning
-  for every restriction of the declared profile the stream breaks, for example High 444.12 with
-  `--coding-raw 1`.
+  `--stream-level auto` picks the lowest ISO/IEC 21122-2 level whose width, height, pixel count
+  and pixel rate limits fit the picture at `--fps` (5k-1 is not picked automatically, 8k-1 is used
+  instead). Every level limits the pixel rate, so without `--fps` the level is Unrestricted. The
+  sublevel is the smallest one the frame size from `--bpp` fits (a frame rounded up to whole bytes
+  moves to the next sublevel; Unrestricted above 12 bpp and for `--lossless 1`). For interlaced
+  video, pass the field rate.
+- `--stream-profile` and `--stream-level` values other than `auto` are written as given. The encoder
+  prints a warning for every restriction of the declared profile or level the stream breaks, for
+  example High 444.12 with `--coding-raw 1`, or 2k-1 for a 3840x2160 picture.
 
 Threading, performance:
 

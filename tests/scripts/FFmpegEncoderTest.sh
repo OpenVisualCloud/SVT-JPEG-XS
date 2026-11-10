@@ -290,7 +290,7 @@ function test_all {
     test_enc 0 af145673aedb1b2f97fd6591a72a78cb uncommon_resolution_8bit_422_1920x1081 1920 1081 yuv422p 1 "-bpp 3 -decomp_v 2 -decomp_h 5 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   Uncommon (odd) resolution 10bit(le) yuv420 1922x1082. NEW md5, pinned from this ffmpeg build.
-    test_enc 0 4e55029171172717c16b05af122f1726 uncommon_resolution_10bit_420_1922x1082 1922 1082 yuv420p10le 1 "-bpp 3 -decomp_v 1 -decomp_h 4 -coding-sigf 1 -coding-vpred disable -coding-signs full"
+    test_enc 0 88ed6ecb0e12488ddb1fa3c376404a4d uncommon_resolution_10bit_420_1922x1082 1922 1082 yuv420p10le 1 "-bpp 3 -decomp_v 1 -decomp_h 4 -coding-sigf 1 -coding-vpred disable -coding-signs full"
 
 #   coding-vpred=no_coeffs (mode 2, "VPRED FULL Mode 2" in EncoderTest.sh). NEW md5, pinned from this ffmpeg build.
 #   Previously untested value of the coding-vpred AVOption (only disable/no_residuals were covered above).

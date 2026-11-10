@@ -22,7 +22,7 @@ namespace {
 std::vector<uint8_t> encode_single_frame(uint32_t width, uint32_t height, uint8_t bit_depth, ColourFormat_t colour_format,
                                          uint32_t bpp_numerator, uint32_t bpp_denominator, uint16_t profile_ppih_override = 0,
                                          uint16_t level_plev_override = 0xFFFF, uint8_t coding_raw_disable = 0,
-                                         uint32_t ndecomp_v = 2) {
+                                         uint32_t ndecomp_v = 2, uint32_t fps_numerator = 0, uint32_t fps_denominator = 1) {
     svt_jpeg_xs_encoder_api_t enc;
     EXPECT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
               SvtJxsErrorNone);
@@ -37,6 +37,8 @@ std::vector<uint8_t> encode_single_frame(uint32_t width, uint32_t height, uint8_
     enc.level_plev_override = level_plev_override;
     enc.coding_raw_disable = coding_raw_disable;
     enc.ndecomp_v = ndecomp_v;
+    enc.fps_numerator = fps_numerator;
+    enc.fps_denominator = fps_denominator;
 
     svt_jpeg_xs_image_config_t image_config;
     uint32_t bytes_per_frame = 0;
@@ -298,55 +300,232 @@ TEST(StreamProfileOverrideCheck, UnknownAndUnsupportedCodepoints) {
 }
 
 /*
- * derive_stream_level_plev(): unit tests across resolution / bpp combinations.
+ * derive_stream_level_plev(): unit tests against ISO/IEC 21122-2 Tables A.8, A.9 and A.16.
  */
-TEST(StreamLevelDerivation, SmallResolutionIs1k1) {
-    uint16_t plev = derive_stream_level_plev(640, 480, 8, 1, 0);
-    EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_1K_1);
+namespace {
+
+uint16_t level_of(uint32_t width, uint32_t height, uint32_t fps_numerator, uint32_t fps_denominator = 1) {
+    StreamLevelParams params = {width, height, fps_numerator, fps_denominator, (uint64_t)width * height * 3 / 8, 0};
+    return derive_stream_level_plev(&params, VERBOSE_NONE) & 0xFF00;
 }
 
-TEST(StreamLevelDerivation, FullHdIs2k1) {
-    uint16_t plev = derive_stream_level_plev(1920, 1080, 8, 1, 0);
-    EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_2K_1);
+/* Frame size as the encoder computes it for a bpp target: ceil(floor(w * h * bpp) / 8) bytes. */
+uint64_t frame_bytes_for(uint32_t width, uint32_t height, uint32_t bpp_numerator, uint32_t bpp_denominator) {
+    return ((uint64_t)width * height * bpp_numerator / bpp_denominator + 7) / 8;
 }
 
-TEST(StreamLevelDerivation, Uhd4kIs4k1) {
-    uint16_t plev = derive_stream_level_plev(3840, 2160, 8, 1, 0);
-    EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_4K_1);
+uint16_t sublevel_of(uint32_t bpp_numerator, uint32_t bpp_denominator, uint8_t lossless = 0) {
+    StreamLevelParams params = {640, 480, 30, 1, frame_bytes_for(640, 480, bpp_numerator, bpp_denominator), lossless};
+    return derive_stream_level_plev(&params, VERBOSE_NONE) & 0x00FF;
 }
 
-TEST(StreamLevelDerivation, Square4096PicksHigherThroughput4k3) {
-    // 4096x4096 exceeds the 4k-1 pixel-count bound; 4k-2/4k-3 share identical bounds, only the
-    // higher-throughput (safer, since no fps is known) variant 4k-3 must be picked.
-    uint16_t plev = derive_stream_level_plev(4096, 4096, 8, 1, 0);
-    EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_4K_3);
+} // namespace
+
+/* Every non-Bayer example resolution of Table A.8 maps to the level it is listed under, except
+ * where a lower level already covers it (Table A.8 lists examples, not minima). */
+TEST(StreamLevelDerivation, TableA8ExamplesPickLowestLevel) {
+    struct Case {
+        uint32_t width, height, fps;
+        uint16_t level;
+    };
+    // clang-format off
+    const Case cases[] = {
+        {1280, 720, 60, JXS_PLEV_LEVEL_1K_1},
+        {1280, 720, 120, JXS_PLEV_LEVEL_2K_1},
+        {1920, 1080, 30, JXS_PLEV_LEVEL_2K_1},
+        {1920, 1080, 60, JXS_PLEV_LEVEL_2K_1},
+        {2048, 1536, 30, JXS_PLEV_LEVEL_2K_1},
+        {2048, 2048, 30, JXS_PLEV_LEVEL_2K_1},
+        {2048, 1080, 60, JXS_PLEV_LEVEL_2K_1},
+        {1920, 1080, 120, JXS_PLEV_LEVEL_4K_1},
+        {3840, 2160, 30, JXS_PLEV_LEVEL_4K_1},
+        {4096, 2160, 30, JXS_PLEV_LEVEL_4K_1},
+        {1920, 1080, 240, JXS_PLEV_LEVEL_4K_2},
+        {3840, 2160, 60, JXS_PLEV_LEVEL_4K_2},
+        {4096, 3072, 30, JXS_PLEV_LEVEL_4K_2},
+        {4096, 4096, 30, JXS_PLEV_LEVEL_4K_2},
+        {4096, 2160, 60, JXS_PLEV_LEVEL_4K_2},
+        {1920, 1080, 480, JXS_PLEV_LEVEL_4K_3},
+        {2048, 1080, 480, JXS_PLEV_LEVEL_4K_3},
+        {4096, 3072, 60, JXS_PLEV_LEVEL_4K_3},
+        {4096, 4096, 60, JXS_PLEV_LEVEL_4K_3},
+        {3840, 2160, 120, JXS_PLEV_LEVEL_4K_3},
+        {4096, 2160, 120, JXS_PLEV_LEVEL_4K_3},
+        {7680, 4320, 30, JXS_PLEV_LEVEL_8K_1},
+        {8192, 4320, 30, JXS_PLEV_LEVEL_8K_1},
+        {3840, 2160, 240, JXS_PLEV_LEVEL_8K_2},
+        {8192, 6144, 30, JXS_PLEV_LEVEL_8K_2},
+        {8192, 8192, 30, JXS_PLEV_LEVEL_8K_2},
+        {7680, 4320, 60, JXS_PLEV_LEVEL_8K_2},
+        {8192, 4320, 60, JXS_PLEV_LEVEL_8K_2},
+        {3840, 2160, 480, JXS_PLEV_LEVEL_8K_3},
+        {4096, 2160, 480, JXS_PLEV_LEVEL_8K_3},
+        {8192, 6144, 60, JXS_PLEV_LEVEL_8K_3},
+        {8192, 8192, 60, JXS_PLEV_LEVEL_8K_3},
+        {7680, 4320, 120, JXS_PLEV_LEVEL_8K_3},
+        {8192, 4320, 120, JXS_PLEV_LEVEL_8K_3},
+        {10240, 7680, 30, JXS_PLEV_LEVEL_10K_1},
+        {10240, 10240, 30, JXS_PLEV_LEVEL_10K_1},
+        {10240, 4320, 60, JXS_PLEV_LEVEL_10K_1},
+        {10240, 5400, 60, JXS_PLEV_LEVEL_10K_1},
+    };
+    // clang-format on
+    for (const Case &c : cases) {
+        EXPECT_EQ(level_of(c.width, c.height, c.fps), c.level) << c.width << "x" << c.height << "@" << c.fps;
+    }
 }
 
-TEST(StreamLevelDerivation, Uhd8kIs8k1) {
-    uint16_t plev = derive_stream_level_plev(7680, 4320, 8, 1, 0);
-    EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_8K_1);
+TEST(StreamLevelDerivation, SampleRateBoundIsInclusiveAndFractional) {
+    /* 2k-1 Rs,max = 133693440 = 2048*1088*60: exactly at the bound stays in 2k-1. */
+    EXPECT_EQ(level_of(2048, 1088, 60), JXS_PLEV_LEVEL_2K_1);
+    EXPECT_EQ(level_of(2048, 1090, 60), JXS_PLEV_LEVEL_4K_1);
+    /* 1920x1080 at 60000/1001 and 120000/1001. */
+    EXPECT_EQ(level_of(1920, 1080, 60000, 1001), JXS_PLEV_LEVEL_2K_1);
+    EXPECT_EQ(level_of(1920, 1080, 120000, 1001), JXS_PLEV_LEVEL_4K_1);
+    /* Interlaced 1080i: each field is a 1920x540 picture, at 60 fields per second. */
+    EXPECT_EQ(level_of(1920, 540, 60), JXS_PLEV_LEVEL_2K_1);
 }
 
-TEST(StreamLevelDerivation, HugeResolutionFallsBackToUnrestrictedLevel) {
-    uint16_t plev = derive_stream_level_plev(20000, 20000, 8, 1, 0);
-    EXPECT_EQ(plev & 0xFC00, JXS_PLEV_LEVEL_UNRESTRICTED);
+TEST(StreamLevelDerivation, WidthHeightAndPixelCountBounds) {
+    EXPECT_EQ(level_of(1280, 2048, 1), JXS_PLEV_LEVEL_1K_1); /* Wmax and Lmax = 1280*2048 of 1k-1 */
+    EXPECT_EQ(level_of(1281, 720, 1), JXS_PLEV_LEVEL_2K_1);  /* wider than 1k-1 */
+    EXPECT_EQ(level_of(64, 5121, 1), JXS_PLEV_LEVEL_2K_1);   /* taller than 1k-1 */
+    EXPECT_EQ(level_of(4096, 2176, 1), JXS_PLEV_LEVEL_4K_1); /* Lmax of 4k-1 = 4096*2176 */
+    EXPECT_EQ(level_of(4096, 2177, 1), JXS_PLEV_LEVEL_4K_2);
+    EXPECT_EQ(level_of(10240, 10240, 1), JXS_PLEV_LEVEL_10K_1);
+    EXPECT_EQ(level_of(10241, 64, 1), JXS_PLEV_LEVEL_UNRESTRICTED);
+    EXPECT_EQ(level_of(64, 40961, 1), JXS_PLEV_LEVEL_UNRESTRICTED);
+}
+
+TEST(StreamLevelDerivation, FiveKWidthUses8k1Not5k1) {
+    /* 5k-1 (2024/Amd 1) is rejected by the edition 3 reference decoder; 8k-1 also bounds it. */
+    EXPECT_EQ(level_of(5120, 2880, 30), JXS_PLEV_LEVEL_8K_1);
+    EXPECT_EQ(level_of(4097, 2160, 30), JXS_PLEV_LEVEL_8K_1);
+}
+
+TEST(StreamLevelDerivation, RateBeyondEveryLevelIsUnrestricted) {
+    EXPECT_EQ(level_of(1920, 1080, 4000), JXS_PLEV_LEVEL_UNRESTRICTED); /* 8.3 G/s > 8k-3 4.28 G/s */
+    EXPECT_EQ(level_of(10240, 10240, 60), JXS_PLEV_LEVEL_UNRESTRICTED);
+    /* Extreme frame rates: pixels (at most Lmax) * fps_numerator and Rs,max * fps_denominator both
+     * stay within 64 bits. */
+    EXPECT_EQ(level_of(64, 64, 0xFFFFFFFFu, 1), JXS_PLEV_LEVEL_UNRESTRICTED);
+    EXPECT_EQ(level_of(64, 64, 1, 0xFFFFFFFFu), JXS_PLEV_LEVEL_1K_1);
+    EXPECT_EQ(level_of(8192, 8192, 0xFFFFFFFFu, 0xFFFFFFFFu), JXS_PLEV_LEVEL_8K_2);
+    EXPECT_EQ(level_of(10240, 10240, 1, 0xFFFFFFFFu), JXS_PLEV_LEVEL_10K_1);
+}
+
+TEST(StreamLevelDerivation, UnknownFrameRateIsUnrestricted) {
+    EXPECT_EQ(level_of(640, 480, 0), JXS_PLEV_LEVEL_UNRESTRICTED);
+    EXPECT_EQ(level_of(640, 480, 30, 0), JXS_PLEV_LEVEL_UNRESTRICTED);
+    /* The sublevel does not depend on the frame rate. */
+    StreamLevelParams params = {640, 480, 0, 1, frame_bytes_for(640, 480, 3, 1), 0};
+    EXPECT_EQ(derive_stream_level_plev(&params, VERBOSE_NONE), (uint16_t)JXS_PLEV_SUBLEVEL_3BPP);
 }
 
 TEST(StreamLevelDerivation, SublevelBucketsPickSmallestBoundThatCovers) {
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 2, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_2BPP);
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 5, 2, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_3BPP); // 2.5bpp -> 3bpp bucket
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 4, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_4BPP);
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 6, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_6BPP);
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 9, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_9BPP);
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 12, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_12BPP);
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 15, 1, 0) & 0x00FF, JXS_PLEV_SUBLEVEL_UNRESTRICTED);
+    EXPECT_EQ(sublevel_of(2, 1), JXS_PLEV_SUBLEVEL_2BPP);
+    EXPECT_EQ(sublevel_of(5, 2), JXS_PLEV_SUBLEVEL_3BPP); // 2.5bpp -> 3bpp bucket
+    EXPECT_EQ(sublevel_of(3, 1), JXS_PLEV_SUBLEVEL_3BPP);
+    EXPECT_EQ(sublevel_of(301, 100), JXS_PLEV_SUBLEVEL_4BPP);
+    EXPECT_EQ(sublevel_of(4, 1), JXS_PLEV_SUBLEVEL_4BPP);
+    EXPECT_EQ(sublevel_of(6, 1), JXS_PLEV_SUBLEVEL_6BPP);
+    EXPECT_EQ(sublevel_of(9, 1), JXS_PLEV_SUBLEVEL_9BPP);
+    EXPECT_EQ(sublevel_of(12, 1), JXS_PLEV_SUBLEVEL_12BPP);
+    EXPECT_EQ(sublevel_of(15, 1), JXS_PLEV_SUBLEVEL_UNRESTRICTED);
+}
+
+TEST(StreamLevelDerivation, SublevelUsesTheRoundedUpFrameSize) {
+    /* 1922x1081 at 2 bpp: 4155364 bits round up to 519421 bytes, 4 bits over 2 bpp. The ISO/IEC
+     * 21122-5 reference decoder rejects such a stream declared as Sublev2bpp. */
+    StreamLevelParams params = {1922, 1081, 30, 1, frame_bytes_for(1922, 1081, 2, 1), 0};
+    EXPECT_EQ(params.frame_bytes, 519421u);
+    EXPECT_EQ(derive_stream_level_plev(&params, VERBOSE_NONE) & 0x00FF, JXS_PLEV_SUBLEVEL_3BPP);
+    /* 1920x1080 at 2 bpp is a whole number of bytes and stays in Sublev2bpp. */
+    params = {1920, 1080, 30, 1, frame_bytes_for(1920, 1080, 2, 1), 0};
+    EXPECT_EQ(derive_stream_level_plev(&params, VERBOSE_NONE) & 0x00FF, JXS_PLEV_SUBLEVEL_2BPP);
+    /* Unknown size: Unrestricted sublevel. */
+    params = {1920, 1080, 30, 1, 0, 0};
+    EXPECT_EQ(derive_stream_level_plev(&params, VERBOSE_NONE) & 0x00FF, JXS_PLEV_SUBLEVEL_UNRESTRICTED);
 }
 
 TEST(StreamLevelDerivation, LosslessForcesUnrestrictedSublevelRegardlessOfBpp) {
     // bpp_numerator/bpp_denominator are meaningless for lossless (Table A.9 NOTE 3); a low bpp
     // fraction here must not narrow the declared sublevel, since real lossless output far exceeds it.
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 0, 1, 1) & 0x00FF, JXS_PLEV_SUBLEVEL_UNRESTRICTED);
-    EXPECT_EQ(derive_stream_level_plev(640, 480, 2, 1, 1) & 0x00FF, JXS_PLEV_SUBLEVEL_UNRESTRICTED);
+    EXPECT_EQ(sublevel_of(2, 1, 1), JXS_PLEV_SUBLEVEL_UNRESTRICTED);
+    EXPECT_EQ(sublevel_of(12, 1, 1), JXS_PLEV_SUBLEVEL_UNRESTRICTED);
+    EXPECT_EQ(sublevel_of(12, 1, 0), JXS_PLEV_SUBLEVEL_12BPP);
+}
+
+/*
+ * check_stream_level_plev(): level_plev_override is written verbatim, but problems are reported.
+ */
+TEST(StreamLevelOverrideCheck, LevelBounds) {
+    /* BirdDog 2026-11-10 sample: 3840x2160 declared 2k-1. */
+    StreamLevelParams params = {3840, 2160, 0, 1, frame_bytes_for(3840, 2160, 2, 1), 0};
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_2K_1 | JXS_PLEV_SUBLEVEL_3BPP, JXS_PPIH_HIGH_444_12, &params, VERBOSE_NONE),
+              1u);
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_4K_1 | JXS_PLEV_SUBLEVEL_3BPP, JXS_PPIH_HIGH_444_12, &params, VERBOSE_NONE),
+              0u);
+    /* With the frame rate known, 4k-1 is too low for 2160p60. */
+    params.fps_numerator = 60;
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_4K_1 | JXS_PLEV_SUBLEVEL_3BPP, JXS_PPIH_HIGH_444_12, &params, VERBOSE_NONE),
+              1u);
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_4K_2 | JXS_PLEV_SUBLEVEL_3BPP, JXS_PPIH_HIGH_444_12, &params, VERBOSE_NONE),
+              0u);
+    /* 5k-1 is a valid override, checked with its own bounds. */
+    params = {5120, 2880, 30, 1, frame_bytes_for(5120, 2880, 3, 1), 0};
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_5K_1 | JXS_PLEV_SUBLEVEL_3BPP, 0, &params, VERBOSE_NONE), 0u);
+    /* 5k-1 bounds: 5121 wide, or 5120x2880 above its pixel rate. */
+    params.width = 5121;
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_5K_1 | JXS_PLEV_SUBLEVEL_3BPP, 0, &params, VERBOSE_NONE), 1u);
+    params.width = 5120;
+    params.fps_numerator = 120;
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_5K_1 | JXS_PLEV_SUBLEVEL_3BPP, 0, &params, VERBOSE_NONE), 1u);
+    params.fps_numerator = 30;
+    /* Unknown level codes (incl. bit 15); the Unrestricted level always holds. */
+    EXPECT_EQ(check_stream_level_plev(0x0C00, 0, &params, VERBOSE_NONE), 1u);
+    EXPECT_EQ(check_stream_level_plev(0x8000 | JXS_PLEV_LEVEL_2K_1, 0, &params, VERBOSE_NONE), 1u);
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_UNRESTRICTED, 0, &params, VERBOSE_NONE), 0u);
+}
+
+TEST(StreamLevelOverrideCheck, SublevelBounds) {
+    StreamLevelParams params = {1922, 1081, 30, 1, frame_bytes_for(1922, 1081, 2, 1), 0};
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_2K_1 | JXS_PLEV_SUBLEVEL_2BPP, 0, &params, VERBOSE_NONE), 1u);
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_2K_1 | JXS_PLEV_SUBLEVEL_3BPP, 0, &params, VERBOSE_NONE), 0u);
+    /* Unknown sublevel code, FBB-level bits, Full sublevel without and with a named profile. */
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_2K_1 | 0x05, 0, &params, VERBOSE_NONE), 1u);
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_2K_1 | 0x0300, 0, &params, VERBOSE_NONE), 1u);
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_2K_1 | JXS_PLEV_SUBLEVEL_FULL, 0, &params, VERBOSE_NONE), 1u);
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_2K_1 | JXS_PLEV_SUBLEVEL_FULL, JXS_PPIH_MAIN_422_10, &params, VERBOSE_NONE),
+              0u);
+    /* 24 bpp is beyond Full of Main 422.10 (20 bpp). */
+    params.frame_bytes = frame_bytes_for(1922, 1081, 24, 1);
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_2K_1 | JXS_PLEV_SUBLEVEL_FULL, JXS_PPIH_MAIN_422_10, &params, VERBOSE_NONE),
+              1u);
+    /* Full with a profile this encoder cannot produce: the profile check reports it, not this one. */
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_2K_1 | JXS_PLEV_SUBLEVEL_FULL, 0xB340, &params, VERBOSE_NONE), 0u);
+    /* Several problems at once are all counted: level too small, sublevel too small, FBB bits. */
+    params.frame_bytes = frame_bytes_for(1922, 1081, 24, 1);
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_1K_1 | 0x0300 | JXS_PLEV_SUBLEVEL_2BPP, 0, &params, VERBOSE_NONE), 3u);
+    /* Lossless output is content-dependent: a named sublevel cannot be guaranteed. */
+    params = {1920, 1080, 30, 1, 0, 1};
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_2K_1 | JXS_PLEV_SUBLEVEL_12BPP, JXS_PPIH_MLS_12, &params, VERBOSE_NONE), 1u);
+    EXPECT_EQ(check_stream_level_plev(JXS_PLEV_LEVEL_2K_1, JXS_PPIH_MLS_12, &params, VERBOSE_NONE), 0u);
+}
+
+TEST(StreamLevelOverrideCheck, AutoSelectionAlwaysPassesItsOwnCheck) {
+    const uint32_t sizes[][2] = {{640, 480}, {1920, 1080}, {1922, 1081}, {3840, 2160}, {5120, 2880}, {7680, 4320}, {10240, 4320}};
+    const uint32_t rates[][2] = {{0, 1}, {25, 1}, {60000, 1001}, {120, 1}, {480, 1}};
+    for (const auto &size : sizes) {
+        for (const auto &rate : rates) {
+            for (uint32_t bpp : {1, 2, 3, 5, 12, 20}) {
+                StreamLevelParams params = {size[0], size[1], rate[0], rate[1], frame_bytes_for(size[0], size[1], bpp, 1), 0};
+                const uint16_t plev = derive_stream_level_plev(&params, VERBOSE_NONE);
+                EXPECT_EQ(check_stream_level_plev(plev, JXS_PPIH_HIGH_444_12, &params, VERBOSE_NONE), 0u)
+                    << size[0] << "x" << size[1] << " plev " << std::hex << plev;
+            }
+        }
+    }
 }
 
 /*
@@ -359,7 +538,8 @@ TEST(StreamProfileLevelEncodeIntegration, DefaultYuv422IsCHigh444) {
     ASSERT_GT(bitstream.size(), 0u);
     picture_header_const_t phc = probe_header(bitstream);
     EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_CHIGH_444_12);
-    EXPECT_EQ(phc.hdr_Plev, derive_stream_level_plev(256, 256, 8, 1, 0));
+    /* No frame rate given: Unrestricted level, sublevel from the 8 bpp target. */
+    EXPECT_EQ(phc.hdr_Plev, (uint16_t)(JXS_PLEV_LEVEL_UNRESTRICTED | JXS_PLEV_SUBLEVEL_9BPP));
 }
 
 TEST(StreamProfileLevelEncodeIntegration, DefaultYuv420IsUnrestricted) {
@@ -368,7 +548,7 @@ TEST(StreamProfileLevelEncodeIntegration, DefaultYuv420IsUnrestricted) {
     ASSERT_GT(bitstream.size(), 0u);
     picture_header_const_t phc = probe_header(bitstream);
     EXPECT_EQ(phc.hdr_Ppih, JXS_PPIH_UNRESTRICTED);
-    EXPECT_EQ(phc.hdr_Plev, derive_stream_level_plev(256, 256, 6, 1, 0));
+    EXPECT_EQ(phc.hdr_Plev, (uint16_t)(JXS_PLEV_LEVEL_UNRESTRICTED | JXS_PLEV_SUBLEVEL_6BPP));
 }
 
 TEST(StreamProfileLevelEncodeIntegration, RawModeDisabledSelectsMainOrHigh) {
@@ -400,6 +580,34 @@ TEST(StreamProfileLevelEncodeIntegration, ShortPictureSliceIsUnrestricted) {
     std::vector<uint8_t> bitstream = encode_single_frame(256, 8, 8, COLOUR_FORMAT_PLANAR_YUV422, 6, 1, 0, 0xFFFF, 1, 1);
     ASSERT_GT(bitstream.size(), 0u);
     EXPECT_EQ(probe_header(bitstream).hdr_Ppih, JXS_PPIH_UNRESTRICTED);
+}
+
+TEST(StreamProfileLevelEncodeIntegration, FrameRateSelectsLevel) {
+    /* 1280x720 at 60 fps is within 1k-1, at 120 fps it needs 2k-1 (Table A.8 examples). */
+    std::vector<uint8_t> bitstream = encode_single_frame(1280, 720, 8, COLOUR_FORMAT_PLANAR_YUV422, 3, 1, 0, 0xFFFF, 0, 2, 60, 1);
+    ASSERT_GT(bitstream.size(), 0u);
+    EXPECT_EQ(probe_header(bitstream).hdr_Plev, (uint16_t)(JXS_PLEV_LEVEL_1K_1 | JXS_PLEV_SUBLEVEL_3BPP));
+    bitstream = encode_single_frame(1280, 720, 8, COLOUR_FORMAT_PLANAR_YUV422, 3, 1, 0, 0xFFFF, 0, 2, 120000, 1001);
+    ASSERT_GT(bitstream.size(), 0u);
+    EXPECT_EQ(probe_header(bitstream).hdr_Plev, (uint16_t)(JXS_PLEV_LEVEL_2K_1 | JXS_PLEV_SUBLEVEL_3BPP));
+}
+
+TEST(StreamProfileLevelEncodeIntegration, ZeroFpsDenominatorIsRejected) {
+    svt_jpeg_xs_encoder_api_t enc;
+    ASSERT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
+              SvtJxsErrorNone);
+    EXPECT_EQ(enc.fps_numerator, 0u);
+    EXPECT_EQ(enc.fps_denominator, 1u);
+    enc.verbose = VERBOSE_NONE;
+    enc.source_width = 256;
+    enc.source_height = 256;
+    enc.input_bit_depth = 8;
+    enc.colour_format = COLOUR_FORMAT_PLANAR_YUV422;
+    enc.bpp_numerator = 3;
+    enc.bpp_denominator = 1;
+    enc.fps_numerator = 30;
+    enc.fps_denominator = 0;
+    EXPECT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc), SvtJxsErrorBadParameter);
 }
 
 TEST(StreamProfileLevelEncodeIntegration, ProfileOverrideIsUsedVerbatim) {

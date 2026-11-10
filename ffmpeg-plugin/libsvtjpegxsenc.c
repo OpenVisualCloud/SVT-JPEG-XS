@@ -304,6 +304,17 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
     svt_enc->encoder.source_width = avctx->width;
     svt_enc->encoder.source_height = avctx->height;
 
+    /* Every JPEG XS level bounds the number of samples per second, so the
+     * library needs the frame rate to declare one. Frame timestamps are
+     * multiples of time_base, so 1/time_base never understates the rate. */
+    if (avctx->framerate.num > 0 && avctx->framerate.den > 0) {
+        svt_enc->encoder.fps_numerator = avctx->framerate.num;
+        svt_enc->encoder.fps_denominator = avctx->framerate.den;
+    } else if (avctx->time_base.num > 0 && avctx->time_base.den > 0) {
+        svt_enc->encoder.fps_numerator = avctx->time_base.den;
+        svt_enc->encoder.fps_denominator = avctx->time_base.num;
+    }
+
     if ((ret = set_pix_fmt(avctx, &(svt_enc->encoder))) < 0) {
         return ret;
     }

@@ -148,14 +148,15 @@ The installed SVT-JPEG-XS library must support `rct`, `coding_raw`, `stream_prof
   With `GBRPLANAR10LE` / `12LE` the codestream meets TR-08 too, but the sender can't claim the
   IPMX-JPEG-XS profile.
 * The file applies to every encoder session of the process, so one process can send only the
-  streams one file is for, and nothing checks that the file matches the stream. TR-08 allows
-  only the levels 1k-1, 2k-1, 4k-2 and 8k-2 and needs the lowest of them that fits width,
+  streams one file is for. The library warns (it still writes the values as given) when the
+  stream breaks the declared profile or level, for example a 2160p stream with the 1080p file.
+  TR-08 allows only the levels 1k-1, 2k-1, 4k-2 and 8k-2 and needs the lowest of them that fits width,
   height and frame rate: 2k-1 holds 2048 pixels wide and 133.7 M pixels/s (1080p up to 64 fps),
   4k-2 4096 pixels wide and 534.8 M pixels/s (2160p up to 64 fps), ISO/IEC 21122-2 Table A.8.
   4k-1, which Table A.8 lists for 2160p30, is not allowed by TR-08.
 * Sublev3bpp is for up to 3 bpp, the MTL samples' and RxTxApp's rate. Above 3 bpp, up to
   4 bpp, TR-08 needs Sublev4bpp; the encoder writes `stream_level` as given, so a 4 bpp stream
-  with the shipped files claims a wrong Sublev3bpp. For 4 bpp, the rate of the TR-08 Appendix B
+  with the shipped files claims a wrong Sublev3bpp (the library warns about it). For 4 bpp, the rate of the TR-08 Appendix B
   RGB interoperability points, set the low byte to `06` and, unless the application already
   asks for 4 bpp, add `"bpp": 4`:
   `"stream_level": "0x1006", "bpp": 4` (1080p), `"stream_level": "0x2406", "bpp": 4` (2160p).

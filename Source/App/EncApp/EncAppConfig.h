@@ -25,6 +25,7 @@ typedef struct EncoderConfig {
     uint8_t progress; // 0 = no progress output, 1 = normal, verbose progress
     uint32_t frames_count;
     uint32_t limit_fps;
+    uint8_t fps_invalid; // --fps value failed to parse
 
     svt_jpeg_xs_encoder_api_t encoder;
     svt_jpeg_xs_image_config_t image_config;

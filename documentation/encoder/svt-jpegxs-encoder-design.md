@@ -383,10 +383,13 @@ The profile (Ppih) and level (Plev) are written verbatim into the picture header
   (NL,y 2) for the colour format. With Rl=1 it selects CHigh 444.12 for 4:2:2 and 4:4:4 lossy input. Light profiles
   are never selected, because their smaller decoder smoothing buffer is not guaranteed. In every
   other case it declares Unrestricted (Ppih=0x0000) and warns with the failed restrictions.
-- `derive_stream_level_plev()` selects the smallest level whose width, height and pixel count limits fit the picture, and
-  the sublevel from the bpp (2, 3, 4, 6, 9 or 12 bpp, unrestricted above and for lossless coding).
-- A `profile_ppih_override` is written verbatim. `check_stream_profile_ppih()` tests it with the same rules and prints a
-  warning per broken restriction at verbose >= `VERBOSE_SYSTEM_INFO`.
+- `derive_stream_level_plev()` selects the first ISO/IEC 21122-2 Table A.8 level whose width, height, pixel count and
+  pixel rate limits fit the picture at `fps_numerator`/`fps_denominator`. 5k-1 is skipped because the ISO/IEC 21122-5
+  edition 3 reference decoder rejects it. Without a frame rate, or when no level fits, the level is Unrestricted. The
+  sublevel is the smallest of 2, 3, 4, 6, 9 or 12 bpp that the frame size (Lcod, rounded up to whole bytes) fits,
+  unrestricted above and for lossless coding.
+- Overrides are written verbatim. `check_stream_profile_ppih()` and `check_stream_level_plev()` test them with the same
+  rules and print a warning per broken restriction at verbose >= `VERBOSE_SYSTEM_INFO`.
 
 Packet header size (EncHandle.c, after `pi_compute()`): decoders read short packet headers only when Wf×Nc < 32752
 and Lh=0 (ISO/IEC 21122-1 Table C.3). Short headers hold data, bitplane count and sign subpackets below 2^15, 2^13

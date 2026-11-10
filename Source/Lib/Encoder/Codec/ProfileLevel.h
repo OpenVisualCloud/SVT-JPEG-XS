@@ -58,7 +58,7 @@ typedef enum StreamLevelPlev {
     JXS_PLEV_LEVEL_4K_1 = 0x0008 << 10,
     JXS_PLEV_LEVEL_4K_2 = 0x0009 << 10,
     JXS_PLEV_LEVEL_4K_3 = 0x000A << 10,
-    JXS_PLEV_LEVEL_5K_1 = 0x000B << 10,
+    JXS_PLEV_LEVEL_5K_1 = 0x000B << 10, /* 21122-2:2024/Amd 1. */
     JXS_PLEV_LEVEL_8K_1 = 0x000C << 10,
     JXS_PLEV_LEVEL_8K_2 = 0x000D << 10,
     JXS_PLEV_LEVEL_8K_3 = 0x000E << 10,
@@ -70,6 +70,7 @@ typedef enum StreamLevelPlev {
  * are the only profiles that require a frame-buffer bandwidth bound. */
 typedef enum StreamSublevelPlev {
     JXS_PLEV_SUBLEVEL_UNRESTRICTED = 0x00,
+    JXS_PLEV_SUBLEVEL_FULL = 0x80, /* Nbpp = maximum decoded bpp of the profile (Table A.6). */
     JXS_PLEV_SUBLEVEL_12BPP = 0x10,
     JXS_PLEV_SUBLEVEL_9BPP = 0x0C,
     JXS_PLEV_SUBLEVEL_6BPP = 0x08,
@@ -95,17 +96,33 @@ uint16_t derive_stream_profile_ppih(const StreamProfileParams* params, uint32_t 
  * declaration holds). Unrestricted (0x0000) always holds. */
 uint32_t check_stream_profile_ppih(uint16_t ppih, const StreamProfileParams* params, uint32_t verbose);
 
-/* Derive the Plev (level + sublevel) codeword from picture resolution and target bits-per-pixel.
- * Always returns a validly-defined Plev codeword: falls back to the "Unrestricted" level and/or
- * sublevel when resolution or bpp exceed every specifically defined bucket. When several defined
- * levels bound the same resolution, the variant with the highest declared pixel-rate (Rs,max) is
- * selected, since the encoder has no explicit frame-rate input to disambiguate and over-declaring
- * throughput capability is always a conformant (if less specific) choice; under-declaring would not
- * be. bpp_numerator/bpp_denominator are ignored (sublevel forced Unrestricted) when lossless_enable
- * is set, since lossless output size is data-dependent and not bounded by a nominal bpp target
- * (Table A.9 NOTE 3). */
-uint16_t derive_stream_level_plev(uint32_t width, uint32_t height, uint32_t bpp_numerator, uint32_t bpp_denominator,
-                                  uint32_t lossless_enable);
+typedef struct StreamLevelParams {
+    uint32_t width;           /* Wf */
+    uint32_t height;          /* Hf */
+    uint32_t fps_numerator;   /* Frame rate; 0 = unknown. */
+    uint32_t fps_denominator; /* 0 = unknown. */
+    uint64_t frame_bytes;     /* Codestream size of one picture, SOC to EOC (Lcod); 0 = unknown. */
+    uint8_t lossless;         /* The codestream size is data-dependent. */
+} StreamLevelParams;
+
+/* Derive the Plev (level + sublevel) codeword (ISO/IEC 21122-2 Tables A.8, A.9, A.15, A.16).
+ * Level: the first Table A.8 level (in table order, 5k-1 excluded) whose Wmax, Hmax, Lmax and
+ * Rs,max bound the picture width, height, pixel count and pixel count per second. A level bounds the
+ * sample rate, so with an unknown frame rate, or when no level fits, the Unrestricted level is
+ * declared and a warning is printed when verbose >= VERBOSE_WARNINGS.
+ * Sublevel: the smallest Nbpp (2, 3, 4, 6, 9, 12) with frame_bytes * 8 <= Nbpp * width * height,
+ * so the bits per pixel of every codestream stay within it, as the ISO/IEC 21122-5 reference decoder
+ * checks. That also keeps the size and rate within Ssl,max and Rt,max of the level. Unrestricted
+ * above 12 bpp, for an unknown size and for lossless coding (Table A.9 NOTE 3). */
+uint16_t derive_stream_level_plev(const StreamLevelParams* params, uint32_t verbose);
+
+/* Check a caller-declared Plev (level_plev_override) against the stream: unknown level, sublevel
+ * or FBB-level codes, width/height/pixel count and, when the frame rate is known, pixel rate
+ * beyond the level, bits per pixel beyond the sublevel, a named sublevel for lossless coding, and
+ * the Full sublevel with the Unrestricted profile. ppih is the declared profile, used for the Full
+ * sublevel. Prints one warning per problem when verbose >= VERBOSE_SYSTEM_INFO and returns the
+ * number of problems found. */
+uint32_t check_stream_level_plev(uint16_t plev, uint16_t ppih, const StreamLevelParams* params, uint32_t verbose);
 
 #ifdef __cplusplus
 }
