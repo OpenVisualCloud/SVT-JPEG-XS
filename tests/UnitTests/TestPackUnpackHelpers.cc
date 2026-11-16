@@ -3,24 +3,19 @@
 * SPDX - License - Identifier: BSD - 2 - Clause - Patent
 */
 
-/* The helpers of the AVX-512 pack and unpack paths.
- *
- * They live here rather than next to the other unit tests because PDEP and PEXT
- * need BMI2, and this directory is the only one built with the same flags as the
- * production AVX-512 directories. */
+/* The pack/unpack helpers use AVX2 plus function-scoped BMI2 target attributes.
+ * Keep test registration in the baseline unit-test target: AVX-512 compilation
+ * can put unsupported instructions in sanitizer startup code before CPU checks. */
 
 #include "gtest/gtest.h"
+
+#ifdef ARCH_X86_64
 #include "random.h"
-#include "pack_group_helper_avx512.h"
+#include "pack_group_helper.h"
 #include "unpack_common.h"
-#include "unpack_common_avx512.h"
 #include "common_dsp_rtcd.h"
 #include "EncDec.h" /* TRUNCATION_MAX */
 
-/* The whole translation unit is compiled with AVX-512 enabled, so the compiler
- * may put those instructions anywhere in it, not only where an intrinsic asks.
- * BMI2 comes along for PDEP and PEXT - the same pair of conditions the runtime
- * dispatch checks before it hands work to this tier. */
 /* The generator hands out sixteen bits at a time. */
 static uint64_t rand64(svt_jxs_test_tool::SVTRandom* rnd) {
     uint64_t v = 0;
@@ -30,8 +25,8 @@ static uint64_t rand64(svt_jxs_test_tool::SVTRandom* rnd) {
     return v;
 }
 
-static bool avx512_usable(void) {
-    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_BMI2;
+static bool bmi2_usable(void) {
+    const CPU_FLAGS required = CPU_FLAGS_AVX2 | CPU_FLAGS_BMI2;
     return (get_cpu_flags() & required) == required;
 }
 
@@ -53,8 +48,8 @@ static uint64_t planes_to_lanes_ref(uint64_t acc, uint8_t gtli) {
 /* Both parsers spread the nibbles of a group over four coefficients, one with
  * PEXT and one with byte shuffles and sign masks. They have to agree with each
  * other and with the definition. */
-TEST(unpack_planes_to_lanes, avx512_matches_sse_and_reference) {
-    if (!avx512_usable()) {
+TEST(unpack_planes_to_lanes, bmi2_matches_sse_and_reference) {
+    if (!bmi2_usable()) {
         GTEST_SKIP();
     }
     svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
@@ -72,7 +67,7 @@ TEST(unpack_planes_to_lanes, avx512_matches_sse_and_reference) {
 
                 const uint64_t ref = planes_to_lanes_ref(acc, gtli);
                 ASSERT_EQ(ref, unpack_planes_to_lanes_sse(acc, gtli));
-                ASSERT_EQ(ref, unpack_planes_to_lanes(acc, gtli));
+                ASSERT_EQ(ref, unpack_planes_to_lanes_pext(acc, gtli));
             }
         }
     }
@@ -93,7 +88,7 @@ static uint64_t group_planes_ref(const uint16_t* buf) {
 
 /* The transposition of a whole group in four PDEPs. */
 TEST(pack_group_planes_pdep, matches_reference) {
-    if (!avx512_usable()) {
+    if (!bmi2_usable()) {
         GTEST_SKIP();
     }
     svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
@@ -122,7 +117,7 @@ TEST(pack_group_planes_pdep, matches_reference) {
 /* The two line packers - the PDEP one and the 128-bit one shared with AVX2 -
  * write the same bits for the same line, signs on and off. */
 TEST(pack_groups_masked_pdep, matches_pack_groups_masked) {
-    if (!avx512_usable()) {
+    if (!bmi2_usable()) {
         GTEST_SKIP();
     }
     const uint32_t max_groups = 70; /* more than two chunks of the 32-group mask */
@@ -176,3 +171,5 @@ TEST(pack_groups_masked_pdep, matches_pack_groups_masked) {
     free(mem_cmp);
     delete rnd;
 }
+
+#endif /* ARCH_X86_64 */

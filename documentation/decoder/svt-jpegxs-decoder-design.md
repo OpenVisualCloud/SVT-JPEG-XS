@@ -326,3 +326,18 @@ is silently ignored and the output stays LSB-aligned.
 The information in this document was compiled at **v0.10** of the code and may not
 reflect the latest status of the design. For the most up-to-date
 settings and implementation, it's recommended to visit the specific section of the code.
+
+## Undecomposed component reconstruction
+
+When `Sd` leaves a component without wavelet decomposition, reconstruction writes
+all of its rows into the output image. A full final precinct has the same row
+count as earlier precincts; only a partial final precinct uses fewer rows.
+
+For whole-frame inverse colour transformation, the decoder reconstructs each
+undecomposed component before applying that transformation. For output without a
+colour transformation, it converts every row in each precinct to the requested
+sample depth. Both paths preserve padding in strided output buffers.
+
+`DecoderSdTail` tests cover full and partial final precincts, vertical
+decomposition levels 0 through 2, 8-bit and 12-bit output, and both colour
+transformation paths. Each test checks every output sample and padding sample.
