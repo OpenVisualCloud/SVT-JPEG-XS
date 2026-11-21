@@ -733,6 +733,7 @@ TEST(vlc_put_unary, matches_vlc_encode_pack_bits) {
     delete rnd;
 }
 
+#ifdef ARCH_X86_64
 /* Byte counts around the vector widths of both tiers (32 bytes per iteration), so the main loop,
  * the scalar or masked remainder and their combinations are all covered. GCLIs are 0..15. The
  * output is followed by a guard area that must stay untouched. */
@@ -755,7 +756,6 @@ static void test_pack_raw_gclis_bytes(void (*fn)(const uint8_t*, uint8_t*, uint3
     }
 }
 
-#ifdef ARCH_X86_64
 TEST(pack_raw_gclis_bytes, AVX2) {
     if (!(CPU_FLAGS_AVX2 & get_cpu_flags())) {
         GTEST_SKIP();
