@@ -52,6 +52,9 @@ RTCD_EXTERN void (*inverse_rct_output_16bit_line)(const int32_t* in0, const int3
 RTCD_EXTERN SvtJxsErrorType_t (*unpack_data)(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                              uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                              int32_t* precinct_bits_left);
+/* The sign sub-packet of a line (Fs = 1): one bit for every non-zero coefficient, in coefficient order. */
+RTCD_EXTERN SvtJxsErrorType_t (*unpack_sign)(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint32_t group_size,
+                                             uint8_t leftover_signs_num, int32_t* precinct_bits_left);
 RTCD_EXTERN void (*unpack_raw_gclis_bytes)(const uint8_t* mem, uint8_t* gclis, uint32_t bytes);
 RTCD_EXTERN void (*unpack_gclis_sig_scatter)(uint8_t* gclis, const uint8_t* significances, uint32_t group_num, uint32_t src_bytes,
                                              uint8_t gtli);

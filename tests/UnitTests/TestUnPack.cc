@@ -388,7 +388,10 @@ TEST(unpack_data_test, unpack_data_out_of_range_gcli_NEON) {
 }
 #endif /* ARCH_AARCH64 */
 
-TEST(unpack_data_test, unpack_sign) {
+typedef SvtJxsErrorType_t (*unpack_sign_fn)(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint32_t group_size,
+                                            uint8_t leftover_signs_num, int32_t* precinct_bits_left);
+
+static void unpack_sign_test(unpack_sign_fn unpack_sign_impl) {
     const uint32_t bitstream_reader_size = 80;
     const uint32_t out_buffer_size = 1024;
     svt_jxs_test_tool::SVTRandom* rnd = new svt_jxs_test_tool::SVTRandom(32, false);
@@ -437,7 +440,8 @@ TEST(unpack_data_test, unpack_sign) {
                     }
 
                     int32_t precinct_bits_left_before_call = precinct_bits_left;
-                    int32_t ret = unpack_sign(&bitstream_reader, buf, width, GROUP_SIZE, leftover_signs_num, &precinct_bits_left);
+                    int32_t ret = unpack_sign_impl(
+                        &bitstream_reader, buf, width, GROUP_SIZE, leftover_signs_num, &precinct_bits_left);
 
                     if (cut_bits <= 0 ||
                         (leftover_signs_num && (width % GROUP_SIZE == 0) && (bits_writed - cut_bits >= ((int32_t)width - 1)))) {
@@ -479,6 +483,126 @@ TEST(unpack_data_test, unpack_sign) {
     free(buf_expected);
     delete rnd;
 }
+
+TEST(unpack_data_test, unpack_sign) {
+    unpack_sign_test(unpack_sign_c);
+}
+
+/* A line of no coefficient reads no bit and changes nothing, also with signs left over: they belong to
+ * a last group that is not whole, and an empty line has no group. */
+static void unpack_sign_empty_line_test(unpack_sign_fn unpack_sign_impl) {
+    uint8_t stream[8] = {0xA5, 0x5A, 0xFF, 0x00, 0x81, 0x18, 0x7E, 0xE7};
+    for (uint8_t leftover_signs_num : {(uint8_t)0, (uint8_t)3}) {
+        bitstream_reader_t reader;
+        bitstream_reader_init(&reader, stream, sizeof(stream));
+        bitstream_reader_skip_bits(&reader, 3);
+        const bitstream_reader_t before = reader;
+        uint16_t buf[1] = {0x1234};
+        int32_t bits_left = 17;
+
+        EXPECT_EQ(unpack_sign_impl(&reader, buf, 0, GROUP_SIZE, leftover_signs_num, &bits_left), SvtJxsErrorNone);
+        EXPECT_EQ(reader.offset, before.offset);
+        EXPECT_EQ(reader.bits_used, before.bits_used);
+        EXPECT_EQ(bits_left, 17);
+        EXPECT_EQ(buf[0], 0x1234);
+    }
+}
+
+TEST(unpack_sign, empty_line_C) {
+    unpack_sign_empty_line_test(unpack_sign_c);
+}
+
+#ifdef ARCH_X86_64
+static bool host_has_avx2_bmi2_popcnt() {
+    const CPU_FLAGS required = CPU_FLAGS_AVX2 | CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT;
+    return (get_cpu_flags() & required) == required;
+}
+
+TEST(unpack_data_test, unpack_sign_AVX2_BMI2) {
+    if (!host_has_avx2_bmi2_popcnt()) {
+        GTEST_SKIP() << "no AVX2 with BMI2 and POPCNT";
+    }
+    unpack_sign_test(unpack_sign_avx2_bmi2);
+}
+
+/* unpack_sign_avx2_bmi2 against unpack_sign_c on random lines: widths on both sides of the steps of
+ * thirty-two coefficients, from no zero coefficient to all of them zero, every first bit inside a byte,
+ * with and without signs left over in the last group. The stream buffer ends at the byte of the last
+ * sign, so the shortened load at the end of the buffer is used, and a sanitizer build sees any read
+ * past it. With one bit fewer than the signs need, both must fail. */
+TEST(unpack_sign, AVX2_BMI2_matches_C) {
+    if (!host_has_avx2_bmi2_popcnt()) {
+        GTEST_SKIP() << "no AVX2 with BMI2 and POPCNT";
+    }
+    svt_jxs_test_tool::SVTRandom rnd(0, 0x7FFF, 0x5164u);
+    std::vector<uint32_t> widths;
+    for (uint32_t w = 1; w <= 70; w++) {
+        widths.push_back(w);
+    }
+    for (uint32_t w : {95u, 96u, 97u, 127u, 128u, 129u, 255u, 256u, 257u, 960u, 1001u, 1920u}) {
+        widths.push_back(w);
+    }
+    for (uint32_t width : widths) {
+        for (uint32_t zero_percent : {0u, 10u, 50u, 90u, 100u}) {
+            for (uint32_t first_bit = 0; first_bit < 8; first_bit++) {
+                for (uint8_t leftover_signs_num : {(uint8_t)0, (uint8_t)3}) {
+                    std::vector<uint16_t> coeffs(width);
+                    uint32_t non_zero = 0;
+                    for (uint32_t i = 0; i < width; i++) {
+                        const bool is_zero = (uint32_t)(rnd.random() % 100) < zero_percent;
+                        coeffs[i] = is_zero ? 0 : (uint16_t)(1 + rnd.random() % 0x7FFF);
+                        non_zero += !is_zero;
+                    }
+                    const uint32_t leftover = (width % GROUP_SIZE) ? leftover_signs_num : 0;
+                    const uint32_t signs_bits = non_zero + leftover;
+                    const uint32_t stream_bytes = (first_bit + signs_bits + 7) / 8;
+                    std::vector<uint8_t> stream(stream_bytes);
+                    for (uint8_t& byte : stream) {
+                        byte = (uint8_t)rnd.random();
+                    }
+
+                    for (int32_t missing_bits = 0; missing_bits <= (signs_bits ? 1 : 0); missing_bits++) {
+                        bitstream_reader_t reader_c, reader_avx2;
+                        bitstream_reader_init(&reader_c, stream.data(), stream_bytes);
+                        bitstream_reader_skip_bits(&reader_c, first_bit);
+                        reader_avx2 = reader_c;
+                        int32_t bits_left_c = (int32_t)signs_bits - missing_bits;
+                        int32_t bits_left_avx2 = bits_left_c;
+                        std::vector<uint16_t> buf_c = coeffs;
+                        std::vector<uint16_t> buf_avx2 = coeffs;
+
+                        const SvtJxsErrorType_t ret_c = unpack_sign_c(
+                            &reader_c, buf_c.data(), width, GROUP_SIZE, leftover_signs_num, &bits_left_c);
+                        const SvtJxsErrorType_t ret_avx2 = unpack_sign_avx2_bmi2(
+                            &reader_avx2, buf_avx2.data(), width, GROUP_SIZE, leftover_signs_num, &bits_left_avx2);
+
+                        ASSERT_EQ(ret_c, ret_avx2) << "width " << width << ", zeros " << zero_percent << "%, first bit "
+                                                   << first_bit << ", missing bits " << missing_bits;
+                        if (missing_bits) {
+                            ASSERT_NE(ret_c, SvtJxsErrorNone);
+                            continue;
+                        }
+                        ASSERT_EQ(ret_c, SvtJxsErrorNone);
+                        ASSERT_EQ(buf_c, buf_avx2)
+                            << "width " << width << ", zeros " << zero_percent << "%, first bit " << first_bit;
+                        ASSERT_EQ(reader_c.offset, reader_avx2.offset);
+                        ASSERT_EQ(reader_c.bits_used, reader_avx2.bits_used);
+                        ASSERT_EQ(bits_left_c, bits_left_avx2);
+                        ASSERT_EQ(bits_left_c, 0);
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(unpack_sign, empty_line_AVX2_BMI2) {
+    if (!host_has_avx2_bmi2_popcnt()) {
+        GTEST_SKIP() << "no AVX2 with BMI2 and POPCNT";
+    }
+    unpack_sign_empty_line_test(unpack_sign_avx2_bmi2);
+}
+#endif /* ARCH_X86_64 */
 
 /* The AVX-512 parser on well-formed streams. Until now it was only reached by
  * the corrupt-stream test above, so the ordinary path - the one that actually

@@ -39,8 +39,8 @@ void unpack_gclis_sig_scatter_c(uint8_t* gclis, const uint8_t* significances, ui
 void unpack_raw_gclis(bitstream_reader_t* bitstream, uint8_t* gclis, uint32_t w);
 uint32_t unpack_gclis_unary_run_c(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out, uint32_t count,
                                   int8_t gtli, int32_t* error);
-int32_t unpack_sign(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint32_t group_size, uint8_t leftover_signs_num,
-                    int32_t* precinct_bits_left);
+SvtJxsErrorType_t unpack_sign_c(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint32_t group_size,
+                                uint8_t leftover_signs_num, int32_t* precinct_bits_left);
 
 SvtJxsErrorType_t unpack_pred_zero_gclis_no_significance(bitstream_reader_t* bitstream, precinct_band_t* b_data,
                                                          precinct_band_info_t* b_info, const int ypos,
