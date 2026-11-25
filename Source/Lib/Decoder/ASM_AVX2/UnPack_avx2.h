@@ -45,6 +45,8 @@ uint32_t unpack_gclis_unary_run_avx2(const uint8_t* mem, uint32_t* bit_pos, uint
                                      int8_t gtli, int32_t* error);
 
 void unpack_raw_gclis_bytes_avx2(const uint8_t* mem, uint8_t* gclis, uint32_t bytes);
+void unpack_gclis_sig_scatter_avx2(uint8_t* gclis, const uint8_t* significances, uint32_t group_num, uint32_t src_bytes,
+                                   uint8_t gtli);
 #ifdef __cplusplus
 }
 #endif

@@ -87,6 +87,45 @@ void transform_component_line_V1_Hx(const pi_component_t* const component, int16
     idwt_vertical_line(lf, hf_0, hf_1, buffer_out, len, if_first_precinct, if_last_precinct, height);
 }
 
+static void transform_component_line_V1_Hx_output(const pi_component_t* const component,
+                                                  int16_t* buffer_in[MAX_BANDS_PER_COMPONENT_NUM], int32_t* buffer_out[4],
+                                                  uint32_t precinct_line_idx, int32_t* buffer_tmp, uint32_t idwt_idx,
+                                                  uint32_t len, uint8_t shift, const idwt_output_cfg_t* out_cfg) {
+    inv_transform_V0_ptr_t inv_transform_V0_Hn = inv_transform_V0_get_function_ptr(idwt_idx);
+    int16_t* buf_hf_1 = buffer_in[idwt_idx + 1];
+    int16_t* buf_hf_2 = buffer_in[idwt_idx + 2];
+
+    int32_t* hf_0 = buffer_tmp + (precinct_line_idx % 2) * len;
+    int32_t* hf_1 = buffer_tmp + ((precinct_line_idx + 1) % 2) * len;
+    int32_t* lf = buffer_tmp + 2 * len;
+    int32_t* lf_buff_tmp = hf_1;
+
+    inv_transform_V0_Hn(component, buffer_in, lf, lf_buff_tmp, shift);
+    idwt_horizontal_line_lf16_hf16(buf_hf_1, buf_hf_2, hf_1, len, shift);
+
+    if (out_cfg->bit_depth == 8) {
+        uint8_t* dst_odd = ((uint8_t*)out_cfg->out_buf) + (size_t)out_cfg->first_line * out_cfg->stride;
+        uint8_t* dst_even = dst_odd + out_cfg->stride;
+        idwt_vertical_line_output_8bit(
+            lf, hf_0, hf_1, buffer_out[0], buffer_out[2], dst_odd, dst_even, len, out_cfg->bw, out_cfg->bit_depth);
+    }
+    else {
+        uint16_t* dst_odd = ((uint16_t*)out_cfg->out_buf) + (size_t)out_cfg->first_line * out_cfg->stride;
+        uint16_t* dst_even = dst_odd + out_cfg->stride;
+        idwt_vertical_line_output_16bit(lf,
+                                        hf_0,
+                                        hf_1,
+                                        buffer_out[0],
+                                        buffer_out[2],
+                                        dst_odd,
+                                        dst_even,
+                                        len,
+                                        out_cfg->bw,
+                                        out_cfg->bit_depth,
+                                        out_cfg->msb_aligned);
+    }
+}
+
 /*
 xxx-filled after previous call
 yyy-filled after this call
@@ -366,7 +405,20 @@ void new_transform_component_line_output(const pi_component_t* const component, 
                                          int16_t* buffer_in_prev[MAX_BANDS_PER_COMPONENT_NUM], transform_lines_t* lines,
                                          uint32_t precinct_line_idx, int32_t* buffer_tmp, uint32_t precinct_num, uint8_t shift,
                                          const idwt_output_cfg_t* out_cfg) {
-    assert(component->decom_v == 2 && precinct_line_idx > 0 && precinct_line_idx < (precinct_num - 1));
+    assert((component->decom_v == 1 || component->decom_v == 2) && precinct_line_idx > 0 &&
+           precinct_line_idx < (precinct_num - 1));
+    if (component->decom_v == 1) {
+        transform_component_line_V1_Hx_output(component,
+                                              buffer_in,
+                                              lines->buffer_out,
+                                              precinct_line_idx,
+                                              buffer_tmp,
+                                              component->decom_h,
+                                              component->width,
+                                              shift,
+                                              out_cfg);
+        return;
+    }
     transform_component_line_V2_Hx_impl(component,
                                         buffer_in,
                                         buffer_in_prev,

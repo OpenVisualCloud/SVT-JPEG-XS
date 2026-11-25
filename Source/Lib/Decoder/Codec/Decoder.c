@@ -618,28 +618,39 @@ void transform_precinct(const pi_t* pi, svt_jpeg_xs_decoder_instance_t* ctx, uin
         }
         return;
     }
-    if (pi->components[c].decom_v == 2 && precinct_line_idx > 0 && precinct_line_idx < (pi->precincts_line_num - 1) &&
-        ctx->picture_header_dynamic.hdr_Tnlt == 0) {
+    if ((pi->components[c].decom_v == 2 || pi->components[c].decom_v == 1) && precinct_line_idx > 0 &&
+        precinct_line_idx < (pi->precincts_line_num - 1) && ctx->picture_header_dynamic.hdr_Tnlt == 0) {
         int16_t* buff_in[MAX_BANDS_PER_COMPONENT_NUM] = {0};
         int16_t* buff_in_prev[MAX_BANDS_PER_COMPONENT_NUM] = {0};
         const uint32_t width = pi->components[c].width;
         transform_lines_t out_lines;
-        out_lines.buffer_out[0] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 0) % 8) * width;
-        out_lines.buffer_out[1] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 1) % 8) * width;
-        out_lines.buffer_out[2] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 2) % 8) * width;
-        out_lines.buffer_out[3] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 3) % 8) * width;
-        out_lines.buffer_out[4] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 4) % 8) * width;
-        out_lines.buffer_out[5] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 5) % 8) * width;
-        out_lines.buffer_out[6] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 6) % 8) * width;
-        out_lines.buffer_out[7] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 7) % 8) * width;
-
-        decoder_get_precinct_bands_pointers(pi, ctx, buff_in, c, precinct_line_idx);
-        decoder_get_precinct_bands_pointers(pi, ctx, buff_in_prev, c, precinct_line_idx - 1);
+        uint32_t first_line;
+        if (pi->components[c].decom_v == 1) {
+            out_lines.buffer_out[0] = precinct_components_tmp_buffer + ((2 * precinct_line_idx + 0) % 4) * width;
+            out_lines.buffer_out[1] = precinct_components_tmp_buffer + ((2 * precinct_line_idx + 1) % 4) * width;
+            out_lines.buffer_out[2] = precinct_components_tmp_buffer + ((2 * precinct_line_idx + 2) % 4) * width;
+            out_lines.buffer_out[3] = precinct_components_tmp_buffer + ((2 * precinct_line_idx + 3) % 4) * width;
+            decoder_get_precinct_bands_pointers(pi, ctx, buff_in, c, precinct_line_idx);
+            first_line = precinct_line_idx * pi->components[c].precinct_height - 1;
+        }
+        else {
+            out_lines.buffer_out[0] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 0) % 8) * width;
+            out_lines.buffer_out[1] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 1) % 8) * width;
+            out_lines.buffer_out[2] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 2) % 8) * width;
+            out_lines.buffer_out[3] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 3) % 8) * width;
+            out_lines.buffer_out[4] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 4) % 8) * width;
+            out_lines.buffer_out[5] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 5) % 8) * width;
+            out_lines.buffer_out[6] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 6) % 8) * width;
+            out_lines.buffer_out[7] = precinct_components_tmp_buffer + ((4 * precinct_line_idx + 7) % 8) * width;
+            decoder_get_precinct_bands_pointers(pi, ctx, buff_in, c, precinct_line_idx);
+            decoder_get_precinct_bands_pointers(pi, ctx, buff_in_prev, c, precinct_line_idx - 1);
+            first_line = precinct_line_idx * pi->components[c].precinct_height - 3;
+        }
 
         const idwt_output_cfg_t out_cfg = {
             .out_buf = out->data_yuv[c],
             .stride = out->stride[c],
-            .first_line = precinct_line_idx * pi->components[c].precinct_height - 3,
+            .first_line = first_line,
             .bw = ctx->picture_header_dynamic.hdr_Bw,
             .bit_depth = ctx->dec_common->picture_header_const.hdr_bit_depth[0],
             .msb_aligned = ctx->dec_common->output_bit_depth_msb_aligned,
