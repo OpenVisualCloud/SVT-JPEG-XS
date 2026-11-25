@@ -13,6 +13,11 @@ void inv_sign_c(uint16_t* in_out, uint32_t width) {
     }
 }
 
+void dequant_inv_sign_c(uint16_t* buf, uint32_t buf_len, uint8_t* gclis, uint32_t group_size, uint8_t gtli, QUANT_TYPE dq_type) {
+    dequant(buf, buf_len, gclis, group_size, gtli, dq_type);
+    inv_sign(buf, buf_len);
+}
+
 void inv_precinct_calculate_data(precinct_t* precinct, const pi_t* const pi, int dq_type) {
     for (uint32_t c = 0; c < pi->comps_num; c++) {
         for (uint32_t b = 0; b < pi->components[c].bands_num; b++) {
@@ -21,8 +26,7 @@ void inv_precinct_calculate_data(precinct_t* precinct, const pi_t* const pi, int
             for (uint32_t height = 0; height < b_info->height; height++) {
                 uint16_t* coeff_data = (b_data->coeff_data + height * pi->components[c].bands[b].width);
                 uint8_t* gcli_data = b_data->gcli_data + height * b_info->gcli_width;
-                dequant(coeff_data, b_info->width, gcli_data, pi->coeff_group_size, b_data->gtli, dq_type);
-                inv_sign(coeff_data, b_info->width);
+                dequant_inv_sign(coeff_data, b_info->width, gcli_data, pi->coeff_group_size, b_data->gtli, dq_type);
             }
         }
     }

@@ -27,6 +27,13 @@ void idwt_vertical_line_avx512(const int32_t* in_lf, const int32_t* in_hf0, cons
 void idwt_vertical_line_recalc_avx512(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1, int32_t* out[4],
                                       uint32_t len, uint32_t precinct_line_idx);
 
+void idwt_vertical_line_output_8bit_avx512(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1,
+                                           const int32_t* in_out0, int32_t* out2, uint8_t* img_odd, uint8_t* img_even,
+                                           uint32_t len, uint32_t bw, uint32_t depth);
+void idwt_vertical_line_output_16bit_avx512(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1,
+                                            const int32_t* in_out0, int32_t* out2, uint16_t* img_odd, uint16_t* img_even,
+                                            uint32_t len, uint32_t bw, uint32_t depth, uint8_t msb_aligned);
+
 #ifdef __cplusplus
 }
 #endif

@@ -285,3 +285,40 @@ void idwt_vertical_line_recalc_c(const int32_t* in_lf, const int32_t* in_hf0, co
         }
     }
 }
+
+void idwt_vertical_line_output_8bit_c(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1, const int32_t* in_out0,
+                                      int32_t* out2, uint8_t* img_odd, uint8_t* img_even, uint32_t len, uint32_t bw,
+                                      uint32_t depth) {
+    const int32_t dzeta = (int32_t)(bw - depth);
+    const int32_t round = (int32_t)(((1u << bw) >> 1) + ((1u << dzeta) >> 1));
+    const int32_t m = (1 << depth) - 1;
+
+    for (uint32_t i = 0; i < len; i++) {
+        const int32_t even = in_lf[i] - ((in_hf0[i] + in_hf1[i] + 2) >> 2);
+        const int32_t odd = in_hf0[i] + ((in_out0[i] + even) >> 1);
+        out2[i] = even;
+        int32_t vo = (odd + round) >> dzeta;
+        int32_t ve = (even + round) >> dzeta;
+        img_odd[i] = (uint8_t)(vo < 0 ? 0 : (vo > m ? m : vo));
+        img_even[i] = (uint8_t)(ve < 0 ? 0 : (ve > m ? m : ve));
+    }
+}
+
+void idwt_vertical_line_output_16bit_c(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1, const int32_t* in_out0,
+                                       int32_t* out2, uint16_t* img_odd, uint16_t* img_even, uint32_t len, uint32_t bw,
+                                       uint32_t depth, uint8_t msb_aligned) {
+    const int32_t dzeta = (int32_t)(bw - depth);
+    const int32_t round = (int32_t)(((1u << bw) >> 1) + ((1u << dzeta) >> 1));
+    const int32_t m = (1 << depth) - 1;
+    const uint32_t msb_shift = msb_aligned ? (16u - depth) : 0u;
+
+    for (uint32_t i = 0; i < len; i++) {
+        const int32_t even = in_lf[i] - ((in_hf0[i] + in_hf1[i] + 2) >> 2);
+        const int32_t odd = in_hf0[i] + ((in_out0[i] + even) >> 1);
+        out2[i] = even;
+        int32_t vo = (odd + round) >> dzeta;
+        int32_t ve = (even + round) >> dzeta;
+        img_odd[i] = (uint16_t)((uint32_t)(vo < 0 ? 0 : (vo > m ? m : vo)) << msb_shift);
+        img_even[i] = (uint16_t)((uint32_t)(ve < 0 ? 0 : (ve > m ? m : ve)) << msb_shift);
+    }
+}

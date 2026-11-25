@@ -28,6 +28,8 @@ uint32_t unpack_gclis_unary_run_avx512_vbmi2(const uint8_t* mem, uint32_t* bit_p
                                              uint32_t count, int8_t gtli, int32_t* error);
 
 void unpack_raw_gclis_bytes_avx512(const uint8_t* mem, uint8_t* gclis, uint32_t bytes);
+void unpack_gclis_sig_scatter_avx512(uint8_t* gclis, const uint8_t* significances, uint32_t group_num, uint32_t src_bytes,
+                                     uint8_t gtli);
 
 #ifdef __cplusplus
 }
