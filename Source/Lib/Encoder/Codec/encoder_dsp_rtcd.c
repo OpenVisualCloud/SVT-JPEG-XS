@@ -232,16 +232,17 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
     SET_SSE41_AVX2_AVX512(gc_precinct_sigflags_max,
                           gc_precinct_sigflags_max_c,
                           gc_precinct_sigflags_max_sse4_1,
-                          0,
+                          gc_precinct_sigflags_max_avx2,
                           gc_precinct_sigflags_max_avx512);
     SET_NEON(gc_precinct_sigflags_max, gc_precinct_sigflags_max_neon);
     SET_AVX2_AVX512(rate_control_calc_vpred_cost_nosigf,
                     rate_control_calc_vpred_cost_nosigf_c,
                     rate_control_calc_vpred_cost_nosigf_avx2,
                     rate_control_calc_vpred_cost_nosigf_avx512);
-    SET_AVX512(rate_control_calc_vpred_cost_sigf_nosigf,
-               rate_control_calc_vpred_cost_sigf_nosigf_c,
-               rate_control_calc_vpred_cost_sigf_nosigf_avx512);
+    SET_AVX2_AVX512(rate_control_calc_vpred_cost_sigf_nosigf,
+                    rate_control_calc_vpred_cost_sigf_nosigf_c,
+                    rate_control_calc_vpred_cost_sigf_nosigf_avx2,
+                    rate_control_calc_vpred_cost_sigf_nosigf_avx512);
 
     SET_AVX2_AVX512(convert_packed_to_planar_rgb_8bit,
                     convert_packed_to_planar_rgb_8bit_c,
@@ -251,11 +252,17 @@ void setup_encoder_rtcd_internal(CPU_FLAGS flags) {
                     convert_packed_to_planar_rgb_16bit_c,
                     convert_packed_to_planar_rgb_16bit_avx2,
                     convert_packed_to_planar_rgb_16bit_avx512);
-    SET_AVX512(forward_rct_line_rtcd, forward_rct_line, forward_rct_line_avx512);
-    SET_AVX512(gc_lossless_stats_gtli0, gc_lossless_stats_gtli0_c, gc_lossless_stats_gtli0_avx512);
-    SET_AVX512(rc_lut_derive, rc_lut_derive_c, rc_lut_derive_avx512);
-    SET_AVX512(pack_significance, pack_significance_c, pack_significance_avx512);
-    SET_AVX512(pack_bitplane_count_significance, pack_bitplane_count_significance_c, pack_bitplane_count_significance_avx512);
-    SET_AVX512(
-        pack_bitplane_count_no_significance, pack_bitplane_count_no_significance_c, pack_bitplane_count_no_significance_avx512);
+    SET_AVX2_AVX512(forward_rct_line_rtcd, forward_rct_line, forward_rct_line_avx2, forward_rct_line_avx512);
+    SET_AVX2_AVX512(
+        gc_lossless_stats_gtli0, gc_lossless_stats_gtli0_c, gc_lossless_stats_gtli0_avx2, gc_lossless_stats_gtli0_avx512);
+    SET_AVX2_AVX512(rc_lut_derive, rc_lut_derive_c, rc_lut_derive_avx2, rc_lut_derive_avx512);
+    SET_AVX2_AVX512(pack_significance, pack_significance_c, pack_significance_avx2, pack_significance_avx512);
+    SET_AVX2_AVX512(pack_bitplane_count_significance,
+                    pack_bitplane_count_significance_c,
+                    pack_bitplane_count_significance_avx2,
+                    pack_bitplane_count_significance_avx512);
+    SET_AVX2_AVX512(pack_bitplane_count_no_significance,
+                    pack_bitplane_count_no_significance_c,
+                    pack_bitplane_count_no_significance_avx2,
+                    pack_bitplane_count_no_significance_avx512);
 }

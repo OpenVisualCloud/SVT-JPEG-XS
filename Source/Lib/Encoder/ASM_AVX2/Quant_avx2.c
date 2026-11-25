@@ -18,25 +18,34 @@ static void quant_deadzone_avx2(uint16_t* buf, uint32_t size, int8_t gtli) {
     __m256i mask_sign = _mm256_set1_epi16((short)BITSTREAM_MASK_SIGN);
     __m256i clamp_sse = _mm256_set1_epi16(clamp);
 
-    for (; coeff_idx < (size / 16); coeff_idx++) {
-        __m256i buff = _mm256_loadu_si256((__m256i*)(buf));
+    uint32_t i = 0;
+    for (; i + 32 <= size; i += 32) {
+        __m256i b0 = _mm256_loadu_si256((const __m256i*)(buf + i));
+        __m256i b1 = _mm256_loadu_si256((const __m256i*)(buf + i + 16));
+        __m256i s0 = _mm256_and_si256(b0, mask_sign);
+        __m256i s1 = _mm256_and_si256(b1, mask_sign);
+        b0 = _mm256_and_si256(b0, clamp_sse);
+        b1 = _mm256_and_si256(b1, clamp_sse);
+        s0 = _mm256_and_si256(s0, _mm256_cmpgt_epi16(b0, zero));
+        s1 = _mm256_and_si256(s1, _mm256_cmpgt_epi16(b1, zero));
+        _mm256_storeu_si256((__m256i*)(buf + i), _mm256_or_si256(b0, s0));
+        _mm256_storeu_si256((__m256i*)(buf + i + 16), _mm256_or_si256(b1, s1));
+    }
+    for (; i + 16 <= size; i += 16) {
+        __m256i buff = _mm256_loadu_si256((const __m256i*)(buf + i));
         __m256i sign = _mm256_and_si256(buff, mask_sign);
         buff = _mm256_and_si256(buff, clamp_sse);
         sign = _mm256_and_si256(sign, _mm256_cmpgt_epi16(buff, zero));
-        buff = _mm256_or_si256(buff, sign);
-        _mm256_storeu_si256((__m256i*)(buf), buff);
-        buf += 16;
+        _mm256_storeu_si256((__m256i*)(buf + i), _mm256_or_si256(buff, sign));
     }
-
-    for (uint32_t i = 0; i < (size % 16); i++) {
+    for (; i < size; i++) {
         uint16_t sign = buf[i] & BITSTREAM_MASK_SIGN;
-        //remove sign and quantize
         buf[i] &= clamp;
-        //if coeff after quantization have data, then restore sign
         if (buf[i]) {
             buf[i] |= sign;
         }
     }
+    (void)coeff_idx;
 }
 
 /* 32-bit lanes, eight coefficients at a time. quant_uniform_avx2 below leaves to it GTLI 0 and the tail of a line. */

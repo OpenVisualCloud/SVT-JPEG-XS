@@ -28,19 +28,12 @@ void dwt_horizontal_line_avx2(int32_t* out_lf, int32_t* out_hf, const int32_t* i
      * already sitting in the last lane of the previous iteration's result. */
     __m256i prev_hf = _mm256_set1_epi32(out_hf[0]);
     const __m256i reg_permutevar_mask_move_left = _mm256_setr_epi32(0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x07);
-    const __m256i reg_permutevar_mask_A = _mm256_setr_epi32(0x00, 0x02, 0x04, 0x06, 0x01, 0x03, 0x05, 0x07);
-    const __m256i reg_permutevar_mask_B = _mm256_setr_epi32(0x01, 0x03, 0x05, 0x07, 0x00, 0x02, 0x04, 0x06);
 
     for (uint32_t id = 1; id < count_all * 8; id += 8) {
-        const __m256i in_A = _mm256_loadu_si256((__m256i*)(&in[id * 2])); //0  1  2  3  4  5  6  7
-        __m256i in_A_step2 = _mm256_permutevar8x32_epi32(in_A, reg_permutevar_mask_A);
-
-        __m256i in_B = _mm256_loadu_si256((__m256i*)(&in[id * 2 + 8])); //8  9 10 11 12 13 14 15
-        __m256i in_B_step2 = _mm256_permutevar8x32_epi32(in_B, reg_permutevar_mask_B);
-
-        __m256i in_0 = _mm256_blend_epi32(in_A_step2, in_B_step2, 16 + 32 + 64 + 128);     //0  2  4  6  8  10 12 14
-        __m256i in_1x = _mm256_blend_epi32(in_A_step2, in_B_step2, 1 + 2 + 4 + 8);         //9 11 13 15  1  3  5  7
-        __m256i in_1 = _mm256_permute4x64_epi64(in_1x, (2 * 1 + 3 * 4 + 0 * 16 + 1 * 64)); //1  3  5  7  9 11 13 15
+        const __m256 in_A = _mm256_loadu_ps((const float*)(&in[id * 2]));     // 0  1  2  3  4  5  6  7
+        const __m256 in_B = _mm256_loadu_ps((const float*)(&in[id * 2 + 8])); // 8  9 10 11 12 13 14 15
+        const __m256i in_0 = _mm256_permute4x64_epi64(_mm256_castps_si256(_mm256_shuffle_ps(in_A, in_B, 0x88)), 0xD8);
+        const __m256i in_1 = _mm256_permute4x64_epi64(_mm256_castps_si256(_mm256_shuffle_ps(in_A, in_B, 0xDD)), 0xD8);
 
         __m256i in_2 = _mm256_permutevar8x32_epi32(in_0, reg_permutevar_mask_move_left);
         in_2 = _mm256_insert_epi32(in_2, in[id * 2 + 16], 7);
@@ -167,6 +160,27 @@ void transform_vertical_loop_lf_hf_hf_line_x_avx2(uint32_t width, int32_t* out_l
                                                   const int32_t* line_0, const int32_t* line_1, const int32_t* line_2) {
     const __m256i two = _mm256_set1_epi32(2);
     uint32_t i = 0;
+    for (; i + 16 <= width; i += 16) {
+        const __m256i l0_a = _mm256_loadu_si256((const __m256i*)(line_0 + i));
+        const __m256i l1_a = _mm256_loadu_si256((const __m256i*)(line_1 + i));
+        const __m256i l2_a = _mm256_loadu_si256((const __m256i*)(line_2 + i));
+        const __m256i prev_a = _mm256_loadu_si256((const __m256i*)(in_hf_prev + i));
+
+        const __m256i l0_b = _mm256_loadu_si256((const __m256i*)(line_0 + i + 8));
+        const __m256i l1_b = _mm256_loadu_si256((const __m256i*)(line_1 + i + 8));
+        const __m256i l2_b = _mm256_loadu_si256((const __m256i*)(line_2 + i + 8));
+        const __m256i prev_b = _mm256_loadu_si256((const __m256i*)(in_hf_prev + i + 8));
+
+        const __m256i hf_a = _mm256_sub_epi32(l1_a, _mm256_srai_epi32(_mm256_add_epi32(l0_a, l2_a), 1));
+        const __m256i hf_b = _mm256_sub_epi32(l1_b, _mm256_srai_epi32(_mm256_add_epi32(l0_b, l2_b), 1));
+        _mm256_storeu_si256((__m256i*)(out_hf + i), hf_a);
+        _mm256_storeu_si256((__m256i*)(out_hf + i + 8), hf_b);
+
+        const __m256i lf_a = _mm256_add_epi32(l0_a, _mm256_srai_epi32(_mm256_add_epi32(_mm256_add_epi32(hf_a, prev_a), two), 2));
+        const __m256i lf_b = _mm256_add_epi32(l0_b, _mm256_srai_epi32(_mm256_add_epi32(_mm256_add_epi32(hf_b, prev_b), two), 2));
+        _mm256_storeu_si256((__m256i*)(out_lf + i), lf_a);
+        _mm256_storeu_si256((__m256i*)(out_lf + i + 8), lf_b);
+    }
     for (; (i + 7) < width; i += 8) {
         __m256i l0 = _mm256_loadu_si256((__m256i*)(line_0 + i));
         __m256i l1 = _mm256_loadu_si256((__m256i*)(line_1 + i));
