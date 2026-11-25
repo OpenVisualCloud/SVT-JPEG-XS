@@ -36,16 +36,25 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags);
 
 RTCD_EXTERN void (*dequant)(uint16_t* buf, uint32_t buf_len, uint8_t* gclis, uint32_t group_size, uint8_t gtli,
                             QUANT_TYPE dq_type);
+RTCD_EXTERN void (*dequant_inv_sign)(uint16_t* buf, uint32_t buf_len, uint8_t* gclis, uint32_t group_size, uint8_t gtli,
+                                     QUANT_TYPE dq_type);
 RTCD_EXTERN void (*linear_output_scaling_8bit)(const pi_t* const pi, int32_t* comps[MAX_COMPONENTS_NUM], uint32_t bw,
                                                uint32_t depth, svt_jpeg_xs_image_buffer_t* out);
 RTCD_EXTERN void (*linear_output_scaling_16bit)(const pi_t* const pi, int32_t* comps[MAX_COMPONENTS_NUM], uint32_t bw,
                                                 uint32_t depth, svt_jpeg_xs_image_buffer_t* out);
 RTCD_EXTERN void (*inv_sign)(uint16_t* in_out, uint32_t width);
 RTCD_EXTERN void (*inverse_rct)(int32_t* comps[MAX_COMPONENTS_NUM], int32_t w, int32_t h);
+RTCD_EXTERN void (*inverse_rct_output_8bit_line)(const int32_t* in0, const int32_t* in1, const int32_t* in2, uint32_t bw,
+                                                 uint32_t depth, uint8_t* out0, uint8_t* out1, uint8_t* out2, uint32_t width);
+RTCD_EXTERN void (*inverse_rct_output_16bit_line)(const int32_t* in0, const int32_t* in1, const int32_t* in2, uint32_t bw,
+                                                  uint32_t depth, uint16_t* out0, uint16_t* out1, uint16_t* out2, uint32_t width,
+                                                  uint8_t msb_aligned);
 RTCD_EXTERN SvtJxsErrorType_t (*unpack_data)(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                              uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                              int32_t* precinct_bits_left);
 RTCD_EXTERN void (*unpack_raw_gclis_bytes)(const uint8_t* mem, uint8_t* gclis, uint32_t bytes);
+RTCD_EXTERN void (*unpack_gclis_sig_scatter)(uint8_t* gclis, const uint8_t* significances, uint32_t group_num, uint32_t src_bytes,
+                                             uint8_t gtli);
 RTCD_EXTERN uint32_t (*unpack_gclis_unary_run)(const uint8_t* mem, uint32_t* bit_pos, uint32_t byte_limit, uint8_t* out,
                                                uint32_t count, int8_t gtli, int32_t* error);
 
@@ -61,6 +70,12 @@ RTCD_EXTERN void (*idwt_vertical_line)(const int32_t* in_lf, const int32_t* in_h
                                        uint32_t len, int32_t first_precinct, int32_t last_precinct, int32_t height);
 RTCD_EXTERN void (*idwt_vertical_line_recalc)(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1, int32_t* out[4],
                                               uint32_t len, uint32_t precinct_line_idx);
+RTCD_EXTERN void (*idwt_vertical_line_output_8bit)(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1,
+                                                   const int32_t* in_out0, int32_t* out2, uint8_t* img_odd, uint8_t* img_even,
+                                                   uint32_t len, uint32_t bw, uint32_t depth);
+RTCD_EXTERN void (*idwt_vertical_line_output_16bit)(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1,
+                                                    const int32_t* in_out0, int32_t* out2, uint16_t* img_odd, uint16_t* img_even,
+                                                    uint32_t len, uint32_t bw, uint32_t depth, uint8_t msb_aligned);
 #ifdef __cplusplus
 } // extern "C"
 #endif

@@ -270,8 +270,10 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
     /*Number of threads: adding 10 contexts to faster schedule tasks when 10 outputs are waiting on write or on synchronize output*/
     uint32_t output_bitsteram_queue_count = 2 * dec_api_prv->universal_threads_num + 10;
     uint32_t input_bitstream_queue_count = 2 * dec_api_prv->universal_threads_num + 10;
-    uint32_t pool_decoders_instances_count =
-        3; //Allocate decoder instances, One instance to prepare init, one to calculate and one to finish
+    uint32_t pool_decoders_instances_count = (dec_api_prv->universal_threads_num + 1) / 2 + 2;
+    if (pool_decoders_instances_count > 16) {
+        pool_decoders_instances_count = 16;
+    }
     dec_api_prv->sync_output_ringbuffer_size = dec_api_prv->universal_threads_num +
         20; //Should be more that pool_decoders_instances_count to not reduce performance
 

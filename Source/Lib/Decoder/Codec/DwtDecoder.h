@@ -20,9 +20,23 @@ typedef struct transform_lines {
     int32_t* buffer_out[8];
 } transform_lines_t;
 
+typedef struct idwt_output_cfg {
+    void* out_buf;
+    uint32_t stride;
+    uint32_t first_line;
+    uint32_t bw;
+    uint8_t bit_depth;
+    uint8_t msb_aligned;
+} idwt_output_cfg_t;
+
 void new_transform_component_line(const pi_component_t* const component, int16_t* buffer_in[MAX_BANDS_PER_COMPONENT_NUM],
                                   int16_t* buffer_in_prev[MAX_BANDS_PER_COMPONENT_NUM], transform_lines_t* lines,
                                   uint32_t line_idx, int32_t* buffer_tmp, uint32_t precinct_num, uint8_t shift);
+
+void new_transform_component_line_output(const pi_component_t* const component, int16_t* buffer_in[MAX_BANDS_PER_COMPONENT_NUM],
+                                         int16_t* buffer_in_prev[MAX_BANDS_PER_COMPONENT_NUM], transform_lines_t* lines,
+                                         uint32_t line_idx, int32_t* buffer_tmp, uint32_t precinct_num, uint8_t shift,
+                                         const idwt_output_cfg_t* out_cfg);
 
 void new_transform_component_line_recalc(const pi_component_t* const component,
                                          int16_t* buffer_in_prev_2[MAX_BANDS_PER_COMPONENT_NUM],

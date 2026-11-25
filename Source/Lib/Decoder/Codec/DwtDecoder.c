@@ -149,10 +149,11 @@ buffer_tmp Required size:
     Output for stage 1 and stage2:  4 * V1_len
     Output for stage 3:             3 * component->width
     */
-void transform_component_line_V2_Hx(const pi_component_t* const component, int16_t* buffer_in[MAX_BANDS_PER_COMPONENT_NUM],
-                                    int16_t* buffer_in_prev[MAX_BANDS_PER_COMPONENT_NUM], int32_t* buffer_out[8],
-                                    uint32_t precinct_line_idx, int32_t* buffer_tmp, uint32_t precinct_num, uint32_t idwt_idx,
-                                    uint8_t shift) {
+static void transform_component_line_V2_Hx_impl(const pi_component_t* const component,
+                                                int16_t* buffer_in[MAX_BANDS_PER_COMPONENT_NUM],
+                                                int16_t* buffer_in_prev[MAX_BANDS_PER_COMPONENT_NUM], int32_t* buffer_out[8],
+                                                uint32_t precinct_line_idx, int32_t* buffer_tmp, uint32_t precinct_num,
+                                                uint32_t idwt_idx, uint8_t shift, const idwt_output_cfg_t* out_cfg) {
     uint32_t V1_len = (component->width / 2) + (component->width & 1);
     int32_t* tmp_buffer_out = buffer_tmp + 3 * V1_len;
 
@@ -309,7 +310,41 @@ void transform_component_line_V2_Hx(const pi_component_t* const component, int16
         int32_t* hf_l1 = tmp_buffer_out + (1 + ((i + 1) % 2)) * component->width;
 
         //stage 4
-        idwt_vertical_line(lf_l0, hf_l0, hf_l1, buffer_out, component->width, 0 /*1st prec*/, 0 /*last prec*/, component->height);
+        if (out_cfg) {
+            if (out_cfg->bit_depth == 8) {
+                uint8_t* dst_odd = ((uint8_t*)out_cfg->out_buf) + (size_t)(out_cfg->first_line + 2 * i) * out_cfg->stride;
+                uint8_t* dst_even = dst_odd + out_cfg->stride;
+                idwt_vertical_line_output_8bit(lf_l0,
+                                               hf_l0,
+                                               hf_l1,
+                                               buffer_out[0],
+                                               buffer_out[2],
+                                               dst_odd,
+                                               dst_even,
+                                               component->width,
+                                               out_cfg->bw,
+                                               out_cfg->bit_depth);
+            }
+            else {
+                uint16_t* dst_odd = ((uint16_t*)out_cfg->out_buf) + (size_t)(out_cfg->first_line + 2 * i) * out_cfg->stride;
+                uint16_t* dst_even = dst_odd + out_cfg->stride;
+                idwt_vertical_line_output_16bit(lf_l0,
+                                                hf_l0,
+                                                hf_l1,
+                                                buffer_out[0],
+                                                buffer_out[2],
+                                                dst_odd,
+                                                dst_even,
+                                                component->width,
+                                                out_cfg->bw,
+                                                out_cfg->bit_depth,
+                                                out_cfg->msb_aligned);
+            }
+        }
+        else {
+            idwt_vertical_line(
+                lf_l0, hf_l0, hf_l1, buffer_out, component->width, 0 /*1st prec*/, 0 /*last prec*/, component->height);
+        }
 
         int16_t* hf_hf_l0 = buffer_in[component->bands_num - 1] + i * component->bands[component->bands_num - 1].width;
         int16_t* lf_hf_l0 = buffer_in[component->bands_num - 2] + i * component->bands[component->bands_num - 2].width;
@@ -317,6 +352,31 @@ void transform_component_line_V2_Hx(const pi_component_t* const component, int16
 
         buffer_out += 2;
     }
+}
+
+void transform_component_line_V2_Hx(const pi_component_t* const component, int16_t* buffer_in[MAX_BANDS_PER_COMPONENT_NUM],
+                                    int16_t* buffer_in_prev[MAX_BANDS_PER_COMPONENT_NUM], int32_t* buffer_out[8],
+                                    uint32_t precinct_line_idx, int32_t* buffer_tmp, uint32_t precinct_num, uint32_t idwt_idx,
+                                    uint8_t shift) {
+    transform_component_line_V2_Hx_impl(
+        component, buffer_in, buffer_in_prev, buffer_out, precinct_line_idx, buffer_tmp, precinct_num, idwt_idx, shift, NULL);
+}
+
+void new_transform_component_line_output(const pi_component_t* const component, int16_t* buffer_in[MAX_BANDS_PER_COMPONENT_NUM],
+                                         int16_t* buffer_in_prev[MAX_BANDS_PER_COMPONENT_NUM], transform_lines_t* lines,
+                                         uint32_t precinct_line_idx, int32_t* buffer_tmp, uint32_t precinct_num, uint8_t shift,
+                                         const idwt_output_cfg_t* out_cfg) {
+    assert(component->decom_v == 2 && precinct_line_idx > 0 && precinct_line_idx < (precinct_num - 1));
+    transform_component_line_V2_Hx_impl(component,
+                                        buffer_in,
+                                        buffer_in_prev,
+                                        lines->buffer_out,
+                                        precinct_line_idx,
+                                        buffer_tmp,
+                                        precinct_num,
+                                        (uint32_t)(component->decom_h - 1),
+                                        shift,
+                                        out_cfg);
 }
 
 void new_transform_component_line(const pi_component_t* const component, int16_t* buffer_in[MAX_BANDS_PER_COMPONENT_NUM],

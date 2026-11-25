@@ -51,10 +51,70 @@ static INLINE void unpack_n_groups_avx512_impl(uint8_t* gclis, uint8_t gtli, rea
      * chain of single-cycle additions while the loads and the parsing itself
      * proceed in parallel. */
     const __m512i gtli_vec = _mm512_set1_epi8((char)gtli);
+    const __m512i max14_plus_gtli = _mm512_set1_epi8((char)(14u + gtli));
     while (group < n_groups) {
         const uint32_t chunk = MIN(n_groups - group, 64u);
         const __mmask64 valid = (chunk >= 64) ? ~(__mmask64)0 : (((__mmask64)1 << chunk) - 1);
-        __mmask64 todo = _mm512_mask_cmpgt_epu8_mask(valid, _mm512_maskz_loadu_epi8(valid, gclis + group), gtli_vec);
+        const __m512i g_vec = _mm512_maskz_loadu_epi8(valid, gclis + group);
+        __mmask64 todo = _mm512_mask_cmpgt_epu8_mask(valid, g_vec, gtli_vec);
+        if (!todo) {
+            group += chunk;
+            continue;
+        }
+        /* Fast chunk path: when every group in this 64-group chunk has size <= 14
+         * (gcli <= gtli + 14) and the worst-case nibble span of the active groups
+         * fits inside safe_bytes, the inner loop needs no per-group bounds check,
+         * no size > 15 check, and no (nib&1 && size==15) branch. */
+        const uint32_t active_cnt = (uint32_t)_mm_popcnt_u64(todo);
+        if (_mm512_mask_cmpgt_epu8_mask(valid, g_vec, max14_plus_gtli) == 0 &&
+            ((nib + active_cnt * (14u + (uint32_t)has_sign)) >> 1) < safe_bytes) {
+            uint16_t* const dst = buf + (size_t)group * GROUP_SIZE;
+            const uint8_t* const g_ptr = gclis + group;
+            if (gtli == 0 && todo == valid) {
+                /* Lossless / all-active dense chunk: sequential walk, zero shift. */
+                for (uint32_t k = 0; k < chunk; k++) {
+                    const uint32_t size = g_ptr[k];
+                    uint64_t out;
+                    if (has_sign) {
+                        uint64_t raw;
+                        memcpy(&raw, base + (nib >> 1), sizeof(raw));
+                        const uint64_t aligned = SVT_BSWAP64(raw) << ((nib & 1) * 4);
+                        const uint64_t signs = unpack_sign_spread[aligned >> 60];
+                        const uint64_t planes = (aligned << 4) >> (64 - 4 * size);
+                        out = unpack_planes_to_lanes(planes, 0) | signs;
+                    }
+                    else {
+                        out = unpack_planes_to_lanes(unpack_load_nibbles(base, nib, size), 0);
+                    }
+                    memcpy(dst + (size_t)k * GROUP_SIZE, &out, sizeof(out));
+                    nib += size + (uint32_t)has_sign;
+                }
+            }
+            else {
+                /* General sparse/lossy chunk: no per-group bounds/size==15 checks. */
+                while (todo) {
+                    const uint32_t k = svt_first_set_bit(todo);
+                    todo &= todo - 1;
+                    const uint32_t size = (uint32_t)g_ptr[k] - gtli;
+                    uint64_t out;
+                    if (has_sign) {
+                        uint64_t raw;
+                        memcpy(&raw, base + (nib >> 1), sizeof(raw));
+                        const uint64_t aligned = SVT_BSWAP64(raw) << ((nib & 1) * 4);
+                        const uint64_t signs = unpack_sign_spread[aligned >> 60];
+                        const uint64_t planes = (aligned << 4) >> (64 - 4 * size);
+                        out = unpack_planes_to_lanes(planes, gtli) | signs;
+                    }
+                    else {
+                        out = unpack_planes_to_lanes(unpack_load_nibbles(base, nib, size), gtli);
+                    }
+                    memcpy(dst + (size_t)k * GROUP_SIZE, &out, sizeof(out));
+                    nib += size + (uint32_t)has_sign;
+                }
+            }
+            group += chunk;
+            continue;
+        }
         while (todo) {
             const uint32_t k = svt_first_set_bit(todo);
             const uint32_t size = (uint32_t)gclis[group + k] - gtli;
@@ -67,9 +127,18 @@ static INLINE void unpack_n_groups_avx512_impl(uint8_t* gclis, uint8_t gtli, rea
                 group += k;
                 goto tail;
             }
-            uint64_t out = unpack_planes_to_lanes(unpack_load_nibbles(base, nib + (uint32_t)has_sign, size), gtli);
+            uint64_t out;
             if (has_sign) {
-                out |= unpack_sign_spread[unpack_one_nibble(base, nib)];
+                uint64_t raw;
+                memcpy(&raw, base + (nib >> 1), sizeof(raw));
+                const uint64_t aligned = SVT_BSWAP64(raw) << ((nib & 1) * 4);
+                const uint64_t signs = unpack_sign_spread[aligned >> 60];
+                const uint64_t planes = ((nib & 1) && size == TRUNCATION_MAX) ? unpack_load_nibbles(base, nib + 1, TRUNCATION_MAX)
+                                                                              : ((aligned << 4) >> (64 - 4 * size));
+                out = unpack_planes_to_lanes(planes, gtli) | signs;
+            }
+            else {
+                out = unpack_planes_to_lanes(unpack_load_nibbles(base, nib, size), gtli);
             }
             memcpy(buf + (size_t)(group + k) * GROUP_SIZE, &out, sizeof(out));
             nib += size + (uint32_t)has_sign;
@@ -120,20 +189,76 @@ void unpack_n_groups_nosign_avx512(uint8_t* gclis, uint8_t gtli, reader_short_t*
     unpack_n_groups_avx512_impl(gclis, gtli, r, buf, n_groups, safe_bytes, 0);
 }
 
+static INLINE uint64_t unpack_budget_nibbles_avx512(const uint8_t* gclis, uint32_t total_groups, uint8_t gtli,
+                                                    const int has_sign) {
+    const __m512i gtli_vec = _mm512_set1_epi8((char)gtli);
+    const __m512i zero = _mm512_setzero_si512();
+    __m512i sum = zero;
+    uint64_t sign_nibs = 0;
+    uint32_t i = 0;
+
+    for (; i + 64 <= total_groups; i += 64) {
+        const __m512i bits = _mm512_subs_epu8(_mm512_loadu_si512((const void*)(gclis + i)), gtli_vec);
+        sum = _mm512_add_epi64(sum, _mm512_sad_epu8(bits, zero));
+        if (has_sign) {
+            sign_nibs += (uint64_t)_mm_popcnt_u64(_mm512_test_epi8_mask(bits, bits));
+        }
+    }
+    if (i < total_groups) {
+        const __mmask64 m = ((__mmask64)1 << (total_groups - i)) - 1;
+        const __m512i bits = _mm512_subs_epu8(_mm512_maskz_loadu_epi8(m, gclis + i), gtli_vec);
+        sum = _mm512_add_epi64(sum, _mm512_sad_epu8(bits, zero));
+        if (has_sign) {
+            sign_nibs += (uint64_t)_mm_popcnt_u64(_mm512_test_epi8_mask(bits, bits));
+        }
+    }
+    return (uint64_t)_mm512_reduce_add_epi64(sum) + sign_nibs;
+}
+
 SvtJxsErrorType_t unpack_data_avx512(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint8_t* gclis,
                                      uint32_t group_size, uint8_t gtli, uint8_t sign_flag, uint8_t* leftover_signs_num,
                                      int32_t* precinct_bits_left) {
-    return unpack_data_common(bitstream,
-                              buf,
-                              w,
-                              gclis,
-                              group_size,
-                              gtli,
-                              sign_flag,
-                              leftover_signs_num,
-                              precinct_bits_left,
-                              unpack_n_groups_avx512,
-                              unpack_n_groups_nosign_avx512);
+    UNUSED(group_size);
+    assert(group_size == GROUP_SIZE);
+    assert((bitstream->bits_used != 0) || (bitstream->bits_used != 4));
+    const uint32_t group_num = w / GROUP_SIZE;
+    const uint32_t leftover = w % GROUP_SIZE;
+    const uint32_t total_groups = group_num + (leftover != 0);
+    const uint32_t safe_bytes = unpack_safe_byte_count(bitstream->size > bitstream->offset ? bitstream->size - bitstream->offset
+                                                                                           : 0);
+    const uint64_t nib_sum = (sign_flag == 0) ? unpack_budget_nibbles_avx512(gclis, total_groups, gtli, 1)
+                                              : unpack_budget_nibbles_avx512(gclis, total_groups, gtli, 0);
+    if (*precinct_bits_left < 0 || nib_sum * 4 > (uint64_t)*precinct_bits_left) {
+        return SvtJxsErrorDecoderInvalidBitstream;
+    }
+    *precinct_bits_left -= (int32_t)(nib_sum * 4);
+
+    reader_short_t reader;
+    reader.mem = (uint8_t*)(bitstream->mem) + bitstream->offset;
+    reader.bits_used = bitstream->bits_used;
+    if (sign_flag == 0) {
+        unpack_n_groups_avx512(gclis, gtli, &reader, buf, group_num, safe_bytes);
+        if (leftover) {
+            uint16_t buf_tmp[GROUP_SIZE];
+            unpack_n_groups_avx512(gclis + group_num, gtli, &reader, buf_tmp, 1, 0);
+            memcpy(buf + (size_t)group_num * GROUP_SIZE, buf_tmp, sizeof(uint16_t) * leftover);
+        }
+    }
+    else {
+        unpack_n_groups_nosign_avx512(gclis, gtli, &reader, buf, group_num, safe_bytes);
+        if (leftover) {
+            uint16_t buf_tmp[GROUP_SIZE];
+            unpack_n_groups_nosign_avx512(gclis + group_num, gtli, &reader, buf_tmp, 1, 0);
+            *leftover_signs_num = 0;
+            for (uint32_t leftover_id = leftover; leftover_id < GROUP_SIZE; leftover_id++) {
+                *leftover_signs_num += !!buf_tmp[leftover_id];
+            }
+            memcpy(buf + (size_t)group_num * GROUP_SIZE, buf_tmp, sizeof(uint16_t) * leftover);
+        }
+    }
+    bitstream->offset = (uint32_t)(reader.mem - bitstream->mem);
+    bitstream->bits_used = reader.bits_used;
+    return SvtJxsErrorNone;
 }
 
 /* The same run of GCLI unary codes as unpack_gclis_unary_run_avx2, a 64-bit window at a time.
@@ -162,7 +287,6 @@ TARGET_AVX512_VBMI2 uint32_t unpack_gclis_unary_run_avx512_vbmi2(const uint8_t* 
                                          31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
                                          15, 14, 13, 12, 11, 10, 9,  8,  7,  6,  5,  4,  3,  2,  1,  0);
     // clang-format on
-    const __m512i lane_down = _mm512_sub_epi8(lane, _mm512_set1_epi8(1));
     const __m512i minus_one = _mm512_set1_epi8(-1);
     const __m512i max_length = _mm512_set1_epi8(32);
     const __m512i value_offset = _mm512_set1_epi8((char)(gtli - 1));
@@ -182,14 +306,15 @@ TARGET_AVX512_VBMI2 uint32_t unpack_gclis_unary_run_avx512_vbmi2(const uint8_t* 
         /* the end of code k, as a distance from the top: lane n - 1 - k of the packed bytes */
         const __m512i packed = _mm512_maskz_compress_epi8(w, from_top);
         const __m512i end = _mm512_permutexvar_epi8(_mm512_sub_epi8(_mm512_set1_epi8((char)(n - 1)), lane), packed);
-        /* the end of code k - 1, and -1 before the first code */
-        const __m512i end_prev = _mm512_mask_permutexvar_epi8(minus_one, ~(__mmask64)1, lane_down, end);
+        /* the end of code k - 1 (lane n - k of packed), and -1 before the first code; runs in parallel with end */
+        const __m512i end_prev = _mm512_mask_permutexvar_epi8(
+            minus_one, ~(__mmask64)1, _mm512_sub_epi8(_mm512_set1_epi8((char)n), lane), packed);
         const __m512i length = _mm512_sub_epi8(end, end_prev);
         const __mmask64 keep = _bzhi_u64(~0ULL, m);
         /* a code longer than thirty-two bits is a corrupt stream, as for the scalar reader */
         err |= _mm512_mask_cmpgt_epi8_mask(keep, length, max_length) != 0;
         _mm512_mask_storeu_epi8(out + done, keep, _mm512_add_epi8(length, value_offset));
-        pos += 64 - svt_first_set_bit(_pdep_u64((uint64_t)1 << (n - m), w));
+        pos += 64 - svt_first_set_bit(m == n ? w : _pdep_u64((uint64_t)1 << (n - m), w));
         done += m;
     }
     *bit_pos = pos;
@@ -212,5 +337,39 @@ void unpack_raw_gclis_bytes_avx512(const uint8_t* mem, uint8_t* gclis, uint32_t 
         const __m512i v = _mm512_cvtepu8_epi16(_mm256_maskz_loadu_epi8((__mmask32)((1ULL << rest) - 1), mem + i));
         const __m512i out = _mm512_or_si512(_mm512_srli_epi16(v, 4), _mm512_slli_epi16(_mm512_and_si512(v, low_nibble), 8));
         _mm512_mask_storeu_epi8(gclis + 2 * i, (__mmask64)((1ULL << (2 * rest)) - 1), out);
+    }
+}
+
+/* Branchless backward scatter of 8-byte significance groups using AVX-512 VPEXPANDQ.
+ * Each significance group is one uint64_t (SIGNIFICANCE_GROUP_SIZE == 8). Walking down
+ * 8 groups at a time preserves src_q <= g, so expandloadu reads before storeu writes. */
+void unpack_gclis_sig_scatter_avx512(uint8_t* gclis, const uint8_t* significances, uint32_t group_num, uint32_t src_bytes,
+                                     uint8_t gtli) {
+    const __m512i gtli_vec = _mm512_set1_epi8((char)gtli);
+    const __m128i zero128 = _mm_setzero_si128();
+    uint64_t* const dst64 = (uint64_t*)gclis;
+    uint32_t src_q = src_bytes >> 3;
+    uint32_t g = group_num;
+
+    while (g >= 8) {
+        g -= 8;
+        if (src_q == g + 8) {
+            return;
+        }
+        const __m128i sig8 = _mm_loadl_epi64((const __m128i*)(significances + g));
+        const __mmask8 sig_mask = (__mmask8)(_mm_cmpeq_epi8_mask(sig8, zero128) & 0xFF);
+        const uint32_t k = (uint32_t)_mm_popcnt_u32(sig_mask);
+        src_q -= k;
+        const __m512i expanded = _mm512_mask_expandloadu_epi64(gtli_vec, sig_mask, dst64 + src_q);
+        _mm512_storeu_si512((__m512i*)(dst64 + g), expanded);
+    }
+    if (g > 0 && src_q != g) {
+        const __mmask8 valid = (__mmask8)((1u << g) - 1);
+        const __m128i sig_rem = _mm_maskz_loadu_epi8((__mmask16)valid, significances);
+        const __mmask8 sig_mask = (__mmask8)(_mm_mask_cmpeq_epi8_mask((__mmask16)valid, sig_rem, zero128) & valid);
+        const uint32_t k = (uint32_t)_mm_popcnt_u32(sig_mask);
+        src_q -= k;
+        const __m512i expanded = _mm512_mask_expandloadu_epi64(gtli_vec, sig_mask, dst64 + src_q);
+        _mm512_mask_storeu_epi64(dst64, valid, expanded);
     }
 }

@@ -302,10 +302,27 @@ void unpack_raw_gclis(bitstream_reader_t* bitstream, uint8_t* gclis, uint32_t w)
 static INLINE void unpack_gclis_significance(bitstream_reader_t* bitstream, precinct_band_t* b_data, precinct_band_info_t* b_info,
                                              uint32_t ypos) {
     uint8_t* data = b_data->significance_data + ypos * b_info->significance_width;
+    const uint32_t width = b_info->significance_width;
+    uint32_t i = 0;
 
     // If bit is set to 1, then significance group is insignificant.
-    for (uint32_t i = 0; i < b_info->significance_width; i++) {
-        data[i] = read_1_bit(bitstream); //TODO: Optimize read one bit.
+    while (i < width && bitstream->bits_used != 0) {
+        data[i++] = read_1_bit(bitstream);
+    }
+#if (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) || defined(_MSC_VER)
+    const uint32_t whole_bytes = (width - i) >> 3;
+    if (whole_bytes && bitstream->offset <= bitstream->size && whole_bytes <= bitstream->size - bitstream->offset) {
+        const uint8_t* src = bitstream->mem + bitstream->offset;
+        for (uint32_t b = 0; b < whole_bytes; b++) {
+            const uint64_t spread = (((uint64_t)src[b] * 0x8040201008040201ULL) >> 7) & 0x0101010101010101ULL;
+            memcpy(data + i, &spread, sizeof(spread));
+            i += 8;
+        }
+        bitstream->offset += whole_bytes;
+    }
+#endif
+    while (i < width) {
+        data[i++] = read_1_bit(bitstream);
     }
 }
 
@@ -537,6 +554,9 @@ static SvtJxsErrorType_t unpack_gclis_unary(bitstream_reader_t* bitstream, uint8
         *precinct_bits_left -= (int32_t)(pos - bitstream->bits_used);
         bitstream->offset += pos >> 3;
         bitstream->bits_used = pos & 7;
+        if (done == count) {
+            return SvtJxsErrorNone;
+        }
         if (unpack_gclis_unary_scalar(bitstream, out + done, count - done, gtli, precinct_bits_left) == SvtJxsErrorNone) {
             return SvtJxsErrorNone;
         }
@@ -554,6 +574,25 @@ SvtJxsErrorType_t unpack_pred_zero_gclis_no_significance(bitstream_reader_t* bit
     const uint32_t gcli_width = b_info->gcli_width;
     uint8_t* gclis = b_data->gcli_data + ypos * gcli_width;
     return unpack_gclis_unary(bitstream, gclis, gcli_width, b_data->gtli, precinct_bits_left);
+}
+
+void unpack_gclis_sig_scatter_c(uint8_t* gclis, const uint8_t* significances, uint32_t group_num, uint32_t src_bytes,
+                                uint8_t gtli) {
+    uint32_t src = src_bytes;
+    for (uint32_t group_idx = group_num; group_idx-- > 0;) {
+        uint8_t* dst = gclis + group_idx * SIGNIFICANCE_GROUP_SIZE;
+        if (!significances[group_idx]) {
+            src -= SIGNIFICANCE_GROUP_SIZE;
+            if (dst == gclis + src) {
+                /* every group below is significant and already in place */
+                break;
+            }
+            memmove(dst, gclis + src, SIGNIFICANCE_GROUP_SIZE);
+        }
+        else {
+            memset(dst, gtli, SIGNIFICANCE_GROUP_SIZE);
+        }
+    }
 }
 
 /*Return 0 if read success, Negative when return error.
@@ -598,20 +637,7 @@ SvtJxsErrorType_t unpack_pred_zero_gclis_significance(bitstream_reader_t* bitstr
             memset(dst, gtli, leftover);
         }
     }
-    for (uint32_t group_idx = group_num; group_idx-- > 0;) {
-        uint8_t* dst = gclis + group_idx * SIGNIFICANCE_GROUP_SIZE;
-        if (!significances[group_idx]) {
-            src -= SIGNIFICANCE_GROUP_SIZE;
-            if (dst == gclis + src) {
-                /* every group below is significant and already in place */
-                break;
-            }
-            memmove(dst, gclis + src, SIGNIFICANCE_GROUP_SIZE);
-        }
-        else {
-            memset(dst, gtli, SIGNIFICANCE_GROUP_SIZE);
-        }
-    }
+    unpack_gclis_sig_scatter(gclis, significances, group_num, src, (uint8_t)gtli);
     return ret;
 }
 

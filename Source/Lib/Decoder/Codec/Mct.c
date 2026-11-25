@@ -155,6 +155,47 @@ void inverse_rct_c(int32_t* comps[MAX_COMPONENTS_NUM], int32_t w, int32_t h) {
     }
 }
 
+static INLINE int32_t rct_clamp(int32_t val, int32_t clamp_val) {
+    return (val > clamp_val ? clamp_val : val < 0 ? 0 : val);
+}
+
+void inverse_rct_output_8bit_line_c(const int32_t* in0, const int32_t* in1, const int32_t* in2, uint32_t bw, uint32_t depth,
+                                    uint8_t* out0, uint8_t* out1, uint8_t* out2, uint32_t width) {
+    const int32_t dzeta = bw - depth;
+    const int32_t round = ((1 << bw) >> 1) + (int32_t)(((int64_t)1 << dzeta) >> 1);
+    const int32_t m = (1 << depth) - 1;
+    for (uint32_t x = 0; x < width; x++) {
+        const int32_t i0 = in0[x];
+        const int32_t i1 = in1[x];
+        const int32_t i2 = in2[x];
+        const int32_t o1 = i0 - ((i1 + i2) >> 2);
+        const int32_t o0 = o1 + i2;
+        const int32_t o2 = o1 + i1;
+        out0[x] = (uint8_t)rct_clamp((o0 + round) >> dzeta, m);
+        out1[x] = (uint8_t)rct_clamp((o1 + round) >> dzeta, m);
+        out2[x] = (uint8_t)rct_clamp((o2 + round) >> dzeta, m);
+    }
+}
+
+void inverse_rct_output_16bit_line_c(const int32_t* in0, const int32_t* in1, const int32_t* in2, uint32_t bw, uint32_t depth,
+                                     uint16_t* out0, uint16_t* out1, uint16_t* out2, uint32_t width, uint8_t msb_aligned) {
+    const int32_t dzeta = bw - depth;
+    const int32_t round = ((1 << bw) >> 1) + (int32_t)(((int64_t)1 << dzeta) >> 1);
+    const int32_t m = (1 << depth) - 1;
+    const int32_t msb_shift = msb_aligned ? (int32_t)(16 - depth) : 0;
+    for (uint32_t x = 0; x < width; x++) {
+        const int32_t i0 = in0[x];
+        const int32_t i1 = in1[x];
+        const int32_t i2 = in2[x];
+        const int32_t o1 = i0 - ((i1 + i2) >> 2);
+        const int32_t o0 = o1 + i2;
+        const int32_t o2 = o1 + i1;
+        out0[x] = (uint16_t)(rct_clamp((o0 + round) >> dzeta, m) << msb_shift);
+        out1[x] = (uint16_t)(rct_clamp((o1 + round) >> dzeta, m) << msb_shift);
+        out2[x] = (uint16_t)(rct_clamp((o2 + round) >> dzeta, m) << msb_shift);
+    }
+}
+
 /* Please refer to documentation: Table F.9 CFA Pattern type derived from the component registration*/
 int32_t get_cfa_pattern(const picture_header_dynamic_t* picture_header_dynamic) {
     if (picture_header_dynamic->hdr_Xcrg[1] == 32768 && picture_header_dynamic->hdr_Ycrg[1] == 0 &&
