@@ -245,8 +245,8 @@ SvtJxsErrorType_t unpack_data_c(bitstream_reader_t* bitstream, uint16_t* buf, ui
     return SvtJxsErrorNone;
 }
 
-int32_t unpack_sign(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint32_t group_size, uint8_t leftover_signs_num,
-                    int32_t* precinct_bits_left) {
+SvtJxsErrorType_t unpack_sign_c(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w, uint32_t group_size,
+                                uint8_t leftover_signs_num, int32_t* precinct_bits_left) {
     UNUSED(group_size);
     assert(group_size == GROUP_SIZE);
 

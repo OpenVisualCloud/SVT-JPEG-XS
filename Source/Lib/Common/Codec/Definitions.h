@@ -78,6 +78,13 @@ extern "C" {
 #define TARGET_BMI2
 #endif
 
+// BMI2 with POPCNT, for the sign kernel that places the signs with PDEP and counts them with POPCNT.
+#if defined(__GNUC__) || defined(__clang__)
+#define TARGET_BMI2_POPCNT __attribute__((target("bmi2,popcnt")))
+#else
+#define TARGET_BMI2_POPCNT
+#endif
+
 // The same for the byte compress and permute of AVX512_VBMI2 and AVX512_VBMI, which the
 // AVX-512 directory is not built with: only a few kernels use them, behind a host check.
 #if defined(__GNUC__) || defined(__clang__)

@@ -271,6 +271,152 @@ SvtJxsErrorType_t unpack_data_avx2_bmi2(bitstream_reader_t* bitstream, uint16_t*
                               unpack_n_groups_nosign_bmi2);
 }
 
+/* The signs of thirty-two coefficients, buf[0] to buf[31], from the stream at *offset and *bits_used.
+ *
+ * Their non-zero mask is taken in reverse order: bit t is set when buf[31 - t] is not zero. The step
+ * reads as many bits as the mask has set bits, k, as one k-bit number whose most significant bit is the
+ * first bit of the stream. PDEP puts the bits of that number on the set bits of the mask, lowest to
+ * lowest, so the first bit read lands on the highest set bit, which is the first non-zero coefficient:
+ * the stream order. The result has the sign of buf[j] at bit 31 - j.
+ *
+ * The load takes eight bytes at the byte of the first bit, and fewer at the end of the buffer, so it
+ * never reads past mem + size. After a shift of at most seven bits it still has at least fifty-seven
+ * bits, and k is at most thirty-two.
+ *
+ * Returns 1 if the k bits are more than *bits_left; the stream is not read and *bits_left is not
+ * changed then. */
+TARGET_BMI2_POPCNT static INLINE int32_t unpack_sign_32_avx2_bmi2(const uint8_t* mem, uint32_t size, uint32_t* offset,
+                                                                  uint32_t* bits_used, uint16_t* buf, int32_t* bits_left) {
+    const __m256i zero = _mm256_setzero_si256();
+    /* Reverses the eight bytes of each quadword */
+    const __m256i reverse_bytes = _mm256_setr_epi8(
+        7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8);
+    __m256i a = _mm256_loadu_si256((const __m256i*)buf);
+    __m256i b = _mm256_loadu_si256((const __m256i*)(buf + 16));
+
+    /* One byte per coefficient, 0xFF where it is zero. The pack works per 128-bit lane, so the
+     * quadwords hold buf[0..7], buf[16..23], buf[8..15] and buf[24..31]. */
+    __m256i zeros = _mm256_packs_epi16(_mm256_cmpeq_epi16(a, zero), _mm256_cmpeq_epi16(b, zero));
+    /* Quadwords in reverse order (buf[24..31] first), then each of them reversed: byte t is buf[31 - t] */
+    zeros = _mm256_permute4x64_epi64(zeros, 0x27);
+    zeros = _mm256_shuffle_epi8(zeros, reverse_bytes);
+    const uint32_t mask = ~(uint32_t)_mm256_movemask_epi8(zeros);
+    if (mask == 0) {
+        return 0;
+    }
+
+    const uint32_t k = (uint32_t)_mm_popcnt_u32(mask);
+    if (*bits_left < (int32_t)k) {
+        return 1;
+    }
+    *bits_left -= (int32_t)k;
+    /* Neither the load nor its address goes past mem + size, even when *offset does */
+    uint64_t window;
+    const uint32_t bytes_left = *offset < size ? size - *offset : 0;
+    if (bytes_left >= sizeof(window)) {
+        memcpy(&window, mem + *offset, sizeof(window));
+    }
+    else {
+        window = 0;
+        if (bytes_left) {
+            memcpy(&window, mem + *offset, bytes_left);
+        }
+    }
+    window = SVT_BSWAP64(window) << *bits_used;
+    const uint32_t signs = _pdep_u32((uint32_t)(window >> (64 - k)), mask);
+    *bits_used += k;
+    *offset += *bits_used >> 3;
+    *bits_used &= 7;
+
+    /* Coefficient j of each half has its sign at bit 15 - j of the half of signs: multiplied by 2^j,
+     * the bit moves to bit 15, the sign bit */
+    const __m256i to_sign_bit = _mm256_setr_epi16(
+        1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80, 0x100, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, (int16_t)0x8000);
+    const __m256i sign_bit = _mm256_set1_epi16((int16_t)BITSTREAM_MASK_SIGN);
+    const __m256i signs_a = _mm256_mullo_epi16(_mm256_set1_epi16((int16_t)(signs >> 16)), to_sign_bit);
+    const __m256i signs_b = _mm256_mullo_epi16(_mm256_set1_epi16((int16_t)(signs & 0xFFFF)), to_sign_bit);
+    a = _mm256_or_si256(a, _mm256_and_si256(signs_a, sign_bit));
+    b = _mm256_or_si256(b, _mm256_and_si256(signs_b, sign_bit));
+    _mm256_storeu_si256((__m256i*)buf, a);
+    _mm256_storeu_si256((__m256i*)(buf + 16), b);
+    return 0;
+}
+
+/* Copies n coefficients, n below thirty-two, as copies of 16, 8, 4, 2 and 1 by the bits of n. Each copy
+ * has a fixed size, so it compiles to moves, not to a call of memcpy. */
+static INLINE void copy_coefficients_below_32(uint16_t* dst, const uint16_t* src, uint32_t n) {
+    assert(n < 32);
+    if (n & 16) {
+        memcpy(dst, src, 16 * sizeof(uint16_t));
+        dst += 16;
+        src += 16;
+    }
+    if (n & 8) {
+        memcpy(dst, src, 8 * sizeof(uint16_t));
+        dst += 8;
+        src += 8;
+    }
+    if (n & 4) {
+        memcpy(dst, src, 4 * sizeof(uint16_t));
+        dst += 4;
+        src += 4;
+    }
+    if (n & 2) {
+        memcpy(dst, src, 2 * sizeof(uint16_t));
+        dst += 2;
+        src += 2;
+    }
+    if (n & 1) {
+        *dst = *src;
+    }
+}
+
+/* Same result as unpack_sign_c, which reads one bit per non-zero coefficient: here thirty-two
+ * coefficients take one load and one PDEP. A line that does not end on a multiple of thirty-two
+ * finishes in a zero-padded copy; the zeros add no set bit to the mask, so they read nothing.
+ *
+ * On a corrupt stream (more signs than bits left in the precinct) both return the same error, but
+ * this one stops at the step of thirty-two that runs out, so the signs set and the bits counted
+ * before the error can differ. The caller drops the precinct on that error. */
+TARGET_BMI2_POPCNT SvtJxsErrorType_t unpack_sign_avx2_bmi2(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w,
+                                                           uint32_t group_size, uint8_t leftover_signs_num,
+                                                           int32_t* precinct_bits_left) {
+    UNUSED(group_size);
+    assert(group_size == GROUP_SIZE);
+    uint32_t offset = bitstream->offset;
+    uint32_t bits_used = bitstream->bits_used;
+    int32_t bits_left = *precinct_bits_left;
+    int32_t short_of_bits = 0;
+
+    uint32_t i = 0;
+    for (; i + 32 <= w && !short_of_bits; i += 32) {
+        short_of_bits = unpack_sign_32_avx2_bmi2(bitstream->mem, bitstream->size, &offset, &bits_used, buf + i, &bits_left);
+    }
+    if (i < w && !short_of_bits) {
+        uint16_t tail[32] = {0};
+        copy_coefficients_below_32(tail, buf + i, w - i);
+        short_of_bits = unpack_sign_32_avx2_bmi2(bitstream->mem, bitstream->size, &offset, &bits_used, tail, &bits_left);
+        if (!short_of_bits) {
+            copy_coefficients_below_32(buf + i, tail, w - i);
+        }
+    }
+    bitstream->offset = offset;
+    bitstream->bits_used = bits_used;
+    *precinct_bits_left = bits_left;
+    if (short_of_bits) {
+        return SvtJxsErrorDecoderInvalidBitstream;
+    }
+
+    if (leftover_signs_num && (w % GROUP_SIZE)) {
+        *precinct_bits_left -= leftover_signs_num;
+        if (*precinct_bits_left < 0) {
+            return SvtJxsErrorDecoderInvalidBitstream;
+        }
+        bitstream_reader_skip_bits(bitstream, leftover_signs_num);
+    }
+    return SvtJxsErrorNone;
+}
+
 /* A run of GCLI unary codes, as many as there are or as fit before byte_limit.
  *
  * The scalar reader finds the end of a code with a leading-zero count and shifts the register by it
