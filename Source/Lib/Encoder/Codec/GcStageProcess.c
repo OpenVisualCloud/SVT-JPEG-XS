@@ -280,46 +280,67 @@ void precinct_component_calculate_dwt_V2_precalculate_slice(
     int32_t* line_1 = buffers_dwt_tmp->V2.line_6;                    //Line previous precinct
     int32_t* line_2 = buffers_dwt_per_component->V2[comp_id].line_2; //Line previous precinct
 
-    if (line_idx >= 6)
-        copy_or_scale_line(
-            rct_lines_in[0], plane_buffer_in[0], line_p6, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
-    if (line_idx >= 5)
-        copy_or_scale_line(
-            rct_lines_in[1], plane_buffer_in[1], line_p5, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
-    if (line_idx >= 4)
-        copy_or_scale_line(
-            rct_lines_in[2], plane_buffer_in[2], line_p4, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
-    if (line_idx >= 3)
-        copy_or_scale_line(
-            rct_lines_in[3], plane_buffer_in[3], line_p3, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
-    if (line_idx >= 2)
-        copy_or_scale_line(
-            rct_lines_in[4], plane_buffer_in[4], line_p2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
-    if (line_idx >= 1)
-        copy_or_scale_line(
-            rct_lines_in[5], plane_buffer_in[5], line_p1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
-    copy_or_scale_line(rct_lines_in[6], plane_buffer_in[6], line_0, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
-    if (line_idx + 1 < plane_height)
-        copy_or_scale_line(
-            rct_lines_in[7], plane_buffer_in[7], line_1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
-    if (line_idx + 2 < plane_height)
-        copy_or_scale_line(
-            rct_lines_in[8], plane_buffer_in[8], line_2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+    const int32_t* p_p6 = rct_lines_in[0];
+    const int32_t* p_p5 = rct_lines_in[1];
+    const int32_t* p_p4 = rct_lines_in[2];
+    const int32_t* p_p3 = rct_lines_in[3];
+    const int32_t* p_p2 = rct_lines_in[4];
+    const int32_t* p_p1 = rct_lines_in[5];
+    const int32_t* p_0 = rct_lines_in[6];
+    const int32_t* p_1 = rct_lines_in[7];
+    const int32_t* p_2 = rct_lines_in[8];
+
+    if (line_idx >= 6 && !p_p6) {
+        nlt_input_scaling_line(plane_buffer_in[0], line_p6, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        p_p6 = line_p6;
+    }
+    if (line_idx >= 5 && !p_p5) {
+        nlt_input_scaling_line(plane_buffer_in[1], line_p5, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        p_p5 = line_p5;
+    }
+    if (line_idx >= 4 && !p_p4) {
+        nlt_input_scaling_line(plane_buffer_in[2], line_p4, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        p_p4 = line_p4;
+    }
+    if (line_idx >= 3 && !p_p3) {
+        nlt_input_scaling_line(plane_buffer_in[3], line_p3, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        p_p3 = line_p3;
+    }
+    if (line_idx >= 2 && !p_p2) {
+        nlt_input_scaling_line(plane_buffer_in[4], line_p2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        p_p2 = line_p2;
+    }
+    if (line_idx >= 1 && !p_p1) {
+        nlt_input_scaling_line(plane_buffer_in[5], line_p1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        p_p1 = line_p1;
+    }
+    if (!p_0) {
+        nlt_input_scaling_line(plane_buffer_in[6], line_0, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        p_0 = line_0;
+    }
+    if (line_idx + 1 < plane_height && !p_1) {
+        nlt_input_scaling_line(plane_buffer_in[7], line_1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        p_1 = line_1;
+    }
+    if (line_idx + 2 < plane_height && !p_2) {
+        nlt_input_scaling_line(plane_buffer_in[8], line_2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        p_2 = line_2;
+    }
 
     transform_V2_Hx_precinct_recalc(component,
                                     pi->components[comp_id].decom_h,
                                     line_idx,
                                     plane_width,
                                     plane_height,
-                                    line_p6,
-                                    line_p5,
-                                    line_p4,
-                                    line_p3,
-                                    line_p2,
-                                    line_p1,
-                                    line_0,
-                                    line_1,
-                                    line_2,
+                                    p_p6 ? p_p6 : line_p6,
+                                    p_p5 ? p_p5 : line_p5,
+                                    p_p4 ? p_p4 : line_p4,
+                                    p_p3 ? p_p3 : line_p3,
+                                    p_p2 ? p_p2 : line_p2,
+                                    p_p1 ? p_p1 : line_p1,
+                                    p_0,
+                                    p_1 ? p_1 : line_1,
+                                    p_2 ? p_2 : line_2,
                                     buffers_dwt_per_component->V2[comp_id].buffer_prev,
                                     buffers_dwt_per_component->V2[comp_id].buffer_on_place,
                                     buffers_dwt_tmp->buffer_tmp);
@@ -341,38 +362,31 @@ void precinct_component_calculate_dwt_V2(struct PictureControlSet* pcs_ptr, uint
     transform_V0_ptr_t transform_V0_Hn_sub_1 = transform_V0_get_function_ptr(pi->components[comp_id].decom_h - 1);
     uint32_t line_idx = prec_idx * pi->components[comp_id].precinct_height;
 
-    //Read next 2 lines and reuse last one as first
-    if ((line_idx + 3) < plane_height) {
-        copy_or_scale_line(rct_lines_in[9],
-                           plane_buffer_in[9],
-                           buffers_dwt_tmp->V2.line_3,
-                           plane_width,
-                           &enc_common->picture_header_dynamic,
-                           input_bit_depth);
+    const int32_t* l2 = rct_lines_in[8] ? rct_lines_in[8] : buffers_dwt_per_component->V2[comp_id].line_2;
+    const int32_t* l3 = rct_lines_in[9];
+    const int32_t* l4 = rct_lines_in[10];
+    const int32_t* l5 = rct_lines_in[11];
+    const int32_t* l6 = rct_lines_in[12];
+
+    if ((line_idx + 3) < plane_height && !l3) {
+        nlt_input_scaling_line(
+            plane_buffer_in[9], buffers_dwt_tmp->V2.line_3, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        l3 = buffers_dwt_tmp->V2.line_3;
     }
-    if ((line_idx + 4) < plane_height) {
-        copy_or_scale_line(rct_lines_in[10],
-                           plane_buffer_in[10],
-                           buffers_dwt_tmp->V2.line_4,
-                           plane_width,
-                           &enc_common->picture_header_dynamic,
-                           input_bit_depth);
+    if ((line_idx + 4) < plane_height && !l4) {
+        nlt_input_scaling_line(
+            plane_buffer_in[10], buffers_dwt_tmp->V2.line_4, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        l4 = buffers_dwt_tmp->V2.line_4;
     }
-    if ((line_idx + 5) < plane_height) {
-        copy_or_scale_line(rct_lines_in[11],
-                           plane_buffer_in[11],
-                           buffers_dwt_tmp->V2.line_5,
-                           plane_width,
-                           &enc_common->picture_header_dynamic,
-                           input_bit_depth);
+    if ((line_idx + 5) < plane_height && !l5) {
+        nlt_input_scaling_line(
+            plane_buffer_in[11], buffers_dwt_tmp->V2.line_5, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        l5 = buffers_dwt_tmp->V2.line_5;
     }
-    if ((line_idx + 6) < plane_height) {
-        copy_or_scale_line(rct_lines_in[12],
-                           plane_buffer_in[12],
-                           buffers_dwt_tmp->V2.line_6,
-                           plane_width,
-                           &enc_common->picture_header_dynamic,
-                           input_bit_depth);
+    if ((line_idx + 6) < plane_height && !l6) {
+        nlt_input_scaling_line(
+            plane_buffer_in[12], buffers_dwt_tmp->V2.line_6, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
+        l6 = buffers_dwt_tmp->V2.line_6;
     }
 
     transform_V2_Hx_precinct(component,
@@ -382,11 +396,11 @@ void precinct_component_calculate_dwt_V2(struct PictureControlSet* pcs_ptr, uint
                              line_idx,
                              plane_width,
                              plane_height,
-                             buffers_dwt_per_component->V2[comp_id].line_2,
-                             buffers_dwt_tmp->V2.line_3,
-                             buffers_dwt_tmp->V2.line_4,
-                             buffers_dwt_tmp->V2.line_5,
-                             buffers_dwt_tmp->V2.line_6,
+                             l2,
+                             l3 ? l3 : buffers_dwt_tmp->V2.line_3,
+                             l4 ? l4 : buffers_dwt_tmp->V2.line_4,
+                             l5 ? l5 : buffers_dwt_tmp->V2.line_5,
+                             l6 ? l6 : buffers_dwt_tmp->V2.line_6,
                              buffer_out_16bit,
                              enc_common->picture_header_dynamic.hdr_Fq,
                              buffers_dwt_per_component->V2[comp_id].buffer_prev,
@@ -395,10 +409,12 @@ void precinct_component_calculate_dwt_V2(struct PictureControlSet* pcs_ptr, uint
                              buffers_dwt_tmp->buffer_tmp);
 
     int32_t* tmp;
-    /*Move lines last one will be first for next precinct*/
-    tmp = buffers_dwt_per_component->V2[comp_id].line_2;
-    buffers_dwt_per_component->V2[comp_id].line_2 = buffers_dwt_tmp->V2.line_6;
-    buffers_dwt_tmp->V2.line_6 = tmp;
+    /*Move lines last one will be first for next precinct (unused when RCT ring supplies l2 directly)*/
+    if (!rct_lines_in[12]) {
+        tmp = buffers_dwt_per_component->V2[comp_id].line_2;
+        buffers_dwt_per_component->V2[comp_id].line_2 = buffers_dwt_tmp->V2.line_6;
+        buffers_dwt_tmp->V2.line_6 = tmp;
+    }
 
     /*Swap lines with HF*/
     tmp = buffers_dwt_per_component->V2[comp_id].buffer_prev;
@@ -505,7 +521,7 @@ void mct_forward_rct_prepass_planar(struct PictureControlSet* pcs_ptr, uint32_t 
                 nlt_input_scaling_line(raw_ptrs[0][k], dst0, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
                 nlt_input_scaling_line(raw_ptrs[1][k], dst1, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
                 nlt_input_scaling_line(raw_ptrs[2][k], dst2, plane_width, &enc_common->picture_header_dynamic, input_bit_depth);
-                forward_rct_line(dst0, dst1, dst2, plane_width);
+                forward_rct_line_rtcd(dst0, dst1, dst2, plane_width);
                 rct_scaled_lines_tag[ring] = abs_line_idx;
             }
 

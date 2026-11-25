@@ -95,6 +95,15 @@ RTCD_EXTERN void (*convert_packed_to_planar_rgb_8bit)(const void* in_rgb, void* 
                                                       uint32_t line_width);
 RTCD_EXTERN void (*convert_packed_to_planar_rgb_16bit)(const void* in_rgb, void* out_comp1, void* out_comp2, void* out_comp3,
                                                        uint32_t line_width);
+RTCD_EXTERN void (*forward_rct_line_rtcd)(int32_t* comp0, int32_t* comp1, int32_t* comp2, uint32_t width);
+RTCD_EXTERN void (*gc_lossless_stats_gtli0)(const uint8_t* data, uint32_t width, uint32_t* out_sum, uint16_t* out_zero);
+RTCD_EXTERN void (*rc_lut_derive)(uint16_t* gc_hist, uint32_t* no_sign_tbl, uint32_t* sign_tbl, uint16_t* sig_hist);
+RTCD_EXTERN void (*pack_significance)(bitstream_writer_t* bitstream, uint8_t gtli, uint8_t* significance_data_max_ptr,
+                                      uint32_t width);
+RTCD_EXTERN void (*pack_bitplane_count_significance)(bitstream_writer_t* bitstream, uint8_t* bitplane, uint32_t width,
+                                                     int8_t gtli, uint8_t* significance_data_max_ptr, int32_t group_size);
+RTCD_EXTERN void (*pack_bitplane_count_no_significance)(bitstream_writer_t* bitstream, uint8_t* bitplane, uint32_t width,
+                                                        int8_t gtli);
 
 #ifdef __cplusplus
 } // extern "C"

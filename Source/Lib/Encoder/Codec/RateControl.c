@@ -41,6 +41,45 @@ void gc_histogram_16_c(const uint8_t *data, uint32_t width, uint16_t *hist) {
     }
 }
 
+void gc_lossless_stats_gtli0_c(const uint8_t *data, uint32_t width, uint32_t *out_sum, uint16_t *out_zero) {
+    uint32_t sum = 0;
+    uint32_t zeros = 0;
+    for (uint32_t i = 0; i < width; i++) {
+        assert(data[i] <= TRUNCATION_MAX);
+        sum += data[i];
+        zeros += (data[i] == 0);
+    }
+    *out_sum = sum;
+    *out_zero = (uint16_t)zeros;
+}
+
+void rc_lut_derive_c(uint16_t *gc_hist, uint32_t *no_sign_tbl, uint32_t *sign_tbl, uint16_t *sig_hist) {
+    no_sign_tbl[15] = 0;
+    if (sign_tbl) {
+        sign_tbl[15] = 0;
+    }
+    uint32_t sum_back = 0;
+    for (int32_t gtli_index = 14; gtli_index >= 0; --gtli_index) {
+        sum_back += gc_hist[gtli_index + 1];
+        no_sign_tbl[gtli_index] = no_sign_tbl[gtli_index + 1] + sum_back + gc_hist[gtli_index + 1];
+        if (sign_tbl) {
+            sign_tbl[gtli_index] = sign_tbl[gtli_index + 1] + sum_back;
+        }
+    }
+    uint16_t summary = 0;
+    for (uint32_t i = 0; i <= TRUNCATION_MAX; ++i) {
+        gc_hist[i] += summary;
+        summary = gc_hist[i];
+    }
+    if (sig_hist) {
+        uint16_t sig_summary = 0;
+        for (uint32_t i = 0; i <= TRUNCATION_MAX; ++i) {
+            sig_hist[i] += sig_summary;
+            sig_summary = sig_hist[i];
+        }
+    }
+}
+
 static void rate_control_lut_fill(svt_jpeg_xs_encoder_common_t *enc_common,
 #if LUT_SIGNIFICANE
                                   uint8_t coding_significance,
@@ -74,87 +113,79 @@ static void rate_control_lut_fill(svt_jpeg_xs_encoder_common_t *enc_common,
                     cache_line->significance_max_lookup_table[i] = RC_LUT_POISON_U16;
                 }
 #endif /*NDEBUG*/
-                gc_histogram_16(gc_data, group_conding_width, gc_lookup_table);
+                if (enc_common->lossless_enable) {
+                    /* Lossless mode always uses gtli = 0; only index [0] of the LUTs is ever read. */
+                    uint32_t sum_gcli = 0;
+                    uint16_t cnt_zero = 0;
+                    gc_lossless_stats_gtli0(gc_data, group_conding_width, &sum_gcli, &cnt_zero);
+                    gc_lookup_table[0] = cnt_zero;
 #if LUT_GC_SERIAL_SUMMATION
-                if (coding_signs_handling == SIGN_HANDLING_STRATEGY_OFF) {
-                    uint32_t *gc_lookup_table_size_data_no_sign_handling = cache_line->gc_lookup_table_size_data_no_sign_handling;
-                    gc_lookup_table_size_data_no_sign_handling[15] = 0;
-                    uint32_t sum_back = 0;
-                    for (int32_t gtli_index = 14; gtli_index >= 0; --gtli_index) {
-                        sum_back += gc_lookup_table[gtli_index + 1];
-                        gc_lookup_table_size_data_no_sign_handling[gtli_index] =
-                            gc_lookup_table_size_data_no_sign_handling[gtli_index + 1] + sum_back +
-                            gc_lookup_table[gtli_index + 1];
-#ifndef NDEBUG
-                        uint32_t sum_data = 0;
-                        for (int8_t i2 = gtli_index + 1; i2 < TRUNCATION_MAX + 1; ++i2) {
-                            sum_data += (i2 - gtli_index + 1) * gc_lookup_table[i2];
-                        }
-                        if (sum_data != gc_lookup_table_size_data_no_sign_handling[gtli_index]) {
-                            printf(
-                                "LUT ERROR expected %i get %i", sum_data, gc_lookup_table_size_data_no_sign_handling[gtli_index]);
-                            assert(0);
-                        }
-#endif /*NDEBUG*/
+                    cache_line->gc_lookup_table_size_data_no_sign_handling[0] = sum_gcli + (group_conding_width - cnt_zero);
+                    if (coding_signs_handling != SIGN_HANDLING_STRATEGY_OFF) {
+                        cache_line->gc_lookup_table_size_data_sign_handling[0] = sum_gcli;
                     }
-                }
-                else {
-                    uint32_t *gc_lookup_table_size_data_no_sign_handling = cache_line->gc_lookup_table_size_data_no_sign_handling;
-                    uint32_t *gc_lookup_table_size_data_sign_handling = cache_line->gc_lookup_table_size_data_sign_handling;
-
-                    gc_lookup_table_size_data_no_sign_handling[15] = 0;
-                    gc_lookup_table_size_data_sign_handling[15] = 0;
-                    uint32_t sum_back = 0;
-                    for (int32_t gtli_index = 14; gtli_index >= 0; --gtli_index) {
-                        sum_back += gc_lookup_table[gtli_index + 1];
-                        gc_lookup_table_size_data_no_sign_handling[gtli_index] =
-                            gc_lookup_table_size_data_no_sign_handling[gtli_index + 1] + sum_back +
-                            gc_lookup_table[gtli_index + 1];
-                        gc_lookup_table_size_data_sign_handling[gtli_index] =
-                            gc_lookup_table_size_data_sign_handling[gtli_index + 1] + sum_back;
-#ifndef NDEBUG
-                        uint32_t sum_data = 0;
-                        for (int8_t i2 = gtli_index + 1; i2 < TRUNCATION_MAX + 1; ++i2) {
-                            sum_data += (i2 - gtli_index + 1) * gc_lookup_table[i2];
-                        }
-                        if (sum_data != gc_lookup_table_size_data_no_sign_handling[gtli_index]) {
-                            printf(
-                                "LUT ERROR expected %i get %i", sum_data, gc_lookup_table_size_data_no_sign_handling[gtli_index]);
-                            assert(0);
-                        }
-                        sum_data = 0;
-                        for (int8_t i2 = gtli_index + 1; i2 < TRUNCATION_MAX + 1; ++i2) {
-                            sum_data += (i2 - gtli_index) * gc_lookup_table[i2];
-                        }
-                        if (sum_data != gc_lookup_table_size_data_sign_handling[gtli_index]) {
-                            printf("LUT ERROR expected %i get %i", sum_data, gc_lookup_table_size_data_sign_handling[gtli_index]);
-                            assert(0);
-                        }
-#endif /*NDEBUG*/
-                    }
-                }
-                /*Summarize changes in table*/
-                uint16_t summary = 0;
-                for (uint32_t i = 0; i <= TRUNCATION_MAX; ++i) {
-                    gc_lookup_table[i] += summary;
-                    summary = gc_lookup_table[i];
-                }
-#endif /*LUT_GC_SERIAL_SUMMATION*/
+#endif
 #if LUT_SIGNIFICANE
+                    if (coding_significance) {
+                        uint8_t *significance_data_max_ptr = precinct->bands[c][b].lines_common[line].significance_data_max_ptr;
+                        const uint32_t full_group = group_conding_width / pi->significance_group_size;
+                        uint32_t sig_sum_unused = 0;
+                        uint16_t sig_zero = 0;
+                        gc_lossless_stats_gtli0(significance_data_max_ptr, full_group, &sig_sum_unused, &sig_zero);
+                        cache_line->significance_max_lookup_table[0] = sig_zero;
+                    }
+#if SIGN_NOZERO_COEFF_LUT
+                    if (coding_signs_handling == SIGN_HANDLING_STRATEGY_FULL &&
+                        enc_common->picture_header_dynamic.hdr_Qpih == QUANT_TYPE_DEADZONE) {
+                        const uint32_t coeff_width = precinct->p_info->b_info[c][b].width;
+                        uint16_t *coeff_16bit = precinct->bands[c][b].lines_common[line].coeff_data_ptr_16bit;
+                        uint16_t *coeff_lookup_table = cache_line->coeff_lookup_table;
+                        for (uint32_t i = 0; i < coeff_width; ++i) {
+                            uint32_t log = svt_log2_32((coeff_16bit[i] & ~BITSTREAM_MASK_SIGN) << 1);
+                            coeff_lookup_table[log]++;
+                        }
+                    }
+#endif /*SIGN_NOZERO_COEFF_LUT*/
+#endif /*LUT_SIGNIFICANE*/
+                    continue;
+                }
+                gc_histogram_16(gc_data, group_conding_width, gc_lookup_table);
+#if LUT_SIGNIFICANE
+                uint16_t *sig_hist_ptr = NULL;
                 if (coding_significance) {
                     uint8_t *significance_data_max_ptr = precinct->bands[c][b].lines_common[line].significance_data_max_ptr;
                     const uint32_t full_group = group_conding_width / pi->significance_group_size;
-                    uint16_t *significance_max_lookup_table = cache_line->significance_max_lookup_table;
-                    gc_histogram_16(significance_data_max_ptr, full_group, significance_max_lookup_table);
-#if LUT_SIGNIFICANE_SERIAL_SUMMATION
+                    sig_hist_ptr = cache_line->significance_max_lookup_table;
+                    gc_histogram_16(significance_data_max_ptr, full_group, sig_hist_ptr);
+                }
+#endif
+#if LUT_GC_SERIAL_SUMMATION && LUT_SIGNIFICANE && LUT_SIGNIFICANE_SERIAL_SUMMATION
+                rc_lut_derive(gc_lookup_table,
+                              cache_line->gc_lookup_table_size_data_no_sign_handling,
+                              (coding_signs_handling != SIGN_HANDLING_STRATEGY_OFF)
+                                  ? cache_line->gc_lookup_table_size_data_sign_handling
+                                  : NULL,
+                              sig_hist_ptr);
+#else
+#if LUT_GC_SERIAL_SUMMATION
+                rc_lut_derive(gc_lookup_table,
+                              cache_line->gc_lookup_table_size_data_no_sign_handling,
+                              (coding_signs_handling != SIGN_HANDLING_STRATEGY_OFF)
+                                  ? cache_line->gc_lookup_table_size_data_sign_handling
+                                  : NULL,
+                              NULL);
+#endif /*LUT_GC_SERIAL_SUMMATION*/
+#if LUT_SIGNIFICANE && LUT_SIGNIFICANE_SERIAL_SUMMATION
+                if (sig_hist_ptr) {
                     uint16_t summary = 0;
                     for (uint32_t i = 0; i <= TRUNCATION_MAX; ++i) {
-                        significance_max_lookup_table[i] += summary;
-                        summary = significance_max_lookup_table[i];
+                        sig_hist_ptr[i] += summary;
+                        summary = sig_hist_ptr[i];
                     }
-#endif
                 }
-#if SIGN_NOZERO_COEFF_LUT
+#endif
+#endif
+#if LUT_SIGNIFICANE && SIGN_NOZERO_COEFF_LUT
                 if (coding_signs_handling == SIGN_HANDLING_STRATEGY_FULL) {
                     if (enc_common->picture_header_dynamic.hdr_Qpih == QUANT_TYPE_DEADZONE) {
                         const uint32_t coeff_width = precinct->p_info->b_info[c][b].width;
@@ -168,8 +199,7 @@ static void rate_control_lut_fill(svt_jpeg_xs_encoder_common_t *enc_common,
                         }
                     }
                 }
-#endif /*SIGN_NOZERO_COEFF_LUT*/
-#endif /*LUT_SIGNIFICANE*/
+#endif /*LUT_SIGNIFICANE && SIGN_NOZERO_COEFF_LUT*/
                 //TODO: Optimize lookup to array size but not see benefits
                 //int remove = 0;
                 //for (int i = 15; i > 0; --i) {
@@ -492,9 +522,132 @@ static uint32_t rate_control_sign_coding_get_sum_nonzero_coeff_c(rc_cache_band_l
     return sum_nonzero_coeff;
 }
 
+#if LUT_GC_SERIAL_SUMMATION && LUT_SIGNIFICANE && LUT_SIGNIFICANE_SERIAL_SUMMATION
+/* Specialized fast path for rate_control_calculate_band_best_method when vertical
+ * prediction and sign handling are disabled (the default mode and the inner binary-search
+ * loop). Avoids register spills, hardware division by significance_group_size, and
+ * stack-array store-to-load forwarding stalls. */
+static void rate_control_calculate_band_best_method_fast(pi_t *pi, precinct_enc_t *precinct, uint8_t coding_sig) {
+    assert(pi->coeff_group_size == GROUP_SIZE);
+    assert(pi->significance_group_size == SIGNIFICANCE_GROUP_SIZE);
+    assert(RC_BAND_CACHE_SIZE == 2);
+    precinct_info_t *const p_info = precinct->p_info;
+
+    for (uint32_t c = 0; c < pi->comps_num; ++c) {
+        const uint32_t bands_num = pi->components[c].bands_num;
+        for (uint32_t b = 0; b < bands_num; ++b) {
+            const uint32_t height_lines = p_info->b_info[c][b].height;
+            if (height_lines == 0) {
+                continue;
+            }
+            struct band_data_enc *const band = &precinct->bands[c][b];
+            const uint8_t gtli = band->gtli;
+            if (band->cache_actual->gtli_rc_last_calculated == gtli) {
+                continue;
+            }
+            precinct->need_recalculate_next_precinct = 1;
+
+            const uint32_t other_idx = band->cache_index ^ 1u;
+            band->cache_index = other_idx;
+            struct band_data_enc_cache *const band_cache = &band->cache_buffers[other_idx];
+            band->cache_actual = band_cache;
+            if (band_cache->gtli_rc_last_calculated == gtli) {
+                continue;
+            }
+
+            if (!coding_sig) {
+                for (uint32_t line_idx = 0; line_idx < height_lines; ++line_idx) {
+                    const rc_cache_band_line_t *const cl = &band->lines_common[line_idx].rc_cache_line;
+                    const uint32_t sum_data = cl->gc_lookup_table_size_data_no_sign_handling[gtli];
+                    band_cache->lines[line_idx].pack_size_data_bits = sum_data << 2;
+                    band_cache->lines[line_idx].packet_size_signs_handling_bits = 0;
+                    band_cache->lines[line_idx].pack_size_significance_bits = 0;
+                    band_cache->lines[line_idx].pack_size_gcli_bits = sum_data + cl->gc_lookup_table[gtli];
+                }
+                band_cache->pack_method = METHOD_ZERO_SIGNIFICANCE_DISABLE;
+                band_cache->gtli_rc_last_calculated = gtli;
+                continue;
+            }
+
+            const uint32_t gcli_width = p_info->b_info[c][b].gcli_width;
+            const uint32_t significance_width = p_info->b_info[c][b].significance_width;
+            const uint32_t full_group = gcli_width >> 3;
+            const uint32_t sig_tail_rem = gcli_width & 7u;
+
+            if (height_lines == 1) {
+                const rc_cache_band_line_t *const cl = &band->lines_common[0].rc_cache_line;
+                const uint32_t sum_data = cl->gc_lookup_table_size_data_no_sign_handling[gtli];
+                const uint32_t no_sig = sum_data + cl->gc_lookup_table[gtli];
+                band_cache->lines[0].pack_size_data_bits = sum_data << 2;
+                band_cache->lines[0].packet_size_signs_handling_bits = 0;
+
+                uint32_t sig_zeroed = (uint32_t)cl->significance_max_lookup_table[gtli] << 3;
+                if (sig_tail_rem && band->lines_common[0].significance_data_max_ptr[full_group] <= gtli) {
+                    sig_zeroed += sig_tail_rem;
+                }
+                if (sig_zeroed > significance_width) {
+                    band_cache->pack_method = METHOD_ZERO_SIGNIFICANCE_ENABLE;
+                    band_cache->lines[0].pack_size_significance_bits = significance_width;
+                    band_cache->lines[0].pack_size_gcli_bits = no_sig - sig_zeroed;
+                }
+                else {
+                    band_cache->pack_method = METHOD_ZERO_SIGNIFICANCE_DISABLE;
+                    band_cache->lines[0].pack_size_significance_bits = 0;
+                    band_cache->lines[0].pack_size_gcli_bits = no_sig;
+                }
+                band_cache->gtli_rc_last_calculated = gtli;
+                continue;
+            }
+
+            uint32_t total_sig_zeroed = 0;
+            uint32_t nosig_gcli[MAX_BAND_LINES];
+            uint32_t sig_gcli[MAX_BAND_LINES];
+
+            for (uint32_t line_idx = 0; line_idx < height_lines; ++line_idx) {
+                const rc_cache_band_line_t *const cl = &band->lines_common[line_idx].rc_cache_line;
+                const uint32_t sum_data = cl->gc_lookup_table_size_data_no_sign_handling[gtli];
+                const uint32_t no_sig = sum_data + cl->gc_lookup_table[gtli];
+                band_cache->lines[line_idx].pack_size_data_bits = sum_data << 2;
+                band_cache->lines[line_idx].packet_size_signs_handling_bits = 0;
+
+                uint32_t sig_zeroed = (uint32_t)cl->significance_max_lookup_table[gtli] << 3;
+                if (sig_tail_rem && band->lines_common[line_idx].significance_data_max_ptr[full_group] <= gtli) {
+                    sig_zeroed += sig_tail_rem;
+                }
+                nosig_gcli[line_idx] = no_sig;
+                sig_gcli[line_idx] = no_sig - sig_zeroed;
+                total_sig_zeroed += sig_zeroed;
+            }
+
+            if (total_sig_zeroed > significance_width * height_lines) {
+                band_cache->pack_method = METHOD_ZERO_SIGNIFICANCE_ENABLE;
+                for (uint32_t line_idx = 0; line_idx < height_lines; ++line_idx) {
+                    band_cache->lines[line_idx].pack_size_significance_bits = significance_width;
+                    band_cache->lines[line_idx].pack_size_gcli_bits = sig_gcli[line_idx];
+                }
+            }
+            else {
+                band_cache->pack_method = METHOD_ZERO_SIGNIFICANCE_DISABLE;
+                for (uint32_t line_idx = 0; line_idx < height_lines; ++line_idx) {
+                    band_cache->lines[line_idx].pack_size_significance_bits = 0;
+                    band_cache->lines[line_idx].pack_size_gcli_bits = nosig_gcli[line_idx];
+                }
+            }
+            band_cache->gtli_rc_last_calculated = gtli;
+        }
+    }
+}
+#endif /* LUT_GC_SERIAL_SUMMATION && LUT_SIGNIFICANE && LUT_SIGNIFICANE_SERIAL_SUMMATION */
+
 static void rate_control_calculate_band_best_method(pi_t *pi, precinct_enc_t *precinct, svt_jpeg_xs_encoder_common_t *enc_common,
                                                     VerticalPredictionMode coding_vertical_prediction_mode,
                                                     SignHandlingStrategy coding_signs_handling) {
+#if LUT_GC_SERIAL_SUMMATION && LUT_SIGNIFICANE && LUT_SIGNIFICANE_SERIAL_SUMMATION
+    if (coding_vertical_prediction_mode == METHOD_PRED_DISABLE && coding_signs_handling == SIGN_HANDLING_STRATEGY_OFF) {
+        rate_control_calculate_band_best_method_fast(pi, precinct, enc_common->coding_significance);
+        return;
+    }
+#endif
     //Precalculate All Methods
 #if PRINT_RECALC_VPRED
     uint8_t break_line = 0;
@@ -531,93 +684,76 @@ static void rate_control_calculate_band_best_method(pi_t *pi, precinct_enc_t *pr
                 const uint32_t gcli_width = precinct->p_info->b_info[c][b].gcli_width;
                 const uint32_t significance_width = precinct->p_info->b_info[c][b].significance_width;
                 band_cache->pack_method = METHOD_INVALID;
-                uint32_t sum_data_non_significance_code_gc[MAX_BAND_LINES];
+                uint32_t best_budget = 0;
+                uint32_t sig_budget = significance_width * height_lines;
+                uint32_t pack_size_gcli[MAX_BAND_LINES];
+                const uint8_t gtli = band->gtli;
+                const uint32_t coeff_group_size = pi->coeff_group_size;
+                const uint32_t sig_group_size = pi->significance_group_size;
+                const uint32_t full_group = gcli_width / sig_group_size;
+                const uint8_t has_sig_tail = (uint8_t)(full_group < significance_width);
+                const uint32_t sig_tail_rem = gcli_width - full_group * sig_group_size;
+                const uint8_t coding_sig = enc_common->coding_significance;
 
                 for (uint32_t line_idx = 0; line_idx < height_lines; ++line_idx) {
                     rc_cache_band_line_t *cache_line = &band->lines_common[line_idx].rc_cache_line;
-                    //Precalculate Data Size
                     uint32_t sum_data;
                     uint32_t sum_signs_max;
-                    rate_control_lut_summarize_non_significance_gc_and_data_code_sum(cache_line,
-                                                                                     band->gtli,
-                                                                                     &sum_data,
-                                                                                     &sum_data_non_significance_code_gc[line_idx],
-                                                                                     &sum_signs_max,
-                                                                                     !!coding_signs_handling);
+                    uint32_t no_sig_gcli;
+                    rate_control_lut_summarize_non_significance_gc_and_data_code_sum(
+                        cache_line, gtli, &sum_data, &no_sig_gcli, &sum_signs_max, !!coding_signs_handling);
 
-                    band_cache->lines[line_idx].pack_size_data_bits = sum_data * pi->coeff_group_size;
+                    band_cache->lines[line_idx].pack_size_data_bits = sum_data * coeff_group_size;
 
                     if (coding_signs_handling == SIGN_HANDLING_STRATEGY_OFF) {
                         band_cache->lines[line_idx].packet_size_signs_handling_bits = 0;
                     }
                     else if (coding_signs_handling == SIGN_HANDLING_STRATEGY_FAST) {
-                        band_cache->lines[line_idx].packet_size_signs_handling_bits = sum_signs_max * pi->coeff_group_size;
+                        band_cache->lines[line_idx].packet_size_signs_handling_bits = sum_signs_max * coeff_group_size;
                     }
                     else {
                         assert(coding_signs_handling == SIGN_HANDLING_STRATEGY_FULL);
                         band_cache->lines[line_idx].packet_size_signs_handling_bits =
                             rate_control_sign_coding_get_sum_nonzero_coeff_c(cache_line, precinct, enc_common, c, b, line_idx);
                     }
-                }
 
-                /*Budget Coding NO SIGNIFICANCE:*/
-                uint32_t best_budget = 0;
-                for (uint32_t line_idx = 0; line_idx < height_lines; ++line_idx) {
-                    /*Set for METHOD_ZERO_SIGNIFICANCE_DISABLE*/
                     band_cache->lines[line_idx].pack_size_significance_bits = 0;
-                    band_cache->lines[line_idx].pack_size_gcli_bits = sum_data_non_significance_code_gc[line_idx];
-                    best_budget += sum_data_non_significance_code_gc[line_idx];
-                }
-                band_cache->pack_method = METHOD_ZERO_SIGNIFICANCE_DISABLE;
+                    band_cache->lines[line_idx].pack_size_gcli_bits = no_sig_gcli;
+                    best_budget += no_sig_gcli;
 
-                if (enc_common->coding_significance) {
-                    uint32_t budget = significance_width * height_lines; /*Budget is sum of significance + gcli size*/
-                    uint32_t pack_size_gcli[MAX_BAND_LINES];
-
-                    for (uint32_t line_idx = 0; line_idx < height_lines; ++line_idx) {
-                        rc_cache_band_line_t *cache_line = &band->lines_common[line_idx].rc_cache_line;
-                        //Remove from values zeroed sig flags
+                    if (coding_sig) {
                         uint8_t *sigFlagMaxGCLI = band->lines_common[line_idx].significance_data_max_ptr;
-                        const uint32_t full_group = gcli_width / pi->significance_group_size;
-                        /*GCLI value 0 is compressed by VLC to 1 bit,
-                         *so we can remove number of bits equal to significance group size from pack_size_gcli*/
 #if LUT_SIGNIFICANE
                         uint32_t significance_flags_zeroed_sum = rate_control_lut_significance_elements_less_equal_gtli(
-                            cache_line, band->gtli);
-                        significance_flags_zeroed_sum *= pi->significance_group_size;
-                        if (full_group < significance_width) {
-                            if (sigFlagMaxGCLI[full_group] <= band->gtli) {
-                                significance_flags_zeroed_sum += gcli_width - full_group * pi->significance_group_size;
-                            }
+                                                                     cache_line, gtli) *
+                            sig_group_size;
+                        if (has_sig_tail && sigFlagMaxGCLI[full_group] <= gtli) {
+                            significance_flags_zeroed_sum += sig_tail_rem;
                         }
 #else  /*LUT_SIGNIFICANE*/
                         uint32_t significance_flags_zeroed_sum = 0;
                         uint32_t sigf_group = 0;
                         for (; sigf_group < full_group; sigf_group++) {
-                            if (sigFlagMaxGCLI[sigf_group] <= band->gtli) {
-                                significance_flags_zeroed_sum += pi->significance_group_size;
+                            if (sigFlagMaxGCLI[sigf_group] <= gtli) {
+                                significance_flags_zeroed_sum += sig_group_size;
                             }
                         }
-                        if (sigf_group < significance_width) {
-                            if (sigFlagMaxGCLI[sigf_group] <= band->gtli) {
-                                significance_flags_zeroed_sum += gcli_width - sigf_group * pi->significance_group_size;
-                            }
+                        if (has_sig_tail && sigFlagMaxGCLI[sigf_group] <= gtli) {
+                            significance_flags_zeroed_sum += sig_tail_rem;
                         }
-#endif /*SIGNIFICANE_LUT*/
-                        /*Use GCLI from disable signification, and remove signification zero elements*/
-                        pack_size_gcli[line_idx] = band_cache->lines[line_idx].pack_size_gcli_bits -
-                            significance_flags_zeroed_sum;
-                        budget += pack_size_gcli[line_idx];
+#endif /*LUT_SIGNIFICANE*/
+                        pack_size_gcli[line_idx] = no_sig_gcli - significance_flags_zeroed_sum;
+                        sig_budget += pack_size_gcli[line_idx];
                     }
+                }
+                band_cache->pack_method = METHOD_ZERO_SIGNIFICANCE_DISABLE;
 
-                    if (best_budget > budget) {
-                        best_budget = budget;
-                        band_cache->pack_method = METHOD_ZERO_SIGNIFICANCE_ENABLE;
-                        for (uint32_t line_idx = 0; line_idx < height_lines; ++line_idx) {
-                            /*Set for METHOD_ZERO_SIGNIFICANCE_ENABLE*/
-                            band_cache->lines[line_idx].pack_size_significance_bits = significance_width;
-                            band_cache->lines[line_idx].pack_size_gcli_bits = pack_size_gcli[line_idx];
-                        }
+                if (coding_sig && best_budget > sig_budget) {
+                    best_budget = sig_budget;
+                    band_cache->pack_method = METHOD_ZERO_SIGNIFICANCE_ENABLE;
+                    for (uint32_t line_idx = 0; line_idx < height_lines; ++line_idx) {
+                        band_cache->lines[line_idx].pack_size_significance_bits = significance_width;
+                        band_cache->lines[line_idx].pack_size_gcli_bits = pack_size_gcli[line_idx];
                     }
                 }
 
@@ -766,27 +902,42 @@ static uint32_t precinct_get_budget_bytes(svt_jpeg_xs_encoder_common_t *enc_comm
 #endif
 
     uint32_t precinct_size_bytes = 0;
+    const uint8_t hdr_Rl = enc_common->picture_header_dynamic.hdr_Rl;
+    const uint32_t packets_num = pi->packets_num;
     //Find best methods for bands: Normal packing or RAW
-    for (uint32_t packet_idx = 0; packet_idx < pi->packets_num; packet_idx++) {
+    for (uint32_t packet_idx = 0; packet_idx < packets_num; packet_idx++) {
         /*Data Pack size:*/
         uint32_t packet_size_data_bits = 0;
         uint32_t packet_size_signs_handling_bits = 0;
         /*GCLI Pack Size:*/
         uint32_t packet_size_gcli_bits = 0;
         uint32_t packet_size_significance_bits = 0;
+        const uint32_t band_stop = pi->packets[packet_idx].band_stop;
+        const uint32_t line_idx = pi->packets[packet_idx].line_idx;
 
-        for (uint32_t band_idx = pi->packets[packet_idx].band_start; band_idx < pi->packets[packet_idx].band_stop; band_idx++) {
-            const uint32_t b = pi->global_band_info[band_idx].band_id;
-            const uint32_t c = pi->global_band_info[band_idx].comp_id;
-            const uint32_t line_idx = pi->packets[packet_idx].line_idx;
-            uint32_t height_lines = p_info->b_info[c][b].height;
-            if (line_idx < height_lines) {
-                struct band_data_enc *band = &(precinct->bands[c][b]);
-                struct band_data_enc_cache *band_cache = band->cache_actual;
-                packet_size_gcli_bits += band_cache->lines[line_idx].pack_size_gcli_bits;
-                packet_size_significance_bits += band_cache->lines[line_idx].pack_size_significance_bits;
-                packet_size_data_bits += band_cache->lines[line_idx].pack_size_data_bits;
-                packet_size_signs_handling_bits += band_cache->lines[line_idx].packet_size_signs_handling_bits;
+        if (coding_signs_handling == SIGN_HANDLING_STRATEGY_OFF) {
+            for (uint32_t band_idx = pi->packets[packet_idx].band_start; band_idx < band_stop; band_idx++) {
+                const uint32_t b = pi->global_band_info[band_idx].band_id;
+                const uint32_t c = pi->global_band_info[band_idx].comp_id;
+                if (line_idx < p_info->b_info[c][b].height) {
+                    const struct line_data_enc_cache *const lc = &precinct->bands[c][b].cache_actual->lines[line_idx];
+                    packet_size_gcli_bits += lc->pack_size_gcli_bits;
+                    packet_size_significance_bits += lc->pack_size_significance_bits;
+                    packet_size_data_bits += lc->pack_size_data_bits;
+                }
+            }
+        }
+        else {
+            for (uint32_t band_idx = pi->packets[packet_idx].band_start; band_idx < band_stop; band_idx++) {
+                const uint32_t b = pi->global_band_info[band_idx].band_id;
+                const uint32_t c = pi->global_band_info[band_idx].comp_id;
+                if (line_idx < p_info->b_info[c][b].height) {
+                    const struct line_data_enc_cache *const lc = &precinct->bands[c][b].cache_actual->lines[line_idx];
+                    packet_size_gcli_bits += lc->pack_size_gcli_bits;
+                    packet_size_significance_bits += lc->pack_size_significance_bits;
+                    packet_size_data_bits += lc->pack_size_data_bits;
+                    packet_size_signs_handling_bits += lc->packet_size_signs_handling_bits;
+                }
             }
         }
 
@@ -800,7 +951,7 @@ static uint32_t precinct_get_budget_bytes(svt_jpeg_xs_encoder_common_t *enc_comm
         /*GCLI Pack Size:*/
         uint32_t packet_size_significance_bytes = BITS_TO_BYTE_WITH_ALIGN(packet_size_significance_bits);
         uint32_t packet_size_gcli_bytes = BITS_TO_BYTE_WITH_ALIGN(packet_size_gcli_bits);
-        if (enc_common->picture_header_dynamic.hdr_Rl &&
+        if (hdr_Rl &&
             (packet_size_significance_bytes + packet_size_gcli_bytes > p_info->packet_size_gcli_raw_bytes[packet_idx])) {
             /*Set Pack RAW*/
             precinct->packet_methods_raw[packet_idx] = 1;

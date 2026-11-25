@@ -15,6 +15,7 @@
 static INLINE void loop_small_avx512(uint32_t len, uint32_t* id, const int32_t** tmp_in, int32_t** out_hf, int32_t** out_lf) {
     const __m128i two = _mm_set1_epi32(2);
     const __m256i reg_permutevar_mask = _mm256_setr_epi32(0x00, 0x02, 0x04, 0x06, 0x01, 0x03, 0x05, 0x07);
+    __m128i prev_hf = _mm_set1_epi32((*out_hf)[*id - 1]);
 
     for (; *id < ((len - 1) / 2) - 3; *id += 4) {
         /* hf */
@@ -33,8 +34,8 @@ static INLINE void loop_small_avx512(uint32_t len, uint32_t* id, const int32_t**
         _mm_storeu_si128((__m128i*)(*out_hf + *id), hf);
 
         //out_hf[id - 1]
-        __m128i hf_m1 = _mm_shuffle_epi32(hf, (0 << 0) + (0 << 2) + (1 << 4) + (2 << 6));
-        hf_m1 = _mm_insert_epi32(hf_m1, (*out_hf)[*id - 1], 0);
+        const __m128i hf_m1 = _mm_alignr_epi8(hf, prev_hf, 12);
+        prev_hf = hf;
 
         //out_lf[id] = in[id * 2] + ((out_hf[id - 1] + out_hf[id] + 2) >> 2);
         __m128i lf = _mm_add_epi32(hf, hf_m1);
@@ -110,9 +111,7 @@ void dwt_horizontal_line_avx512(int32_t* out_lf, int32_t* out_hf, const int32_t*
 
         __m512i id_2_p0 = _mm512_permutex2var_epi32(reg_l, reg0_permutex2var_mask, reg_h);
         __m512i id_2_p1 = _mm512_permutex2var_epi32(reg_l, reg1_permutex2var_mask, reg_h);
-        reg_l = _mm512_loadu_si512(tmp_in + 2);
-        reg_h = _mm512_loadu_si512(tmp_in + 18);
-        __m512i id_2_p2 = _mm512_permutex2var_epi32(reg_l, reg0_permutex2var_mask, reg_h);
+        const __m512i id_2_p2 = _mm512_alignr_epi32(_mm512_set1_epi32(tmp_in[32]), id_2_p0, 1);
 
         //out_hf[id] = in[id * 2 + 1] - ((in[id * 2] + in[id * 2 + 2]) >> 1);
         __m512i hf = _mm512_add_epi32(id_2_p0, id_2_p2);
@@ -157,56 +156,51 @@ void image_shift_avx512(uint16_t* out_coeff_16bit, int32_t* in_coeff_32bit, uint
     uint16_t* out_ptr_line = out_coeff_16bit;
 
     const __m512i offset_avx512 = _mm512_set1_epi32(offset);
-    const __m512i sign_mask_epi32 = _mm512_set1_epi32(/*BITSTREAM_MASK_SIGN*/ (-2147483647 - 1));
+    const __m512i sign_bit15 = _mm512_set1_epi32(BITSTREAM_MASK_SIGN);
     const __m512i reg_permutevar_mask = _mm512_setr_epi64(0x00, 0x02, 0x04, 0x06, 0x01, 0x03, 0x05, 0x07);
     const __m512i zero = _mm512_setzero_si512();
 
-    const uint32_t simd_batch = width / 32;
-    const uint32_t remaining = width % 32;
+    uint32_t i = 0;
+    for (; i + 32 <= width; i += 32) {
+        __m512i data1 = _mm512_loadu_si512((const void*)(in_ptr_line + i));
+        __m512i data2 = _mm512_loadu_si512((const void*)(in_ptr_line + i + 16));
+        const __mmask16 sign1 = _mm512_movepi32_mask(data1);
+        const __mmask16 sign2 = _mm512_movepi32_mask(data2);
 
-    for (uint32_t i = 0; i < simd_batch; i++) {
-        __m512i data1 = _mm512_loadu_si512((__m512i*)(in_ptr_line));
-        __m512i sign1 = _mm512_and_si512(data1, sign_mask_epi32);
-        sign1 = _mm512_srli_epi32(sign1, 16);
+        data1 = _mm512_srli_epi32(_mm512_add_epi32(_mm512_abs_epi32(data1), offset_avx512), shift);
+        data2 = _mm512_srli_epi32(_mm512_add_epi32(_mm512_abs_epi32(data2), offset_avx512), shift);
 
-        __m512i data2 = _mm512_loadu_si512((__m256i*)(in_ptr_line + 16));
-        __m512i sign2 = _mm512_and_si512(data2, sign_mask_epi32);
-        sign2 = _mm512_srli_epi32(sign2, 16);
+        const __mmask16 mask1 = sign1 & _mm512_cmpgt_epi32_mask(data1, zero);
+        const __mmask16 mask2 = sign2 & _mm512_cmpgt_epi32_mask(data2, zero);
 
-        data1 = _mm512_abs_epi32(data1);
-        data1 = _mm512_add_epi32(data1, offset_avx512);
-        data1 = _mm512_srli_epi32(data1, shift);
-        __mmask16 mask1 = _mm512_cmpgt_epi32_mask(data1, zero);
-        data1 = _mm512_mask_or_epi32(zero, mask1, data1, sign1);
+        data1 = _mm512_mask_or_epi32(data1, mask1, data1, sign_bit15);
+        data2 = _mm512_mask_or_epi32(data2, mask2, data2, sign_bit15);
 
-        data2 = _mm512_abs_epi32(data2);
-        data2 = _mm512_add_epi32(data2, offset_avx512);
-        data2 = _mm512_srli_epi32(data2, shift);
-        __mmask16 mask2 = _mm512_cmpgt_epi32_mask(data2, zero);
-        data2 = _mm512_mask_or_epi32(zero, mask2, data2, sign2);
-        data1 = _mm512_packus_epi32(data1, data2);
-        data1 = _mm512_permutexvar_epi64(reg_permutevar_mask, data1);
-
-        _mm512_storeu_si512((__m512i*)out_ptr_line, data1);
-
-        in_ptr_line += 32;
-        out_ptr_line += 32;
+        __m512i packed = _mm512_packus_epi32(data1, data2);
+        packed = _mm512_permutexvar_epi64(reg_permutevar_mask, packed);
+        _mm512_storeu_si512((void*)(out_ptr_line + i), packed);
     }
 
-    if (remaining) {
-        image_shift_avx2(out_ptr_line, in_ptr_line, remaining, shift, offset);
+    for (; i < width; i += 16) {
+        const uint32_t rem = width - i;
+        const __mmask16 m = (rem >= 16) ? (__mmask16)0xFFFF : (__mmask16)((1u << rem) - 1);
+        __m512i data = _mm512_maskz_loadu_epi32(m, in_ptr_line + i);
+        const __mmask16 sign = _mm512_movepi32_mask(data);
+        data = _mm512_srli_epi32(_mm512_add_epi32(_mm512_abs_epi32(data), offset_avx512), shift);
+        const __mmask16 mask = sign & _mm512_cmpgt_epi32_mask(data, zero);
+        data = _mm512_mask_or_epi32(data, mask, data, sign_bit15);
+        _mm512_mask_cvtepi32_storeu_epi16(out_ptr_line + i, m, data);
     }
 }
+
+#define INPUT_PREFETCH_DISTANCE_AVX512 4096
 
 void linear_input_scaling_line_8bit_avx512(const uint8_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset) {
     const __m512i offset_avx512 = _mm512_set1_epi32(offset);
     uint32_t j = 0;
 
-    /* Four vectors per turn: a body of three operations also paid for two
-     * pointer bumps and a branch, so a noticeable share of the work went into
-     * something other than the data. Four independent chains also give the
-     * pipeline something to do while the byte-to-word widening is in flight. */
     for (; j + 64 <= w; j += 64) {
+        _mm_prefetch((const char*)(src + j) + INPUT_PREFETCH_DISTANCE_AVX512, _MM_HINT_T0);
         __m512i d0 = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j)));
         __m512i d1 = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j + 16)));
         __m512i d2 = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j + 32)));
@@ -222,35 +216,49 @@ void linear_input_scaling_line_8bit_avx512(const uint8_t* src, int32_t* dst, uin
         _mm512_storeu_si512(dst + j + 32, d2);
         _mm512_storeu_si512(dst + j + 48, d3);
     }
-    for (; j + 16 <= w; j += 16) {
-        __m512i data = _mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)(src + j)));
-        data = _mm512_slli_epi32(data, shift);
-        data = _mm512_sub_epi32(data, offset_avx512);
-        _mm512_storeu_si512(dst + j, data);
-    }
-    for (; j < w; j++) {
-        dst[j] = (int32_t)((uint32_t)src[j] << shift) - (int32_t)offset;
+    for (; j < w; j += 16) {
+        const uint32_t rem = w - j;
+        const __mmask16 m = (rem >= 16) ? (__mmask16)0xFFFF : (__mmask16)((1u << rem) - 1);
+        __m512i data = _mm512_cvtepu8_epi32(_mm_maskz_loadu_epi8(m, src + j));
+        data = _mm512_sub_epi32(_mm512_slli_epi32(data, shift), offset_avx512);
+        _mm512_mask_storeu_epi32(dst + j, m, data);
     }
 }
 
 void linear_input_scaling_line_16bit_avx512(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
                                             uint8_t bit_depth) {
-    /* each __m512i has 16 int32_t(int32_t) */
-    int simd_batch = w / 16;
-    int remaining = w % 16;
-    uint16_t input_mask = (1 << bit_depth) - 1;
+    const uint16_t input_mask = (1 << bit_depth) - 1;
+    const __m512i reg_offset = _mm512_set1_epi32(offset);
+    const __m256i input_mask_epi16 = _mm256_set1_epi16(input_mask);
+    uint32_t j = 0;
 
-    __m512i reg_offset = _mm512_set1_epi32(offset);
-    __m256i input_mask_epi16 = _mm256_set1_epi16(input_mask);
-    for (int i = 0; i < simd_batch; i++) {
-        __m512i reg = _mm512_cvtepi16_epi32(_mm256_and_si256(_mm256_loadu_si256((__m256i*)src), input_mask_epi16));
-        __m512i result = _mm512_sub_epi32(_mm512_slli_epi32(reg, shift), reg_offset);
-        _mm512_storeu_si512(dst, result);
-        src += 16;
-        dst += 16;
+    for (; j + 64 <= w; j += 64) {
+        _mm_prefetch((const char*)(src + j) + INPUT_PREFETCH_DISTANCE_AVX512, _MM_HINT_T0);
+        _mm_prefetch((const char*)(src + j + 32) + INPUT_PREFETCH_DISTANCE_AVX512, _MM_HINT_T0);
+        __m512i r0 = _mm512_cvtepi16_epi32(_mm256_and_si256(_mm256_loadu_si256((const __m256i*)(src + j)), input_mask_epi16));
+        __m512i r1 = _mm512_cvtepi16_epi32(
+            _mm256_and_si256(_mm256_loadu_si256((const __m256i*)(src + j + 16)), input_mask_epi16));
+        __m512i r2 = _mm512_cvtepi16_epi32(
+            _mm256_and_si256(_mm256_loadu_si256((const __m256i*)(src + j + 32)), input_mask_epi16));
+        __m512i r3 = _mm512_cvtepi16_epi32(
+            _mm256_and_si256(_mm256_loadu_si256((const __m256i*)(src + j + 48)), input_mask_epi16));
+
+        r0 = _mm512_sub_epi32(_mm512_slli_epi32(r0, shift), reg_offset);
+        r1 = _mm512_sub_epi32(_mm512_slli_epi32(r1, shift), reg_offset);
+        r2 = _mm512_sub_epi32(_mm512_slli_epi32(r2, shift), reg_offset);
+        r3 = _mm512_sub_epi32(_mm512_slli_epi32(r3, shift), reg_offset);
+
+        _mm512_storeu_si512(dst + j, r0);
+        _mm512_storeu_si512(dst + j + 16, r1);
+        _mm512_storeu_si512(dst + j + 32, r2);
+        _mm512_storeu_si512(dst + j + 48, r3);
     }
-    for (int i = 0; i < remaining; i++) {
-        dst[i] = ((src[i] & input_mask) << shift) - offset;
+    for (; j < w; j += 16) {
+        const uint32_t rem = w - j;
+        const __mmask16 m = (rem >= 16) ? (__mmask16)0xFFFF : (__mmask16)((1u << rem) - 1);
+        __m512i reg = _mm512_cvtepi16_epi32(_mm256_and_si256(_mm256_maskz_loadu_epi16(m, src + j), input_mask_epi16));
+        __m512i result = _mm512_sub_epi32(_mm512_slli_epi32(reg, shift), reg_offset);
+        _mm512_mask_storeu_epi32(dst + j, m, result);
     }
 }
 
@@ -258,19 +266,33 @@ void linear_input_scaling_line_16bit_avx512(const uint16_t* src, int32_t* dst, u
 void linear_input_scaling_line_16bit_msb_avx512(const uint16_t* src, int32_t* dst, uint32_t w, uint8_t shift, int32_t offset,
                                                 uint8_t bit_depth) {
     (void)bit_depth;
-    int simd_batch = w / 16;
-    int remaining = w % 16;
-    __m512i reg_offset = _mm512_set1_epi32(offset);
+    const __m512i reg_offset = _mm512_set1_epi32(offset);
+    uint32_t j = 0;
 
-    for (int i = 0; i < simd_batch; i++) {
-        __m512i reg = _mm512_cvtepu16_epi32(_mm256_loadu_si256((__m256i*)src));
-        __m512i result = _mm512_sub_epi32(_mm512_slli_epi32(reg, shift), reg_offset);
-        _mm512_storeu_si512(dst, result);
-        src += 16;
-        dst += 16;
+    for (; j + 64 <= w; j += 64) {
+        _mm_prefetch((const char*)(src + j) + INPUT_PREFETCH_DISTANCE_AVX512, _MM_HINT_T0);
+        _mm_prefetch((const char*)(src + j + 32) + INPUT_PREFETCH_DISTANCE_AVX512, _MM_HINT_T0);
+        __m512i r0 = _mm512_cvtepu16_epi32(_mm256_loadu_si256((const __m256i*)(src + j)));
+        __m512i r1 = _mm512_cvtepu16_epi32(_mm256_loadu_si256((const __m256i*)(src + j + 16)));
+        __m512i r2 = _mm512_cvtepu16_epi32(_mm256_loadu_si256((const __m256i*)(src + j + 32)));
+        __m512i r3 = _mm512_cvtepu16_epi32(_mm256_loadu_si256((const __m256i*)(src + j + 48)));
+
+        r0 = _mm512_sub_epi32(_mm512_slli_epi32(r0, shift), reg_offset);
+        r1 = _mm512_sub_epi32(_mm512_slli_epi32(r1, shift), reg_offset);
+        r2 = _mm512_sub_epi32(_mm512_slli_epi32(r2, shift), reg_offset);
+        r3 = _mm512_sub_epi32(_mm512_slli_epi32(r3, shift), reg_offset);
+
+        _mm512_storeu_si512(dst + j, r0);
+        _mm512_storeu_si512(dst + j + 16, r1);
+        _mm512_storeu_si512(dst + j + 32, r2);
+        _mm512_storeu_si512(dst + j + 48, r3);
     }
-    for (int i = 0; i < remaining; i++) {
-        dst[i] = ((uint32_t)src[i] << shift) - offset;
+    for (; j < w; j += 16) {
+        const uint32_t rem = w - j;
+        const __mmask16 m = (rem >= 16) ? (__mmask16)0xFFFF : (__mmask16)((1u << rem) - 1);
+        __m512i reg = _mm512_cvtepu16_epi32(_mm256_maskz_loadu_epi16(m, src + j));
+        __m512i result = _mm512_sub_epi32(_mm512_slli_epi32(reg, shift), reg_offset);
+        _mm512_mask_storeu_epi32(dst + j, m, result);
     }
 }
 
@@ -669,74 +691,68 @@ void gc_precinct_stage_scalar_avx512(uint8_t* gcli_data_ptr, uint16_t* coeff_dat
     UNUSED(group_size);
     assert(group_size == GROUP_SIZE);
 
-    const __m512i dup31 = _mm512_set1_epi32(31);
-    const __m256i perm = _mm256_setr_epi32(0, 4, 2, 6, 1, 5, 3, 7);
-    const __m256i one = _mm256_set1_epi16(1);
+    const __m512i dup32 = _mm512_set1_epi32(32);
+    const __m512i mask_15bit = _mm512_set1_epi32(0x7FFF);
+    const __m512i even_dwords = _mm512_setr_epi32(0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30);
 
-    uint32_t full_group_256 = width / 64;
-    uint32_t leftover = width % 64;
-    for (uint32_t g = 0; g < full_group_256; g++) {
-        __m256i merge_or_0 = _mm256_loadu_si256((__m256i*)(coeff_data_ptr_16bit + 0));
-        __m256i merge_or_1 = _mm256_loadu_si256((__m256i*)(coeff_data_ptr_16bit + 16));
-        __m256i merge_or_2 = _mm256_loadu_si256((__m256i*)(coeff_data_ptr_16bit + 32));
-        __m256i merge_or_3 = _mm256_loadu_si256((__m256i*)(coeff_data_ptr_16bit + 48));
+    uint32_t i = 0;
+    for (; i + 64 <= width; i += 64) {
+        __m512i v0 = _mm512_loadu_si512((const void*)(coeff_data_ptr_16bit + i));
+        __m512i v1 = _mm512_loadu_si512((const void*)(coeff_data_ptr_16bit + i + 32));
 
-        //transpose
-        __m256i a0 = _mm256_unpacklo_epi32(merge_or_0, merge_or_1);
-        __m256i a1 = _mm256_unpackhi_epi32(merge_or_0, merge_or_1);
-        __m256i a2 = _mm256_unpacklo_epi32(merge_or_2, merge_or_3);
-        __m256i a3 = _mm256_unpackhi_epi32(merge_or_2, merge_or_3);
+        v0 = _mm512_or_si512(v0, _mm512_srli_epi64(v0, 32));
+        v0 = _mm512_or_si512(v0, _mm512_srli_epi64(v0, 16));
+        v1 = _mm512_or_si512(v1, _mm512_srli_epi64(v1, 32));
+        v1 = _mm512_or_si512(v1, _mm512_srli_epi64(v1, 16));
 
-        __m256i tmp_0 = _mm256_unpacklo_epi16(a0, a1);
-        __m256i tmp_1 = _mm256_unpacklo_epi16(a2, a3);
-        __m256i tmp_2 = _mm256_unpackhi_epi16(a0, a1);
-        __m256i tmp_3 = _mm256_unpackhi_epi16(a2, a3);
-
-        a0 = _mm256_or_si256(tmp_0, tmp_2);
-        a1 = _mm256_or_si256(tmp_1, tmp_3);
-        a0 = _mm256_permutevar8x32_epi32(a0, perm);
-        a1 = _mm256_permutevar8x32_epi32(a1, perm);
-        merge_or_1 = _mm256_permute2x128_si256(a0, a1, 0x20);
-        merge_or_2 = _mm256_permute2x128_si256(a0, a1, 0x31);
-        __m256i merge_or = _mm256_or_si256(merge_or_1, merge_or_2);
-
-        //merge_or <<= 1; //Remove sign bit
-        merge_or = _mm256_slli_epi16(merge_or, 1);
-        merge_or = _mm256_or_si256(merge_or, one);
-
-        //BSR == (31 - LZCNT)
-        __m512i lzcnt_ = _mm512_lzcnt_epi32(_mm512_cvtepu16_epi32(merge_or));
-        lzcnt_ = _mm512_sub_epi32(dup31, lzcnt_);
-        _mm_storeu_si128((__m128i*)gcli_data_ptr, _mm512_cvtepi32_epi8(lzcnt_));
-
-        gcli_data_ptr += 16;
-        coeff_data_ptr_16bit += 64;
+        __m512i merged = _mm512_and_si512(_mm512_permutex2var_epi32(v0, even_dwords, v1), mask_15bit);
+        __m512i gclis = _mm512_sub_epi32(dup32, _mm512_lzcnt_epi32(merged));
+        _mm_storeu_si128((__m128i*)(gcli_data_ptr + (i >> 2)), _mm512_cvtepi32_epi8(gclis));
     }
 
+    const uint32_t leftover = width - i;
     if (leftover) {
-        uint32_t line_groups_num = leftover / GROUP_SIZE;
-        uint32_t line_groups_leftover = leftover % GROUP_SIZE;
+        const __mmask32 m0 = (leftover >= 32) ? ~(__mmask32)0 : (((__mmask32)1 << leftover) - 1);
+        const __mmask32 m1 = (leftover > 32) ? (((__mmask32)1 << (leftover - 32)) - 1) : 0;
+        __m512i v0 = _mm512_maskz_loadu_epi16(m0, coeff_data_ptr_16bit + i);
+        __m512i v1 = _mm512_maskz_loadu_epi16(m1, coeff_data_ptr_16bit + i + 32);
 
-        if (line_groups_num) {
-            gc_precinct_stage_scalar_loop(line_groups_num, coeff_data_ptr_16bit, gcli_data_ptr);
-        }
+        v0 = _mm512_or_si512(v0, _mm512_srli_epi64(v0, 32));
+        v0 = _mm512_or_si512(v0, _mm512_srli_epi64(v0, 16));
+        v1 = _mm512_or_si512(v1, _mm512_srli_epi64(v1, 32));
+        v1 = _mm512_or_si512(v1, _mm512_srli_epi64(v1, 16));
 
-        if (line_groups_leftover) {
-            coeff_data_ptr_16bit += line_groups_num * GROUP_SIZE;
-            gcli_data_ptr += line_groups_num;
-            uint16_t merge_or = 0;
-            for (uint32_t i = 0; i < line_groups_leftover; i++) {
-                merge_or |= coeff_data_ptr_16bit[i];
-            }
-            merge_or <<= 1; //Remove sign bit
-            if (merge_or) {
-                gcli_data_ptr[0] = svt_log2_32(merge_or); //MSB
-                assert(gcli_data_ptr[0] <= TRUNCATION_MAX);
-            }
-            else {
-                gcli_data_ptr[0] = 0;
-            }
-        }
+        __m512i merged = _mm512_and_si512(_mm512_permutex2var_epi32(v0, even_dwords, v1), mask_15bit);
+        __m512i gclis = _mm512_sub_epi32(dup32, _mm512_lzcnt_epi32(merged));
+        const uint32_t out_groups = (leftover + GROUP_SIZE - 1) >> 2;
+        const __mmask16 out_mask = (out_groups >= 16) ? (__mmask16)0xFFFF : (__mmask16)((1u << out_groups) - 1);
+        _mm_mask_storeu_epi8(gcli_data_ptr + (i >> 2), out_mask, _mm512_cvtepi32_epi8(gclis));
+    }
+}
+
+void gc_precinct_sigflags_max_avx512(uint8_t* significance_data_max_ptr, uint8_t* gcli_data_ptr, uint32_t group_sign_size,
+                                     uint32_t gcli_width) {
+    UNUSED(group_sign_size);
+    assert(group_sign_size == SIGNIFICANCE_GROUP_SIZE);
+
+    uint32_t i = 0;
+    for (; i + 64 <= gcli_width; i += 64) {
+        __m512i v = _mm512_loadu_si512((const void*)(gcli_data_ptr + i));
+        v = _mm512_max_epu8(v, _mm512_srli_epi64(v, 32));
+        v = _mm512_max_epu8(v, _mm512_srli_epi64(v, 16));
+        v = _mm512_max_epu8(v, _mm512_srli_epi64(v, 8));
+        _mm_storel_epi64((__m128i*)(significance_data_max_ptr + (i >> 3)), _mm512_cvtepi64_epi8(v));
+    }
+
+    const uint32_t rem = gcli_width - i;
+    if (rem) {
+        const __mmask64 m = ((__mmask64)1 << rem) - 1;
+        __m512i v = _mm512_maskz_loadu_epi8(m, gcli_data_ptr + i);
+        v = _mm512_max_epu8(v, _mm512_srli_epi64(v, 32));
+        v = _mm512_max_epu8(v, _mm512_srli_epi64(v, 16));
+        v = _mm512_max_epu8(v, _mm512_srli_epi64(v, 8));
+        const uint32_t out_n = (rem + SIGNIFICANCE_GROUP_SIZE - 1) >> 3;
+        _mm_mask_storeu_epi8(significance_data_max_ptr + (i >> 3), (__mmask16)((1u << out_n) - 1), _mm512_cvtepi64_epi8(v));
     }
 }
 
@@ -751,16 +767,19 @@ void gc_precinct_stage_scalar_avx512(uint8_t* gcli_data_ptr, uint16_t* coeff_dat
 #define GC_HIST_BIN_AVX512(v, K) \
     total[K] += (uint32_t)_mm_popcnt_u64((uint64_t)_mm512_cmpeq_epi8_mask((v), _mm512_set1_epi8((char)(K))))
 
-#define GC_HIST_ALL_AVX512(v)      \
+#define GC_HIST_LO_AVX512(v)      \
+    do {                          \
+        GC_HIST_BIN_AVX512(v, 1); \
+        GC_HIST_BIN_AVX512(v, 2); \
+        GC_HIST_BIN_AVX512(v, 3); \
+        GC_HIST_BIN_AVX512(v, 4); \
+        GC_HIST_BIN_AVX512(v, 5); \
+        GC_HIST_BIN_AVX512(v, 6); \
+        GC_HIST_BIN_AVX512(v, 7); \
+    } while (0)
+
+#define GC_HIST_HI_AVX512(v)       \
     do {                           \
-        GC_HIST_BIN_AVX512(v, 0);  \
-        GC_HIST_BIN_AVX512(v, 1);  \
-        GC_HIST_BIN_AVX512(v, 2);  \
-        GC_HIST_BIN_AVX512(v, 3);  \
-        GC_HIST_BIN_AVX512(v, 4);  \
-        GC_HIST_BIN_AVX512(v, 5);  \
-        GC_HIST_BIN_AVX512(v, 6);  \
-        GC_HIST_BIN_AVX512(v, 7);  \
         GC_HIST_BIN_AVX512(v, 8);  \
         GC_HIST_BIN_AVX512(v, 9);  \
         GC_HIST_BIN_AVX512(v, 10); \
@@ -772,20 +791,126 @@ void gc_precinct_stage_scalar_avx512(uint8_t* gcli_data_ptr, uint16_t* coeff_dat
     } while (0)
 
 void gc_histogram_16_avx512(const uint8_t* data, uint32_t width, uint16_t* hist) {
+    if (width <= 8) {
+        _mm256_storeu_si256((__m256i*)hist, _mm256_setzero_si256());
+        for (uint32_t i = 0; i < width; ++i) {
+            hist[data[i]]++;
+        }
+        return;
+    }
+
     uint32_t total[TRUNCATION_MAX + 1] = {0};
+    const __m512i high_bit3 = _mm512_set1_epi8(0x08);
     uint32_t i = 0;
 
     for (; i + 64 <= width; i += 64) {
         const __m512i v = _mm512_loadu_si512((const void*)(data + i));
-        GC_HIST_ALL_AVX512(v);
+        GC_HIST_LO_AVX512(v);
+        if (_mm512_test_epi8_mask(v, high_bit3) != 0) {
+            GC_HIST_HI_AVX512(v);
+        }
     }
     if (i < width) {
-        /* Unused lanes stay at 0xFF and land in no bin. */
+        /* Unused lanes stay at 0x10: outside [0, 15] and bit 3 is clear. */
         const __mmask64 m = ((__mmask64)1 << (width - i)) - 1;
-        const __m512i v = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0xFF), m, data + i);
-        GC_HIST_ALL_AVX512(v);
+        const __m512i v = _mm512_mask_loadu_epi8(_mm512_set1_epi8(0x10), m, data + i);
+        GC_HIST_LO_AVX512(v);
+        if (_mm512_test_epi8_mask(v, high_bit3) != 0) {
+            GC_HIST_HI_AVX512(v);
+        }
     }
-    for (uint32_t k = 0; k <= TRUNCATION_MAX; ++k) {
+    uint32_t nonzero = 0;
+    for (uint32_t k = 1; k <= TRUNCATION_MAX; ++k) {
         hist[k] = (uint16_t)total[k];
+        nonzero += total[k];
+    }
+    hist[0] = (uint16_t)(width - nonzero);
+}
+
+void forward_rct_line_avx512(int32_t* comp0, int32_t* comp1, int32_t* comp2, uint32_t width) {
+    uint32_t x = 0;
+    for (; x + 16 <= width; x += 16) {
+        const __m512i o0 = _mm512_loadu_si512((const void*)(comp0 + x));
+        const __m512i o1 = _mm512_loadu_si512((const void*)(comp1 + x));
+        const __m512i o2 = _mm512_loadu_si512((const void*)(comp2 + x));
+        const __m512i i1 = _mm512_sub_epi32(o2, o1);
+        const __m512i i2 = _mm512_sub_epi32(o0, o1);
+        const __m512i i0 = _mm512_add_epi32(o1, _mm512_srai_epi32(_mm512_add_epi32(i1, i2), 2));
+        _mm512_storeu_si512((void*)(comp0 + x), i0);
+        _mm512_storeu_si512((void*)(comp1 + x), i1);
+        _mm512_storeu_si512((void*)(comp2 + x), i2);
+    }
+    if (x < width) {
+        const __mmask16 m = (__mmask16)((1u << (width - x)) - 1);
+        const __m512i o0 = _mm512_maskz_loadu_epi32(m, comp0 + x);
+        const __m512i o1 = _mm512_maskz_loadu_epi32(m, comp1 + x);
+        const __m512i o2 = _mm512_maskz_loadu_epi32(m, comp2 + x);
+        const __m512i i1 = _mm512_sub_epi32(o2, o1);
+        const __m512i i2 = _mm512_sub_epi32(o0, o1);
+        const __m512i i0 = _mm512_add_epi32(o1, _mm512_srai_epi32(_mm512_add_epi32(i1, i2), 2));
+        _mm512_mask_storeu_epi32(comp0 + x, m, i0);
+        _mm512_mask_storeu_epi32(comp1 + x, m, i1);
+        _mm512_mask_storeu_epi32(comp2 + x, m, i2);
+    }
+}
+
+void gc_lossless_stats_gtli0_avx512(const uint8_t* data, uint32_t width, uint32_t* out_sum, uint16_t* out_zero) {
+    const __m512i zero = _mm512_setzero_si512();
+    __m512i sum_v = zero;
+    uint32_t zcnt = 0;
+    uint32_t i = 0;
+
+    for (; i + 64 <= width; i += 64) {
+        const __m512i v = _mm512_loadu_si512((const void*)(data + i));
+        sum_v = _mm512_add_epi64(sum_v, _mm512_sad_epu8(v, zero));
+        zcnt += (uint32_t)_mm_popcnt_u64((uint64_t)_mm512_cmpeq_epi8_mask(v, zero));
+    }
+    if (i < width) {
+        const __mmask64 m = ((__mmask64)1 << (width - i)) - 1;
+        const __m512i v = _mm512_maskz_loadu_epi8(m, data + i);
+        sum_v = _mm512_add_epi64(sum_v, _mm512_sad_epu8(v, zero));
+        zcnt += (uint32_t)_mm_popcnt_u64((uint64_t)_mm512_mask_cmpeq_epi8_mask(m, v, zero));
+    }
+    *out_sum = (uint32_t)_mm512_reduce_add_epi64(sum_v);
+    *out_zero = (uint16_t)zcnt;
+}
+
+void rc_lut_derive_avx512(uint16_t* gc_hist, uint32_t* no_sign_tbl, uint32_t* sign_tbl, uint16_t* sig_hist) {
+    const __m512i zero = _mm512_setzero_si512();
+    const __m512i h = _mm512_cvtepu16_epi32(_mm256_loadu_si256((const __m256i*)gc_hist));
+
+    /* Suffix sum of h[i+1..15]: s[i] = h[i+1] for i<15, s[15] = 0. */
+    __m512i sum_back = _mm512_alignr_epi32(zero, h, 1);
+    sum_back = _mm512_add_epi32(sum_back, _mm512_alignr_epi32(zero, sum_back, 1));
+    sum_back = _mm512_add_epi32(sum_back, _mm512_alignr_epi32(zero, sum_back, 2));
+    sum_back = _mm512_add_epi32(sum_back, _mm512_alignr_epi32(zero, sum_back, 4));
+    sum_back = _mm512_add_epi32(sum_back, _mm512_alignr_epi32(zero, sum_back, 8));
+
+    /* Second suffix sum: size_sign[i] = sum_{j=i+1..15} (j - i) * h[j]. */
+    __m512i size_sign = _mm512_add_epi32(sum_back, _mm512_alignr_epi32(zero, sum_back, 1));
+    size_sign = _mm512_add_epi32(size_sign, _mm512_alignr_epi32(zero, size_sign, 2));
+    size_sign = _mm512_add_epi32(size_sign, _mm512_alignr_epi32(zero, size_sign, 4));
+    size_sign = _mm512_add_epi32(size_sign, _mm512_alignr_epi32(zero, size_sign, 8));
+
+    /* size_no_sign[i] = sum_{j=i+1..15} (j - i + 1) * h[j] = size_sign[i] + sum_back[i]. */
+    _mm512_storeu_si512((void*)no_sign_tbl, _mm512_add_epi32(size_sign, sum_back));
+    if (sign_tbl) {
+        _mm512_storeu_si512((void*)sign_tbl, size_sign);
+    }
+
+    /* Prefix sum of gc_hist[0..15]. */
+    __m512i p = _mm512_add_epi32(h, _mm512_alignr_epi32(h, zero, 15));
+    p = _mm512_add_epi32(p, _mm512_alignr_epi32(p, zero, 14));
+    p = _mm512_add_epi32(p, _mm512_alignr_epi32(p, zero, 12));
+    p = _mm512_add_epi32(p, _mm512_alignr_epi32(p, zero, 8));
+    _mm256_storeu_si256((__m256i*)gc_hist, _mm512_cvtepi32_epi16(p));
+
+    if (sig_hist) {
+        __m512i sh = _mm512_cvtepu16_epi32(_mm256_loadu_si256((const __m256i*)sig_hist));
+        sh = _mm512_add_epi32(sh, _mm512_alignr_epi32(sh, zero, 15));
+        sh = _mm512_add_epi32(sh, _mm512_alignr_epi32(sh, zero, 14));
+        sh = _mm512_add_epi32(sh, _mm512_alignr_epi32(sh, zero, 12));
+        sh = _mm512_add_epi32(sh, _mm512_alignr_epi32(sh, zero, 8));
+        _mm256_storeu_si256((__m256i*)sig_hist, _mm512_cvtepi32_epi16(sh));
     }
 }

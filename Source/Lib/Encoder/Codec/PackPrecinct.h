@@ -130,6 +130,10 @@ static INLINE uint8_t vlc_encode_get_bits(int32_t x, int32_t r, int32_t t) {
 
 void pack_data_single_group_c(bitstream_writer_t* bitstream, uint16_t* buf_16bit, uint8_t gcli, uint8_t gtli);
 void pack_raw_gclis_bytes_c(const uint8_t* gclis, uint8_t* mem, uint32_t bytes);
+void pack_significance_c(bitstream_writer_t* bitstream, uint8_t gtli, uint8_t* significance_data_max_ptr, uint32_t width);
+void pack_bitplane_count_significance_c(bitstream_writer_t* bitstream, uint8_t* bitplane, uint32_t width, int8_t gtli,
+                                        uint8_t* significance_data_max_ptr, int32_t group_size);
+void pack_bitplane_count_no_significance_c(bitstream_writer_t* bitstream, uint8_t* bitplane, uint32_t width, int8_t gtli);
 
 #ifdef __cplusplus
 }
