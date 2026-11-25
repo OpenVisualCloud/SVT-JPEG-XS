@@ -13,6 +13,8 @@
 #include "SvtLog.h"
 
 #include "NltDec.h"
+#include "V210.h"
+#include "common_dsp_rtcd.h"
 
 #include <inttypes.h>
 
@@ -194,16 +196,40 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
         }
     }
 
+    dec_common->format = svt_jpeg_xs_get_rgb_format(
+        svt_jpeg_xs_get_format_from_params(
+            dec_common->pi.comps_num, dec_common->picture_header_const.hdr_Sx, dec_common->picture_header_const.hdr_Sy),
+        dec_common->picture_header_const.hdr_Cpih);
+
+    if (dec_common->output_v210) {
+        // Each V210 line is packed from the same line of Y, Cb and Cr, so the three components must give the
+        // same finished lines for every precinct, and the chroma lines must be half the luma line.
+        const pi_t* pi = &dec_common->pi;
+        const picture_header_const_t* hdr = &dec_common->picture_header_const;
+        uint8_t v210_ok = dec_common->format == COLOUR_FORMAT_PLANAR_YUV422 && pi->comps_num == 3 && pi->Sd == 0 &&
+            hdr->hdr_Cpih == 0 && dec_common->output_bit_depth_msb_aligned == 0 && pi->components[0].width % 2 == 0;
+        for (uint32_t c = 0; c < 3 && v210_ok; c++) {
+            const pi_component_t* comp = &pi->components[c];
+            v210_ok = hdr->hdr_bit_depth[c] == 10 && comp->height == pi->components[0].height &&
+                comp->decom_v == pi->components[0].decom_v && comp->precinct_height == pi->components[0].precinct_height &&
+                comp->width == (c ? pi->components[0].width / 2 : pi->components[0].width);
+        }
+        if (!v210_ok) {
+            if (verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR(
+                    "V210 output needs a 10-bit 4:2:2 stream without colour transform, with an even output width, and "
+                    "without output_bit_depth_msb_aligned\n");
+            }
+            return SvtJxsErrorBadParameter;
+        }
+    }
+    dec_common->joint_output_lines = dec_common->rct_per_precinct || dec_common->output_v210;
+
     if (dec_common->picture_header_const.hdr_Cpih && !dec_common->rct_per_precinct) {
         for (uint32_t c = 0; c < dec_common->pi.comps_num; c++) {
             SVT_MALLOC(dec_common->buffer_tmp_cpih[c], dec_common->pi.width * dec_common->pi.height * sizeof(int32_t));
         }
     }
-
-    dec_common->format = svt_jpeg_xs_get_rgb_format(
-        svt_jpeg_xs_get_format_from_params(
-            dec_common->pi.comps_num, dec_common->picture_header_const.hdr_Sx, dec_common->picture_header_const.hdr_Sy),
-        dec_common->picture_header_const.hdr_Cpih);
 
     if (out_image_config) {
         pi_t* pi = &dec_common->pi;
@@ -221,6 +247,27 @@ SvtJxsErrorType_t svt_jpeg_xs_dec_init_common(svt_jpeg_xs_decoder_common_t* dec_
         out_image_config->format = dec_common->format;
         if (out_image_config->format == COLOUR_FORMAT_INVALID) {
             return SvtJxsErrorDecoderInvalidBitstream;
+        }
+
+        if (dec_common->output_v210) {
+            // One plane, each line padded to a multiple of 128 bytes as svt_jpeg_xs_image_buffer_alloc() does
+            const uint64_t v210_size64 = (uint64_t)v210_aligned_line_words(pi->width) * sizeof(uint32_t) * pi->height;
+            if (v210_size64 > UINT32_MAX) {
+                if (verbose >= VERBOSE_ERRORS) {
+                    SVT_ERROR("Image V210 byte_size overflow: %" PRIu64 " exceeds uint32 max\n", v210_size64);
+                }
+                return SvtJxsErrorDecoderInvalidBitstream;
+            }
+            out_image_config->format = COLOUR_FORMAT_PACKED_V210;
+            out_image_config->components_num = 1;
+            out_image_config->components[0].width = pi->width;
+            out_image_config->components[0].height = pi->height;
+            out_image_config->components[0].byte_size = (uint32_t)v210_size64;
+            for (uint32_t c = 1; c < MAX_COMPONENTS_NUM; c++) {
+                out_image_config->components[c].width = 0;
+                out_image_config->components[c].height = 0;
+                out_image_config->components[c].byte_size = 0;
+            }
         }
     }
     return SvtJxsErrorNone;
@@ -272,8 +319,8 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
     }
 
     // Zero-initialize: IDWT temp buffers may be partially read at slice boundaries before full write
-    // The per-precinct RCT path transforms the components precinct by precinct, so each needs its own buffers.
-    const uint32_t buffers_num = dec_common->rct_per_precinct ? pi->comps_num : 1;
+    // The per-precinct RCT and V210 paths transform the components precinct by precinct, so each needs its own buffers.
+    const uint32_t buffers_num = dec_common->joint_output_lines ? pi->comps_num : 1;
     for (uint32_t c = 0; c < buffers_num; c++) {
         if (pi->decom_v == 0) {
             SVT_NO_THROW_CALLOC_ALIGNED(ctx->precinct_idwt_tmp_buffer[c], 1 * pi->width * sizeof(int32_t));
@@ -294,7 +341,7 @@ svt_jpeg_xs_decoder_instance_t* svt_jpeg_xs_dec_instance_alloc(svt_jpeg_xs_decod
             ret |= 1;
         }
     }
-    if (dec_common->rct_per_precinct) {
+    if (dec_common->joint_output_lines) {
         SVT_NO_THROW_MALLOC(ctx->rct_tmp_buffer, 3 * pi->width * sizeof(int32_t));
         if (!ctx->rct_tmp_buffer) {
             ret |= 1;
@@ -381,7 +428,7 @@ svt_jpeg_xs_decoder_thread_context* svt_jpeg_xs_dec_thread_context_alloc(svt_jpe
             break;
         }
     }
-    if (!ret && dec_common->rct_per_precinct) {
+    if (!ret && dec_common->joint_output_lines) {
         SVT_NO_THROW_MALLOC(ctx->rct_tmp_buffer, 3 * pi->width * sizeof(int32_t));
         if (!ctx->rct_tmp_buffer) {
             ret |= 1;
@@ -599,6 +646,22 @@ static void output_line(svt_jpeg_xs_decoder_instance_t* ctx, uint32_t c, int32_t
     }
 }
 
+/* Inverse NLT of the same finished line of Y, Cb and Cr into 16-bit lines in tmp (room for 2 * width samples),
+ * then the V210 packing of these lines into line line_idx of the output picture. */
+static void output_line_v210(svt_jpeg_xs_decoder_instance_t* ctx, int32_t* in[3], uint32_t line_idx, uint32_t width,
+                             svt_jpeg_xs_image_buffer_t* out, uint16_t* tmp) {
+    const uint8_t bit_depth = ctx->dec_common->picture_header_const.hdr_bit_depth[0];
+    const uint32_t chroma_width = width / 2;
+    uint16_t* y = tmp;
+    uint16_t* cb = tmp + width;
+    uint16_t* cr = cb + chroma_width;
+    nlt_inverse_transform_line_16bit(in[0], bit_depth, &ctx->picture_header_dynamic, y, width, 0);
+    nlt_inverse_transform_line_16bit(in[1], bit_depth, &ctx->picture_header_dynamic, cb, chroma_width, 0);
+    nlt_inverse_transform_line_16bit(in[2], bit_depth, &ctx->picture_header_dynamic, cr, chroma_width, 0);
+    uint8_t* row = (uint8_t*)out->data_yuv[0] + (size_t)line_idx * out->stride[0] * sizeof(uint32_t);
+    convert_planar_to_packed_v210(y, cb, cr, row, width);
+}
+
 void transform_precinct(const pi_t* pi, svt_jpeg_xs_decoder_instance_t* ctx, uint32_t c, uint32_t precinct_line_idx,
                         int32_t* precinct_components_tmp_buffer, int32_t* precinct_idwt_tmp_buffer,
                         svt_jpeg_xs_image_buffer_t* out, uint8_t shift) {
@@ -630,15 +693,16 @@ void transform_precinct(const pi_t* pi, svt_jpeg_xs_decoder_instance_t* ctx, uin
 }
 
 /* Transform one precinct line of all components into the output picture.
- * With rct_per_precinct, components 0-2 are inverse wavelet transformed first and the
- * inverse RCT is applied to each finished line. The RCT runs on a copy because the
- * IDWT line buffers are still read by the vertical lifting of the next precinct. */
+ * With joint_output_lines, components 0-2 are inverse wavelet transformed first, then each
+ * finished line is written from all three: with the inverse RCT (rct_per_precinct) or packed
+ * as V210 (output_v210). The RCT runs on a copy because the IDWT line buffers are still read
+ * by the vertical lifting of the next precinct. */
 static void transform_precinct_all(const pi_t* pi, svt_jpeg_xs_decoder_instance_t* ctx, uint32_t precinct_line_idx,
                                    int32_t* precinct_components_tmp_buffer[MAX_COMPONENTS_NUM],
                                    int32_t* precinct_idwt_tmp_buffer[MAX_COMPONENTS_NUM], int32_t* rct_tmp_buffer,
                                    svt_jpeg_xs_image_buffer_t* out, uint8_t shift) {
     uint32_t c = 0;
-    if (ctx->dec_common->rct_per_precinct) {
+    if (ctx->dec_common->joint_output_lines) {
         transform_lines_t out_lines[3];
         for (c = 0; c < 3; c++) {
             transform_precinct_idwt(pi,
@@ -655,8 +719,16 @@ static void transform_precinct_all(const pi_t* pi, svt_jpeg_xs_decoder_instance_
         }
 
         const uint32_t width = pi->width;
-        int32_t* rct_comps[MAX_COMPONENTS_NUM] = {rct_tmp_buffer, rct_tmp_buffer + width, rct_tmp_buffer + 2 * width};
         int32_t component_line_idx = precinct_line_idx * pi->components[0].precinct_height + out_lines[0].offset;
+        if (ctx->dec_common->output_v210) {
+            for (uint32_t line = out_lines[0].line_start; line <= out_lines[0].line_stop; line++) {
+                int32_t* lines[3] = {out_lines[0].buffer_out[line], out_lines[1].buffer_out[line], out_lines[2].buffer_out[line]};
+                output_line_v210(ctx, lines, component_line_idx, pi->components[0].width, out, (uint16_t*)rct_tmp_buffer);
+                component_line_idx++;
+            }
+            return; //V210 streams have no 4th component
+        }
+        int32_t* rct_comps[MAX_COMPONENTS_NUM] = {rct_tmp_buffer, rct_tmp_buffer + width, rct_tmp_buffer + 2 * width};
         for (uint32_t line = out_lines[0].line_start; line <= out_lines[0].line_stop; line++) {
             for (c = 0; c < 3; c++) {
                 memcpy(rct_comps[c], out_lines[c].buffer_out[line], width * sizeof(int32_t));
@@ -889,7 +961,7 @@ SvtJxsErrorType_t svt_jpeg_xs_decode_final_slice_overlap(svt_jpeg_xs_decoder_ins
     uint32_t precincts_in_slice = (slice_idx == (pi->slice_num - 1)) ? precincts_per_slice_last : pi->precincts_per_slice;
     uint32_t precincts_to_calculate = MIN(2, precincts_in_slice);
 
-    if (ctx->dec_common->rct_per_precinct) {
+    if (ctx->dec_common->joint_output_lines) {
         // Each component has its own buffers, so all components can be transformed precinct by precinct
         for (uint32_t c = 0; c < pi->comps_num; c++) {
             transform_precinct_initialize(pi,

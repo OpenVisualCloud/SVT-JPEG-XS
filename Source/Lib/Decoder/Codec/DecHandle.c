@@ -22,6 +22,7 @@
 #include "EncDec.h"
 #include "SvtJpegxsImageBufferTools.h"
 #include "ProfileLevelNames.h"
+#include "V210.h"
 
 PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_get_single_frame_size(const uint8_t* bitstream_buf, size_t bitstream_buf_size,
                                                                        svt_jpeg_xs_image_config_t* out_image_config,
@@ -149,6 +150,15 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
         svt_jpeg_xs_decoder_close(dec_api);
         return SvtJxsErrorBadParameter;
     }
+
+    if (dec_api->output_packed_format != 0 && dec_api->output_packed_format != COLOUR_FORMAT_PACKED_V210) {
+        if (dec_api->verbose >= VERBOSE_ERRORS) {
+            SVT_ERROR("Unrecognized output_packed_format, expected: 0 or COLOUR_FORMAT_PACKED_V210\n");
+        }
+        svt_jpeg_xs_decoder_close(dec_api);
+        return SvtJxsErrorBadParameter;
+    }
+    dec_api_prv->dec_common.output_v210 = dec_api->output_packed_format == COLOUR_FORMAT_PACKED_V210;
 
     if (dec_api->proxy_mode >= proxy_mode_max) {
         if (dec_api->verbose >= VERBOSE_ERRORS) {
@@ -401,6 +411,30 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_decoder_init(uint64_t version_api_major
 static SvtJxsErrorType_t validate_output_image(svt_jpeg_xs_decoder_api_prv_t* dec_api_prv,
                                                const svt_jpeg_xs_image_buffer_t* image, uint32_t verbose) {
     pi_t* pi = &dec_api_prv->dec_common.pi;
+    if (dec_api_prv->dec_common.output_v210) {
+        // One V210 plane, stride in 32-bit words: every line holds whole groups of 6 pixels.
+        const uint32_t line_words = v210_line_words(pi->width);
+        if (image->data_yuv[0] == NULL || image->stride[0] < line_words) {
+            if (verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Invalid input: V210 data_yuv[0] is NULL or stride[0] %u is smaller than %u words\n",
+                          image->stride[0],
+                          line_words);
+            }
+            return SvtJxsErrorBadParameter;
+        }
+        // The last line only needs its groups, as for planar output with a doubled stride (see below).
+        const uint64_t min_size = (uint64_t)image->stride[0] * sizeof(uint32_t) * (pi->height - 1) +
+            (uint64_t)line_words * sizeof(uint32_t);
+        if (image->alloc_size[0] < min_size) {
+            if (verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Invalid input: alloc_size[0] %u is smaller than %" PRIu64 " required by stride and height\n",
+                          image->alloc_size[0],
+                          min_size);
+            }
+            return SvtJxsErrorBadParameter;
+        }
+        return SvtJxsErrorNone;
+    }
     uint8_t input_bit_depth = dec_api_prv->dec_common.picture_header_const.hdr_bit_depth[0];
     uint32_t pixel_size = input_bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     for (uint32_t c = 0; c < pi->comps_num; ++c) {

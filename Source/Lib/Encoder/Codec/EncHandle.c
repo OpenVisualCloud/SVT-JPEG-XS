@@ -21,6 +21,7 @@
 #include "ProfileLevel.h"
 #include "ProfileLevelNames.h"
 #include "EncDec.h"
+#include "V210.h"
 
 /**********************************
  * Encoder Library Handle Deconstructor
@@ -463,8 +464,9 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     }
 
     if ((COLOUR_FORMAT_PLANAR_YUV422 == enc_common->colour_format || COLOUR_FORMAT_PLANAR_YUV420 == enc_common->colour_format ||
-         COLOUR_FORMAT_PLANAR_YUV422_ALPHA == enc_common->colour_format) && //YUV422_ALPHA's Y/Cb/Cr triplet has the same 2:1
-        (config_struct->source_width % 2 != 0)) {                           //horizontal chroma subsampling as plain YUV422
+         COLOUR_FORMAT_PLANAR_YUV422_ALPHA == enc_common->colour_format || //YUV422_ALPHA's Y/Cb/Cr triplet has the same 2:1
+         COLOUR_FORMAT_PACKED_V210 == enc_common->colour_format) &&        //horizontal chroma subsampling as plain YUV422
+        (config_struct->source_width % 2 != 0)) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
             SVT_ERROR("Error: The input format requires a width divisible by 2!\n");
         }
@@ -492,6 +494,29 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
             SVT_ERROR("Error: The input format packed YUV/RGB works only in Low latency threading model!\n");
         }
         return SvtJxsErrorBadParameter;
+    }
+
+    if (enc_common->colour_format == COLOUR_FORMAT_PACKED_V210) {
+        //Like packed YUV/RGB, V210 is unpacked line by line in the slice threads of the Low latency threading model
+        if (enc_common->cpu_profile == CPU_PROFILE_CPU) {
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Error: The input format V210 works only in Low latency threading model!\n");
+            }
+            return SvtJxsErrorBadParameter;
+        }
+        if (config_struct->input_bit_depth != 10) {
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Error: The input format V210 requires input_bit_depth 10, provided: %d\n",
+                          config_struct->input_bit_depth);
+            }
+            return SvtJxsErrorBadParameter;
+        }
+        if (config_struct->input_bit_depth_msb_aligned) {
+            if (config_struct->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Error: The input format V210 is not supported together with input_bit_depth_msb_aligned!\n");
+            }
+            return SvtJxsErrorBadParameter;
+        }
     }
 
     if (config_struct->enable_color_transform) {
@@ -556,7 +581,8 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     }
     //YUV422_ALPHA's Y/Cb/Cr triplet halves like plain YUV422; alpha (comp 3) matches Y's full resolution so needs no extra check
     if (COLOUR_FORMAT_PLANAR_YUV422 == enc_common->colour_format ||
-        COLOUR_FORMAT_PLANAR_YUV422_ALPHA == enc_common->colour_format) {
+        COLOUR_FORMAT_PLANAR_YUV422_ALPHA == enc_common->colour_format ||
+        COLOUR_FORMAT_PACKED_V210 == enc_common->colour_format) {
         min_width_band >>= 1;
     }
 
@@ -682,7 +708,11 @@ static SvtJxsErrorType_t encoder_init_configuration(svt_jpeg_xs_encoder_common_t
     uint64_t bits_raw = values_sum * enc_common->bit_depth;
     enc_common->compression_rate = (float)bits_raw / ((float)bytes_per_frame * 8);
 
-    return_error = weight_table_calculate(pi, config_struct->verbose, enc_common->colour_format);
+    //V210 is coded exactly like planar 4:2:2
+    return_error = weight_table_calculate(
+        pi,
+        config_struct->verbose,
+        enc_common->colour_format == COLOUR_FORMAT_PACKED_V210 ? COLOUR_FORMAT_PLANAR_YUV422 : enc_common->colour_format);
     if (return_error) {
         if (config_struct->verbose >= VERBOSE_ERRORS) {
             SVT_ERROR("Error: Error calculate Weight Tables for this configuration\n");
@@ -842,7 +872,20 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_get_image_config(uint64_t versi
     }
 
     uint32_t pixel_size = out_image_config->bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
-    if (out_image_config->format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
+    if (out_image_config->format == COLOUR_FORMAT_PACKED_V210) {
+        out_image_config->components_num = 1;
+        //Single plane, each line padded to a multiple of 128 bytes as svt_jpeg_xs_image_buffer_alloc() does
+        const uint64_t byte_size64 = (uint64_t)v210_aligned_line_words(enc_api->source_width) * sizeof(uint32_t) *
+            enc_api->source_height;
+        if (byte_size64 > UINT32_MAX) {
+            SVT_ERROR("Image component 0 byte_size overflow: %" PRIu64 " exceeds uint32 max\n", byte_size64);
+            return SvtJxsErrorBadParameter;
+        }
+        out_image_config->components[0].byte_size = (uint32_t)byte_size64;
+        out_image_config->components[0].width = enc_api->source_width;
+        out_image_config->components[0].height = enc_api->source_height;
+    }
+    else if (out_image_config->format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
         out_image_config->components_num = 1;
         //Single plane of size w*h*3
         const uint64_t byte_size64 = (uint64_t)enc_api->source_width * enc_api->source_height * 3 * pixel_size;
@@ -1313,8 +1356,31 @@ PREFIX_API SvtJxsErrorType_t svt_jpeg_xs_encoder_send_picture(svt_jpeg_xs_encode
     //Packed format uses a single interleaved data_yuv[0] buffer (see svt_jpeg_xs_image_buffer_alloc()) -
     //data_yuv[1]/[2] are intentionally never allocated/used for it, unlike planar formats.
     const uint8_t packed = enc_api_prv->enc_common.colour_format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB;
-    const uint8_t comps_to_check = packed ? 1 : pi->comps_num;
-    for (uint8_t c = 0; c < comps_to_check; ++c) {
+    const uint8_t v210 = enc_api_prv->enc_common.colour_format == COLOUR_FORMAT_PACKED_V210;
+    const uint8_t comps_to_check = (packed || v210) ? 1 : pi->comps_num;
+    if (v210) {
+        //V210 stride is in 32-bit words: every line holds whole groups of 6 pixels.
+        const uint32_t line_words = v210_line_words(pi->width);
+        if (enc_input->image.data_yuv[0] == NULL || enc_input->image.stride[0] < line_words) {
+            if (enc_api->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Invalid input: V210 data_yuv[0] is NULL or stride[0] %u is smaller than %u words\n",
+                          enc_input->image.stride[0],
+                          line_words);
+            }
+            return SvtJxsErrorBadParameter;
+        }
+        const uint64_t min_size = (uint64_t)enc_input->image.stride[0] * sizeof(uint32_t) * (pi->height - 1) +
+            (uint64_t)line_words * sizeof(uint32_t);
+        if (enc_input->image.alloc_size[0] < min_size) {
+            if (enc_api->verbose >= VERBOSE_ERRORS) {
+                SVT_ERROR("Invalid input: alloc_size[0] %u is smaller than %" PRIu64 " required by stride and height\n",
+                          enc_input->image.alloc_size[0],
+                          min_size);
+            }
+            return SvtJxsErrorBadParameter;
+        }
+    }
+    for (uint8_t c = 0; c < comps_to_check && !v210; ++c) {
         if (enc_input->image.data_yuv[c] == NULL) {
             if (enc_api->verbose >= VERBOSE_ERRORS) {
                 SVT_ERROR("Invalid input: data_yuv[%u] is NULL\n", c);

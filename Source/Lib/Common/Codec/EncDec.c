@@ -109,6 +109,9 @@ const char* svt_jpeg_xs_get_format_name(ColourFormat_t format) {
     else if (COLOUR_FORMAT_PACKED_YUV444_OR_RGB == format) {
         return "PACKED YUV444 OR RGB";
     }
+    else if (COLOUR_FORMAT_PACKED_V210 == format) {
+        return "PACKED V210 (YUV422 10-bit)";
+    }
     else {
         return "UNKNOWN FORMAT";
     }

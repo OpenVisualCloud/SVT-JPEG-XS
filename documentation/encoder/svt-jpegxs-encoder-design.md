@@ -165,7 +165,9 @@ The threading model is selected with `cpu_profile`:
 Restrictions checked in `encoder_init_configuration()` (EncHandle.c):
 
 - Vertical decomposition 0 always uses the Low latency profile, a requested Low CPU profile is silently changed.
-- Packed input (`COLOUR_FORMAT_PACKED_YUV444_OR_RGB`) is rejected with the Low CPU profile.
+- Packed input (`COLOUR_FORMAT_PACKED_YUV444_OR_RGB`, `COLOUR_FORMAT_PACKED_V210`) is rejected with the Low CPU profile.
+- `COLOUR_FORMAT_PACKED_V210` is rejected unless `input_bit_depth` is 10, with `input_bit_depth_msb_aligned`, and with an
+  odd width.
 - The reversible colour transform (`enable_color_transform`) is rejected unless the Low latency profile is requested. The
   requested value is checked, so vertical decomposition 0 does not bypass this check.
 
@@ -354,6 +356,11 @@ Packed input (`COLOUR_FORMAT_PACKED_YUV444_OR_RGB`, interleaved 4:4:4 samples) i
 (GcStageProcess.c): the input lines needed by a precinct are converted to planar lines in a temporary buffer
 (`convert_packed_to_planar_rgb_8bit()` or `convert_packed_to_planar_rgb_16bit()`) before the DWT. Packed input is only
 supported in the Low latency profile and without RCT.
+
+V210 input (`COLOUR_FORMAT_PACKED_V210`, 10-bit 4:2:2) takes the same path: each input line is unpacked to 16-bit Y, Cb
+and Cr lines by `convert_packed_to_planar_v210()` (V210.c, common RTCD), and is then coded exactly like
+`COLOUR_FORMAT_PLANAR_YUV422`, with the same weight tables and profile, so both give the same codestream. Its stride is
+in 32-bit words.
 
 4-component formats are `COLOUR_FORMAT_PLANAR_YUV422_ALPHA` (4:2:2:4), `COLOUR_FORMAT_PLANAR_4_COMPONENTS` (4:4:4:4) and
 `COLOUR_FORMAT_PLANAR_RGBA`. Their weight tables are built by `weight_table_build_4comp()` (WeightTable.c): the

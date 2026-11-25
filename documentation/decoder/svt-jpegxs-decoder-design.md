@@ -300,6 +300,13 @@ For bit depths above 8, output samples are stored in 16-bit words, LSB-aligned b
 done only on the per-precinct path. On the whole-frame colour transform path (see [Final Stage](#final-stage)) the option
 is silently ignored and the output stays LSB-aligned.
 
+With `output_packed_format = COLOUR_FORMAT_PACKED_V210` (10-bit 4:2:2 streams only), the per-precinct path inverse
+wavelet transforms Y, Cb and Cr precinct by precinct together, as for the per-precinct RCT, with IDWT buffers for each
+component. Each finished line of the three components goes through the linear, quadratic or extended scaling into
+16-bit lines in a scratch buffer, and `convert_planar_to_packed_v210()` (V210.c, common RTCD) packs them into the V210
+output line. The decoder writes the whole groups of each line, with 0 in the samples after the end of the line and in
+bits 30-31, and does not write the rest of the stride.
+
 ## Stream Features and Decoder Options
 
 - Formats: 1 component (`COLOUR_FORMAT_GRAY`), 3 components (`COLOUR_FORMAT_PLANAR_YUV444`, `_YUV422`, `_YUV420`) and

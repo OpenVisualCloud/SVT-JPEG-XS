@@ -5,10 +5,12 @@
 
 #define RTCD_C
 #include "common_dsp_rtcd.h"
+#include "V210.h"
 
 #ifdef ARCH_X86_64
 // for get_cpu_flags
 #include "cpuinfo.h"
+#include "V210_avx2.h"
 #endif
 
 /**************************************
@@ -149,4 +151,6 @@ void setup_common_rtcd_internal(CPU_FLAGS flags) {
     (void)flags;
 
     SET_SSE2(svt_log2_32, log2_32_c, Log2_32_ASM);
+    SET_AVX2(convert_packed_to_planar_v210, convert_packed_to_planar_v210_c, convert_packed_to_planar_v210_avx2);
+    SET_AVX2(convert_planar_to_packed_v210, convert_planar_to_packed_v210_c, convert_planar_to_packed_v210_avx2);
 }

@@ -172,6 +172,7 @@ Supported OS versions:
 | -- | -- | -- | -- |
 | RGB 8bit | rgbp + 8 | rgb24 (bytes in R, G, B order; bgr24 is not supported) | Tested, working properly, __decoder decodes to planar format only__, __`--profile cpu` (CPU_PROFILE_CPU) not implemented for this format, use the default Low latency profile__ |
 | RGB 10/12/14bit | rgbp + 10/12/14 | - | Tested, working properly, __decoder decodes to planar format only__, __`--profile cpu` (CPU_PROFILE_CPU) not implemented for this format, use the default Low latency profile__ |
+| YUV 422 10bit (V210) | v210 + 10 | v210 (codec, rawvideo container) | Tested, working properly. The decoder writes it with `--output-format v210`. __`--profile cpu` (CPU_PROFILE_CPU) not implemented for this format, use the default Low latency profile__ |
 
 #### Component order and colour transform
 
@@ -187,6 +188,7 @@ only for `rgb`; decoders treat Cpih=1 output as R, G, B.
 | yuv444 | `COLOUR_FORMAT_PLANAR_YUV444` | Y, Cb, Cr | yuv444p* | rejected |
 | rgb | `COLOUR_FORMAT_PLANAR_RGB` | R, G, B | gbrp* (planes G, B, R; the plugin reorders them) | accepted |
 | rgbp | `COLOUR_FORMAT_PACKED_YUV444_OR_RGB` | R, G, B interleaved per pixel | rgb24 | rejected |
+| v210 | `COLOUR_FORMAT_PACKED_V210` | Cb, Y, Cr, Y packed as V210, see below | - | rejected |
 | yuva422 | `COLOUR_FORMAT_PLANAR_YUV422_ALPHA` | Y, Cb, Cr, A | yuva422p* | rejected |
 | yuva444 | `COLOUR_FORMAT_PLANAR_4_COMPONENTS` | Y, Cb, Cr, A | yuva444p* | rejected |
 | rgba | `COLOUR_FORMAT_PLANAR_RGBA` | R, G, B, A | gbrap* (planes G, B, R, A; the plugin reorders them) | rejected (3 components only) |
@@ -198,6 +200,11 @@ Notes:
 - `bgr24` (B, G, R bytes) is not supported. Convert it to `rgb24` first.
 - `yuv444` is rejected with `--color-transform 1`: YUV input is already decorrelated, and the
   stream would be decoded as RGB.
+- `v210` is 10-bit 4:2:2 in groups of 6 pixels, each group 4 little-endian 32-bit words with 3
+  samples each in bits 0-9, 10-19 and 20-29: Cb0 Y0 Cr0, Y1 Cb1 Y2, Cr1 Y3 Cb2, Y4 Cr2 Y5. Each
+  line of the file is padded to a multiple of 128 bytes (48 pixels), as FFmpeg writes it
+  (`-c:v v210 -f rawvideo`). It needs `--input-depth 10` and an even width. It is unpacked line by
+  line in the encoder threads, and it gives the same codestream as the same picture in `yuv422`.
 - Without `--color-transform` (Cpih=0) the stream does not signal whether it holds YUV or RGB;
   `rgb` and `yuv444` produce identical streams. Only Cpih=1 streams are known to be RGB.
 
@@ -308,8 +315,10 @@ Input Options:
 -h                         Frame height
 --colour-format            Set encoder colour format and the component order of the input file:
                             yuv420, yuv422, yuv444 (planes Y, Cb, Cr), rgb (planes R, G, B),
-                            rgbp (packed, bytes R, G, B per pixel), yuva444 (planes Y, Cb, Cr, A),
-                            rgba (planes R, G, B, A), yuva422 (4:2:2:4, planes Y, Cb, Cr, A).
+                            rgbp (packed, bytes R, G, B per pixel), v210 (packed 10-bit 4:2:2,
+                            needs --input-depth 10, each line padded to a multiple of 128 bytes),
+                            yuva444 (planes Y, Cb, Cr, A), rgba (planes R, G, B, A),
+                            yuva422 (4:2:2:4, planes Y, Cb, Cr, A).
                             FFmpeg gbrp/gbrap files hold planes G, B, R(, A): reorder them for rgb/rgba
 --input-depth              Input depth
 [--input-msb-aligned]      Non-standard: 10/12-bit input samples are MSB-aligned in each 16-bit
@@ -457,6 +466,10 @@ default) or higher, logs it as `DecoderColorFormat`:
 - Star-Tetrix streams (Cpih=3, 4 components) are reported as `COLOUR_FORMAT_PLANAR_4_COMPONENTS`
   (`PLANAR 4:4:4:4 (RGBA/YUVA444)`).
 - Streams encoded from packed `rgbp` input are decoded to planar R, G, B.
+- 10-bit 4:2:2 streams are decoded to V210 with `--output-format v210` (library:
+  `output_packed_format = COLOUR_FORMAT_PACKED_V210`), which is then reported as
+  `COLOUR_FORMAT_PACKED_V210`. Each line is packed in the decoder threads, from the same planar
+  samples as the planar output.
 - 4:2:0 and 4:2:2 streams are reported as `COLOUR_FORMAT_PLANAR_YUV420` (`PLANAR YUV420`) and
   `COLOUR_FORMAT_PLANAR_YUV422` (`PLANAR YUV422`).
 - 4:2:2:4 streams are reported as `COLOUR_FORMAT_PLANAR_YUV422_ALPHA`
@@ -502,6 +515,9 @@ Output Options:
 [--proxy-mode]             Resolution scaling mode(disabled: 0, scale 1/2: 1, scale 1/4: 2, default: 0)
 [--output-msb-aligned]     Non-standard: 10/12-bit output samples are MSB-aligned in each 16-bit
                             word instead of LSB-aligned (enabled:1, disabled:0, default:0)
+[--output-format]          Output file format: planar (planes as the stream codes them, default),
+                            v210 (packed 10-bit 4:2:2 for 10-bit 4:2:2 streams, each line padded
+                            to a multiple of 128 bytes)
 ```
 
 `-o` is optional. Without it the frames are decoded but nothing is written, which is useful for
