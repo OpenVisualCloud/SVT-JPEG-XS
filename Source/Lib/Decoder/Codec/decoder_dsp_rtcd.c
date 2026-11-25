@@ -133,7 +133,7 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
 
     SET_SSE41_AVX2_AVX512(dequant, dequant_c, dequant_sse4_1, dequant_avx2, dequant_avx512);
     SET_NEON(dequant, dequant_neon);
-    SET_AVX2_AVX512(dequant_inv_sign, dequant_inv_sign_c, 0, dequant_inv_sign_avx512);
+    SET_AVX2_AVX512(dequant_inv_sign, dequant_inv_sign_c, dequant_inv_sign_avx2, dequant_inv_sign_avx512);
     SET_AVX2(linear_output_scaling_8bit, linear_output_scaling_8bit_c, linear_output_scaling_8bit_avx2);
     SET_AVX2_AVX512(linear_output_scaling_8bit_line,
                     linear_output_scaling_8bit_line_c,
@@ -151,8 +151,14 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
 
     SET_AVX2_AVX512(inv_sign, inv_sign_c, inv_sign_avx2, inv_sign_avx512);
     SET_AVX2_AVX512(inverse_rct, inverse_rct_c, inverse_rct_avx2, inverse_rct_avx512);
-    SET_AVX2_AVX512(inverse_rct_output_8bit_line, inverse_rct_output_8bit_line_c, 0, inverse_rct_output_8bit_line_avx512);
-    SET_AVX2_AVX512(inverse_rct_output_16bit_line, inverse_rct_output_16bit_line_c, 0, inverse_rct_output_16bit_line_avx512);
+    SET_AVX2_AVX512(inverse_rct_output_8bit_line,
+                    inverse_rct_output_8bit_line_c,
+                    inverse_rct_output_8bit_line_avx2,
+                    inverse_rct_output_8bit_line_avx512);
+    SET_AVX2_AVX512(inverse_rct_output_16bit_line,
+                    inverse_rct_output_16bit_line_c,
+                    inverse_rct_output_16bit_line_avx2,
+                    inverse_rct_output_16bit_line_avx512);
     SET_AVX2_AVX512(unpack_data, unpack_data_c, unpack_data_avx2, unpack_data_avx512);
 #ifdef ARCH_X86_64
     /* unpack_data_avx2 spreads a group's planes with a nibble-split-and-movemask sequence;
@@ -166,7 +172,8 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
 #endif /* ARCH_X86_64 */
     SET_NEON(unpack_data, unpack_data_neon);
     SET_AVX2_AVX512(unpack_raw_gclis_bytes, unpack_raw_gclis_bytes_c, unpack_raw_gclis_bytes_avx2, unpack_raw_gclis_bytes_avx512);
-    SET_AVX2_AVX512(unpack_gclis_sig_scatter, unpack_gclis_sig_scatter_c, 0, unpack_gclis_sig_scatter_avx512);
+    SET_AVX2_AVX512(
+        unpack_gclis_sig_scatter, unpack_gclis_sig_scatter_c, unpack_gclis_sig_scatter_avx2, unpack_gclis_sig_scatter_avx512);
     SET_AVX2_AVX512(unpack_gclis_unary_run, unpack_gclis_unary_run_c, unpack_gclis_unary_run_avx2, unpack_gclis_unary_run_avx2);
 #ifdef ARCH_X86_64
     /* All the codes of a 64-bit window at once, with the byte compress of AVX512_VBMI2 */
@@ -189,7 +196,12 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
     SET_AVX2_AVX512(
         idwt_vertical_line_recalc, idwt_vertical_line_recalc_c, idwt_vertical_line_recalc_avx2, idwt_vertical_line_recalc_avx512);
     SET_NEON(idwt_vertical_line_recalc, idwt_vertical_line_recalc_neon);
-    SET_AVX2_AVX512(idwt_vertical_line_output_8bit, idwt_vertical_line_output_8bit_c, 0, idwt_vertical_line_output_8bit_avx512);
-    SET_AVX2_AVX512(
-        idwt_vertical_line_output_16bit, idwt_vertical_line_output_16bit_c, 0, idwt_vertical_line_output_16bit_avx512);
+    SET_AVX2_AVX512(idwt_vertical_line_output_8bit,
+                    idwt_vertical_line_output_8bit_c,
+                    idwt_vertical_line_output_8bit_avx2,
+                    idwt_vertical_line_output_8bit_avx512);
+    SET_AVX2_AVX512(idwt_vertical_line_output_16bit,
+                    idwt_vertical_line_output_16bit_c,
+                    idwt_vertical_line_output_16bit_avx2,
+                    idwt_vertical_line_output_16bit_avx512);
 }

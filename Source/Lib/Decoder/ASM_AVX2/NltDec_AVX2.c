@@ -132,11 +132,9 @@ void linear_output_scaling_8bit_line_avx2(int32_t* in, uint32_t bw, uint32_t dep
         v2_avx2 = _mm256_srai_epi32(v2_avx2, dzeta);
         v2_avx2 = _mm256_max_epi32(_mm256_min_epi32(v2_avx2, max_avx2), zero_avx2);
 
-        __m256i packed = _mm256_packus_epi32(v1_avx2, v2_avx2);
-        packed = _mm256_permute4x64_epi64(packed, 0xd8);
-        packed = _mm256_packus_epi16(packed, packed);
-        packed = _mm256_permute4x64_epi64(packed, 0xd8);
-        _mm_storeu_si128((__m128i*)(out + x), _mm256_castsi256_si128(packed));
+        __m256i packed = _mm256_permute4x64_epi64(_mm256_packus_epi32(v1_avx2, v2_avx2), 0xd8);
+        _mm_storeu_si128((__m128i*)(out + x),
+                         _mm_packus_epi16(_mm256_castsi256_si128(packed), _mm256_extracti128_si256(packed, 1)));
     }
     for (; x < (int32_t)w; x++) {
         int32_t v = in[x];
