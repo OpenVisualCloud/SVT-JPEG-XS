@@ -1,0 +1,145 @@
+From 3ccfca463c7bfad555fcecb102e7ddb7c88db369 Mon Sep 17 00:00:00 2001
+From: Grzegorz Rys <grzegorz.rys@intel.com>
+Date: Thu, 26 Nov 2026 11:32:20 +0100
+Subject: [PATCH] avformat/rawvideodec: use AVBufferPool for packet buffers
+
+rawvideo_read_packet() previously called av_get_packet() or
+av_new_packet() on every frame, allocating and freeing a fresh
+multi-megabyte buffer per frame (e.g. 8.3 MiB for 1080p 4:4:4:4 8-bit).
+When a fast multi-threaded encoder drains packets faster than the
+demuxer thread, glibc malloc repeatedly falls back to mmap()/munmap()
+or heap trimming per frame, causing ~2000 minor page faults per frame
+inside read() and cross-core TLB shootdowns on free, saturating the
+single demuxer thread and starving encoder worker threads.
+
+Allocate packet buffers from an AVBufferPool initialized once in
+rawvideo_read_header() and released in rawvideo_read_close(), preserving
+av_get_packet() padding, position, EOF, and partial-read semantics.
+---
+ libavformat/rawvideodec.c | 51 +++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 49 insertions(+), 2 deletions(-)
+
+diff --git a/libavformat/rawvideodec.c b/libavformat/rawvideodec.c
+index 67aedabe8c..eebdf703e1 100644
+--- a/libavformat/rawvideodec.c
++++ b/libavformat/rawvideodec.c
+@@ -23,6 +23,7 @@
+ 
+ #include <stdbool.h>
+ 
++#include "libavutil/buffer.h"
+ #include "libavutil/imgutils.h"
+ #include "libavutil/parseutils.h"
+ #include "libavutil/pixdesc.h"
+@@ -48,6 +49,7 @@ typedef struct RawVideoDemuxerContext {
+     size_t frame_size;
+     // linesize without padding
+     int raw_bytes[4];
++    AVBufferPool *pool;
+ } RawVideoDemuxerContext;
+ 
+ // v210 frame width is padded to multiples of 48
+@@ -151,9 +153,36 @@ static int rawvideo_read_header(AVFormatContext *ctx)
+     st->codecpar->bit_rate = av_rescale_q(ctx->packet_size,
+                                        (AVRational){8,1}, st->time_base);
+ 
++    if (packet_size > INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE)
++        return AVERROR(EINVAL);
++
++    s->pool = av_buffer_pool_init((size_t)packet_size + AV_INPUT_BUFFER_PADDING_SIZE, NULL);
++    if (!s->pool)
++        return AVERROR(ENOMEM);
++
++    return 0;
++}
++
++static int rawvideo_read_close(AVFormatContext *ctx)
++{
++    RawVideoDemuxerContext *s = ctx->priv_data;
++    av_buffer_pool_uninit(&s->pool);
+     return 0;
+ }
+ 
++static int rawvideo_alloc_packet(RawVideoDemuxerContext *s, AVPacket *pkt, int size)
++{
++    AVBufferRef *buf = av_buffer_pool_get(s->pool);
++    if (!buf)
++        return AVERROR(ENOMEM);
++
++    av_packet_unref(pkt);
++    pkt->buf  = buf;
++    pkt->data = buf->data;
++    pkt->size = size;
++    memset(pkt->data + size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
++    return 0;
++}
+ 
+ static int rawvideo_read_packet(AVFormatContext *ctx, AVPacket *pkt)
+ {
+@@ -161,15 +190,29 @@ static int rawvideo_read_packet(AVFormatContext *ctx, AVPacket *pkt)
+     RawVideoDemuxerContext *s = ctx->priv_data;
+ 
+     if (!s->has_padding) {
+-        ret = av_get_packet(ctx->pb, pkt, ctx->packet_size);
++        int64_t pos = avio_tell(ctx->pb);
++
++        ret = rawvideo_alloc_packet(s, pkt, ctx->packet_size);
+         if (ret < 0)
+             return ret;
++
++        pkt->pos = pos;
++        ret = avio_read(ctx->pb, pkt->data, ctx->packet_size);
++        if (ret <= 0) {
++            av_packet_unref(pkt);
++            return ret < 0 ? ret : AVERROR_EOF;
++        }
++        if (ret < ctx->packet_size) {
++            pkt->size = ret;
++            memset(pkt->data + ret, 0, AV_INPUT_BUFFER_PADDING_SIZE);
++            pkt->flags |= AV_PKT_FLAG_CORRUPT;
++        }
+         pkt->pts = pkt->dts = pkt->pos / ctx->packet_size;
+ 
+         return 0;
+     }
+ 
+-    ret = av_new_packet(pkt, ctx->packet_size);
++    ret = rawvideo_alloc_packet(s, pkt, ctx->packet_size);
+     if (ret < 0)
+         return ret;
+ 
+@@ -236,6 +279,7 @@ const FFInputFormat ff_rawvideo_demuxer = {
+     .priv_data_size = sizeof(RawVideoDemuxerContext),
+     .read_header    = rawvideo_read_header,
+     .read_packet    = rawvideo_read_packet,
++    .read_close     = rawvideo_read_close,
+     .raw_codec_id   = AV_CODEC_ID_RAWVIDEO,
+ };
+ 
+@@ -256,6 +300,7 @@ const FFInputFormat ff_bitpacked_demuxer = {
+     .priv_data_size = sizeof(RawVideoDemuxerContext),
+     .read_header    = rawvideo_read_header,
+     .read_packet    = rawvideo_read_packet,
++    .read_close     = rawvideo_read_close,
+     .raw_codec_id   = AV_CODEC_ID_BITPACKED,
+ };
+ #endif // CONFIG_BITPACKED_DEMUXER
+@@ -277,6 +322,7 @@ const FFInputFormat ff_v210_demuxer = {
+     .priv_data_size = sizeof(RawVideoDemuxerContext),
+     .read_header    = rawvideo_read_header,
+     .read_packet    = rawvideo_read_packet,
++    .read_close     = rawvideo_read_close,
+     .raw_codec_id   = AV_CODEC_ID_V210,
+ };
+ #endif // CONFIG_V210_DEMUXER
+@@ -291,6 +337,7 @@ const FFInputFormat ff_v210x_demuxer = {
+     .priv_data_size = sizeof(RawVideoDemuxerContext),
+     .read_header    = rawvideo_read_header,
+     .read_packet    = rawvideo_read_packet,
++    .read_close     = rawvideo_read_close,
+     .raw_codec_id   = AV_CODEC_ID_V210X,
+ };
+ #endif // CONFIG_V210X_DEMUXER
+-- 
+2.53.0
+

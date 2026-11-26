@@ -16,6 +16,14 @@
 #include "decode.h"
 #include "profiles.h"
 
+#define SVT_JPEGXS_DEC_MAX_IN_FLIGHT 5
+
+typedef struct SvtJpegXsDecInFlight {
+    AVPacket* pkt;
+    AVFrame* frame;
+    int in_use;
+} SvtJpegXsDecInFlight;
+
 typedef struct SvtJpegXsDecodeContext {
     AVClass* class;
     svt_jpeg_xs_image_config_t config;
@@ -33,6 +41,10 @@ typedef struct SvtJpegXsDecodeContext {
     int rgb;
     // FFmpeg plane index for each library component (gbrp* planes are G, B, R; the library outputs R, G, B)
     int plane_map[MAX_COMPONENTS_NUM];
+
+    SvtJpegXsDecInFlight slots[SVT_JPEGXS_DEC_MAX_IN_FLIGHT];
+    int in_flight;
+    int draining;
 } SvtJpegXsDecodeContext;
 
 /* Output RGB (gbrp* or gbrap*) or YUV for a 4:4:4 stream. The library reports PLANAR_RGB/RGBA for
@@ -184,21 +196,20 @@ static int set_pix_fmt(AVCodecContext* avctx, svt_jpeg_xs_image_config_t config,
     return 0;
 }
 
-static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* got_frame, AVPacket* avpkt) {
+static int svt_jpegxs_dec_send_slot(AVCodecContext* avctx, SvtJpegXsDecInFlight* slot) {
     SvtJpegXsDecodeContext* svt_dec = avctx->priv_data;
-
+    AVPacket* avpkt = slot->pkt;
     SvtJxsErrorType_t err = SvtJxsErrorNone;
-    int ret;
-    svt_jpeg_xs_frame_t dec_input;
-    svt_jpeg_xs_frame_t dec_output;
+    svt_jpeg_xs_frame_t dec_input = {0};
     uint32_t pixel_size;
-    int rgb;
+    int ret, rgb;
 
     if (!svt_dec->decoder_initialized) {
         err = svt_jpeg_xs_decoder_get_single_frame_size_with_proxy(
             avpkt->data, avpkt->size, NULL, &svt_dec->frame_size, 1 /*quick search*/, svt_dec->decoder.proxy_mode);
         if (err) {
             av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_single_frame_size_with_proxy failed, err=%d\n", err);
+            av_packet_unref(avpkt);
             return err;
         }
         if (avpkt->size < svt_dec->frame_size) {
@@ -206,12 +217,14 @@ static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* g
             svt_dec->bitstream_buffer = av_malloc(svt_dec->frame_size);
             if (!svt_dec->bitstream_buffer) {
                 av_log(avctx, AV_LOG_ERROR, "Failed to allocate svt_dec->bitstream_buffer.\n");
+                av_packet_unref(avpkt);
                 return AVERROR(ENOMEM);
             }
             av_log(NULL, AV_LOG_DEBUG, "svt_jpegxs_dec_decode, bitstream_size=%d, chunk = %d\n", svt_dec->frame_size, avpkt->size);
         }
         if (avpkt->size > svt_dec->frame_size) {
             av_log(avctx, AV_LOG_ERROR, "Single packet have data for more than one frame.\n");
+            av_packet_unref(avpkt);
             return AVERROR_UNKNOWN;
         }
 
@@ -219,6 +232,7 @@ static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* g
             SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &(svt_dec->decoder), avpkt->data, avpkt->size, &(svt_dec->config));
         if (err) {
             av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_init failed, err=%d\n", err);
+            av_packet_unref(avpkt);
             return err;
         }
 
@@ -226,6 +240,8 @@ static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* g
         ret = set_pix_fmt(avctx, svt_dec->config, rgb);
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "set_pix_fmt failed, err=%d\n", ret);
+            svt_jpeg_xs_decoder_close(&(svt_dec->decoder));
+            av_packet_unref(avpkt);
             return ret;
         }
         for (int comp = 0; comp < MAX_COMPONENTS_NUM; comp++) {
@@ -241,6 +257,8 @@ static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* g
         ret = ff_set_dimensions(avctx, svt_dec->config.width, svt_dec->config.height);
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "ff_set_dimensions failed, err=%d\n", ret);
+            svt_jpeg_xs_decoder_close(&(svt_dec->decoder));
+            av_packet_unref(avpkt);
             return ret;
         }
 
@@ -263,74 +281,168 @@ static int svt_jpegxs_dec_decode(AVCodecContext* avctx, AVFrame* picture, int* g
             dec_input.bitstream.used_size = svt_dec->frame_size;
         }
         else {
-            *got_frame = 0;
-            return avpkt->size;
+            av_packet_unref(avpkt);
+            return AVERROR(EAGAIN);
         }
     }
-    else {// svt_dec->chunk_decoding == 0
+    else { // svt_dec->chunk_decoding == 0
         dec_input.bitstream.buffer = avpkt->data;
         dec_input.bitstream.allocation_size = avpkt->size;
         dec_input.bitstream.used_size = avpkt->size;
     }
-    dec_input.user_prv_ctx_ptr = avpkt;
 
-    ret = ff_get_buffer(avctx, picture, 0);
+    ret = ff_get_buffer(avctx, slot->frame, 0);
     if (ret < 0) {
         av_log(NULL, AV_LOG_ERROR, "ff_get_buffer failed, err=%d\n", ret);
+        av_packet_unref(avpkt);
         return ret;
     }
 
     pixel_size = svt_dec->config.bit_depth <= 8 ? 1 : 2;
     for (int comp = 0; comp < svt_dec->config.components_num; comp++) {
         const int plane = svt_dec->plane_map[comp];
-        dec_input.image.data_yuv[comp] = picture->data[plane];
-        dec_input.image.stride[comp] = picture->linesize[plane]/pixel_size;
-        dec_input.image.alloc_size[comp] = picture->linesize[plane] * svt_dec->config.components[comp].height;
+        dec_input.image.data_yuv[comp] = slot->frame->data[plane];
+        dec_input.image.stride[comp] = slot->frame->linesize[plane] / pixel_size;
+        dec_input.image.alloc_size[comp] = slot->frame->linesize[plane] * svt_dec->config.components[comp].height;
     }
+
+    dec_input.user_prv_ctx_ptr = slot;
+    slot->in_use = 1;
 
     err = svt_jpeg_xs_decoder_send_frame(&(svt_dec->decoder), &dec_input, 1 /*blocking*/);
     if (err) {
+        slot->in_use = 0;
+        av_frame_unref(slot->frame);
+        av_packet_unref(avpkt);
         av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_send_frame failed, err=%d\n", err);
         return err;
     }
 
-    err = svt_jpeg_xs_decoder_get_frame(&(svt_dec->decoder), &dec_output, 1 /*blocking*/);
-    if (err == SvtJxsErrorDecoderConfigChange) {
-        av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_frame return SvtJxsErrorDecoderConfigChange\n");
-        return AVERROR_INPUT_CHANGED;
+    return 0;
+}
+
+static int svt_jpegxs_dec_receive_frame(AVCodecContext* avctx, AVFrame* frame) {
+    SvtJpegXsDecodeContext* svt_dec = avctx->priv_data;
+    svt_jpeg_xs_frame_t dec_output = {0};
+    SvtJpegXsDecInFlight* slot = NULL;
+    SvtJxsErrorType_t err;
+    int max_in_flight = svt_dec->chunk_decoding ? 1 : SVT_JPEGXS_DEC_MAX_IN_FLIGHT;
+    int ret;
+
+    if (!svt_dec->draining && svt_dec->in_flight < max_in_flight) {
+        for (int i = 0; i < SVT_JPEGXS_DEC_MAX_IN_FLIGHT; i++) {
+            if (!svt_dec->slots[i].in_use) {
+                slot = &svt_dec->slots[i];
+                break;
+            }
+        }
+        av_assert0(slot);
+
+        ret = ff_decode_get_packet(avctx, slot->pkt);
+        if (ret == 0) {
+            ret = svt_jpegxs_dec_send_slot(avctx, slot);
+            if (ret == 0) {
+                svt_dec->in_flight++;
+                max_in_flight = svt_dec->chunk_decoding ? 1 : SVT_JPEGXS_DEC_MAX_IN_FLIGHT;
+            }
+            else if (ret != AVERROR(EAGAIN)) {
+                return ret;
+            }
+        }
+        else if (ret == AVERROR_EOF) {
+            svt_dec->draining = 1;
+        }
+        else if (ret != AVERROR(EAGAIN)) {
+            return ret;
+        }
+    }
+
+    if (svt_dec->in_flight == 0) {
+        return svt_dec->draining ? AVERROR_EOF : AVERROR(EAGAIN);
+    }
+
+    /* Non-blocking while the pipeline still has room so FFmpeg feeds the next packet
+     * immediately; blocking once full, during chunk_decoding, or while draining at EOF. */
+    err = svt_jpeg_xs_decoder_get_frame(&(svt_dec->decoder),
+                                        &dec_output,
+                                        (svt_dec->draining || svt_dec->chunk_decoding || svt_dec->in_flight >= max_in_flight) ? 1 : 0);
+    if (err == SvtJxsErrorNoErrorEmptyQueue) {
+        return AVERROR(EAGAIN);
     }
     if (err) {
+        slot = dec_output.user_prv_ctx_ptr;
+        if (slot && slot->in_use) {
+            av_frame_unref(slot->frame);
+            av_packet_unref(slot->pkt);
+            slot->in_use = 0;
+            svt_dec->in_flight--;
+        }
+        if (err == SvtJxsErrorDecoderConfigChange) {
+            av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_frame return SvtJxsErrorDecoderConfigChange\n");
+            return AVERROR_INPUT_CHANGED;
+        }
         av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_get_frame failed, err=%d\n", err);
         return err;
     }
 
-    if (dec_output.user_prv_ctx_ptr != avpkt) {
+    slot = dec_output.user_prv_ctx_ptr;
+    if (!slot || !slot->in_use) {
         av_log(NULL, AV_LOG_ERROR, "Returned different user_prv_ctx_ptr than expected\n");
         return AVERROR_UNKNOWN;
     }
 
-    *got_frame = 1;
-
     //Copy leftover from AVPacket if it contain data from two frames
     if (svt_dec->chunk_decoding) {
         int bytes_to_copy = svt_dec->buffer_filled_len % svt_dec->frame_size;
-        int packet_offset = avpkt->size - bytes_to_copy;
-        uint8_t* packet_addr = avpkt->data + packet_offset;
+        int packet_offset = slot->pkt->size - bytes_to_copy;
+        uint8_t* packet_addr = slot->pkt->data + packet_offset;
         memcpy(svt_dec->bitstream_buffer, packet_addr, bytes_to_copy);
         svt_dec->buffer_filled_len = bytes_to_copy;
     }
 
-    return avpkt->size;
+    av_frame_move_ref(frame, slot->frame);
+    av_packet_unref(slot->pkt);
+    slot->in_use = 0;
+    svt_dec->in_flight--;
+
+    return 0;
+}
+
+static void svt_jpegxs_dec_flush(AVCodecContext* avctx) {
+    SvtJpegXsDecodeContext* svt_dec = avctx->priv_data;
+    while (svt_dec->in_flight > 0) {
+        svt_jpeg_xs_frame_t dec_output = {0};
+        svt_jpeg_xs_decoder_get_frame(&(svt_dec->decoder), &dec_output, 1 /*blocking*/);
+        if (dec_output.user_prv_ctx_ptr) {
+            SvtJpegXsDecInFlight* slot = dec_output.user_prv_ctx_ptr;
+            av_frame_unref(slot->frame);
+            av_packet_unref(slot->pkt);
+            slot->in_use = 0;
+            svt_dec->in_flight--;
+        }
+        else {
+            break;
+        }
+    }
+    svt_dec->draining = 0;
+    svt_dec->buffer_filled_len = 0;
 }
 
 static av_cold int svt_jpegxs_dec_free(AVCodecContext* avctx) {
     SvtJpegXsDecodeContext* svt_dec = avctx->priv_data;
-    svt_jpeg_xs_decoder_close(&(svt_dec->decoder));
-    av_log(NULL, AV_LOG_DEBUG, "svt_jpeg_xs_decoder_close called\n");
-
-    if (svt_dec->chunk_decoding) {
-        av_free(svt_dec->bitstream_buffer);
+    if (svt_dec->decoder_initialized) {
+        svt_jpeg_xs_decoder_close(&(svt_dec->decoder));
+        svt_dec->decoder_initialized = 0;
+        av_log(NULL, AV_LOG_DEBUG, "svt_jpeg_xs_decoder_close called\n");
     }
+
+    for (int i = 0; i < SVT_JPEGXS_DEC_MAX_IN_FLIGHT; i++) {
+        av_frame_free(&svt_dec->slots[i].frame);
+        av_packet_free(&svt_dec->slots[i].pkt);
+        svt_dec->slots[i].in_use = 0;
+    }
+
+    av_freep(&svt_dec->bitstream_buffer);
 
     return 0;
 }
@@ -342,6 +454,14 @@ static av_cold int svt_jpegxs_dec_init(AVCodecContext* avctx) {
     svt_dec->chunk_decoding = 0;
     svt_dec->buffer_filled_len = 0;
     svt_dec->bitstream_buffer = NULL;
+
+    for (int i = 0; i < SVT_JPEGXS_DEC_MAX_IN_FLIGHT; i++) {
+        svt_dec->slots[i].pkt = av_packet_alloc();
+        svt_dec->slots[i].frame = av_frame_alloc();
+        if (!svt_dec->slots[i].pkt || !svt_dec->slots[i].frame) {
+            return AVERROR(ENOMEM);
+        }
+    }
 
     if (av_log_get_level() < AV_LOG_DEBUG) {
         svt_dec->decoder.verbose = VERBOSE_ERRORS;
@@ -413,12 +533,12 @@ const FFCodec ff_libsvtjpegxs_decoder = {
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_JPEGXS,
     .priv_data_size = sizeof(SvtJpegXsDecodeContext),
-    .init           = svt_jpegxs_dec_init,
-    .close          = svt_jpegxs_dec_free,
-    FF_CODEC_DECODE_CB(svt_jpegxs_dec_decode),
-    .p.capabilities = AV_CODEC_CAP_OTHER_THREADS | AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |
-                      FF_CODEC_CAP_AUTO_THREADS,
+    .init = svt_jpegxs_dec_init,
+    .close = svt_jpegxs_dec_free,
+    .flush = svt_jpegxs_dec_flush,
+    FF_CODEC_RECEIVE_FRAME_CB(svt_jpegxs_dec_receive_frame),
+    .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_OTHER_THREADS | AV_CODEC_CAP_DR1,
+    .caps_internal = FF_CODEC_CAP_NOT_INIT_THREADSAFE | FF_CODEC_CAP_AUTO_THREADS | FF_CODEC_CAP_INIT_CLEANUP,
     .p.wrapper_name = "libsvtjpegxs",
     .p.priv_class = &svtjpegxs_dec_class,
 };

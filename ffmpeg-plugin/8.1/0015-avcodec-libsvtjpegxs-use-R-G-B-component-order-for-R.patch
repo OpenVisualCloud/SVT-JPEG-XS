@@ -1,5 +1,5 @@
 From f62573e110738cd05949a567c89bf989ea244aec Mon Sep 17 00:00:00 2001
-From: SVT-JPEG-XS <noreply@example.com>
+From: Grzegorz Rys <grzegorz.rys@intel.com>
 Date: Mon, 12 Oct 2026 09:36:25 +0200
 Subject: [PATCH] avcodec/libsvtjpegxs: use R, G, B component order for RGB
  formats

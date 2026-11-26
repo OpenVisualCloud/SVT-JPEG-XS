@@ -1,5 +1,5 @@
 From ee7f356bab1d16d6fe8cb20a279a5a51c195ca9e Mon Sep 17 00:00:00 2001
-From: SVT-JPEG-XS <noreply@example.com>
+From: Grzegorz Rys <grzegorz.rys@intel.com>
 Date: Tue, 10 Nov 2026 09:39:49 +0100
 Subject: [PATCH] avcodec/libsvtjpegxsenc: pass the frame rate to the encoder
 
