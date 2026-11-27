@@ -13,11 +13,13 @@
 #include "SvtJpegxsDec.h"
 #include "SvtJpegxsImageBufferTools.h"
 #include "common_dsp_rtcd.h"
+#include "NltDec.h"
 #include "V210.h"
 
 #ifdef ARCH_X86_64
 #include "V210_avx2.h"
 #include "V210_avx512.h"
+#include "NltDec_avx512.h"
 #endif /* ARCH_X86_64 */
 
 namespace {
@@ -124,6 +126,37 @@ void test_pack(pack_fn fn) {
     }
 }
 
+typedef void (*output_v210_fn)(const int32_t* in_y, const int32_t* in_cb, const int32_t* in_cr, uint32_t bw, void* out_v210,
+                               uint32_t width);
+
+/* The decoder's linear output scaling to V210 in one pass, against the two passes it replaces: the 16-bit linear
+ * output scaling of each component, then the reference packing. The coefficients go past both ends of the output
+ * range, so that the clamp is tested too, and the line buffer has exactly the size of the line. */
+void test_output_scaling_v210(output_v210_fn fn) {
+    std::mt19937 rnd(1010);
+    for (uint32_t bw : {10u, 12u, 15u, 20u}) {
+        std::uniform_int_distribution<int32_t> coefficient(-(1 << bw), 1 << bw);
+        for (uint32_t width : line_widths()) {
+            std::vector<int32_t> in_y(width), in_cb(width / 2), in_cr(width / 2);
+            for (auto* plane : {&in_y, &in_cb, &in_cr}) {
+                for (int32_t& value : *plane) {
+                    value = coefficient(rnd);
+                }
+            }
+            std::vector<uint16_t> y(width), cb(width / 2), cr(width / 2);
+            linear_output_scaling_16bit_line_c(in_y.data(), bw, 10, y.data(), width);
+            linear_output_scaling_16bit_line_c(in_cb.data(), bw, 10, cb.data(), width / 2);
+            linear_output_scaling_16bit_line_c(in_cr.data(), bw, 10, cr.data(), width / 2);
+            const size_t line_bytes = v210_line_words(width) * sizeof(uint32_t);
+            std::vector<uint8_t> ref(line_bytes);
+            ref_pack(y.data(), cb.data(), cr.data(), width, ref.data());
+            std::vector<uint8_t> line(line_bytes, 0xA5);
+            fn(in_y.data(), in_cb.data(), in_cr.data(), bw, line.data(), width);
+            ASSERT_EQ(0, memcmp(ref.data(), line.data(), line_bytes)) << "bw " << bw << " width " << width;
+        }
+    }
+}
+
 } // namespace
 
 TEST(V210, UnpackC) {
@@ -132,6 +165,10 @@ TEST(V210, UnpackC) {
 
 TEST(V210, PackC) {
     test_pack(convert_planar_to_packed_v210_c);
+}
+
+TEST(V210, OutputScalingC) {
+    test_output_scaling_v210(linear_output_scaling_v210_line_c);
 }
 
 #ifdef ARCH_X86_64
@@ -163,6 +200,14 @@ TEST(V210, PackAVX512) {
         GTEST_SKIP() << "no AVX-512BW/DQ/VL/BMI2";
     }
     test_pack(convert_planar_to_packed_v210_avx512);
+}
+
+TEST(V210, OutputScalingAVX512) {
+    const CPU_FLAGS req = CPU_FLAGS_AVX512F | CPU_FLAGS_AVX512BW | CPU_FLAGS_AVX512DQ | CPU_FLAGS_AVX512VL | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & req) != req) {
+        GTEST_SKIP() << "no AVX-512BW/DQ/VL/BMI2";
+    }
+    test_output_scaling_v210(linear_output_scaling_v210_line_avx512);
 }
 #endif /* ARCH_X86_64 */
 
@@ -236,8 +281,9 @@ struct EncodeSettings {
     uint8_t lossless;
 };
 
-/* The kernels of each instruction set: C only, and all that the host has. */
-const uint64_t cpu_flags_list[] = {CPU_FLAGS_C, CPU_FLAGS_ALL};
+/* The kernels of each instruction set: C only, up to AVX2 (as --asm avx2 in the sample apps), and all that the host
+ * has, so that a host with AVX-512 tests the AVX2 kernels too. */
+const uint64_t cpu_flags_list[] = {CPU_FLAGS_C, (CPU_FLAGS_AVX2 << 1) - 1, CPU_FLAGS_ALL};
 
 std::vector<uint8_t> encode(const Picture422& picture, const EncodeSettings& settings, bool as_v210, uint32_t v210_extra_words,
                             uint64_t cpu_flags = CPU_FLAGS_ALL) {
