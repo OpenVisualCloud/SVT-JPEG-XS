@@ -279,10 +279,6 @@ SvtJxsErrorType_t unpack_data_avx2_bmi2(bitstream_reader_t* bitstream, uint16_t*
  * lowest, so the first bit read lands on the highest set bit, which is the first non-zero coefficient:
  * the stream order. The result has the sign of buf[j] at bit 31 - j.
  *
- * The load takes eight bytes at the byte of the first bit, and fewer at the end of the buffer, so it
- * never reads past mem + size. After a shift of at most seven bits it still has at least fifty-seven
- * bits, and k is at most thirty-two.
- *
  * Returns 1 if the k bits are more than *bits_left; the stream is not read and *bits_left is not
  * changed then. */
 TARGET_BMI2_POPCNT static INLINE int32_t unpack_sign_32_avx2_bmi2(const uint8_t* mem, uint32_t size, uint32_t* offset,
@@ -310,23 +306,7 @@ TARGET_BMI2_POPCNT static INLINE int32_t unpack_sign_32_avx2_bmi2(const uint8_t*
         return 1;
     }
     *bits_left -= (int32_t)k;
-    /* Neither the load nor its address goes past mem + size, even when *offset does */
-    uint64_t window;
-    const uint32_t bytes_left = *offset < size ? size - *offset : 0;
-    if (bytes_left >= sizeof(window)) {
-        memcpy(&window, mem + *offset, sizeof(window));
-    }
-    else {
-        window = 0;
-        if (bytes_left) {
-            memcpy(&window, mem + *offset, bytes_left);
-        }
-    }
-    window = SVT_BSWAP64(window) << *bits_used;
-    const uint32_t signs = _pdep_u32((uint32_t)(window >> (64 - k)), mask);
-    *bits_used += k;
-    *offset += *bits_used >> 3;
-    *bits_used &= 7;
+    const uint32_t signs = _pdep_u32(unpack_read_sign_bits(mem, size, offset, bits_used, k), mask);
 
     /* Coefficient j of each half has its sign at bit 15 - j of the half of signs: multiplied by 2^j,
      * the bit moves to bit 15, the sign bit */

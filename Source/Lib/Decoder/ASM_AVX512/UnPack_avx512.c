@@ -373,3 +373,73 @@ void unpack_gclis_sig_scatter_avx512(uint8_t* gclis, const uint8_t* significance
         _mm512_mask_storeu_epi64(dst64, valid, expanded);
     }
 }
+
+/* The signs of the coefficients buf[0] to buf[31] that valid selects (all thirty-two, or the first ones of
+ * the last step of a line), from the stream at *offset and *bits_used. As unpack_sign_32_avx2_bmi2, with
+ * AVX-512BW: VPERMW reverses the coefficients, so that lane t is buf[31 - t], one compare makes their
+ * non-zero mask in that order, and the coefficients out of valid are neither read nor written.
+ *
+ * Returns 1 if the signs need more bits than *bits_left; the stream is not read and *bits_left is not
+ * changed then. */
+TARGET_BMI2_POPCNT static INLINE int32_t unpack_sign_32_avx512(const uint8_t* mem, uint32_t size, uint32_t* offset,
+                                                               uint32_t* bits_used, uint16_t* buf, __mmask32 valid,
+                                                               int32_t* bits_left) {
+    const __m512i reverse = _mm512_set_epi16(
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
+    const __m512i reversed = _mm512_permutexvar_epi16(reverse, _mm512_maskz_loadu_epi16(valid, buf));
+    const uint32_t mask = (uint32_t)_mm512_cmpneq_epi16_mask(reversed, _mm512_setzero_si512());
+    if (mask == 0) {
+        return 0;
+    }
+
+    const uint32_t k = (uint32_t)_mm_popcnt_u32(mask);
+    if (*bits_left < (int32_t)k) {
+        return 1;
+    }
+    *bits_left -= (int32_t)k;
+    /* Bit t is the sign of lane t, see unpack_sign_32_avx2_bmi2 */
+    const uint32_t signs = _pdep_u32(unpack_read_sign_bits(mem, size, offset, bits_used, k), mask);
+
+    const __m512i with_signs = _mm512_mask_mov_epi16(
+        reversed, (__mmask32)signs, _mm512_or_si512(reversed, _mm512_set1_epi16((int16_t)BITSTREAM_MASK_SIGN)));
+    _mm512_mask_storeu_epi16(buf, valid, _mm512_permutexvar_epi16(reverse, with_signs));
+    return 0;
+}
+
+/* Same result as unpack_sign_avx2_bmi2, and the same error on a corrupt stream. The last step of a line that
+ * does not end on a multiple of thirty-two takes a masked load and store, instead of a copy. */
+TARGET_BMI2_POPCNT SvtJxsErrorType_t unpack_sign_avx512(bitstream_reader_t* bitstream, uint16_t* buf, uint32_t w,
+                                                        uint32_t group_size, uint8_t leftover_signs_num,
+                                                        int32_t* precinct_bits_left) {
+    UNUSED(group_size);
+    assert(group_size == GROUP_SIZE);
+    uint32_t offset = bitstream->offset;
+    uint32_t bits_used = bitstream->bits_used;
+    int32_t bits_left = *precinct_bits_left;
+    int32_t short_of_bits = 0;
+
+    uint32_t i = 0;
+    for (; i + 32 <= w && !short_of_bits; i += 32) {
+        short_of_bits = unpack_sign_32_avx512(
+            bitstream->mem, bitstream->size, &offset, &bits_used, buf + i, (__mmask32)0xFFFFFFFFu, &bits_left);
+    }
+    if (i < w && !short_of_bits) {
+        short_of_bits = unpack_sign_32_avx512(
+            bitstream->mem, bitstream->size, &offset, &bits_used, buf + i, (__mmask32)((1u << (w - i)) - 1u), &bits_left);
+    }
+    bitstream->offset = offset;
+    bitstream->bits_used = bits_used;
+    *precinct_bits_left = bits_left;
+    if (short_of_bits) {
+        return SvtJxsErrorDecoderInvalidBitstream;
+    }
+
+    if (leftover_signs_num && (w % GROUP_SIZE)) {
+        *precinct_bits_left -= leftover_signs_num;
+        if (*precinct_bits_left < 0) {
+            return SvtJxsErrorDecoderInvalidBitstream;
+        }
+        bitstream_reader_skip_bits(bitstream, leftover_signs_num);
+    }
+    return SvtJxsErrorNone;
+}

@@ -525,15 +525,13 @@ TEST(unpack_data_test, unpack_sign_AVX2_BMI2) {
     unpack_sign_test(unpack_sign_avx2_bmi2);
 }
 
-/* unpack_sign_avx2_bmi2 against unpack_sign_c on random lines: widths on both sides of the steps of
- * thirty-two coefficients, from no zero coefficient to all of them zero, every first bit inside a byte,
- * with and without signs left over in the last group. The stream buffer ends at the byte of the last
- * sign, so the shortened load at the end of the buffer is used, and a sanitizer build sees any read
- * past it. With one bit fewer than the signs need, both must fail. */
-TEST(unpack_sign, AVX2_BMI2_matches_C) {
-    if (!host_has_avx2_bmi2_popcnt()) {
-        GTEST_SKIP() << "no AVX2 with BMI2 and POPCNT";
-    }
+/* A sign kernel against unpack_sign_c on random lines: widths on both sides of the steps of thirty-two
+ * coefficients, from no zero coefficient to all of them zero, every first bit inside a byte, with and
+ * without signs left over in the last group. The stream buffer ends at the byte of the last sign, so the
+ * shortened load at the end of the buffer is used, and a sanitizer build sees any read past it. The
+ * coefficients are in a buffer of exactly the width, so it sees any access past the line too. With one
+ * bit fewer than the signs need, both must fail. */
+static void sign_kernel_matches_c_test(unpack_sign_fn kernel) {
     svt_jxs_test_tool::SVTRandom rnd(0, 0x7FFF, 0x5164u);
     std::vector<uint32_t> widths;
     for (uint32_t w = 1; w <= 70; w++) {
@@ -562,32 +560,32 @@ TEST(unpack_sign, AVX2_BMI2_matches_C) {
                     }
 
                     for (int32_t missing_bits = 0; missing_bits <= (signs_bits ? 1 : 0); missing_bits++) {
-                        bitstream_reader_t reader_c, reader_avx2;
+                        bitstream_reader_t reader_c, reader_kernel;
                         bitstream_reader_init(&reader_c, stream.data(), stream_bytes);
                         bitstream_reader_skip_bits(&reader_c, first_bit);
-                        reader_avx2 = reader_c;
+                        reader_kernel = reader_c;
                         int32_t bits_left_c = (int32_t)signs_bits - missing_bits;
-                        int32_t bits_left_avx2 = bits_left_c;
+                        int32_t bits_left_kernel = bits_left_c;
                         std::vector<uint16_t> buf_c = coeffs;
-                        std::vector<uint16_t> buf_avx2 = coeffs;
+                        std::vector<uint16_t> buf_kernel = coeffs;
 
                         const SvtJxsErrorType_t ret_c = unpack_sign_c(
                             &reader_c, buf_c.data(), width, GROUP_SIZE, leftover_signs_num, &bits_left_c);
-                        const SvtJxsErrorType_t ret_avx2 = unpack_sign_avx2_bmi2(
-                            &reader_avx2, buf_avx2.data(), width, GROUP_SIZE, leftover_signs_num, &bits_left_avx2);
+                        const SvtJxsErrorType_t ret_kernel = kernel(
+                            &reader_kernel, buf_kernel.data(), width, GROUP_SIZE, leftover_signs_num, &bits_left_kernel);
 
-                        ASSERT_EQ(ret_c, ret_avx2) << "width " << width << ", zeros " << zero_percent << "%, first bit "
-                                                   << first_bit << ", missing bits " << missing_bits;
+                        ASSERT_EQ(ret_c, ret_kernel) << "width " << width << ", zeros " << zero_percent << "%, first bit "
+                                                     << first_bit << ", missing bits " << missing_bits;
                         if (missing_bits) {
                             ASSERT_NE(ret_c, SvtJxsErrorNone);
                             continue;
                         }
                         ASSERT_EQ(ret_c, SvtJxsErrorNone);
-                        ASSERT_EQ(buf_c, buf_avx2)
+                        ASSERT_EQ(buf_c, buf_kernel)
                             << "width " << width << ", zeros " << zero_percent << "%, first bit " << first_bit;
-                        ASSERT_EQ(reader_c.offset, reader_avx2.offset);
-                        ASSERT_EQ(reader_c.bits_used, reader_avx2.bits_used);
-                        ASSERT_EQ(bits_left_c, bits_left_avx2);
+                        ASSERT_EQ(reader_c.offset, reader_kernel.offset);
+                        ASSERT_EQ(reader_c.bits_used, reader_kernel.bits_used);
+                        ASSERT_EQ(bits_left_c, bits_left_kernel);
                         ASSERT_EQ(bits_left_c, 0);
                     }
                 }
@@ -596,11 +594,46 @@ TEST(unpack_sign, AVX2_BMI2_matches_C) {
     }
 }
 
+TEST(unpack_sign, AVX2_BMI2_matches_C) {
+    if (!host_has_avx2_bmi2_popcnt()) {
+        GTEST_SKIP() << "no AVX2 with BMI2 and POPCNT";
+    }
+    sign_kernel_matches_c_test(unpack_sign_avx2_bmi2);
+}
+
 TEST(unpack_sign, empty_line_AVX2_BMI2) {
     if (!host_has_avx2_bmi2_popcnt()) {
         GTEST_SKIP() << "no AVX2 with BMI2 and POPCNT";
     }
     unpack_sign_empty_line_test(unpack_sign_avx2_bmi2);
+}
+
+/* The host keeps the AVX-512 tier (see setup_decoder_rtcd_internal) and has POPCNT */
+static bool host_has_avx512_sign_kernel() {
+    const CPU_FLAGS required = CPU_FLAGS_AVX512F | CPU_FLAGS_AVX512BW | CPU_FLAGS_AVX512DQ | CPU_FLAGS_AVX512VL | CPU_FLAGS_BMI2 |
+        CPU_FLAGS_POPCNT;
+    return (get_cpu_flags() & required) == required;
+}
+
+TEST(unpack_data_test, unpack_sign_AVX512) {
+    if (!host_has_avx512_sign_kernel()) {
+        GTEST_SKIP() << "no AVX-512 with BMI2 and POPCNT";
+    }
+    unpack_sign_test(unpack_sign_avx512);
+}
+
+TEST(unpack_sign, AVX512_matches_C) {
+    if (!host_has_avx512_sign_kernel()) {
+        GTEST_SKIP() << "no AVX-512 with BMI2 and POPCNT";
+    }
+    sign_kernel_matches_c_test(unpack_sign_avx512);
+}
+
+TEST(unpack_sign, empty_line_AVX512) {
+    if (!host_has_avx512_sign_kernel()) {
+        GTEST_SKIP() << "no AVX-512 with BMI2 and POPCNT";
+    }
+    unpack_sign_empty_line_test(unpack_sign_avx512);
 }
 #endif /* ARCH_X86_64 */
 
