@@ -1299,3 +1299,201 @@ TEST(EncoderInit, NullEncoderReturnsError) {
     SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, NULL);
     ASSERT_EQ(ret, SvtJxsErrorBadParameter);
 }
+
+/*
+ * Tests for the V210 encoder input (COLOUR_FORMAT_PACKED_V210) and decoder output (output_packed_format)
+ */
+
+/* Minimum stride[0] of a V210 line in 32-bit words, as SvtJpegxs.h states it. */
+static uint32_t v210_min_stride_words(uint32_t width) {
+    return 4 * ((width + 5) / 6);
+}
+
+static SvtJxsErrorType_t init_v210_encoder(uint32_t width, uint8_t bit_depth, uint8_t msb_aligned, uint8_t cpu_profile) {
+    svt_jpeg_xs_encoder_api_t enc;
+    EXPECT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
+              SvtJxsErrorNone);
+    enc.verbose = VERBOSE_NONE;
+    enc.source_width = width;
+    enc.source_height = 32;
+    enc.input_bit_depth = bit_depth;
+    enc.input_bit_depth_msb_aligned = msb_aligned;
+    enc.cpu_profile = cpu_profile;
+    enc.colour_format = COLOUR_FORMAT_PACKED_V210;
+    enc.bpp_numerator = 3;
+    enc.bpp_denominator = 1;
+    SvtJxsErrorType_t ret = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc);
+    svt_jpeg_xs_encoder_close(&enc);
+    return ret;
+}
+
+/* A 64x32 frame of zero samples, encoded at 3 bpp. */
+static std::vector<uint8_t> encode_64x32(ColourFormat_t format, uint8_t bit_depth) {
+    svt_jpeg_xs_encoder_api_t enc;
+    EXPECT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
+              SvtJxsErrorNone);
+    enc.verbose = VERBOSE_NONE;
+    enc.source_width = 64;
+    enc.source_height = 32;
+    enc.input_bit_depth = bit_depth;
+    enc.colour_format = format;
+    enc.bpp_numerator = 3;
+    enc.bpp_denominator = 1;
+    svt_jpeg_xs_image_config_t config;
+    uint32_t bytes_per_frame = 0;
+    EXPECT_EQ(
+        svt_jpeg_xs_encoder_get_image_config(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc, &config, &bytes_per_frame),
+        SvtJxsErrorNone);
+    EXPECT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc), SvtJxsErrorNone);
+    svt_jpeg_xs_image_buffer_t* image = svt_jpeg_xs_image_buffer_alloc(&config);
+    for (uint32_t c = 0; c < config.components_num; c++) {
+        memset(image->data_yuv[c], 0, image->alloc_size[c]);
+    }
+    std::vector<uint8_t> bitstream(bytes_per_frame + 4096);
+    svt_jpeg_xs_frame_t frame;
+    memset(&frame, 0, sizeof(frame));
+    frame.image = *image;
+    frame.bitstream.buffer = bitstream.data();
+    frame.bitstream.allocation_size = (uint32_t)bitstream.size();
+    EXPECT_EQ(svt_jpeg_xs_encoder_send_picture(&enc, &frame, 1), SvtJxsErrorNone);
+    svt_jpeg_xs_frame_t out;
+    memset(&out, 0, sizeof(out));
+    EXPECT_EQ(svt_jpeg_xs_encoder_get_packet(&enc, &out, 1), SvtJxsErrorNone);
+    bitstream.resize(out.bitstream.used_size);
+    svt_jpeg_xs_encoder_close(&enc);
+    svt_jpeg_xs_image_buffer_free(image);
+    return bitstream;
+}
+
+static SvtJxsErrorType_t init_decoder_with_output(const std::vector<uint8_t>& bitstream, uint8_t output_packed_format,
+                                                  uint8_t msb_aligned) {
+    svt_jpeg_xs_decoder_api_t dec;
+    memset(&dec, 0, sizeof(dec));
+    dec.verbose = VERBOSE_NONE;
+    dec.output_packed_format = output_packed_format;
+    dec.output_bit_depth_msb_aligned = msb_aligned;
+    svt_jpeg_xs_image_config_t config;
+    SvtJxsErrorType_t ret = svt_jpeg_xs_decoder_init(
+        SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &dec, bitstream.data(), bitstream.size(), &config);
+    svt_jpeg_xs_decoder_close(&dec);
+    return ret;
+}
+
+TEST(EncoderInit, V210Parameters) {
+    EXPECT_EQ(init_v210_encoder(64, 10, 0, 0 /*Low latency*/), SvtJxsErrorNone);
+    EXPECT_EQ(init_v210_encoder(64, 8, 0, 0 /*Low latency*/), SvtJxsErrorBadParameter);
+    EXPECT_EQ(init_v210_encoder(64, 12, 0, 0 /*Low latency*/), SvtJxsErrorBadParameter);
+    EXPECT_EQ(init_v210_encoder(66, 10, 0, 0 /*Low latency*/), SvtJxsErrorNone);
+    EXPECT_EQ(init_v210_encoder(65, 10, 0, 0 /*Low latency*/), SvtJxsErrorBadParameter);
+    EXPECT_EQ(init_v210_encoder(64, 10, 1, 0 /*Low latency*/), SvtJxsErrorBadParameter);
+    EXPECT_EQ(init_v210_encoder(64, 10, 0, 1 /*Low CPU usage*/), SvtJxsErrorBadParameter);
+}
+
+TEST(EncoderImageConfig, V210LinesPaddedTo128Bytes) {
+    svt_jpeg_xs_encoder_api_t enc;
+    ASSERT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
+              SvtJxsErrorNone);
+    enc.verbose = VERBOSE_NONE;
+    enc.source_width = 1280; // 26.7 groups of 48 pixels: lines of 27 * 128 bytes
+    enc.source_height = 20;
+    enc.input_bit_depth = 10;
+    enc.colour_format = COLOUR_FORMAT_PACKED_V210;
+    enc.bpp_numerator = 3;
+    enc.bpp_denominator = 1;
+    svt_jpeg_xs_image_config_t config;
+    uint32_t bytes_per_frame = 0;
+    ASSERT_EQ(
+        svt_jpeg_xs_encoder_get_image_config(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc, &config, &bytes_per_frame),
+        SvtJxsErrorNone);
+    EXPECT_EQ(config.format, COLOUR_FORMAT_PACKED_V210);
+    EXPECT_EQ(config.components_num, 1);
+    EXPECT_EQ(config.components[0].width, 1280u);
+    EXPECT_EQ(config.components[0].height, 20u);
+    EXPECT_EQ(config.components[0].byte_size, 27u * 128 * 20);
+    svt_jpeg_xs_image_buffer_t* image = svt_jpeg_xs_image_buffer_alloc(&config);
+    ASSERT_NE(image, nullptr);
+    EXPECT_EQ(image->stride[0], 27u * 32);
+    EXPECT_EQ(image->alloc_size[0], 27u * 128 * 20);
+    svt_jpeg_xs_image_buffer_free(image);
+}
+
+TEST(EncoderSendPicture, V210RejectsShortStrideOrBuffer) {
+    svt_jpeg_xs_encoder_api_t enc;
+    ASSERT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
+              SvtJxsErrorNone);
+    enc.verbose = VERBOSE_NONE;
+    enc.source_width = 100;
+    enc.source_height = 16;
+    enc.input_bit_depth = 10;
+    enc.colour_format = COLOUR_FORMAT_PACKED_V210;
+    enc.bpp_numerator = 3;
+    enc.bpp_denominator = 1;
+    svt_jpeg_xs_image_config_t config;
+    uint32_t bytes_per_frame = 0;
+    ASSERT_EQ(
+        svt_jpeg_xs_encoder_get_image_config(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc, &config, &bytes_per_frame),
+        SvtJxsErrorNone);
+    ASSERT_EQ(svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc), SvtJxsErrorNone);
+    const uint32_t line_words = v210_min_stride_words(100); // 17 groups
+    ASSERT_EQ(line_words, 68u);
+    std::vector<uint8_t> v210((size_t)line_words * 4 * 16);
+    std::vector<uint8_t> bitstream(bytes_per_frame + 4096);
+    svt_jpeg_xs_frame_t frame;
+    memset(&frame, 0, sizeof(frame));
+    frame.image.data_yuv[0] = v210.data();
+    frame.image.stride[0] = line_words - 1;
+    frame.image.alloc_size[0] = (uint32_t)v210.size();
+    frame.bitstream.buffer = bitstream.data();
+    frame.bitstream.allocation_size = (uint32_t)bitstream.size();
+    EXPECT_EQ(svt_jpeg_xs_encoder_send_picture(&enc, &frame, 1), SvtJxsErrorBadParameter);
+    frame.image.stride[0] = line_words;
+    frame.image.alloc_size[0] = (uint32_t)v210.size() - 1;
+    EXPECT_EQ(svt_jpeg_xs_encoder_send_picture(&enc, &frame, 1), SvtJxsErrorBadParameter);
+    frame.image.alloc_size[0] = (uint32_t)v210.size();
+    frame.image.data_yuv[0] = nullptr;
+    EXPECT_EQ(svt_jpeg_xs_encoder_send_picture(&enc, &frame, 1), SvtJxsErrorBadParameter);
+    svt_jpeg_xs_encoder_close(&enc);
+}
+
+TEST(DecoderInit, V210OutputParameters) {
+    const std::vector<uint8_t> yuv422_10 = encode_64x32(COLOUR_FORMAT_PLANAR_YUV422, 10);
+    EXPECT_EQ(init_decoder_with_output(yuv422_10, 0, 0), SvtJxsErrorNone);
+    EXPECT_EQ(init_decoder_with_output(yuv422_10, COLOUR_FORMAT_PACKED_V210, 0), SvtJxsErrorNone);
+    EXPECT_EQ(init_decoder_with_output(yuv422_10, COLOUR_FORMAT_PACKED_V210, 1), SvtJxsErrorBadParameter);
+    EXPECT_EQ(init_decoder_with_output(yuv422_10, COLOUR_FORMAT_PACKED_YUV444_OR_RGB, 0), SvtJxsErrorBadParameter);
+    EXPECT_EQ(init_decoder_with_output(yuv422_10, COLOUR_FORMAT_PLANAR_YUV422, 0), SvtJxsErrorBadParameter);
+    EXPECT_EQ(init_decoder_with_output(encode_64x32(COLOUR_FORMAT_PLANAR_YUV422, 8), COLOUR_FORMAT_PACKED_V210, 0),
+              SvtJxsErrorBadParameter);
+    EXPECT_EQ(init_decoder_with_output(encode_64x32(COLOUR_FORMAT_PLANAR_YUV422, 12), COLOUR_FORMAT_PACKED_V210, 0),
+              SvtJxsErrorBadParameter);
+    EXPECT_EQ(init_decoder_with_output(encode_64x32(COLOUR_FORMAT_PLANAR_YUV444, 10), COLOUR_FORMAT_PACKED_V210, 0),
+              SvtJxsErrorBadParameter);
+    EXPECT_EQ(init_decoder_with_output(encode_64x32(COLOUR_FORMAT_PLANAR_YUV420, 10), COLOUR_FORMAT_PACKED_V210, 0),
+              SvtJxsErrorBadParameter);
+}
+
+TEST(DecoderFrameMode, V210OutputRejectsShortStrideOrBuffer) {
+    const std::vector<uint8_t> bitstream = encode_64x32(COLOUR_FORMAT_PLANAR_YUV422, 10);
+    svt_jpeg_xs_decoder_api_t dec;
+    memset(&dec, 0, sizeof(dec));
+    dec.verbose = VERBOSE_NONE;
+    dec.output_packed_format = COLOUR_FORMAT_PACKED_V210;
+    svt_jpeg_xs_image_config_t config;
+    ASSERT_EQ(svt_jpeg_xs_decoder_init(
+                  SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &dec, bitstream.data(), bitstream.size(), &config),
+              SvtJxsErrorNone);
+    const uint32_t line_words = v210_min_stride_words(64);
+    std::vector<uint8_t> v210((size_t)line_words * 4 * 32);
+    svt_jpeg_xs_frame_t frame;
+    memset(&frame, 0, sizeof(frame));
+    frame.image.data_yuv[0] = v210.data();
+    frame.image.stride[0] = line_words - 1;
+    frame.image.alloc_size[0] = (uint32_t)v210.size();
+    frame.bitstream.buffer = (uint8_t*)bitstream.data();
+    frame.bitstream.used_size = (uint32_t)bitstream.size();
+    EXPECT_EQ(svt_jpeg_xs_decoder_send_frame(&dec, &frame, 1), SvtJxsErrorBadParameter);
+    frame.image.stride[0] = line_words;
+    frame.image.alloc_size[0] = (uint32_t)v210.size() - 1;
+    EXPECT_EQ(svt_jpeg_xs_decoder_send_frame(&dec, &frame, 1), SvtJxsErrorBadParameter);
+    svt_jpeg_xs_decoder_close(&dec);
+}
