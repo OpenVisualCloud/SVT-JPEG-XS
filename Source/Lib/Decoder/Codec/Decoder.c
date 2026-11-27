@@ -769,10 +769,29 @@ static void transform_precinct_all(const pi_t* pi, svt_jpeg_xs_decoder_instance_
         const uint32_t width = pi->width;
         int32_t component_line_idx = precinct_line_idx * pi->components[0].precinct_height + out_lines[0].offset;
         if (ctx->dec_common->output_v210) {
-            for (uint32_t line = out_lines[0].line_start; line <= out_lines[0].line_stop; line++) {
-                int32_t* lines[3] = {out_lines[0].buffer_out[line], out_lines[1].buffer_out[line], out_lines[2].buffer_out[line]};
-                output_line_v210(ctx, lines, component_line_idx, pi->components[0].width, out, (uint16_t*)rct_tmp_buffer);
-                component_line_idx++;
+            if (ctx->picture_header_dynamic.hdr_Tnlt == 0 &&
+                linear_output_scaling_v210_line != linear_output_scaling_v210_line_c) {
+                const uint32_t bw = ctx->picture_header_dynamic.hdr_Bw;
+                const uint32_t line_w = pi->components[0].width;
+                const size_t row_bytes = (size_t)out->stride[0] * sizeof(uint32_t);
+                for (uint32_t line = out_lines[0].line_start; line <= out_lines[0].line_stop; line++) {
+                    uint8_t* row = (uint8_t*)out->data_yuv[0] + (size_t)component_line_idx * row_bytes;
+                    linear_output_scaling_v210_line(out_lines[0].buffer_out[line],
+                                                    out_lines[1].buffer_out[line],
+                                                    out_lines[2].buffer_out[line],
+                                                    bw,
+                                                    row,
+                                                    line_w);
+                    component_line_idx++;
+                }
+            }
+            else {
+                for (uint32_t line = out_lines[0].line_start; line <= out_lines[0].line_stop; line++) {
+                    int32_t* lines[3] = {
+                        out_lines[0].buffer_out[line], out_lines[1].buffer_out[line], out_lines[2].buffer_out[line]};
+                    output_line_v210(ctx, lines, component_line_idx, pi->components[0].width, out, (uint16_t*)rct_tmp_buffer);
+                    component_line_idx++;
+                }
             }
             return; //V210 streams have no 4th component
         }

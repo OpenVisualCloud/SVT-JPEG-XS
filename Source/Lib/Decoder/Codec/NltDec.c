@@ -4,6 +4,7 @@
 */
 
 #include "NltDec.h"
+#include "V210.h"
 #include "Pi.h"
 
 /*
@@ -274,6 +275,31 @@ void linear_output_scaling_16bit_line_msb_c(int32_t* in, uint32_t bw, uint32_t d
         v += (1 << bw) >> 1;
         v = (v + (((int64_t)1 << dzeta) >> 1)) >> dzeta;
         out[x] = (uint16_t)nlt_clamp(v, m) << msb_shift;
+    }
+}
+
+void linear_output_scaling_v210_line_c(const int32_t* in_y, const int32_t* in_cb, const int32_t* in_cr, uint32_t bw,
+                                       void* out_v210, uint32_t w) {
+    const int32_t dzeta = (int32_t)bw - 10;
+    const int32_t round = ((1 << bw) >> 1) + (int32_t)(((int64_t)1 << dzeta) >> 1);
+    const int32_t m = 0x3FF;
+    uint8_t* out = (uint8_t*)out_v210;
+    uint32_t x = 0;
+
+    for (; x < w; x += V210_PIXELS_PER_GROUP) {
+        uint16_t y[V210_PIXELS_PER_GROUP] = {0};
+        uint16_t cb[V210_PIXELS_PER_GROUP / 2] = {0};
+        uint16_t cr[V210_PIXELS_PER_GROUP / 2] = {0};
+        const uint32_t pixels = (w - x >= V210_PIXELS_PER_GROUP) ? V210_PIXELS_PER_GROUP : (w - x);
+        for (uint32_t j = 0; j < pixels; j++) {
+            y[j] = (uint16_t)nlt_clamp((in_y[x + j] + round) >> dzeta, m);
+        }
+        for (uint32_t j = 0; j < pixels / 2; j++) {
+            cb[j] = (uint16_t)nlt_clamp((in_cb[x / 2 + j] + round) >> dzeta, m);
+            cr[j] = (uint16_t)nlt_clamp((in_cr[x / 2 + j] + round) >> dzeta, m);
+        }
+        convert_planar_to_packed_v210_c(y, cb, cr, out, V210_PIXELS_PER_GROUP);
+        out += V210_BYTES_PER_GROUP;
     }
 }
 

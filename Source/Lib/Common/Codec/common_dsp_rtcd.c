@@ -11,6 +11,7 @@
 // for get_cpu_flags
 #include "cpuinfo.h"
 #include "V210_avx2.h"
+#include "V210_avx512.h"
 #endif
 
 /**************************************
@@ -144,13 +145,30 @@ void setup_common_rtcd_internal(CPU_FLAGS flags) {
     first_call_setup = 0;
     /** Should be done during library initialization,
       but for safe limiting CPU flags again. */
-    flags &= get_cpu_flags();
+    const CPU_FLAGS host_flags = get_cpu_flags();
+    flags &= host_flags;
+#ifdef ARCH_X86_64
+    /* As in the encoder and decoder tables: the AVX-512 kernels are built with -mavx512bw, -mavx512dq, -mavx512vl
+     * and -mbmi2 for the whole directory, so the compiler is free to emit those instructions anywhere in them.
+     * Without a processor to back them the whole tier has to stay unused. The test is on the host, not on the
+     * caller's request. */
+    const CPU_FLAGS avx512_req = CPU_FLAGS_BMI2 | CPU_FLAGS_AVX512BW | CPU_FLAGS_AVX512DQ | CPU_FLAGS_AVX512VL;
+    if ((host_flags & avx512_req) != avx512_req) {
+        flags &= ~(CPU_FLAGS)CPU_FLAGS_AVX512F;
+    }
+#endif
     // to use C: flags=0
     /* A build for a processor with no SIMD tree of its own has no setter left
      * to read the mask; the same is true of this table on AArch64. */
     (void)flags;
 
     SET_SSE2(svt_log2_32, log2_32_c, Log2_32_ASM);
-    SET_AVX2(convert_packed_to_planar_v210, convert_packed_to_planar_v210_c, convert_packed_to_planar_v210_avx2);
-    SET_AVX2(convert_planar_to_packed_v210, convert_planar_to_packed_v210_c, convert_planar_to_packed_v210_avx2);
+    SET_AVX2_AVX512(convert_packed_to_planar_v210,
+                    convert_packed_to_planar_v210_c,
+                    convert_packed_to_planar_v210_avx2,
+                    convert_packed_to_planar_v210_avx512);
+    SET_AVX2_AVX512(convert_planar_to_packed_v210,
+                    convert_planar_to_packed_v210_c,
+                    convert_planar_to_packed_v210_avx2,
+                    convert_planar_to_packed_v210_avx512);
 }

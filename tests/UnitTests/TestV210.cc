@@ -17,6 +17,7 @@
 
 #ifdef ARCH_X86_64
 #include "V210_avx2.h"
+#include "V210_avx512.h"
 #endif /* ARCH_X86_64 */
 
 namespace {
@@ -146,6 +147,22 @@ TEST(V210, PackAVX2) {
         GTEST_SKIP() << "no AVX2";
     }
     test_pack(convert_planar_to_packed_v210_avx2);
+}
+
+TEST(V210, UnpackAVX512) {
+    const CPU_FLAGS req = CPU_FLAGS_AVX512F | CPU_FLAGS_AVX512BW | CPU_FLAGS_AVX512DQ | CPU_FLAGS_AVX512VL | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & req) != req) {
+        GTEST_SKIP() << "no AVX-512BW/DQ/VL/BMI2";
+    }
+    test_unpack(convert_packed_to_planar_v210_avx512);
+}
+
+TEST(V210, PackAVX512) {
+    const CPU_FLAGS req = CPU_FLAGS_AVX512F | CPU_FLAGS_AVX512BW | CPU_FLAGS_AVX512DQ | CPU_FLAGS_AVX512VL | CPU_FLAGS_BMI2;
+    if ((get_cpu_flags() & req) != req) {
+        GTEST_SKIP() << "no AVX-512BW/DQ/VL/BMI2";
+    }
+    test_pack(convert_planar_to_packed_v210_avx512);
 }
 #endif /* ARCH_X86_64 */
 
