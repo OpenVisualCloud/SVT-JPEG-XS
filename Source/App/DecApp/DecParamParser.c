@@ -31,6 +31,7 @@
 #define PACKETIZATION_MODE           "--packetization-mode"
 #define PROXY_MODE                   "--proxy-mode"
 #define OUTPUT_MSB_ALIGNED_TOKEN     "--output-msb-aligned"
+#define OUTPUT_FORMAT_TOKEN          "--output-format"
 #define MAX_NUM_TOKENS               200
 
 static void strncpy_local(char* dest, const char* src, size_t count) {
@@ -136,6 +137,19 @@ static void set_output_msb_aligned(const char* value, DecoderConfig_t* cfg) {
     cfg->decoder.output_bit_depth_msb_aligned = (uint8_t)strtoul(value, NULL, 0);
 };
 
+static void set_output_format(const char* value, DecoderConfig_t* cfg) {
+    if (!strcmp(value, "planar")) {
+        cfg->decoder.output_packed_format = 0;
+    }
+    else if (!strcmp(value, "v210")) {
+        cfg->decoder.output_packed_format = COLOUR_FORMAT_PACKED_V210;
+    }
+    else {
+        //Not a format: svt_jpeg_xs_decoder_init() rejects it.
+        cfg->decoder.output_packed_format = UINT8_MAX;
+    }
+}
+
 static void set_proxy_mode(const char* value, DecoderConfig_t* cfg) {
     uint8_t proxy_mode = (uint8_t)strtoul(value, NULL, 0);
     if (proxy_mode == 0) {
@@ -184,6 +198,7 @@ ConfigEntry config_entry[] = {
     {OUTPUT_OPTIONS, OUTPUT_FILE_TOKEN,         "Output Filename", 0, 1, set_cfg_output_file},
     {OUTPUT_OPTIONS, PROXY_MODE,                "Resolution scaling mode(disabled: 0, scale 1/2: 1, scale 1/4: 2, default: 0)", 0, 1, set_proxy_mode},
     {OUTPUT_OPTIONS, OUTPUT_MSB_ALIGNED_TOKEN,  "Non-standard: 10/12-bit output samples are MSB-aligned in each 16-bit word instead of LSB-aligned (enabled:1, disabled:0, default:0)", 0, 1, set_output_msb_aligned},
+    {OUTPUT_OPTIONS, OUTPUT_FORMAT_TOKEN,       "Output file format: planar (planes as the stream codes them, default), v210 (packed 10-bit 4:2:2 for 10-bit 4:2:2 streams, each line padded to a multiple of 128 bytes)", 0, 1, set_output_format},
     {THREAD_PERF_OPTIONS, ASM_TYPE_TOKEN,       "Limit assembly instruction set [0 - 11] or [c, mmx, sse, sse2, sse3, "
                                                 "ssse3, sse4_1, sse4_2,"
 #ifdef ARCH_AARCH64

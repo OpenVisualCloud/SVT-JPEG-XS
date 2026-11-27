@@ -522,7 +522,8 @@ void pi_show_bands(const pi_t* const pi, int gain_priorities) {
 SvtJxsErrorType_t format_get_sampling_factory(ColourFormat_t format, uint32_t* out_comp_num, uint32_t* out_sx, uint32_t* out_sy,
                                               uint32_t verbose) {
     switch (format) {
-    case COLOUR_FORMAT_PLANAR_YUV422: {
+    case COLOUR_FORMAT_PLANAR_YUV422:
+    case COLOUR_FORMAT_PACKED_V210: {
         out_sx[0] = 1;
         out_sy[0] = out_sy[1] = out_sy[2] = 1;
         out_sx[1] = out_sx[2] = 2;

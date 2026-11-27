@@ -21,6 +21,11 @@
 
 #if TEST_STRIDE
 uint32_t global_stride_add = 100;
+
+/*Bytes of a V210 line of width pixels, padded to a multiple of 128 bytes (48 pixels) as the library pads it.*/
+static uint32_t test_stride_v210_line_bytes(uint32_t width) {
+    return (uint32_t)(((uint64_t)width + 47) / 48 * 128);
+}
 #endif
 
 int32_t write_frame(svt_jpeg_xs_image_config_t* image_config, svt_jpeg_xs_image_buffer_t* image_buffer, FILE* f_out) {
@@ -35,6 +40,10 @@ int32_t write_frame(svt_jpeg_xs_image_config_t* image_config, svt_jpeg_xs_image_
         uint32_t width = width_stride - global_stride_add;
         uint32_t line_size_stride = width_stride * pixel_size;
         uint32_t line_size = width * pixel_size;
+        if (image_config->format == COLOUR_FORMAT_PACKED_V210) {
+            line_size_stride = test_stride_v210_line_bytes(width_stride);
+            line_size = test_stride_v210_line_bytes(width);
+        }
         uint32_t write_size = 0;
         for (uint32_t h = 0; h < image_config->components[c].height; ++h) {
             write_size += (uint32_t)fwrite(((uint8_t*)image_buffer->data_yuv[c]) + yuv_offset, 1, line_size, f_out);
@@ -372,22 +381,6 @@ int32_t main(int32_t argc, char* argv[]) {
         }
     }
 
-#if TEST_STRIDE
-    uint32_t pixel_size = config_dec.image_config.bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
-    for (uint8_t c = 0; c < config_dec.image_config.components_num; ++c) {
-        config_dec.image_config.components[c].width += global_stride_add;
-        config_dec.image_config.components[c].byte_size += global_stride_add * config_dec.image_config.components[c].height *
-            pixel_size;
-    }
-#endif
-
-    config_dec.frame_pool = svt_jpeg_xs_frame_pool_alloc(&config_dec.image_config, 0, 5); //Allocate 5 output YUV buffers
-    if (!config_dec.frame_pool) {
-        fprintf(stderr, "Invalid YUV buffers allocation!\n");
-        return_error = DEC_INVALID_BITSTREAM;
-        goto fail;
-    }
-
     svt_jpeg_xs_image_config_t image_config_init = {0};
     ret = svt_jpeg_xs_decoder_init(SVT_JPEGXS_API_VER_MAJOR,
                                    SVT_JPEGXS_API_VER_MINOR,
@@ -411,11 +404,27 @@ int32_t main(int32_t argc, char* argv[]) {
         goto fail;
     }
 
+    if (config_dec.decoder.output_packed_format) {
+#if !TEST_STRIDE
+        /*Only svt_jpeg_xs_decoder_init() knows the packed output format, the frame size function reports the planar
+         *format of the stream: compare the picture size only.
+         */
+        if (image_config_init.width != config_dec.image_config.width ||
+            image_config_init.height != config_dec.image_config.height) {
+            fprintf(stderr,
+                    "Decoder svt_jpeg_xs_decoder_init() return different picture size than "
+                    "svt_jpeg_xs_decoder_get_single_frame_size_with_proxy()!!\n");
+            return_error = DEC_INVALID_BITSTREAM;
+            goto fail;
+        }
+#endif
+        config_dec.image_config = image_config_init;
+    }
 #if !TEST_STRIDE
     /*Test if functions svt_jpeg_xs_decoder_get_single_frame_size_with_proxy and svt_jpeg_xs_decoder_init
      *return the same image config
      */
-    if (memcmp(&image_config_init, &config_dec.image_config, sizeof(config_dec.image_config))) {
+    else if (memcmp(&image_config_init, &config_dec.image_config, sizeof(config_dec.image_config))) {
         fprintf(stderr,
                 "Decoder svt_jpeg_xs_decoder_init() return different image_config than "
                 "svt_jpeg_xs_decoder_get_single_frame_size_with_proxy()!!\n");
@@ -423,6 +432,29 @@ int32_t main(int32_t argc, char* argv[]) {
         goto fail;
     }
 #endif
+
+#if TEST_STRIDE
+    uint32_t pixel_size = config_dec.image_config.bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
+    for (uint8_t c = 0; c < config_dec.image_config.components_num; ++c) {
+        const uint32_t width_stride = config_dec.image_config.components[c].width + global_stride_add;
+        const uint32_t height = config_dec.image_config.components[c].height;
+        config_dec.image_config.components[c].width = width_stride;
+        if (config_dec.image_config.format == COLOUR_FORMAT_PACKED_V210) {
+            /*The library pads each V210 line of the wider picture to 128 bytes, and that is the stride.*/
+            config_dec.image_config.components[c].byte_size = test_stride_v210_line_bytes(width_stride) * height;
+        }
+        else {
+            config_dec.image_config.components[c].byte_size += global_stride_add * height * pixel_size;
+        }
+    }
+#endif
+
+    config_dec.frame_pool = svt_jpeg_xs_frame_pool_alloc(&config_dec.image_config, 0, 5); //Allocate 5 output YUV buffers
+    if (!config_dec.frame_pool) {
+        fprintf(stderr, "Invalid YUV buffers allocation!\n");
+        return_error = DEC_INVALID_BITSTREAM;
+        goto fail;
+    }
 
     if (config_dec.decoder.verbose >= VERBOSE_WARNINGS) {
         fprintf(stderr, "Start Main loop frames_count %i\n", config_dec.frames_count);

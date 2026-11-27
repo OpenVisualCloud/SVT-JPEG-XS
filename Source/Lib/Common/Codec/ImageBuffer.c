@@ -8,6 +8,7 @@
 #include "SvtJpegxsImageBufferTools.h"
 #include "Threads/SystemResourceManager.h"
 #include "SvtLog.h"
+#include "V210.h"
 
 struct svt_jpeg_xs_frame_pool {
     uint8_t use_image_buffer;
@@ -43,7 +44,26 @@ PREFIX_API svt_jpeg_xs_image_buffer_t* svt_jpeg_xs_image_buffer_alloc(svt_jpeg_x
     }
 
     uint32_t pixel_size = image_config->bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
-    if (image_config->format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
+    if (image_config->format == COLOUR_FORMAT_PACKED_V210) {
+        /* Stride in 32-bit words, each line padded to a multiple of 128 bytes. */
+        const uint32_t stride = v210_aligned_line_words(image_config->components[0].width);
+        const uint64_t alloc64 = (uint64_t)stride * sizeof(uint32_t) * image_config->components[0].height;
+        if (alloc64 > UINT32_MAX) {
+            SVT_ERROR("Image buffer alloc overflow: alloc_size %" PRIu64 " exceeds uint32 max\n", alloc64);
+            svt_jpeg_xs_image_buffer_free(image_buffer);
+            return NULL;
+        }
+        image_buffer->stride[0] = stride;
+        image_buffer->alloc_size[0] = (uint32_t)alloc64;
+        assert(image_buffer->alloc_size[0] == image_config->components[0].byte_size);
+        //Zeroed: the decoder writes the groups of each line only, the padding of the lines stays 0
+        SVT_NO_THROW_CALLOC(image_buffer->data_yuv[0], 1, image_buffer->alloc_size[0]);
+        if (!image_buffer->data_yuv[0]) {
+            svt_jpeg_xs_image_buffer_free(image_buffer);
+            return NULL;
+        }
+    }
+    else if (image_config->format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
         const uint64_t stride64 = (uint64_t)image_config->components[0].width * 3;
         if (stride64 > UINT32_MAX) {
             SVT_ERROR("Image buffer alloc overflow: stride %" PRIu64 " exceeds uint32 max\n", stride64);

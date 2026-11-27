@@ -32,6 +32,19 @@
 
 #if TEST_STRIDE
 uint32_t global_stride_add = 100;
+
+/*Bytes of a line of width pixels of a component in the input file: a V210 line is padded to a multiple of 128 bytes
+ *(48 pixels), as the library pads it, and a packed RGB pixel has 3 samples.*/
+static uint32_t test_stride_line_bytes(const svt_jpeg_xs_image_config_t *image_config, uint32_t width) {
+    const uint32_t pixel_size = image_config->bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
+    if (image_config->format == COLOUR_FORMAT_PACKED_V210) {
+        return (uint32_t)(((uint64_t)width + 47) / 48 * 128);
+    }
+    if (image_config->format == COLOUR_FORMAT_PACKED_YUV444_OR_RGB) {
+        return width * 3 * pixel_size;
+    }
+    return width * pixel_size;
+}
 #endif
 
 static int32_t read_yuv_frame(FILE *in_file, svt_jpeg_xs_image_config_t *image_config, svt_jpeg_xs_image_buffer_t *yuv_buffer) {
@@ -39,16 +52,13 @@ static int32_t read_yuv_frame(FILE *in_file, svt_jpeg_xs_image_config_t *image_c
         return 1;
     }
 
-#if TEST_STRIDE
-    uint32_t pixel_size = image_config->bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
-#endif
     for (uint8_t c = 0; c < image_config->components_num; ++c) {
 #if TEST_STRIDE
         uint32_t yuv_offset = 0;
         uint32_t width_stride = image_config->components[c].width;
         uint32_t width = width_stride - global_stride_add;
-        uint32_t line_size_stride = width_stride * pixel_size;
-        uint32_t line_size = width * pixel_size;
+        uint32_t line_size_stride = test_stride_line_bytes(image_config, width_stride);
+        uint32_t line_size = test_stride_line_bytes(image_config, width);
         uint32_t read_size = 0;
         for (uint32_t h = 0; h < image_config->components[c].height; ++h) {
             read_size += (uint32_t)fread(((uint8_t *)yuv_buffer->data_yuv[c]) + yuv_offset, 1, line_size, in_file);
@@ -249,14 +259,6 @@ int32_t main(int32_t argc, char *argv[]) {
         goto fail;
     }
 
-#if TEST_STRIDE
-    uint32_t pixel_size = image_config.bit_depth <= 8 ? sizeof(uint8_t) : sizeof(uint16_t);
-    for (uint8_t c = 0; c < image_config.components_num; ++c) {
-        image_config.components[c].width += global_stride_add;
-        image_config.components[c].byte_size += global_stride_add * image_config.components[c].height * pixel_size;
-    }
-#endif
-
     //The send thread sends nothing from an input without one whole frame, and the receive loop would wait for its
     //packets forever. A size of 0 is also reported for a pipe, which is valid with an explicit --frames count.
     const uint64_t file_size = get_file_size(config_enc.in_file);
@@ -269,6 +271,16 @@ int32_t main(int32_t argc, char *argv[]) {
         return_error = SvtJxsErrorBadParameter;
         goto fail;
     }
+
+#if TEST_STRIDE
+    /*After the frame size of the file is known: the buffers have wider lines than the file.*/
+    for (uint8_t c = 0; c < config_enc.image_config.components_num; ++c) {
+        const uint32_t width_stride = config_enc.image_config.components[c].width + global_stride_add;
+        config_enc.image_config.components[c].width = width_stride;
+        config_enc.image_config.components[c].byte_size = test_stride_line_bytes(&config_enc.image_config, width_stride) *
+            config_enc.image_config.components[c].height;
+    }
+#endif
 
     config_enc.frame_pool = svt_jpeg_xs_frame_pool_alloc(
         &config_enc.image_config, bitstream_size, 5); //Allocate 5 output YUV buffers

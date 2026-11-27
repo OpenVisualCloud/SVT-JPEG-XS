@@ -28,6 +28,8 @@ void nlt_inverse_transform_line_16bit(int32_t* in, uint32_t depth, const picture
 void linear_output_scaling_8bit_line_c(int32_t* in, uint32_t bw, uint32_t depth, uint8_t* out, uint32_t w);
 void linear_output_scaling_16bit_line_c(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w);
 void linear_output_scaling_16bit_line_msb_c(int32_t* in, uint32_t bw, uint32_t depth, uint16_t* out, uint32_t w);
+void linear_output_scaling_v210_line_c(const int32_t* in_y, const int32_t* in_cb, const int32_t* in_cr, uint32_t bw,
+                                       void* out_v210, uint32_t w);
 
 #ifdef __cplusplus
 }

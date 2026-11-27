@@ -92,6 +92,7 @@ static uint32_t colour_format_flag(ColourFormat_t colour_format) {
     case COLOUR_FORMAT_PLANAR_YUV420:
         return FMT_420;
     case COLOUR_FORMAT_PLANAR_YUV422:
+    case COLOUR_FORMAT_PACKED_V210:
         return FMT_422;
     case COLOUR_FORMAT_PLANAR_YUV444:
     case COLOUR_FORMAT_PLANAR_RGB:

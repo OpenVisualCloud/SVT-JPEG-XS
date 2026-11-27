@@ -37,6 +37,10 @@ int host_has_gfni(void);
 void setup_common_rtcd_internal(CPU_FLAGS flags);
 uint32_t log2_32_c(uint32_t x);
 RTCD_EXTERN uint32_t (*svt_log2_32)(uint32_t x);
+/* V210 lines, see V210.h */
+RTCD_EXTERN void (*convert_packed_to_planar_v210)(const void* in_v210, void* out_y, void* out_cb, void* out_cr, uint32_t width);
+RTCD_EXTERN void (*convert_planar_to_packed_v210)(const uint16_t* in_y, const uint16_t* in_cb, const uint16_t* in_cr,
+                                                  void* out_v210, uint32_t width);
 
 #ifdef ARCH_X86_64
 uint32_t Log2_32_ASM(uint32_t x);

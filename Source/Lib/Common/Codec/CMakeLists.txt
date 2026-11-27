@@ -11,6 +11,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/Source/Lib/Common/Codec/
     ${PROJECT_SOURCE_DIR}/Source/Lib/Common/ASM_SSE2/
     ${PROJECT_SOURCE_DIR}/Source/Lib/Common/ASM_AVX2/
+    ${PROJECT_SOURCE_DIR}/Source/Lib/Common/ASM_AVX512/
     ${PROJECT_SOURCE_DIR}/Source/Lib/Encoder/Codec/
     ${PROJECT_SOURCE_DIR}/third_party/cpuinfo/include/
     )

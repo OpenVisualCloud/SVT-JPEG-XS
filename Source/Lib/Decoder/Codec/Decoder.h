@@ -20,6 +20,12 @@ typedef struct svt_jpeg_xs_decoder_common {
     // RCT (hdr_Cpih == 1) on components 0-2 with identical geometry is applied line by line
     // right after the IDWT of each precinct, the same way as the non-transformed path.
     uint8_t rct_per_precinct;
+    // V210 output (svt_jpeg_xs_decoder_api_t::output_packed_format): each output line is packed from
+    // the same line of components 0-2.
+    uint8_t output_v210;
+    // rct_per_precinct or output_v210: components 0-2 are inverse wavelet transformed precinct by
+    // precinct together, each with its own IDWT buffers, and each finished line is written from all three.
+    uint8_t joint_output_lines;
 
     // max_frame_bitstream_size is used only when packetization_mode is enabled
     uint32_t max_frame_bitstream_size;
@@ -32,7 +38,7 @@ typedef struct svt_jpeg_xs_decoder_thread_context {
     precinct_t* precincts_top[MAX_PRECINCT_IN_LINE];
     int32_t* precinct_components_tmp_buffer[MAX_COMPONENTS_NUM];
     int32_t* precinct_idwt_tmp_buffer[MAX_COMPONENTS_NUM];
-    int32_t* rct_tmp_buffer; /* 3 lines, used only when rct_per_precinct */
+    int32_t* rct_tmp_buffer; /* 3 lines, used only when joint_output_lines */
 } svt_jpeg_xs_decoder_thread_context;
 
 /*TODO Decoder instance Per frame, rename to decoder per frame.*/
@@ -115,10 +121,10 @@ band_coeff_size_get() (Decoder.c), not of width * height_lines_num.
     uint32_t* sync_boundary_arrivals;
 
     //TODO: Used only by Final Thread. Can be moved to Final Thread context, or to Slice thread context in future solution.
-    // Only index 0 is allocated unless rct_per_precinct, which needs one per component.
+    // Only index 0 is allocated unless joint_output_lines, which needs one per component.
     int32_t* precinct_idwt_tmp_buffer[MAX_COMPONENTS_NUM];
     int32_t* precinct_component_tmp_buffer[MAX_COMPONENTS_NUM];
-    int32_t* rct_tmp_buffer; /* 3 lines, used only when rct_per_precinct */
+    int32_t* rct_tmp_buffer; /* 3 lines, used only when joint_output_lines */
 
     // Buffer allocated only when packetization_mode is enabled
     uint8_t* frame_bitstream_ptr;

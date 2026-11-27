@@ -204,7 +204,8 @@ void *init_stage_kernel(void *input_ptr) {
 #ifndef NDEBUG
         /*Check input YUV*/
         uint8_t input_bit_depth = (uint8_t)enc_api_prv->enc_common.bit_depth;
-        if (input_bit_depth > 8) {
+        //V210 samples are 10-bit fields of 32-bit words, they cannot be out of range
+        if (input_bit_depth > 8 && enc_api_prv->enc_common.colour_format != COLOUR_FORMAT_PACKED_V210) {
             svt_jpeg_xs_image_buffer_t *image_buffer = &pcs_ptr->enc_input.image;
             validate_yuv_range(pi,
                                image_buffer,

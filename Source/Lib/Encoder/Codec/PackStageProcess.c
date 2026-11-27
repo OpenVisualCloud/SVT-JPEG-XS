@@ -238,6 +238,12 @@ SvtJxsErrorType_t pack_stage_context_ctor(ThreadContext_t* thread_contxt_ptr, sv
             SVT_CALLOC(
                 context_ptr->buffers_dwt_tmp.buffer_unpacked_color_formats, 1, unpacked_color_format_temp_size * pixel_size);
         }
+        else if (colour_format == COLOUR_FORMAT_PACKED_V210) {
+            //V210 is unpacked to 16-bit samples, the chroma lines use half of their width
+            SVT_CALLOC(context_ptr->buffers_dwt_tmp.buffer_unpacked_color_formats,
+                       1,
+                       unpacked_color_format_temp_size * sizeof(uint16_t));
+        }
         else {
             assert(0);
         }

@@ -572,10 +572,19 @@ void convert_packed_to_planar_rgb_16bit_c(const void* in_rgb, void* out_comp1, v
     }
 }
 
+/* Bytes from one line of the packed input picture to the next: stride[0] is in samples, or in 32-bit words for V210. */
+static size_t packed_line_bytes(const struct PictureControlSet* pcs_ptr) {
+    const size_t stride = pcs_ptr->enc_input.image.stride[0];
+    if (pcs_ptr->enc_common->colour_format == COLOUR_FORMAT_PACKED_V210) {
+        return stride * sizeof(uint32_t);
+    }
+    return stride * (pcs_ptr->enc_common->bit_depth == 8 ? sizeof(uint8_t) : sizeof(uint16_t));
+}
+
 void set_packed_input_pointers_precalc(uint32_t line_idx, void* plane_buffer_in[3][13], struct PictureControlSet* pcs_ptr,
                                        void* buffer_tmp, convert_fn packed_to_planar_fn) {
     const uint8_t* buffer_in_base_addr = pcs_ptr->enc_input.image.data_yuv[0];
-    const uint32_t plane_stride = (uint32_t)pcs_ptr->enc_input.image.stride[0];
+    const size_t line_bytes = packed_line_bytes(pcs_ptr);
     const uint32_t pixel_size = pcs_ptr->enc_common->bit_depth == 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     uint32_t plane_height = pcs_ptr->enc_common->pi.components[0].height;
     uint32_t plane_width = pcs_ptr->enc_common->pi.components[0].width;
@@ -598,18 +607,18 @@ void set_packed_input_pointers_precalc(uint32_t line_idx, void* plane_buffer_in[
 
         if (line_idx > 0) {
             assert(line_idx >= 2);
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 2) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 2) * line_bytes,
                                 plane_buffer_in[0][0],
                                 plane_buffer_in[1][0],
                                 plane_buffer_in[2][0],
                                 plane_width);
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 1) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 1) * line_bytes,
                                 plane_buffer_in[0][1],
                                 plane_buffer_in[1][1],
                                 plane_buffer_in[2][1],
                                 plane_width);
         }
-        packed_to_planar_fn(buffer_in_base_addr + (line_idx - 0) * plane_stride * pixel_size,
+        packed_to_planar_fn(buffer_in_base_addr + (line_idx - 0) * line_bytes,
                             plane_buffer_in[0][2],
                             plane_buffer_in[1][2],
                             plane_buffer_in[2][2],
@@ -653,61 +662,61 @@ void set_packed_input_pointers_precalc(uint32_t line_idx, void* plane_buffer_in[
         plane_buffer_in[2][8] = (uint8_t*)buffer_tmp + pcs_ptr->enc_common->pi.width * 26 * pixel_size;
 
         if (line_idx >= 6) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 6) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 6) * line_bytes,
                                 plane_buffer_in[0][0],
                                 plane_buffer_in[1][0],
                                 plane_buffer_in[2][0],
                                 plane_width);
         }
         if (line_idx >= 5) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 5) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 5) * line_bytes,
                                 plane_buffer_in[0][1],
                                 plane_buffer_in[1][1],
                                 plane_buffer_in[2][1],
                                 plane_width);
         }
         if (line_idx >= 4) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 4) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 4) * line_bytes,
                                 plane_buffer_in[0][2],
                                 plane_buffer_in[1][2],
                                 plane_buffer_in[2][2],
                                 plane_width);
         }
         if (line_idx >= 3) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 3) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 3) * line_bytes,
                                 plane_buffer_in[0][3],
                                 plane_buffer_in[1][3],
                                 plane_buffer_in[2][3],
                                 plane_width);
         }
         if (line_idx >= 2) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 2) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 2) * line_bytes,
                                 plane_buffer_in[0][4],
                                 plane_buffer_in[1][4],
                                 plane_buffer_in[2][4],
                                 plane_width);
         }
         if (line_idx >= 1) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 1) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx - 1) * line_bytes,
                                 plane_buffer_in[0][5],
                                 plane_buffer_in[1][5],
                                 plane_buffer_in[2][5],
                                 plane_width);
         }
-        packed_to_planar_fn(buffer_in_base_addr + (line_idx - 0) * plane_stride * pixel_size,
+        packed_to_planar_fn(buffer_in_base_addr + (line_idx - 0) * line_bytes,
                             plane_buffer_in[0][6],
                             plane_buffer_in[1][6],
                             plane_buffer_in[2][6],
                             plane_width);
         if (line_idx + 1 < plane_height) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 1) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 1) * line_bytes,
                                 plane_buffer_in[0][7],
                                 plane_buffer_in[1][7],
                                 plane_buffer_in[2][7],
                                 plane_width);
         }
         if (line_idx + 2 < plane_height) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 2) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 2) * line_bytes,
                                 plane_buffer_in[0][8],
                                 plane_buffer_in[1][8],
                                 plane_buffer_in[2][8],
@@ -719,7 +728,7 @@ void set_packed_input_pointers_precalc(uint32_t line_idx, void* plane_buffer_in[
 void set_packed_input_pointers_calc(uint32_t line_idx, void* plane_buffer_in[3][13], struct PictureControlSet* pcs_ptr,
                                     void* buffer_tmp, convert_fn packed_to_planar_fn) {
     const uint8_t* buffer_in_base_addr = pcs_ptr->enc_input.image.data_yuv[0];
-    const uint32_t plane_stride = (uint32_t)pcs_ptr->enc_input.image.stride[0];
+    const size_t line_bytes = packed_line_bytes(pcs_ptr);
     const uint32_t pixel_size = pcs_ptr->enc_common->bit_depth == 8 ? sizeof(uint8_t) : sizeof(uint16_t);
     uint32_t plane_height = pcs_ptr->enc_common->pi.components[0].height;
     uint32_t plane_width = pcs_ptr->enc_common->pi.components[0].width;
@@ -728,7 +737,7 @@ void set_packed_input_pointers_calc(uint32_t line_idx, void* plane_buffer_in[3][
         plane_buffer_in[0][0] = (uint8_t*)buffer_tmp + pcs_ptr->enc_common->pi.width * 0 * pixel_size;
         plane_buffer_in[1][0] = (uint8_t*)buffer_tmp + pcs_ptr->enc_common->pi.width * 1 * pixel_size;
         plane_buffer_in[2][0] = (uint8_t*)buffer_tmp + pcs_ptr->enc_common->pi.width * 2 * pixel_size;
-        packed_to_planar_fn(buffer_in_base_addr + line_idx * plane_stride * pixel_size,
+        packed_to_planar_fn(buffer_in_base_addr + line_idx * line_bytes,
                             plane_buffer_in[0][0],
                             plane_buffer_in[1][0],
                             plane_buffer_in[2][0],
@@ -744,7 +753,7 @@ void set_packed_input_pointers_calc(uint32_t line_idx, void* plane_buffer_in[3][
         plane_buffer_in[2][4] = (uint8_t*)buffer_tmp + pcs_ptr->enc_common->pi.width * 5 * pixel_size;
 
         if ((line_idx + 1) < plane_height) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 1) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 1) * line_bytes,
                                 plane_buffer_in[0][3],
                                 plane_buffer_in[1][3],
                                 plane_buffer_in[2][3],
@@ -752,7 +761,7 @@ void set_packed_input_pointers_calc(uint32_t line_idx, void* plane_buffer_in[3][
         }
 
         if ((line_idx + 2) < plane_height) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 2) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 2) * line_bytes,
                                 plane_buffer_in[0][4],
                                 plane_buffer_in[1][4],
                                 plane_buffer_in[2][4],
@@ -777,28 +786,28 @@ void set_packed_input_pointers_calc(uint32_t line_idx, void* plane_buffer_in[3][
         plane_buffer_in[2][12] = (uint8_t*)buffer_tmp + pcs_ptr->enc_common->pi.width * 11 * pixel_size;
 
         if ((line_idx + 3) < plane_height) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 3) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 3) * line_bytes,
                                 plane_buffer_in[0][9],
                                 plane_buffer_in[1][9],
                                 plane_buffer_in[2][9],
                                 plane_width);
         }
         if ((line_idx + 4) < plane_height) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 4) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 4) * line_bytes,
                                 plane_buffer_in[0][10],
                                 plane_buffer_in[1][10],
                                 plane_buffer_in[2][10],
                                 plane_width);
         }
         if ((line_idx + 5) < plane_height) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 5) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 5) * line_bytes,
                                 plane_buffer_in[0][11],
                                 plane_buffer_in[1][11],
                                 plane_buffer_in[2][11],
                                 plane_width);
         }
         if ((line_idx + 6) < plane_height) {
-            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 6) * plane_stride * pixel_size,
+            packed_to_planar_fn(buffer_in_base_addr + (line_idx + 6) * line_bytes,
                                 plane_buffer_in[0][12],
                                 plane_buffer_in[1][12],
                                 plane_buffer_in[2][12],
@@ -816,8 +825,9 @@ void precinct_calculate_data(struct PictureControlSet* pcs_ptr, precinct_enc_t* 
     //packed input image support
     if (pcs_ptr->enc_common->colour_format > COLOUR_FORMAT_PACKED_MIN &&
         pcs_ptr->enc_common->colour_format < COLOUR_FORMAT_PACKED_MAX) {
-        convert_fn packed_to_planar_fn = pcs_ptr->enc_common->bit_depth == 8 ? convert_packed_to_planar_rgb_8bit
-                                                                             : convert_packed_to_planar_rgb_16bit;
+        convert_fn packed_to_planar_fn = pcs_ptr->enc_common->colour_format == COLOUR_FORMAT_PACKED_V210
+            ? convert_packed_to_planar_v210
+            : (pcs_ptr->enc_common->bit_depth == 8 ? convert_packed_to_planar_rgb_8bit : convert_packed_to_planar_rgb_16bit);
 
         const uint32_t line_idx = precinct->prec_idx * pi->components[0].precinct_height;
         void* plane_buffer_in[3][13] = {0};

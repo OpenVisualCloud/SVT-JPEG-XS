@@ -65,13 +65,25 @@ typedef struct svt_jpeg_xs_decoder_api {
      *     such output is always LSB-aligned.
      * Optional, default 0 */
     uint8_t output_bit_depth_msb_aligned;
+    /* Packed output format, instead of planar output.
+     * 0 = planar output in the format that svt_jpeg_xs_decoder_init() reports (default).
+     * COLOUR_FORMAT_PACKED_V210 = one V210 plane (see ColourFormat_t). Only for 3-component 4:2:2 streams with
+     *     bit depth 10, without colour transform (Cpih=0), without components that are not decomposed (Sd=0),
+     *     and with an even output width (after proxy_mode). Not together with output_bit_depth_msb_aligned.
+     *     svt_jpeg_xs_decoder_init() then reports COLOUR_FORMAT_PACKED_V210 with components_num = 1, and returns
+     *     SvtJxsErrorBadParameter for a stream it cannot write as V210.
+     *     svt_jpeg_xs_decoder_get_single_frame_size_with_proxy() does not know this field and reports the
+     *     planar format.
+     * Any other value: svt_jpeg_xs_decoder_init() returns SvtJxsErrorBadParameter.
+     * Optional, default 0 */
+    uint8_t output_packed_format;
 
     /* This padding is used to avoid changing the size of the public configuration struct
      * when new parameters are added in the future please follow these steps:
      * 1. Insert the new parameter as a member of this structure before the padding array.
      * 2. Decrease the size of the padding array by the size of the new parameter to keep the struct size unchanged.
      */
-    uint8_t padding[63];
+    uint8_t padding[62];
 } svt_jpeg_xs_decoder_api_t;
 
 /* Init decoder and fill out_image_config from the first frame.

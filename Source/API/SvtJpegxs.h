@@ -72,6 +72,18 @@ typedef enum ColourFormat {
 
     COLOUR_FORMAT_PACKED_MIN = 20,
     COLOUR_FORMAT_PACKED_YUV444_OR_RGB, //packed 4:4:4, RGBRGB... (R, G, B order for RGB input), 8-bit: 1 byte per sample, 10-14 bit: 16-bit samples
+    /* Packed 10-bit 4:2:2 (V210), bit depth 10 only, even width only. Each group of 6 pixels is 4 little-endian
+     * 32-bit words with 3 samples each, in bits 0-9, 10-19 and 20-29 (bits 30-31 are not used):
+     *   word 0: Cb0 Y0 Cr0, word 1: Y1 Cb1 Y2, word 2: Cr1 Y3 Cb2, word 3: Y4 Cr2 Y5
+     * Cb k and Cr k are the chroma of pixels 2k and 2k+1 of the group. A line is (width + 5) / 6 whole groups:
+     * when width is not a multiple of 6, the samples after the end of the line in the last group are ignored by
+     * the encoder and written as 0 by the decoder. Bits 30-31 are ignored by the encoder and written as 0 by
+     * the decoder. stride[0] is in 32-bit words (not bytes) and is at least 4 * ((width + 5) / 6).
+     * svt_jpeg_xs_image_buffer_alloc() pads each line to a multiple of 128 bytes (48 pixels), the usual
+     * V210 line alignment, and fills the buffer with 0. The encoder accepts it with cpu_profile Low latency
+     * only, and not together with input_bit_depth_msb_aligned. The decoder writes it when
+     * svt_jpeg_xs_decoder_api_t::output_packed_format is set to it. */
+    COLOUR_FORMAT_PACKED_V210,
     COLOUR_FORMAT_PACKED_MAX
 } ColourFormat_t;
 
@@ -87,7 +99,9 @@ enum VerboseMessages {
 
 /* Decoder: sizes are after proxy_mode scaling.
  * Packed format (COLOUR_FORMAT_PACKED_YUV444_OR_RGB): components_num = 1, components[0].width/height in pixels,
- * components[0].byte_size covers all 3 interleaved samples per pixel. */
+ * components[0].byte_size covers all 3 interleaved samples per pixel.
+ * Packed format COLOUR_FORMAT_PACKED_V210: components_num = 1, components[0].width/height in pixels,
+ * components[0].byte_size = height lines of 128 * ((width + 47) / 48) bytes. */
 typedef struct svt_jpeg_xs_image_config {
     uint32_t width;  /*Luma width in pixels*/
     uint32_t height; /*Luma height in pixels*/
@@ -97,10 +111,12 @@ typedef struct svt_jpeg_xs_image_config {
     struct {
         uint32_t width;     /*Plane width in samples (in pixels for packed format)*/
         uint32_t height;    /*Plane height in lines*/
-        uint32_t byte_size; /*width * height * bytes per sample (1 for 8-bit, else 2), times 3 for packed format*/
+        uint32_t byte_size; /*width * height * bytes per sample (1 for 8-bit, else 2), times 3 for packed format;
+                              for COLOUR_FORMAT_PACKED_V210 see above*/
     } components[MAX_COMPONENTS_NUM];
 } svt_jpeg_xs_image_config_t;
 
+/* For COLOUR_FORMAT_PACKED_V210, stride[0] is in 32-bit words, not samples, and at least 4 * ((width + 5) / 6). */
 typedef struct svt_jpeg_xs_image_buffer {
     void *data_yuv[MAX_COMPONENTS_NUM];      /*Allocated Data buffer for components*/
     uint32_t stride[MAX_COMPONENTS_NUM];     /*In samples, not bytes. Greater than or equal to width (width * 3 for packed format).*/

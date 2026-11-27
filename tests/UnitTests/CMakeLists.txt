@@ -18,6 +18,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/Source/App/EncApp
     ${PROJECT_SOURCE_DIR}/Source/Lib/Common/Codec
     ${PROJECT_SOURCE_DIR}/Source/Lib/Common/ASM_AVX2
+    ${PROJECT_SOURCE_DIR}/Source/Lib/Common/ASM_AVX512
     ${PROJECT_SOURCE_DIR}/Source/Lib/Encoder/Codec
     ${PROJECT_SOURCE_DIR}/Source/Lib/Encoder/ASM_SSE4_1
     ${PROJECT_SOURCE_DIR}/Source/Lib/Encoder/ASM_NEON
