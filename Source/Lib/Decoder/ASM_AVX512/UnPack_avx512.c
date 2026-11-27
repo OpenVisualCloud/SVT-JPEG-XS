@@ -341,13 +341,13 @@ void unpack_raw_gclis_bytes_avx512(const uint8_t* mem, uint8_t* gclis, uint32_t 
 }
 
 /* Branchless backward scatter of 8-byte significance groups using AVX-512 VPEXPANDQ.
- * Each significance group is one uint64_t (SIGNIFICANCE_GROUP_SIZE == 8). Walking down
+ * Each significance group is 8 bytes (SIGNIFICANCE_GROUP_SIZE), one quadword at any byte offset:
+ * the GCLIs of a line can start at any byte, so they are addressed as bytes. Walking down
  * 8 groups at a time preserves src_q <= g, so expandloadu reads before storeu writes. */
 void unpack_gclis_sig_scatter_avx512(uint8_t* gclis, const uint8_t* significances, uint32_t group_num, uint32_t src_bytes,
                                      uint8_t gtli) {
     const __m512i gtli_vec = _mm512_set1_epi8((char)gtli);
     const __m128i zero128 = _mm_setzero_si128();
-    uint64_t* const dst64 = (uint64_t*)gclis;
     uint32_t src_q = src_bytes >> 3;
     uint32_t g = group_num;
 
@@ -360,8 +360,9 @@ void unpack_gclis_sig_scatter_avx512(uint8_t* gclis, const uint8_t* significance
         const __mmask8 sig_mask = (__mmask8)(_mm_cmpeq_epi8_mask(sig8, zero128) & 0xFF);
         const uint32_t k = (uint32_t)_mm_popcnt_u32(sig_mask);
         src_q -= k;
-        const __m512i expanded = _mm512_mask_expandloadu_epi64(gtli_vec, sig_mask, dst64 + src_q);
-        _mm512_storeu_si512((__m512i*)(dst64 + g), expanded);
+        const __m512i expanded = _mm512_mask_expandloadu_epi64(
+            gtli_vec, sig_mask, gclis + (size_t)src_q * SIGNIFICANCE_GROUP_SIZE);
+        _mm512_storeu_si512((__m512i*)(gclis + (size_t)g * SIGNIFICANCE_GROUP_SIZE), expanded);
     }
     if (g > 0 && src_q != g) {
         const __mmask8 valid = (__mmask8)((1u << g) - 1);
@@ -369,7 +370,8 @@ void unpack_gclis_sig_scatter_avx512(uint8_t* gclis, const uint8_t* significance
         const __mmask8 sig_mask = (__mmask8)(_mm_mask_cmpeq_epi8_mask((__mmask16)valid, sig_rem, zero128) & valid);
         const uint32_t k = (uint32_t)_mm_popcnt_u32(sig_mask);
         src_q -= k;
-        const __m512i expanded = _mm512_mask_expandloadu_epi64(gtli_vec, sig_mask, dst64 + src_q);
-        _mm512_mask_storeu_epi64(dst64, valid, expanded);
+        const __m512i expanded = _mm512_mask_expandloadu_epi64(
+            gtli_vec, sig_mask, gclis + (size_t)src_q * SIGNIFICANCE_GROUP_SIZE);
+        _mm512_mask_storeu_epi64(gclis, valid, expanded);
     }
 }
