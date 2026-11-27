@@ -8,8 +8,36 @@
 
 #include <string.h>
 #include "UnPack_avx2.h"
+#include "Definitions.h"
 #include "SvtUtility.h"
 #include "UnpackShared.h"
+
+/* The next k bits of the sign sub-packet, k from 1 to 32, as one k-bit number whose most significant bit
+ * is the first bit read, and the position *offset, *bits_used moved past them. For the sign kernels,
+ * which place the bits with PDEP.
+ *
+ * The load takes eight bytes at the byte of the first bit, and fewer at the end of the buffer: neither
+ * the load nor its address goes past mem + size, even when *offset does on a corrupt stream. After a
+ * shift of at most seven bits the load still has at least fifty-seven bits. */
+static INLINE uint32_t unpack_read_sign_bits(const uint8_t* mem, uint32_t size, uint32_t* offset, uint32_t* bits_used,
+                                             uint32_t k) {
+    uint64_t window;
+    const uint32_t bytes_left = *offset < size ? size - *offset : 0;
+    if (bytes_left >= sizeof(window)) {
+        memcpy(&window, mem + *offset, sizeof(window));
+    }
+    else {
+        window = 0;
+        if (bytes_left) {
+            memcpy(&window, mem + *offset, bytes_left);
+        }
+    }
+    window = SVT_BSWAP64(window) << *bits_used;
+    *bits_used += k;
+    *offset += *bits_used >> 3;
+    *bits_used &= 7;
+    return (uint32_t)(window >> (64 - k));
+}
 
 /* Spreads count nibbles, right aligned, into four coefficients.
  *

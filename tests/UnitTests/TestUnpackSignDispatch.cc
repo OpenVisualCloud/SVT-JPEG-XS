@@ -13,15 +13,20 @@
 #include "SvtUtility.h"
 #ifdef ARCH_X86_64
 #include "UnPack_avx2.h"
+#include "UnPack_avx512.h"
 #endif
 
 #ifdef ARCH_X86_64
-/* The AVX2 and AVX-512 tiers take unpack_sign_avx2_bmi2 on a host with BMI2 and POPCNT, and the C tier,
- * the tiers below AVX2 and a host without them take unpack_sign_c. */
+/* The C tier, the tiers below AVX2 and a host without BMI2 and POPCNT take unpack_sign_c. The AVX2 tier
+ * takes unpack_sign_avx2_bmi2, and the AVX-512 tier, which the host keeps only with AVX512BW, DQ, VL and
+ * BMI2, takes unpack_sign_avx512. */
 TEST(unpack_sign, dispatch) {
-    const CPU_FLAGS required = CPU_FLAGS_AVX2 | CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT;
-    const bool host_has_kernel = (get_cpu_flags() & required) == required;
-    const auto avx2_tier = host_has_kernel ? unpack_sign_avx2_bmi2 : unpack_sign_c;
+    const CPU_FLAGS host = get_cpu_flags();
+    const CPU_FLAGS avx2_kernel = CPU_FLAGS_AVX2 | CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT;
+    const CPU_FLAGS avx512_kernel = CPU_FLAGS_AVX512F | CPU_FLAGS_AVX512BW | CPU_FLAGS_AVX512DQ | CPU_FLAGS_AVX512VL |
+        CPU_FLAGS_BMI2 | CPU_FLAGS_POPCNT;
+    const auto avx2_tier = (host & avx2_kernel) == avx2_kernel ? unpack_sign_avx2_bmi2 : unpack_sign_c;
+    const auto avx512_tier = (host & avx512_kernel) == avx512_kernel ? unpack_sign_avx512 : avx2_tier;
 
     setup_decoder_rtcd_internal(CPU_FLAGS_C);
     EXPECT_EQ(unpack_sign, unpack_sign_c) << "C";
@@ -34,8 +39,8 @@ TEST(unpack_sign, dispatch) {
     setup_decoder_rtcd_internal(CPU_FLAGS_AVX512F - 1);
     EXPECT_EQ(unpack_sign, avx2_tier) << "up to AVX2";
 
-    /* Every tier: AVX-512 on a host that has it, which takes the AVX2 kernel too */
+    /* Every tier: AVX-512 on a host that has it */
     setup_decoder_rtcd_internal(CPU_FLAGS_ALL);
-    EXPECT_EQ(unpack_sign, avx2_tier) << "all";
+    EXPECT_EQ(unpack_sign, avx512_tier) << "all";
 }
 #endif /* ARCH_X86_64 */

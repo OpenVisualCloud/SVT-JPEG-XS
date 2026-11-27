@@ -173,11 +173,15 @@ void setup_decoder_rtcd_internal(CPU_FLAGS flags) {
     SET_NEON(unpack_data, unpack_data_neon);
     SET_ONLY_C(unpack_sign, unpack_sign_c);
 #ifdef ARCH_X86_64
-    /* unpack_sign_avx2_bmi2 places the signs of thirty-two coefficients with one PDEP and counts
-     * them with POPCNT. As for unpack_data_avx2_bmi2, the host itself must have both, whatever
-     * tier was requested. The AVX-512 tier uses it too: it has no kernel of its own for the signs. */
+    /* The sign kernels place the signs of thirty-two coefficients with one PDEP and count them with
+     * POPCNT. As for unpack_data_avx2_bmi2, the host itself must have both, whatever tier was
+     * requested. The AVX-512 tier is only kept on a host with AVX512BW and BMI2 (see above). */
     if ((flags & CPU_FLAGS_AVX2) && (host_flags & CPU_FLAGS_BMI2) && (host_flags & CPU_FLAGS_POPCNT)) {
         unpack_sign = unpack_sign_avx2_bmi2;
+    }
+    if ((flags & CPU_FLAGS_AVX512F) && (host_flags & CPU_FLAGS_AVX512BW) && (host_flags & CPU_FLAGS_BMI2) &&
+        (host_flags & CPU_FLAGS_POPCNT)) {
+        unpack_sign = unpack_sign_avx512;
     }
 #endif /* ARCH_X86_64 */
     SET_AVX2_AVX512(unpack_raw_gclis_bytes, unpack_raw_gclis_bytes_c, unpack_raw_gclis_bytes_avx2, unpack_raw_gclis_bytes_avx512);
