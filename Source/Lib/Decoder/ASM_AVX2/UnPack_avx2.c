@@ -759,6 +759,19 @@ void unpack_raw_gclis_bytes_avx2(const uint8_t* mem, uint8_t* gclis, uint32_t by
     }
 }
 
+/* Group q of the GCLIs of a line, at gclis + 8 * q. The GCLIs of a line can start at any byte, so the
+ * groups are copied with memcpy, which compiles to one move, not through a uint64_t pointer: its
+ * accesses would be misaligned, which is undefined behaviour. */
+static INLINE uint64_t gclis_group(const uint8_t* gclis, uint32_t q) {
+    uint64_t group;
+    memcpy(&group, gclis + (size_t)q * SIGNIFICANCE_GROUP_SIZE, sizeof(group));
+    return group;
+}
+
+static INLINE void set_gclis_group(uint8_t* gclis, uint32_t q, uint64_t group) {
+    memcpy(gclis + (size_t)q * SIGNIFICANCE_GROUP_SIZE, &group, sizeof(group));
+}
+
 /* Backward scatter of 8-byte significance groups using AVX2 fast paths for all-inactive and
  * all-active 8-group chunks, with safe backward scalar scatter for mixed chunks. */
 void unpack_gclis_sig_scatter_avx2(uint8_t* gclis, const uint8_t* significances, uint32_t group_num, uint32_t src_bytes,
@@ -766,7 +779,6 @@ void unpack_gclis_sig_scatter_avx2(uint8_t* gclis, const uint8_t* significances,
     const __m256i gtli_vec = _mm256_set1_epi8((char)gtli);
     const __m128i zero128 = _mm_setzero_si128();
     const uint64_t gtli64 = 0x0101010101010101ULL * gtli;
-    uint64_t* const dst64 = (uint64_t*)gclis;
     uint32_t src_q = src_bytes >> 3;
     uint32_t g = group_num;
 
@@ -778,24 +790,24 @@ void unpack_gclis_sig_scatter_avx2(uint8_t* gclis, const uint8_t* significances,
         const __m128i sig8 = _mm_loadl_epi64((const __m128i*)(significances + g));
         const uint32_t sig_mask = (uint32_t)_mm_movemask_epi8(_mm_cmpeq_epi8(sig8, zero128)) & 0xFFu;
         if (sig_mask == 0) {
-            _mm256_storeu_si256((__m256i*)(dst64 + g), gtli_vec);
-            _mm256_storeu_si256((__m256i*)(dst64 + g + 4), gtli_vec);
+            _mm256_storeu_si256((__m256i*)(gclis + (size_t)g * SIGNIFICANCE_GROUP_SIZE), gtli_vec);
+            _mm256_storeu_si256((__m256i*)(gclis + (size_t)(g + 4) * SIGNIFICANCE_GROUP_SIZE), gtli_vec);
         }
         else if (sig_mask == 0xFFu) {
             src_q -= 8;
-            const __m256i v0 = _mm256_loadu_si256((const __m256i*)(dst64 + src_q));
-            const __m256i v1 = _mm256_loadu_si256((const __m256i*)(dst64 + src_q + 4));
-            _mm256_storeu_si256((__m256i*)(dst64 + g), v0);
-            _mm256_storeu_si256((__m256i*)(dst64 + g + 4), v1);
+            const __m256i v0 = _mm256_loadu_si256((const __m256i*)(gclis + (size_t)src_q * SIGNIFICANCE_GROUP_SIZE));
+            const __m256i v1 = _mm256_loadu_si256((const __m256i*)(gclis + (size_t)(src_q + 4) * SIGNIFICANCE_GROUP_SIZE));
+            _mm256_storeu_si256((__m256i*)(gclis + (size_t)g * SIGNIFICANCE_GROUP_SIZE), v0);
+            _mm256_storeu_si256((__m256i*)(gclis + (size_t)(g + 4) * SIGNIFICANCE_GROUP_SIZE), v1);
         }
         else {
             for (int32_t j = 7; j >= 0; --j) {
-                dst64[g + (uint32_t)j] = (sig_mask & (1u << j)) ? dst64[--src_q] : gtli64;
+                set_gclis_group(gclis, g + (uint32_t)j, (sig_mask & (1u << j)) ? gclis_group(gclis, --src_q) : gtli64);
             }
         }
     }
     while (g > 0 && src_q != g) {
         --g;
-        dst64[g] = (significances[g] == 0) ? dst64[--src_q] : gtli64;
+        set_gclis_group(gclis, g, (significances[g] == 0) ? gclis_group(gclis, --src_q) : gtli64);
     }
 }

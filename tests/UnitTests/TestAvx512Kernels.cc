@@ -544,14 +544,17 @@ TEST(avx512_kernels, unpack_gclis_sig_scatter) {
             }
             const uint32_t src_bytes = active_groups * SIGNIFICANCE_GROUP_SIZE;
             for (uint8_t gtli : {uint8_t(0), uint8_t(5), uint8_t(15)}) {
-                std::vector<uint8_t> ref(total_bytes + guard, 0xCC);
-                std::vector<uint8_t> tst(total_bytes + guard, 0xCC);
-                for (uint32_t i = 0; i < src_bytes; ++i) {
-                    ref[i] = tst[i] = static_cast<uint8_t>(rnd.random());
+                /* The GCLIs of a line start at any byte: also at an offset that is not a multiple of 8 */
+                for (uint32_t offset : {0u, 1u, 3u}) {
+                    std::vector<uint8_t> ref(offset + total_bytes + guard, 0xCC);
+                    std::vector<uint8_t> tst(offset + total_bytes + guard, 0xCC);
+                    for (uint32_t i = 0; i < src_bytes; ++i) {
+                        ref[offset + i] = tst[offset + i] = static_cast<uint8_t>(rnd.random());
+                    }
+                    unpack_gclis_sig_scatter_c(ref.data() + offset, sigs.data(), gnum, src_bytes, gtli);
+                    unpack_gclis_sig_scatter_avx512(tst.data() + offset, sigs.data(), gnum, src_bytes, gtli);
+                    ASSERT_EQ(tst, ref) << "gnum=" << gnum << " pat=" << pat << " gtli=" << (int)gtli << " offset=" << offset;
                 }
-                unpack_gclis_sig_scatter_c(ref.data(), sigs.data(), gnum, src_bytes, gtli);
-                unpack_gclis_sig_scatter_avx512(tst.data(), sigs.data(), gnum, src_bytes, gtli);
-                ASSERT_EQ(tst, ref) << "gnum=" << gnum << " pat=" << pat << " gtli=" << (int)gtli;
             }
         }
     }
