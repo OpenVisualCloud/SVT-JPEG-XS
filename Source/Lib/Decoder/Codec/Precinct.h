@@ -14,6 +14,7 @@ extern "C" {
 #endif
 
 void inv_sign_c(uint16_t* in_out, uint32_t width);
+void dequant_inv_sign_c(uint16_t* buf, uint32_t buf_len, uint8_t* gclis, uint32_t group_size, uint8_t gtli, QUANT_TYPE dq_type);
 void inv_precinct_calculate_data(precinct_t* precinct, const pi_t* const pi, int dq_type);
 
 #ifdef __cplusplus

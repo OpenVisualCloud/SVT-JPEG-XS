@@ -62,44 +62,75 @@ void idwt_horizontal_line_lf32_hf16_avx512(const int32_t* lf_ptr, const int16_t*
      * iteration's vector, so the previous "even" itself serves as the carry. */
     __m512i prev_vec = _mm512_set1_epi32(prev_even);
 
-    const __m512i store1_perm = _mm512_setr_epi64(0x00, 0x01, 0x08, 0x09, 0x02, 0x03, 0x0a, 0x0b);
-    const __m512i store2_perm = _mm512_setr_epi64(0x04, 0x05, 0x0c, 0x0d, 0x06, 0x07, 0x0e, 0x0f);
+    const __m512i interleave_lo = _mm512_setr_epi32(0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23);
+    const __m512i interleave_hi = _mm512_setr_epi32(8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31);
 
     const __m512i two = _mm512_set1_epi32(2);
 
     int32_t simd_batch_512 = (len - 2) / 32;
 
-    for (int32_t i = 0; i < simd_batch_512; i++) {
-        const __m512i lf_avx2 = _mm512_loadu_si512((__m512i*)(lf_ptr + 1));
-        const __m512i hf1_avx2 = _mm512_slli_epi32(_mm512_cvtepi16_epi32(_mm256_loadu_si256((__m256i*)(hf_ptr))), shift);
-        const __m512i hf2_avx2 = _mm512_slli_epi32(_mm512_cvtepi16_epi32(_mm256_loadu_si256((__m256i*)(hf_ptr + 1))), shift);
+    if (simd_batch_512 > 0) {
+        __m512i hf1_avx2 = _mm512_slli_epi32(_mm512_cvtepi16_epi32(_mm256_loadu_si256((const __m256i*)hf_ptr)), shift);
+        const int32_t main_iters = simd_batch_512 - 1;
+        for (int32_t i = 0; i < main_iters; i++) {
+            const __m512i lf_avx2 = _mm512_loadu_si512((const void*)(lf_ptr + 1));
+            const __m512i hf_next = _mm512_slli_epi32(_mm512_cvtepi16_epi32(_mm256_loadu_si256((const __m256i*)(hf_ptr + 16))),
+                                                      shift);
+            const __m512i hf2_avx2 = _mm512_alignr_epi32(hf_next, hf1_avx2, 1);
 
-        __m512i even = _mm512_add_epi32(hf1_avx2, hf2_avx2);
-        even = _mm512_add_epi32(even, two);
-        even = _mm512_srai_epi32(even, 2);
-        even = _mm512_sub_epi32(lf_avx2, even);
+            __m512i even = _mm512_add_epi32(hf1_avx2, hf2_avx2);
+            even = _mm512_add_epi32(even, two);
+            even = _mm512_srai_epi32(even, 2);
+            even = _mm512_sub_epi32(lf_avx2, even);
 
-        const __m512i even_m1 = _mm512_alignr_epi32(even, prev_vec, 15);
+            const __m512i even_m1 = _mm512_alignr_epi32(even, prev_vec, 15);
 
-        //out[0] + out[2]
-        __m512i odd = _mm512_add_epi32(even_m1, even);
-        odd = _mm512_srai_epi32(odd, 1);
-        odd = _mm512_add_epi32(odd, hf1_avx2);
+            __m512i odd = _mm512_add_epi32(even_m1, even);
+            odd = _mm512_srai_epi32(odd, 1);
+            odd = _mm512_add_epi32(odd, hf1_avx2);
 
-        const __m512i unpack1 = _mm512_unpacklo_epi32(even_m1, odd);
-        const __m512i unpack2 = _mm512_unpackhi_epi32(even_m1, odd);
+            const __m512i store1 = _mm512_permutex2var_epi32(even_m1, interleave_lo, odd);
+            const __m512i store2 = _mm512_permutex2var_epi32(even_m1, interleave_hi, odd);
 
-        __m512i store1 = _mm512_permutex2var_epi64(unpack1, store1_perm, unpack2);
-        __m512i store2 = _mm512_permutex2var_epi64(unpack1, store2_perm, unpack2);
+            _mm512_storeu_si512(out_ptr, store1);
+            _mm512_storeu_si512(out_ptr + 16, store2);
 
-        _mm512_storeu_si512(out_ptr, store1);
-        _mm512_storeu_si512(out_ptr + 16, store2);
+            prev_vec = even;
+            hf1_avx2 = hf_next;
 
-        prev_vec = even;
+            out_ptr += 32;
+            lf_ptr += 16;
+            hf_ptr += 16;
+        }
+        /* Peeled final vector iteration: only hf_ptr[16] is needed past hf1_avx2. */
+        {
+            const __m512i lf_avx2 = _mm512_loadu_si512((const void*)(lf_ptr + 1));
+            const __m512i hf_next = _mm512_set1_epi32(LSHIFT32(hf_ptr[16], shift));
+            const __m512i hf2_avx2 = _mm512_alignr_epi32(hf_next, hf1_avx2, 1);
 
-        out_ptr += 32;
-        lf_ptr += 16;
-        hf_ptr += 16;
+            __m512i even = _mm512_add_epi32(hf1_avx2, hf2_avx2);
+            even = _mm512_add_epi32(even, two);
+            even = _mm512_srai_epi32(even, 2);
+            even = _mm512_sub_epi32(lf_avx2, even);
+
+            const __m512i even_m1 = _mm512_alignr_epi32(even, prev_vec, 15);
+
+            __m512i odd = _mm512_add_epi32(even_m1, even);
+            odd = _mm512_srai_epi32(odd, 1);
+            odd = _mm512_add_epi32(odd, hf1_avx2);
+
+            const __m512i store1 = _mm512_permutex2var_epi32(even_m1, interleave_lo, odd);
+            const __m512i store2 = _mm512_permutex2var_epi32(even_m1, interleave_hi, odd);
+
+            _mm512_storeu_si512(out_ptr, store1);
+            _mm512_storeu_si512(out_ptr + 16, store2);
+
+            prev_vec = even;
+
+            out_ptr += 32;
+            lf_ptr += 16;
+            hf_ptr += 16;
+        }
     }
 
     prev_even = _mm_extract_epi32(_mm512_extracti32x4_epi32(prev_vec, 3), 3);
@@ -180,44 +211,77 @@ void idwt_horizontal_line_lf16_hf16_avx512(const int16_t* lf_ptr, const int16_t*
      * iteration's vector, so the previous "even" itself serves as the carry. */
     __m512i prev_vec = _mm512_set1_epi32(prev_even);
 
-    const __m512i store1_perm = _mm512_setr_epi64(0x00, 0x01, 0x08, 0x09, 0x02, 0x03, 0x0a, 0x0b);
-    const __m512i store2_perm = _mm512_setr_epi64(0x04, 0x05, 0x0c, 0x0d, 0x06, 0x07, 0x0e, 0x0f);
+    const __m512i interleave_lo = _mm512_setr_epi32(0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23);
+    const __m512i interleave_hi = _mm512_setr_epi32(8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31);
 
     const __m512i two = _mm512_set1_epi32(2);
 
     int32_t simd_batch_512 = (len - 2) / 32;
 
-    for (int32_t i = 0; i < simd_batch_512; i++) {
-        const __m512i lf_avx2 = _mm512_slli_epi32(_mm512_cvtepi16_epi32(_mm256_loadu_si256((__m256i*)(lf_ptr + 1))), shift);
-        const __m512i hf1_avx2 = _mm512_slli_epi32(_mm512_cvtepi16_epi32(_mm256_loadu_si256((__m256i*)(hf_ptr))), shift);
-        const __m512i hf2_avx2 = _mm512_slli_epi32(_mm512_cvtepi16_epi32(_mm256_loadu_si256((__m256i*)(hf_ptr + 1))), shift);
+    if (simd_batch_512 > 0) {
+        __m512i hf1_avx2 = _mm512_slli_epi32(_mm512_cvtepi16_epi32(_mm256_loadu_si256((const __m256i*)hf_ptr)), shift);
+        const int32_t main_iters = simd_batch_512 - 1;
+        for (int32_t i = 0; i < main_iters; i++) {
+            const __m512i lf_avx2 = _mm512_slli_epi32(_mm512_cvtepi16_epi32(_mm256_loadu_si256((const __m256i*)(lf_ptr + 1))),
+                                                      shift);
+            const __m512i hf_next = _mm512_slli_epi32(_mm512_cvtepi16_epi32(_mm256_loadu_si256((const __m256i*)(hf_ptr + 16))),
+                                                      shift);
+            const __m512i hf2_avx2 = _mm512_alignr_epi32(hf_next, hf1_avx2, 1);
 
-        __m512i even = _mm512_add_epi32(hf1_avx2, hf2_avx2);
-        even = _mm512_add_epi32(even, two);
-        even = _mm512_srai_epi32(even, 2);
-        even = _mm512_sub_epi32(lf_avx2, even);
+            __m512i even = _mm512_add_epi32(hf1_avx2, hf2_avx2);
+            even = _mm512_add_epi32(even, two);
+            even = _mm512_srai_epi32(even, 2);
+            even = _mm512_sub_epi32(lf_avx2, even);
 
-        const __m512i even_m1 = _mm512_alignr_epi32(even, prev_vec, 15);
+            const __m512i even_m1 = _mm512_alignr_epi32(even, prev_vec, 15);
 
-        //out[0] + out[2]
-        __m512i odd = _mm512_add_epi32(even_m1, even);
-        odd = _mm512_srai_epi32(odd, 1);
-        odd = _mm512_add_epi32(odd, hf1_avx2);
+            __m512i odd = _mm512_add_epi32(even_m1, even);
+            odd = _mm512_srai_epi32(odd, 1);
+            odd = _mm512_add_epi32(odd, hf1_avx2);
 
-        const __m512i unpack1 = _mm512_unpacklo_epi32(even_m1, odd);
-        const __m512i unpack2 = _mm512_unpackhi_epi32(even_m1, odd);
+            const __m512i store1 = _mm512_permutex2var_epi32(even_m1, interleave_lo, odd);
+            const __m512i store2 = _mm512_permutex2var_epi32(even_m1, interleave_hi, odd);
 
-        __m512i store1 = _mm512_permutex2var_epi64(unpack1, store1_perm, unpack2);
-        __m512i store2 = _mm512_permutex2var_epi64(unpack1, store2_perm, unpack2);
+            _mm512_storeu_si512(out_ptr, store1);
+            _mm512_storeu_si512(out_ptr + 16, store2);
 
-        _mm512_storeu_si512(out_ptr, store1);
-        _mm512_storeu_si512(out_ptr + 16, store2);
+            prev_vec = even;
+            hf1_avx2 = hf_next;
 
-        prev_vec = even;
+            out_ptr += 32;
+            lf_ptr += 16;
+            hf_ptr += 16;
+        }
+        /* Peeled final vector iteration: only hf_ptr[16] is needed past hf1_avx2. */
+        {
+            const __m512i lf_avx2 = _mm512_slli_epi32(_mm512_cvtepi16_epi32(_mm256_loadu_si256((const __m256i*)(lf_ptr + 1))),
+                                                      shift);
+            const __m512i hf_next = _mm512_set1_epi32(LSHIFT32(hf_ptr[16], shift));
+            const __m512i hf2_avx2 = _mm512_alignr_epi32(hf_next, hf1_avx2, 1);
 
-        out_ptr += 32;
-        lf_ptr += 16;
-        hf_ptr += 16;
+            __m512i even = _mm512_add_epi32(hf1_avx2, hf2_avx2);
+            even = _mm512_add_epi32(even, two);
+            even = _mm512_srai_epi32(even, 2);
+            even = _mm512_sub_epi32(lf_avx2, even);
+
+            const __m512i even_m1 = _mm512_alignr_epi32(even, prev_vec, 15);
+
+            __m512i odd = _mm512_add_epi32(even_m1, even);
+            odd = _mm512_srai_epi32(odd, 1);
+            odd = _mm512_add_epi32(odd, hf1_avx2);
+
+            const __m512i store1 = _mm512_permutex2var_epi32(even_m1, interleave_lo, odd);
+            const __m512i store2 = _mm512_permutex2var_epi32(even_m1, interleave_hi, odd);
+
+            _mm512_storeu_si512(out_ptr, store1);
+            _mm512_storeu_si512(out_ptr + 16, store2);
+
+            prev_vec = even;
+
+            out_ptr += 32;
+            lf_ptr += 16;
+            hf_ptr += 16;
+        }
     }
 
     prev_even = _mm_extract_epi32(_mm512_extracti32x4_epi32(prev_vec, 3), 3);
@@ -508,5 +572,116 @@ void idwt_vertical_line_recalc_avx512(const int32_t* in_lf, const int32_t* in_hf
             in_lf++;
             in_hf1++;
         }
+    }
+}
+
+void idwt_vertical_line_output_8bit_avx512(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1,
+                                           const int32_t* in_out0, int32_t* out2, uint8_t* img_odd, uint8_t* img_even,
+                                           uint32_t len, uint32_t bw, uint32_t depth) {
+    const int32_t dzeta = (int32_t)(bw - depth);
+    const uint32_t round = ((1u << bw) >> 1) + ((1u << dzeta) >> 1);
+    const int32_t m = (1 << depth) - 1;
+    const __m512i two = _mm512_set1_epi32(2);
+    const __m512i round_v = _mm512_set1_epi32((int32_t)round);
+    const __m512i zero_v = _mm512_setzero_si512();
+    const __m512i max_v = _mm512_set1_epi32(m);
+
+    uint32_t x = 0;
+    for (; x + 16 <= len; x += 16) {
+        const __m512i lf = _mm512_loadu_si512((const void*)(in_lf + x));
+        const __m512i hf0 = _mm512_loadu_si512((const void*)(in_hf0 + x));
+        const __m512i hf1 = _mm512_loadu_si512((const void*)(in_hf1 + x));
+        const __m512i out0 = _mm512_loadu_si512((const void*)(in_out0 + x));
+
+        const __m512i even = _mm512_sub_epi32(lf, _mm512_srai_epi32(_mm512_add_epi32(_mm512_add_epi32(hf0, hf1), two), 2));
+        const __m512i odd = _mm512_add_epi32(hf0, _mm512_srai_epi32(_mm512_add_epi32(out0, even), 1));
+        _mm512_storeu_si512((void*)(out2 + x), even);
+
+        __m512i vo = _mm512_srai_epi32(_mm512_add_epi32(odd, round_v), dzeta);
+        __m512i ve = _mm512_srai_epi32(_mm512_add_epi32(even, round_v), dzeta);
+        vo = _mm512_max_epi32(_mm512_min_epi32(vo, max_v), zero_v);
+        ve = _mm512_max_epi32(_mm512_min_epi32(ve, max_v), zero_v);
+        _mm_storeu_si128((__m128i*)(img_odd + x), _mm512_cvtepi32_epi8(vo));
+        _mm_storeu_si128((__m128i*)(img_even + x), _mm512_cvtepi32_epi8(ve));
+    }
+    if (x < len) {
+        const __mmask16 km = (__mmask16)((1u << (len - x)) - 1);
+        const __m512i lf = _mm512_maskz_loadu_epi32(km, in_lf + x);
+        const __m512i hf0 = _mm512_maskz_loadu_epi32(km, in_hf0 + x);
+        const __m512i hf1 = _mm512_maskz_loadu_epi32(km, in_hf1 + x);
+        const __m512i out0 = _mm512_maskz_loadu_epi32(km, in_out0 + x);
+
+        const __m512i even = _mm512_sub_epi32(lf, _mm512_srai_epi32(_mm512_add_epi32(_mm512_add_epi32(hf0, hf1), two), 2));
+        const __m512i odd = _mm512_add_epi32(hf0, _mm512_srai_epi32(_mm512_add_epi32(out0, even), 1));
+        _mm512_mask_storeu_epi32(out2 + x, km, even);
+
+        __m512i vo = _mm512_srai_epi32(_mm512_add_epi32(odd, round_v), dzeta);
+        __m512i ve = _mm512_srai_epi32(_mm512_add_epi32(even, round_v), dzeta);
+        vo = _mm512_max_epi32(_mm512_min_epi32(vo, max_v), zero_v);
+        ve = _mm512_max_epi32(_mm512_min_epi32(ve, max_v), zero_v);
+        _mm512_mask_cvtepi32_storeu_epi8(img_odd + x, km, vo);
+        _mm512_mask_cvtepi32_storeu_epi8(img_even + x, km, ve);
+    }
+}
+
+void idwt_vertical_line_output_16bit_avx512(const int32_t* in_lf, const int32_t* in_hf0, const int32_t* in_hf1,
+                                            const int32_t* in_out0, int32_t* out2, uint16_t* img_odd, uint16_t* img_even,
+                                            uint32_t len, uint32_t bw, uint32_t depth, uint8_t msb_aligned) {
+    const int32_t dzeta = (int32_t)(bw - depth);
+    const uint32_t round = ((1u << bw) >> 1) + ((1u << dzeta) >> 1);
+    const int32_t m = (1 << depth) - 1;
+    const int32_t msb_shift = msb_aligned ? (int32_t)(16u - depth) : 0;
+    const __m512i two = _mm512_set1_epi32(2);
+    const __m512i round_v = _mm512_set1_epi32((int32_t)round);
+    const __m512i zero_v = _mm512_setzero_si512();
+    const __m512i max_v = _mm512_set1_epi32(m);
+
+    uint32_t x = 0;
+    for (; x + 16 <= len; x += 16) {
+        const __m512i lf = _mm512_loadu_si512((const void*)(in_lf + x));
+        const __m512i hf0 = _mm512_loadu_si512((const void*)(in_hf0 + x));
+        const __m512i hf1 = _mm512_loadu_si512((const void*)(in_hf1 + x));
+        const __m512i out0 = _mm512_loadu_si512((const void*)(in_out0 + x));
+
+        const __m512i even = _mm512_sub_epi32(lf, _mm512_srai_epi32(_mm512_add_epi32(_mm512_add_epi32(hf0, hf1), two), 2));
+        const __m512i odd = _mm512_add_epi32(hf0, _mm512_srai_epi32(_mm512_add_epi32(out0, even), 1));
+        _mm512_storeu_si512((void*)(out2 + x), even);
+
+        __m512i vo = _mm512_srai_epi32(_mm512_add_epi32(odd, round_v), dzeta);
+        __m512i ve = _mm512_srai_epi32(_mm512_add_epi32(even, round_v), dzeta);
+        vo = _mm512_max_epi32(_mm512_min_epi32(vo, max_v), zero_v);
+        ve = _mm512_max_epi32(_mm512_min_epi32(ve, max_v), zero_v);
+        __m256i po = _mm512_cvtepi32_epi16(vo);
+        __m256i pe = _mm512_cvtepi32_epi16(ve);
+        if (msb_shift) {
+            po = _mm256_slli_epi16(po, msb_shift);
+            pe = _mm256_slli_epi16(pe, msb_shift);
+        }
+        _mm256_storeu_si256((__m256i*)(img_odd + x), po);
+        _mm256_storeu_si256((__m256i*)(img_even + x), pe);
+    }
+    if (x < len) {
+        const __mmask16 km = (__mmask16)((1u << (len - x)) - 1);
+        const __m512i lf = _mm512_maskz_loadu_epi32(km, in_lf + x);
+        const __m512i hf0 = _mm512_maskz_loadu_epi32(km, in_hf0 + x);
+        const __m512i hf1 = _mm512_maskz_loadu_epi32(km, in_hf1 + x);
+        const __m512i out0 = _mm512_maskz_loadu_epi32(km, in_out0 + x);
+
+        const __m512i even = _mm512_sub_epi32(lf, _mm512_srai_epi32(_mm512_add_epi32(_mm512_add_epi32(hf0, hf1), two), 2));
+        const __m512i odd = _mm512_add_epi32(hf0, _mm512_srai_epi32(_mm512_add_epi32(out0, even), 1));
+        _mm512_mask_storeu_epi32(out2 + x, km, even);
+
+        __m512i vo = _mm512_srai_epi32(_mm512_add_epi32(odd, round_v), dzeta);
+        __m512i ve = _mm512_srai_epi32(_mm512_add_epi32(even, round_v), dzeta);
+        vo = _mm512_max_epi32(_mm512_min_epi32(vo, max_v), zero_v);
+        ve = _mm512_max_epi32(_mm512_min_epi32(ve, max_v), zero_v);
+        __m256i po = _mm512_cvtepi32_epi16(vo);
+        __m256i pe = _mm512_cvtepi32_epi16(ve);
+        if (msb_shift) {
+            po = _mm256_slli_epi16(po, msb_shift);
+            pe = _mm256_slli_epi16(pe, msb_shift);
+        }
+        _mm256_mask_storeu_epi16(img_odd + x, km, po);
+        _mm256_mask_storeu_epi16(img_even + x, km, pe);
     }
 }

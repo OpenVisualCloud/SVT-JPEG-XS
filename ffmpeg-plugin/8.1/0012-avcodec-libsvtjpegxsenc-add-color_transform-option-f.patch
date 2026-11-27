@@ -1,5 +1,5 @@
 From b2f901b9b750a99cd9a5b6193921dd02efbbb941 Mon Sep 17 00:00:00 2001
-From: SVT-JPEG-XS <noreply@example.com>
+From: Grzegorz Rys <grzegorz.rys@intel.com>
 Date: Tue, 22 Sep 2026 10:01:49 +0200
 Subject: [PATCH] avcodec/libsvtjpegxsenc: add color_transform option for
  encoder-side RCT

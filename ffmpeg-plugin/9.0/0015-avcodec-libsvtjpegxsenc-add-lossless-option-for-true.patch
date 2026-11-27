@@ -1,5 +1,5 @@
 From ce7623ab5a72edbd3542e29add71ac2ac7a6acdf Mon Sep 17 00:00:00 2001
-From: SVT-JPEG-XS <noreply@example.com>
+From: Grzegorz Rys <grzegorz.rys@intel.com>
 Date: Fri, 25 Sep 2026 08:50:24 +0200
 Subject: [PATCH] avcodec/libsvtjpegxsenc: add lossless option for true
  lossless coding

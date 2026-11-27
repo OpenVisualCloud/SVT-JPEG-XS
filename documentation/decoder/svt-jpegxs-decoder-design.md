@@ -77,8 +77,10 @@ performing a different task in the decoding pipeline.
 The decoder creates one init thread, one final thread and `threads_num - 2` universal threads (at least 1). The input
 and output queues hold `2 * universal_threads + 10` frames, the universal task queue holds `2 * universal_threads` slice
 tasks, so the init stage can prepare the next slices while all universal threads are busy, and the output reorder ring
-buffer holds `universal_threads + 20` frames. Each frame in flight uses one of 3
-internal decoder instances (one in the init stage, one in the universal stage and one in the final stage).
+buffer holds `universal_threads + 20` frames. Each frame in flight uses an internal
+decoder instance from a pool of `min((universal_threads + 1) / 2 + 2, 16)` instances
+(3 at `threads_num <= 2`, scaling up to 16 at higher thread counts so multiple frames
+can overlap across the init, universal, and final stages).
 
 A high-level diagram of the decoder pipeline is shown in Figure 3.
 

@@ -5,15 +5,15 @@ Subject: [PATCH 3/3] Update JPEGXS decoder and ecoder with GBR formats
 
 Signed-off-by: Grzegorz Rys <grzegorz.rys@intel.com>
 ---
- libavcodec/libsvtjpegxsdec.c | 301 ++++++++++++++++++++++-------------
- libavcodec/libsvtjpegxsenc.c | 240 ++++++++++++++++------------
- 2 files changed, 328 insertions(+), 213 deletions(-)
+ libavcodec/libsvtjpegxsdec.c | 306 ++++++++++++++++++++++-------------
+ libavcodec/libsvtjpegxsenc.c | 240 +++++++++++++++------------
+ 2 files changed, 330 insertions(+), 216 deletions(-)
 
 diff --git a/libavcodec/libsvtjpegxsdec.c b/libavcodec/libsvtjpegxsdec.c
-index 7a325c4446..325bef76f0 100644
+index 8a80cd560d..325bef76f0 100644
 --- a/libavcodec/libsvtjpegxsdec.c
 +++ b/libavcodec/libsvtjpegxsdec.c
-@@ -37,179 +37,261 @@
+@@ -37,180 +37,261 @@
  #include "profiles.h"
  
  typedef struct SvtJpegXsDecodeContext {
@@ -179,31 +179,34 @@ index 7a325c4446..325bef76f0 100644
  
 -    if (!svt_dec->decoder_initialized || ret != avctx->pix_fmt ||
 -        avctx->width != svt_dec->config.width || avctx->height != svt_dec->config.height) {
--        if (svt_dec->decoder_initialized)
--            svt_jpeg_xs_decoder_close(&svt_dec->decoder);
--        err = svt_jpeg_xs_decoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR,
--                                       &svt_dec->decoder, avpkt->data, avpkt->size, &svt_dec->config);
+-        avctx->pix_fmt = ret;
 +        err = svt_jpeg_xs_decoder_init(
 +            SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &(svt_dec->decoder), avpkt->data, avpkt->size, &(svt_dec->config));
-         if (err) {
--            av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_decoder_init failed, err=%d\n", err);
--            return AVERROR_EXTERNAL;
++        if (err) {
 +            av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_decoder_init failed, err=%d\n", err);
 +            return err;
-         }
- 
--        avctx->pix_fmt = ret;
-+        ret = set_pix_fmt(avctx, svt_dec->config);
-+        if (ret < 0) {
-+            av_log(NULL, AV_LOG_ERROR, "set_pix_fmt failed, err=%d\n", ret);
-+            return ret;
 +        }
  
-         ret = ff_set_dimensions(avctx, svt_dec->config.width, svt_dec->config.height);
+-        ret = ff_set_dimensions(avctx, svt_dec->config.width, svt_dec->config.height);
++        ret = set_pix_fmt(avctx, svt_dec->config);
          if (ret < 0) {
 -            av_log(avctx, AV_LOG_ERROR, "ff_set_dimensions failed, err=%d\n", ret);
-+            av_log(NULL, AV_LOG_ERROR, "ff_set_dimensions failed, err=%d\n", ret);
++            av_log(NULL, AV_LOG_ERROR, "set_pix_fmt failed, err=%d\n", ret);
              return ret;
+         }
+ 
+-        if (svt_dec->decoder_initialized)
+-            svt_jpeg_xs_decoder_close(&svt_dec->decoder);
+-        svt_dec->decoder_initialized = 0;
+-        err = svt_jpeg_xs_decoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR,
+-                                       &svt_dec->decoder, avpkt->data, avpkt->size, &svt_dec->config);
+-        if (err) {
+-            av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_decoder_init failed, err=%d\n", err);
+-            return AVERROR_EXTERNAL;
++        ret = ff_set_dimensions(avctx, svt_dec->config.width, svt_dec->config.height);
++        if (ret < 0) {
++            av_log(NULL, AV_LOG_ERROR, "ff_set_dimensions failed, err=%d\n", ret);
++            return ret;
          }
  
          svt_dec->decoder_initialized = 1;
@@ -331,8 +334,7 @@ index 7a325c4446..325bef76f0 100644
 +    svt_dec->chunk_decoding = 0;
 +    svt_dec->buffer_filled_len = 0;
 +    svt_dec->bitstream_buffer = NULL;
- 
--    if (avctx->lowres == 1)
++
 +    if (av_log_get_level() < AV_LOG_DEBUG) {
 +        svt_dec->decoder.verbose = VERBOSE_ERRORS;
 +    }
@@ -342,7 +344,8 @@ index 7a325c4446..325bef76f0 100644
 +    else {
 +        svt_dec->decoder.verbose = VERBOSE_WARNINGS;
 +    }
-+
+ 
+-    if (avctx->lowres == 1)
 +    if (svt_dec->proxy_mode == 1) {
          svt_dec->decoder.proxy_mode = proxy_mode_half;
 -    else if (avctx->lowres == 2)
@@ -383,7 +386,7 @@ index 7a325c4446..325bef76f0 100644
  const FFCodec ff_libsvtjpegxs_decoder = {
      .p.name         = "libsvtjpegxs",
      CODEC_LONG_NAME("SVT JPEG XS(Scalable Video Technology for JPEG XS) decoder"),
-@@ -221,8 +303,7 @@ const FFCodec ff_libsvtjpegxs_decoder = {
+@@ -222,8 +303,7 @@ const FFCodec ff_libsvtjpegxs_decoder = {
      FF_CODEC_DECODE_CB(svt_jpegxs_dec_decode),
      .p.capabilities = AV_CODEC_CAP_OTHER_THREADS | AV_CODEC_CAP_DR1,
      .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |

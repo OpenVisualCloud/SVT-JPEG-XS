@@ -13,6 +13,8 @@
 extern "C" {
 #endif
 void gc_histogram_16_c(const uint8_t *data, uint32_t width, uint16_t *hist);
+void gc_lossless_stats_gtli0_c(const uint8_t *data, uint32_t width, uint32_t *out_sum, uint16_t *out_zero);
+void rc_lut_derive_c(uint16_t *gc_hist, uint32_t *no_sign_tbl, uint32_t *sign_tbl, uint16_t *sig_hist);
 
 struct PictureControlSet;
 

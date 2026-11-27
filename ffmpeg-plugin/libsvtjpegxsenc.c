@@ -5,6 +5,8 @@
 
 #include <SvtJpegxsEnc.h>
 
+#include "libavutil/avassert.h"
+#include "libavutil/buffer.h"
 #include "libavutil/common.h"
 #include "libavutil/cpu.h"
 #include "libavutil/imgutils.h"
@@ -14,6 +16,14 @@
 #include "codec_internal.h"
 #include "encode.h"
 #include "profiles.h"
+
+#define SVT_JPEGXS_MAX_IN_FLIGHT 5
+
+typedef struct SvtJpegXsInFlight {
+    AVFrame* frame;
+    AVBufferRef* pkt_buf;
+    int in_use;
+} SvtJpegXsInFlight;
 
 typedef struct SvtJpegXsEncodeContext {
     AVClass* class;
@@ -39,67 +49,161 @@ typedef struct SvtJpegXsEncodeContext {
     int bitstream_frame_size;
     // FFmpeg plane index for each library component (gbrp* planes are G, B, R; the library takes R, G, B)
     int plane_map[MAX_COMPONENTS_NUM];
+
+    int encoder_initialized;
+    AVBufferPool* pkt_pool;
+    SvtJpegXsInFlight slots[SVT_JPEGXS_MAX_IN_FLIGHT];
+    int in_flight;
+    int draining;
 } SvtJpegXsEncodeContext;
 
-static int svt_jpegxs_enc_encode(AVCodecContext* avctx, AVPacket* pkt, const AVFrame* frame, int* got_packet) {
+static int svt_jpegxs_enc_send_slot(AVCodecContext* avctx, SvtJpegXsInFlight* slot) {
     SvtJpegXsEncodeContext* svt_enc = avctx->priv_data;
-
-    svt_jpeg_xs_bitstream_buffer_t out_buf;
-    svt_jpeg_xs_image_buffer_t in_buf;
-    svt_jpeg_xs_frame_t enc_input;
-    svt_jpeg_xs_frame_t enc_output;
-
-    SvtJxsErrorType_t err = SvtJxsErrorNone;
+    const AVFrame* frame = slot->frame;
+    svt_jpeg_xs_frame_t enc_input = {0};
     uint32_t pixel_size = svt_enc->encoder.input_bit_depth <= 8 ? 1 : 2;
+    SvtJxsErrorType_t err;
 
-    int ret = ff_alloc_packet(avctx, pkt, svt_enc->bitstream_frame_size);
-    if (ret < 0) {
-        return ret;
+    slot->pkt_buf = av_buffer_pool_get(svt_enc->pkt_pool);
+    if (!slot->pkt_buf) {
+        av_frame_unref(slot->frame);
+        return AVERROR(ENOMEM);
     }
 
-    out_buf.buffer = pkt->data;          // output bitstream ptr
-    out_buf.allocation_size = pkt->size; // output bitstream size
-    out_buf.used_size = 0;
+    enc_input.bitstream.buffer = slot->pkt_buf->data;
+    enc_input.bitstream.allocation_size = svt_enc->bitstream_frame_size;
+    enc_input.bitstream.used_size = 0;
 
     for (int comp = 0; comp < svt_enc->image_config.components_num; comp++) {
         const int plane = svt_enc->plane_map[comp];
         // svt-jpegxs require stride in pixel's not in bytes, this means that for 10 bit-depth, stride is half the linesize
-        in_buf.stride[comp] = frame->linesize[plane] / pixel_size;
-        in_buf.data_yuv[comp] = frame->data[plane];
-        in_buf.alloc_size[comp] = in_buf.stride[comp] * svt_enc->encoder.source_height * pixel_size;
+        enc_input.image.stride[comp] = frame->linesize[plane] / pixel_size;
+        enc_input.image.data_yuv[comp] = frame->data[plane];
+        enc_input.image.alloc_size[comp] = enc_input.image.stride[comp] * svt_enc->encoder.source_height * pixel_size;
     }
 
-    enc_input.bitstream = out_buf;
-    enc_input.image = in_buf;
-    enc_input.user_prv_ctx_ptr = pkt;
+    enc_input.user_prv_ctx_ptr = slot;
+    slot->in_use = 1;
 
     err = svt_jpeg_xs_encoder_send_picture(&(svt_enc->encoder), &enc_input, 1 /*blocking*/);
     if (err != SvtJxsErrorNone) {
-        av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_send_picture failed\n");
+        slot->in_use = 0;
+        av_buffer_unref(&slot->pkt_buf);
+        av_frame_unref(slot->frame);
+        av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_encoder_send_picture failed\n");
         return AVERROR_UNKNOWN;
     }
 
-    err = svt_jpeg_xs_encoder_get_packet(&(svt_enc->encoder), &enc_output, 1 /*blocking*/);
+    return 0;
+}
+
+static int svt_jpegxs_enc_receive_packet(AVCodecContext* avctx, AVPacket* pkt) {
+    SvtJpegXsEncodeContext* svt_enc = avctx->priv_data;
+    svt_jpeg_xs_frame_t enc_output = {0};
+    SvtJpegXsInFlight* slot = NULL;
+    SvtJxsErrorType_t err;
+    int ret;
+
+    if (!svt_enc->draining && svt_enc->in_flight < SVT_JPEGXS_MAX_IN_FLIGHT) {
+        for (int i = 0; i < SVT_JPEGXS_MAX_IN_FLIGHT; i++) {
+            if (!svt_enc->slots[i].in_use) {
+                slot = &svt_enc->slots[i];
+                break;
+            }
+        }
+        av_assert0(slot);
+
+        ret = ff_encode_get_frame(avctx, slot->frame);
+        if (ret == 0) {
+            ret = svt_jpegxs_enc_send_slot(avctx, slot);
+            if (ret < 0) {
+                return ret;
+            }
+            svt_enc->in_flight++;
+        }
+        else if (ret == AVERROR_EOF) {
+            svt_enc->draining = 1;
+        }
+        else if (ret != AVERROR(EAGAIN)) {
+            return ret;
+        }
+    }
+
+    if (svt_enc->in_flight == 0) {
+        return svt_enc->draining ? AVERROR_EOF : AVERROR(EAGAIN);
+    }
+
+    /* Non-blocking while the pipeline still has room so FFmpeg feeds the next frame
+     * immediately; blocking once full or while draining at EOF. */
+    err = svt_jpeg_xs_encoder_get_packet(&(svt_enc->encoder),
+                                         &enc_output,
+                                         (svt_enc->draining || svt_enc->in_flight >= SVT_JPEGXS_MAX_IN_FLIGHT) ? 1 : 0);
+    if (err == SvtJxsErrorNoErrorEmptyQueue) {
+        return AVERROR(EAGAIN);
+    }
     if (err != SvtJxsErrorNone) {
-        av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_get_packet failed\n");
+        slot = enc_output.user_prv_ctx_ptr;
+        if (slot && slot->in_use) {
+            av_frame_unref(slot->frame);
+            av_buffer_unref(&slot->pkt_buf);
+            slot->in_use = 0;
+            svt_enc->in_flight--;
+        }
+        av_log(avctx, AV_LOG_ERROR, "svt_jpeg_xs_encoder_get_packet failed\n");
         return AVERROR_UNKNOWN;
     }
 
-    if (enc_output.user_prv_ctx_ptr != pkt) {
-        av_log(NULL, AV_LOG_ERROR, "Returned different user_prv_ctx_ptr than expected\n");
+    slot = enc_output.user_prv_ctx_ptr;
+    if (!slot || !slot->in_use) {
+        av_log(avctx, AV_LOG_ERROR, "Returned different user_prv_ctx_ptr than expected\n");
         return AVERROR_UNKNOWN;
     }
 
+    if (enc_output.bitstream.used_size > (uint32_t)svt_enc->bitstream_frame_size) {
+        av_frame_unref(slot->frame);
+        av_buffer_unref(&slot->pkt_buf);
+        slot->in_use = 0;
+        svt_enc->in_flight--;
+        av_log(avctx, AV_LOG_ERROR, "Encoded bitstream size %u exceeds buffer size %d\n",
+               enc_output.bitstream.used_size, svt_enc->bitstream_frame_size);
+        return AVERROR_EXTERNAL;
+    }
+
+    pkt->buf = slot->pkt_buf;
+    pkt->data = slot->pkt_buf->data;
     pkt->size = enc_output.bitstream.used_size;
+    memset(pkt->data + pkt->size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+    pkt->pts = slot->frame->pts;
+    pkt->dts = slot->frame->pts;
+    pkt->duration = slot->frame->duration;
+    pkt->flags |= AV_PKT_FLAG_KEY;
 
-    *got_packet = 1;
+    slot->pkt_buf = NULL;
+    ret = ff_encode_reordered_opaque(avctx, pkt, slot->frame);
+    av_frame_unref(slot->frame);
+    slot->in_use = 0;
+    svt_enc->in_flight--;
+    if (ret < 0) {
+        av_packet_unref(pkt);
+        return ret;
+    }
+
     return 0;
 }
 
 static av_cold int svt_jpegxs_enc_free(AVCodecContext* avctx) {
     SvtJpegXsEncodeContext* svt_enc = avctx->priv_data;
-    svt_jpeg_xs_encoder_close(&(svt_enc->encoder));
-    av_log(NULL, AV_LOG_DEBUG, "svt_jpeg_xs_encoder_close called\n");
+    if (svt_enc->encoder_initialized) {
+        svt_jpeg_xs_encoder_close(&(svt_enc->encoder));
+        svt_enc->encoder_initialized = 0;
+        av_log(NULL, AV_LOG_DEBUG, "svt_jpeg_xs_encoder_close called\n");
+    }
+    for (int i = 0; i < SVT_JPEGXS_MAX_IN_FLIGHT; i++) {
+        av_frame_free(&svt_enc->slots[i].frame);
+        av_buffer_unref(&svt_enc->slots[i].pkt_buf);
+        svt_enc->slots[i].in_use = 0;
+    }
+    av_buffer_pool_uninit(&svt_enc->pkt_pool);
 
     return 0;
 }
@@ -417,6 +521,7 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
         av_log(NULL, AV_LOG_ERROR, "svt_jpeg_xs_encoder_init failed\n");
         return AVERROR_UNKNOWN;
     }
+    svt_enc->encoder_initialized = 1;
     av_log(NULL, AV_LOG_DEBUG, "svt_jpeg_xs_encoder_init ok\n");
 
     {
@@ -430,7 +535,23 @@ static av_cold int svt_jpegxs_enc_init(AVCodecContext* avctx) {
         // Use the library's own sizing instead of re-deriving it from bpp_numerator/bpp_denominator:
         // those are ignored entirely when lossless_enable is set, and get_image_config() already
         // accounts for that (a data-dependent worst-case bound instead of the fixed CBR formula).
+        if (bytes_per_frame == 0 || bytes_per_frame > (uint32_t)(INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE)) {
+            av_log(avctx, AV_LOG_ERROR, "Invalid bitstream_frame_size %u\n", bytes_per_frame);
+            return AVERROR(EINVAL);
+        }
         svt_enc->bitstream_frame_size = bytes_per_frame;
+    }
+
+    svt_enc->pkt_pool = av_buffer_pool_init((size_t)svt_enc->bitstream_frame_size + AV_INPUT_BUFFER_PADDING_SIZE, NULL);
+    if (!svt_enc->pkt_pool) {
+        return AVERROR(ENOMEM);
+    }
+
+    for (int i = 0; i < SVT_JPEGXS_MAX_IN_FLIGHT; i++) {
+        svt_enc->slots[i].frame = av_frame_alloc();
+        if (!svt_enc->slots[i].frame) {
+            return AVERROR(ENOMEM);
+        }
     }
 
     return 0;
@@ -587,9 +708,9 @@ const FFCodec ff_libsvtjpegxs_encoder = {
     .priv_data_size = sizeof(SvtJpegXsEncodeContext),
     .init = svt_jpegxs_enc_init,
     .close = svt_jpegxs_enc_free,
-    FF_CODEC_ENCODE_CB(svt_jpegxs_enc_encode),
-    .p.capabilities = AV_CODEC_CAP_OTHER_THREADS | AV_CODEC_CAP_DR1,
-    .caps_internal = FF_CODEC_CAP_NOT_INIT_THREADSAFE | FF_CODEC_CAP_AUTO_THREADS,
+    FF_CODEC_RECEIVE_PACKET_CB(svt_jpegxs_enc_receive_packet),
+    .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_OTHER_THREADS,
+    .caps_internal = FF_CODEC_CAP_NOT_INIT_THREADSAFE | FF_CODEC_CAP_AUTO_THREADS | FF_CODEC_CAP_INIT_CLEANUP,
     .p.pix_fmts = (const enum AVPixelFormat[]){AV_PIX_FMT_YUV420P,
                                                AV_PIX_FMT_YUV422P,
                                                AV_PIX_FMT_YUV444P,

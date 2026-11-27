@@ -5,6 +5,7 @@
 
 #include "Dequant_avx2.h"
 #include "Dequant.h"
+#include "NltDec_AVX2.h"
 #include "Definitions.h"
 #include "Codestream.h"
 #include <immintrin.h>
@@ -152,4 +153,88 @@ void dequant_avx2(uint16_t* buf, uint32_t buf_len, uint8_t* gclis, uint32_t grou
     default:
         assert("unknown quantization");
     }
+}
+
+static INLINE void dequant_uniform_inv_sign_x32(uint16_t* buf, const uint8_t* gclis, __m256i gtli_x32) {
+    const __m256i sign_mask = _mm256_set1_epi16((short)BITSTREAM_MASK_SIGN);
+    const uniform_multipliers_t m0 = uniform_multipliers(gcli_above_gtli_x16(gclis, gtli_x32));
+    const uniform_multipliers_t m1 = uniform_multipliers(gcli_above_gtli_x16(gclis + 4, gtli_x32));
+    const __m256i dq0 = _mm256_loadu_si256((const __m256i*)buf);
+    const __m256i dq1 = _mm256_loadu_si256((const __m256i*)(buf + 16));
+    __m256i rest0 = _mm256_andnot_si256(sign_mask, dq0);
+    __m256i rest1 = _mm256_andnot_si256(sign_mask, dq1);
+    __m256i rho0 = rest0;
+    __m256i rho1 = rest1;
+    __m256i more;
+    do {
+        rho0 = _mm256_add_epi16(rho0, _mm256_mulhi_epu16(rest0, m0.zeta));
+        rho1 = _mm256_add_epi16(rho1, _mm256_mulhi_epu16(rest1, m1.zeta));
+        rest0 = _mm256_mulhi_epu16(rest0, m0.zeta2);
+        rest1 = _mm256_mulhi_epu16(rest1, m1.zeta2);
+        rho0 = _mm256_add_epi16(rho0, rest0);
+        rho1 = _mm256_add_epi16(rho1, rest1);
+        more = _mm256_or_si256(rest0, rest1);
+    } while (!_mm256_testz_si256(more, more));
+    _mm256_storeu_si256((__m256i*)buf, _mm256_sign_epi16(rho0, dq0));
+    _mm256_storeu_si256((__m256i*)(buf + 16), _mm256_sign_epi16(rho1, dq1));
+}
+
+static INLINE void dequant_deadzone_inv_sign_x16(uint16_t* buf, const uint8_t* gclis, __m256i gtli_x32, __m256i half_step) {
+    const __m256i magnitude_mask = _mm256_set1_epi16((short)~BITSTREAM_MASK_SIGN);
+    const __m256i zero = _mm256_setzero_si256();
+    const __m256i above = gcli_above_gtli_x16(gclis, gtli_x32);
+    const __m256i dq = _mm256_loadu_si256((const __m256i*)buf);
+    const __m256i mag = _mm256_and_si256(dq, magnitude_mask);
+    const __m256i nonzero = _mm256_cmpgt_epi16(mag, zero);
+    const __m256i add = _mm256_andnot_si256(_mm256_cmpeq_epi16(above, zero), _mm256_and_si256(nonzero, half_step));
+    _mm256_storeu_si256((__m256i*)buf, _mm256_sign_epi16(_mm256_or_si256(mag, add), dq));
+}
+
+void dequant_inv_sign_avx2(uint16_t* buf, uint32_t buf_len, uint8_t* gclis, uint32_t group_size, uint8_t gtli,
+                           QUANT_TYPE dq_type) {
+    UNUSED(group_size);
+    assert(group_size == GROUP_SIZE);
+    if (gtli == 0) {
+        inv_sign_avx2(buf, buf_len);
+        return;
+    }
+    const __m256i gtli_x32 = _mm256_set1_epi8((char)gtli);
+    if (dq_type == QUANT_TYPE_DEADZONE) {
+        const __m256i half_step = _mm256_set1_epi16((short)(1 << (gtli - 1)));
+        uint32_t i = 0;
+        for (; i + 32 <= buf_len; i += 32) {
+            dequant_deadzone_inv_sign_x16(buf + i, gclis + i / GROUP_SIZE, gtli_x32, half_step);
+            dequant_deadzone_inv_sign_x16(buf + i + 16, gclis + (i + 16) / GROUP_SIZE, gtli_x32, half_step);
+        }
+        for (; i + 16 <= buf_len; i += 16) {
+            dequant_deadzone_inv_sign_x16(buf + i, gclis + i / GROUP_SIZE, gtli_x32, half_step);
+        }
+        if (i < buf_len) {
+            DECLARE_ALIGNED(32, uint16_t, tmp_buf[16]) = {0};
+            uint8_t tmp_gclis[4] = {0};
+            const uint32_t left = buf_len - i;
+            memcpy(tmp_buf, buf + i, left * sizeof(uint16_t));
+            memcpy(tmp_gclis, gclis + i / GROUP_SIZE, (left + GROUP_SIZE - 1) / GROUP_SIZE);
+            dequant_deadzone_inv_sign_x16(tmp_buf, tmp_gclis, gtli_x32, half_step);
+            memcpy(buf + i, tmp_buf, left * sizeof(uint16_t));
+        }
+        return;
+    }
+    if (dq_type == QUANT_TYPE_UNIFORM) {
+        uint32_t i = 0;
+        for (; i + 32 <= buf_len; i += 32) {
+            dequant_uniform_inv_sign_x32(buf + i, gclis + i / GROUP_SIZE, gtli_x32);
+        }
+        if (i < buf_len) {
+            DECLARE_ALIGNED(32, uint16_t, tmp_buf[32]) = {0};
+            uint8_t tmp_gclis[8] = {0};
+            const uint32_t left = buf_len - i;
+            memcpy(tmp_buf, buf + i, left * sizeof(uint16_t));
+            memcpy(tmp_gclis, gclis + i / GROUP_SIZE, (left + GROUP_SIZE - 1) / GROUP_SIZE);
+            dequant_uniform_inv_sign_x32(tmp_buf, tmp_gclis, gtli_x32);
+            memcpy(buf + i, tmp_buf, left * sizeof(uint16_t));
+        }
+        return;
+    }
+    assert("unknown quantization");
 }
