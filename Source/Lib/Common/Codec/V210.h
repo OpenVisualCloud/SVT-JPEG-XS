@@ -21,12 +21,12 @@ extern "C" {
 
 /* 32-bit words of a V210 line of width pixels without padding: whole groups. */
 static INLINE uint32_t v210_line_words(uint32_t width) {
-    return (width + V210_PIXELS_PER_GROUP - 1) / V210_PIXELS_PER_GROUP * (V210_BYTES_PER_GROUP / 4);
+    return (uint32_t)(((uint64_t)width + V210_PIXELS_PER_GROUP - 1) / V210_PIXELS_PER_GROUP * (V210_BYTES_PER_GROUP / 4));
 }
 
 /* 32-bit words of a V210 line of width pixels padded to a multiple of 128 bytes (48 pixels). */
 static INLINE uint32_t v210_aligned_line_words(uint32_t width) {
-    return (width + 47) / 48 * (128 / 4);
+    return (uint32_t)(((uint64_t)width + 47) / 48 * (128 / 4));
 }
 
 /* One V210 line to planar 16-bit lines: width Y samples, width / 2 Cb and width / 2 Cr samples. width is even.

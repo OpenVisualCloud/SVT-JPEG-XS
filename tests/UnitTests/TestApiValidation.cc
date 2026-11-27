@@ -1417,6 +1417,25 @@ TEST(EncoderImageConfig, V210LinesPaddedTo128Bytes) {
     svt_jpeg_xs_image_buffer_free(image);
 }
 
+TEST(ImageBufferAlloc, V210WidthNearUint32MaxReturnsNull) {
+    // The 128-byte line padding of a width near UINT32_MAX must not wrap to a small stride: the buffer would be
+    // too short for the width.
+    svt_jpeg_xs_image_config_t config;
+    memset(&config, 0, sizeof(config));
+    config.width = UINT32_MAX - 10;
+    config.height = 1;
+    config.bit_depth = 10;
+    config.format = COLOUR_FORMAT_PACKED_V210;
+    config.components_num = 1;
+    config.components[0].width = UINT32_MAX - 10;
+    config.components[0].height = 1;
+    svt_jpeg_xs_image_buffer_t* buf = svt_jpeg_xs_image_buffer_alloc(&config);
+    EXPECT_EQ(buf, nullptr);
+    if (buf) {
+        svt_jpeg_xs_image_buffer_free(buf);
+    }
+}
+
 TEST(EncoderSendPicture, V210RejectsShortStrideOrBuffer) {
     svt_jpeg_xs_encoder_api_t enc;
     ASSERT_EQ(svt_jpeg_xs_encoder_load_default_parameters(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &enc),
